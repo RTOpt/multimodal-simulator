@@ -41,9 +41,16 @@ class Vehicle(object):
         self.start_time = start_time
         self.start_stop = start_stop
         self.capacity = capacity
+        self.route = None
+
+    def new_route(self):
+        if self.route is not None:
+            raise ValueError("Vehicle (%d) has already route." % self.id)
+        self.route = Route(self)
+        return self.route
 
 
-class Route(Vehicle):
+class Route(object):
     """The ``Route`` class serves as a structure for storing basic
     information about the routes. This class inherits from Vehicle class.
        Properties
@@ -62,33 +69,32 @@ class Route(Vehicle):
             Ids of requests currently waiting for this vehicle to pick
     """
 
-    def __init__(self, id, start_time, current_stop, capacity, next_stops=[], previous_stops=[]):
-        Vehicle.__init__(self, id, start_time, current_stop, capacity)
-        self.id = id
-        self.current_stop = current_stop
-        self.next_stops = next_stops
-        self.previous_stops = previous_stops
+    def __init__(self, vehicle):
+        self.vehicle = vehicle
+        self.current_stop = vehicle.start_stop
+        self.next_stops = []
+        self.previous_stops = []
         self.onboard_requests = []
         self.pickup_requests = []
         self.alighted_requests = []
         self.load = 0
 
-    def board(self):
-        """Passengers that are ready to pick up in the stop get in the vehicle"""
-        for request in self.pickup_requests:
-            self.onboard_requests.append(request)
 
-    def depart(self):
+    def board(self, request):
+        """Passengers that are ready to pick up in the stop get in the vehicle"""
+        self.onboard_requests.append(request)
+
+    def depart(self, request):
         """Departs the vehicle"""
         self.previous_stops.append(self.current_stop)
-        self.current_stop = self.next_stops[0]
-        self.next_stops = self.next_stops.pop(0)
+        self.current_stop = request.origin
+        self.next_stops.append(request.destination)
 
-    def arrive(self):
+    def arrive(self, request):
         """Arrives the vehicle"""
         self.previous_stops.append(self.current_stop)
-        self.current_stop = self.next_stops[0]
-        self.next_stops = self.next_stops.pop(0)
+        self.current_stop = request.destination
+        self.next_stops = []
 
     def alight(self):
         """Passengers that reached their destination leave the vehicle"""

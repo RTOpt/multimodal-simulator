@@ -13,14 +13,17 @@ from event import *
 
 
 def init_simulation(requests, vehicles, queue):
-    for req in requests:
-        event = RequestRelease(req, queue)
-        event.add_to_queue()
-    '''
+
     for veh in vehicles:
-        event = VehicleRelease(veh, queue)
+        event = VehicleReady(veh, queue)
         event.add_to_queue()
-    '''
+
+    for req in requests:
+        event = PassengerRelease(req, queue)
+        event.add_to_queue()
+
+
+
 
 def simulate(env, queue):
     init_simulation(env.get_requests(), env.get_vehicles(), queue)

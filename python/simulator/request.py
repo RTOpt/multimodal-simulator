@@ -40,6 +40,7 @@ class Request(object):
         self.ready_time = ready_time
         self.due_time = due_time
         self.release_time = release_time
+        self.assigned_vehicle = None
         #self.path = get_shortest_path(origin, destination)
         #elf.travel_duration = travel_duration
         self.travel_distance = get_manhattan_distance(origin, destination)
@@ -47,6 +48,12 @@ class Request(object):
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
 
+    def assign(self, vehicle):
+        #verifier si assign is not none
+        if self.assigned_vehicle is not None:
+            raise ValueError("Request (%d) is already assigned to a vehicle." % self.id)
+        self.assigned_vehicle = vehicle
+        return self.assigned_vehicle
 
 
 
