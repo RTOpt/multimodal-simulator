@@ -36,159 +36,143 @@ class Event(object):
         return self.time
 
 
-class RequestRelease(Event):
+class PassengerRelease(Event):
     def __init__(self, request, queue):
-        super().__init__('RequestRelease', request.release_time, queue)
+        super().__init__('PassengerRelease', request.release_time, queue)
         self.request = request
 
     def process(self, env):
-        e = VehicleAffectation(self.request, self.queue)
+        e = PassengerAssignment(self.request, self.queue)
         e.add_to_queue()
-        return 'Request Release process is implemented'
+        return 'Passenger Release process is implemented'
 
 
-class VehicleAffectation(Event):
-    def __init__(self, request, queue):
-        super().__init__('VehicleAffectation', request.release_time, queue)
+class PassengerAssignment(Event):
+    def __init__(self, request, assigned_vehicle, queue):
+        super().__init__('PassengerAssignment', request.release_time, queue)
         self.request = request
 
     def process(self, env):
+        #optimizing
         free_vehicles = env.get_free_vehicles()
-        route = Route(free_vehicles[0].id, free_vehicles[0].start_time, self.request.origin,
-                      free_vehicles[0].capacity)
+        assigned_vehicle = free_vehicles[0]
 
-        if route.current_stop == self.request.origin:
-            free_vehicles[0].status = VehicleStatus.BOARDING
-            e = RequestReady(self.request, self.queue, route)
-            e.add_to_queue()
+        assigned_vehicle.route.depart(self.request)
+        self.request.assign(assigned_vehicle)
+
+        e = PassengerReady(self.request, self.queue, assigned_vehicle)
+        e.add_to_queue()
+
+        return 'Passenger Assignment process is implemented'
+
+class PassengerReady(Event):
+    def __init__(self, request, queue, assigned_vehicle):
+        super().__init__('PassengerReady', request.ready_time, queue)
+        self.request = request
+        self.assigned_vehicle = assigned_vehicle
 
 
-        if free_vehicles[0].status.name == 'BOARDING':
-            e = Boarding(self.request, self.queue, route)
-            e.add_to_queue()
+    def process(self, env):
+        e = PassengerOnBoard(self.request, self.queue)
+        e.add_to_queue()
 
-        return 'Vehicle Affectation process is implemented'
+        # Notify vehicle to board
+        e = VehicleBoarding(self.request, self.queue)
+        e.add_to_queue()
+
+        #for passenger in self.request.nb_passengers:
+        self.assigned_vehicle.route.board(self.request)
+
+        return 'Passenger Ready process is implemented'
 
 
-class Boarding(object):
-    def __init__(self, request, queue, route):
+class PassengerOnBoard(Event):
+    def __init__(self, request, queue):
+        super().__init__('PassengerOnBoard', request.ready_time, queue)
+        self.request = request
+
+    def process(self, env):
+        # Notify vehicle to alight
+        e = VehicleAlighting(self.request, self.queue, self.request.assigned_vehicle)
+        e.add_to_queue()
+
+        return 'Passenger On Board process is implemented'
+
+class VehicleReady(Event):
+    def __init__(self, vehicle, queue):
+        super().__init__('VehicleReady', vehicle.start_time, queue)
+        self.vehicle = vehicle
+
+    def process(self, env):
+        #Assign the vehicle to a route
+        route = Route(self.vehicle)
+        self.vehicle.new_route()
+        # e = VehicleBoarding(self.queue)
+        # e.add_to_queue()
+
+        return 'Vehicle Ready process is implemented'
+
+
+class VehicleBoarding(Event):
+    def __init__(self, request, queue):
         super().__init__('Boarding', request.ready_time, queue)
         self.request = request
-        self.route = route
 
     def process(self, env):
         while self.request.nb_passengers != 0:
-            e = PassengerBoarding(self.request, self.queue, self.route)
+            e = PassengerReady(self.request, self.queue, self.request.assigned_vehicle)
             e.add_to_queue()
             self.request.nb_passengers -= 1
 
-        if self.request.nb_passengers == 0:
-            e = VehicleDeparture(self.request, self.queue)
+        if self.request.nb_passengers == 0 :
+            e = VehicleEnRoute(self.request, self.queue, self.request.assigned_vehicle.route)
             e.add_to_queue()
 
-        return 'Boarding process is implemented'
+        return 'Vehicle Boarding process is implemented'
 
 
-class RequestReady(Event):
+class VehicleEnRoute(Event):
     def __init__(self, request, queue, route):
-        super().__init__('RequestReady', request.ready_time, queue)
-        self.request = request
-        self.route = route
-        print(request.nb_passengers)
-
-    def process(self, env):
-        self.route.board()
-
-        return 'Request Ready process is implemented'
-
-
-class PassengerBoarding(Event):
-    def __init__(self, request, queue, route):
-        super().__init__('PassengerBoarding', request.ready_time, queue)
+        super().__init__('VehicleEnRoute', request.ready_time, queue)
         self.request = request
         self.route = route
 
     def process(self, env):
-        if self.request.nb_passengers == 0:
-            e = Boarding(self.request, self.queue)
+        if self.route.current_stop == self.request.destination:
+            self.route.arrive(self.request)
+            e = VehicleAlighting(self.request, self.queue, self.request.assigned_vehicle)
             e.add_to_queue()
 
-        return 'Passenger Boarding process is implemented'
 
+        return 'Vehicle En Route process is implemented'
+
+
+class VehicleAlighting(Event):
+    def __init__(self, request, queue, vehicle):
+        super().__init__('VehicleAlighting', request.due_time, queue)
+        self.vehicle = vehicle
+        self.request = request
+
+    def process(self, env):
+        e = VehicleBoarding(self.request, self.queue)
+        e.add_to_queue()
+
+        while self.request.nb_passengers != 0:
+            e = PassengerAlighting(self.request, self.queue)
+            e.add_to_queue()
+            self.request.nb_passengers -= 1
+
+        return 'Vehicle Alighting process is implemented'
 
 class PassengerAlighting(Event):
     def __init__(self, request, queue):
         super().__init__('PassengerAlighting', request.due_time, queue)
 
     def process(self, env):
-        return 'Alight process is implemented'
-
-
-class VehicleRelease(Event):
-    def __init__(self, vehicle, queue):
-        super().__init__('VehicleRelease', vehicle.start_time, queue)
-
-    def process(self, env):
-        return 'Vehicle Release process is implemented'
-
-
-class VehicleDeparture(Event):
-    def __init__(self, request, queue, route):
-        super().__init__('PassengerDeparture', request.ready_time, queue)
-        self.request = request
-        self.route = route
-
-    def process(self, env):
-        self.route = Route.depart()
-        if self.route.current_stop == self.request.destination:
-            e = VehicleArrival(self.request, self.queue)
-            e.add_to_queue()
-
-        return 'Vehicle Departure process is implemented'
-
-
-class VehicleArrival(Event):
-    def __init__(self, request, queue, route):
-        super().__init__('VehicleArrival', request.due_time, queue)
-        self.route = route
-
-    def process(self, env):
-        self.route = Route.arrive()
-        return 'Vehicle Arrival process is implemented'
-
-
-class Alighting(object):
-    def __init__(self, vehicle, request, queue, route):
-        super().__init__('Alighting', request.due_time, queue)
-        self.vehicle = vehicle
-        self.request = request
-        self.route = route
-
-    def process(self, env):
-        self.route = Route.alight()
-        e = Boarding(self.request, self.queue, self.route)
+        # Notify vehicle to alight
+        e = VehicleAlighting(self.request, self.queue)
         e.add_to_queue()
 
-        return 'Alight process is implemented'
+        return 'Passenger Alighting process is implemented'
 
 
-class QueueEvents(object):
-    def __init__(self, env):
-        self.current_time = 0.0
-        # self.event_list = PriorityQueue()
-        # self.queue = PriorityQueue()
-        self.requests = env.get_requests()
-        self.vehicles = env.get_vehicles()
-        self.event_counter = 0
-
-    '''
-    def add_event(self, event_type, event_time, req):
-        """Adds event to the event_list"""
-        self.event_list.put(Event(event_type, event_time, req))
-    
-    def get_event(self):
-        """Gets the first event in the event list"""
-        e = self.event_list.get()
-        self.current_time = e.event_time
-        return e.event_number, e.event_type, e.event_time, e.request_instance
-    '''
