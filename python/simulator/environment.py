@@ -8,6 +8,7 @@ class Environment(object):
 
     def __init__(self, network=None):
         self.requests = []
+        self.assigned_requests = []
         self.vehicles = []
         self.network = network
 
