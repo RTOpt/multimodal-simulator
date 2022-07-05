@@ -1,18 +1,21 @@
 from enum import Enum
 
 
-class RequestStatus(Enum):
+class PassengersStatus(Enum):
     """Represents the different status of Requests"""
-    PENDING = 1
-    PICKING = 2
-    ONBOARD = 3
-    COMPLETE = 4
+    RELEASE = 1
+    ASSIGNMENT = 2
+    ASSIGNED = 3
+    READY = 4
+    ONBOARD = 5
+    COMPLETE = 7
 
 
 class VehicleStatus(Enum):
     """Represents the different status of Vehicles"""
-    ACTIVE = 1
-    INACTIVE = 2
+    BOARDING = 1
+    ENROUTE = 2
+    ALIGHTING = 3
 
 
 class StopType:

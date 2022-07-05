@@ -34,6 +34,7 @@ class Request(object):
 
     def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
         self.req_id = req_id
+        self.status = PassengersStatus.RELEASE
         self.origin = origin
         self.destination = destination
         self.nb_passengers = nb_passengers
@@ -41,19 +42,37 @@ class Request(object):
         self.due_time = due_time
         self.release_time = release_time
         self.assigned_vehicle = None
-        #self.path = get_shortest_path(origin, destination)
-        #elf.travel_duration = travel_duration
-        self.travel_distance = get_manhattan_distance(origin, destination)
+        self.path = None
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
 
-    def assign(self, vehicle):
+    def update_passenger_status(self, status):
+        self.status = status
+
+    def assign_vehicle(self, vehicle):
+        """Assigns a vehicle to transport the passengers of the request"""
         #verifier si assign is not none
         if self.assigned_vehicle is not None:
-            raise ValueError("Request (%d) is already assigned to a vehicle." % self.id)
+            raise ValueError("Request (%d) is already assigned to a vehicle." % self.req_id)
         self.assigned_vehicle = vehicle
+        self.status = PassengersStatus.ASSIGNED
         return self.assigned_vehicle
+
+    def assign_route(self, path):
+        """Assigns a route to the request"""
+        self.path = path
+
+
+class PassengerUpdate(object):
+    def __init__(self, vehicle, boarding_stop, alight_stop, request_id):
+        self.assigned_vehicle = vehicle
+        self.boarding_stop = boarding_stop
+        self.alight_stop = alight_stop
+        self.request_id = request_id
+
+
+
 
 
 

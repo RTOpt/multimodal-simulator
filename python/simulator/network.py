@@ -2,7 +2,17 @@ import sys
 sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal/data/test')
 import itertools
 import networkx as nx
+from networkx.algorithms.shortest_paths.generic import shortest_path
+#from networkx.classes.function import path_weight
 import math
+
+def find_shortest_path(G, o, d):
+
+    path = shortest_path(G, source=o, target=d, weight='length')
+    #path_length = path_weight(G, path, weight='length')
+
+    return path
+
 
 
 class Position(object):
@@ -26,6 +36,8 @@ class Node(object):
 
     def get_coordinates(self):
         return self.coordinates
+
+
 
 
 class Distance(Node):
@@ -60,34 +72,23 @@ def create_graph(nodes):
                 #Manhattan Distance OR Euclidean Distance
                 dist = get_manhattan_distance(nodes[i].get_coordinates(),nodes[j].get_coordinates())
                 cost = get_manhattan_distance(nodes[i].get_coordinates(),nodes[j].get_coordinates())
-                G.add_edge(nodes[i].get_node_id(), nodes[j].get_node_id(), cost=cost, legnth=dist)
+                G.add_edge(nodes[i], nodes[j], cost=cost, legnth=dist)
     return G
 
 
-def get_route(G):
-    pass
+def get_path(G, node1, node2):
+    for node in G.nodes:
+        if node.coordinates == node1:
+            origin = node
+        if node.coordinates == node2:
+            destination = node
+    path = find_shortest_path(G, origin, destination)
+    #path_cost = get_manhattan_distance(node1, node2)
+    return path
 
 
 
 
 
-class Stop(Node):
-    """A stop is located somewhere along the network.  New requests
-    arrive at the stop.
-    ----------
-    StopType
-    arrival_time: int
-        Date and time at which the vehicle arrives the stop
-    departure_time: int
-        Date and time at which the vehicle leaves the stop
-    """
-
-    def __init__(self, stop_type, arrival_time, departure_time):
-        self.stop_type = stop_type
-        self.arrival_time = arrival_time
-        self.departure_time = departure_time
-        self.boarded_passengers = []
-        self.boarding_passengers = []
-        self.alight_passengers = []
 
 
