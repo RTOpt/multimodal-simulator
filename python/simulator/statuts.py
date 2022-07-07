@@ -17,6 +17,10 @@ class VehicleStatus(Enum):
     ENROUTE = 2
     ALIGHTING = 3
 
+class EnvironmentStatus(Enum):
+    IDLE = 1
+    OPTIMIZING = 2
+    UPDATEENVIRONMENT = 3
 
 class StopType:
     """ Represents the different type of stops """

@@ -6,15 +6,6 @@ from enum import Enum
 from config import *
 from statuts import *
 
-class VehicleStatus(Enum):
-    """Represents the different status of Vehicles"""
-    ACTIVE = 1
-    INACTIVE = 2
-    BOARDING = 3
-    ALIGHTING = 5
-
-
-
 
 class Vehicle(object):
     """The ``Vehicle`` class mostly serves as a structure for storing basic

@@ -1,7 +1,7 @@
 import sys
 sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal')
-from queue import PriorityQueue
-
+from priority_queue import PriorityQueue
+from vehicle_event_process import *
 
 from vehicle import *
 from request import *
@@ -15,12 +15,10 @@ from event import *
 def init_simulation(requests, vehicles, queue):
 
     for veh in vehicles:
-        event = VehicleReady(veh, queue)
-        event.add_to_queue()
+        VehicleReady(veh, queue).add_to_queue()
 
     for req in requests:
-        event = PassengerRelease(req, queue)
-        event.add_to_queue()
+        PassengerRelease(req, queue).add_to_queue()
 
 
 
@@ -34,9 +32,6 @@ def simulate(env, queue):
 
         process_event = current_event.process(env)
         print(process_event)
-
-
-
 
 class Visualization(object):
     """plots solutions"""
