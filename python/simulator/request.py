@@ -1,9 +1,4 @@
-import sys
-sys.path.append('C:/Users/asmam/PycharmProjects/SNCF_TAD/optimization')
-
 from statuts import *
-from network import *
-
 
 class Request(object):
     """The ``Request`` class mostly serves as a structure for storing basic
@@ -65,11 +60,11 @@ class Request(object):
 
 
 class PassengerUpdate(object):
-    def __init__(self, vehicle, boarding_stop, alight_stop, request_id):
+    def __init__(self, vehicle, request):
         self.assigned_vehicle = vehicle
-        self.boarding_stop = boarding_stop
-        self.alight_stop = alight_stop
-        self.request_id = request_id
+        self.boarding_stop = request.origin
+        self.alight_stop = request.destination
+        self.request_id = request.req_id
 
 
 

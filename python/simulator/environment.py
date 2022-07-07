@@ -39,6 +39,14 @@ class Environment(object):
         self.vehicles = [item for item in self.vehicles if item.attribute != vehicle_id]
 
 
+    def get_non_assigned_requests(self):
+        non_assigned_requests = []
+        for req in self.requests:
+            if req.status == PassengersStatus.RELEASE:
+                non_assigned_requests.append(req)
+        return non_assigned_requests
+
+
     def get_free_vehicles(self):
         free_vehicles = []
         for veh in self.vehicles:

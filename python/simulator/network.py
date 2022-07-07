@@ -3,15 +3,7 @@ sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal/data/test')
 import itertools
 import networkx as nx
 from networkx.algorithms.shortest_paths.generic import shortest_path
-#from networkx.classes.function import path_weight
 import math
-
-def find_shortest_path(G, o, d):
-
-    path = shortest_path(G, source=o, target=d, weight='length')
-    #path_length = path_weight(G, path, weight='length')
-
-    return path
 
 
 
@@ -19,10 +11,17 @@ class Position(object):
     def __init__(self, coordinates):
         self.coordinates = coordinates
 
+def get_manhattan_distance(node1, node2):
+    dist = abs(int(node1[0]) - int(node2[0])) + abs(int(node2[0]) - int(node2[0]))
+    return dist
+
+def get_euclidean_distance(node1, node2):
+    dist = math.sqrt(((int(node1[0]) - int(node2[0]))**2 + (int(node2[0]) - int(node2[0]))**2).round(2))
+    return dist
 
 class Node(object):
-    def __init__(self, id, coordinates):
-        self.id = id
+    def __init__(self, node_id, coordinates):
+        self.id = node_id
         self.coordinates = coordinates
         self.in_arcs = []
         self._out_arcs = []
@@ -38,29 +37,11 @@ class Node(object):
         return self.coordinates
 
 
-
-
-class Distance(Node):
-    #def __init__(self, node1, node2):
-    #    self.node1 = node1
-    #   self.node2 = node2
-    pass
-
-
 class Arc(object):
     def __init__(self, in_node, out_node):
         self.in_node = in_node
         self.out_node = out_node
-        self.length = Distance.get_distance(self.in_node, self.out_node)
-
-
-def get_manhattan_distance(node1, node2):
-    dist = abs(int(node1[0]) - int(node2[0])) + abs(int(node2[0]) - int(node2[0]))
-    return dist
-
-def get_euclidean_distance(node1, node2):
-    dist = math.sqrt(((int(node1[0]) - int(node2[0]))**2 + (int(node2[0]) - int(node2[0]))**2).round(2))
-    return dist
+        self.length = get_manhattan_distance(self.in_node.get_coordinates(), self.out_node.get_coordinates())
 
 
 def create_graph(nodes):
@@ -76,15 +57,6 @@ def create_graph(nodes):
     return G
 
 
-def get_path(G, node1, node2):
-    for node in G.nodes:
-        if node.coordinates == node1:
-            origin = node
-        if node.coordinates == node2:
-            destination = node
-    path = find_shortest_path(G, origin, destination)
-    #path_cost = get_manhattan_distance(node1, node2)
-    return path
 
 
 
