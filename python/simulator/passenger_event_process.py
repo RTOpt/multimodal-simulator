@@ -12,7 +12,7 @@ class PassengerRelease(Event):
         self.request.update_passenger_status(PassengersStatus.ASSIGNMENT)
 
         # Start optimization
-        Optimize(self.request, self.queue).add_to_queue()
+        Optimize(env.current_time, self.queue).add_to_queue()
         return 'Passenger Release process is implemented'
 
 

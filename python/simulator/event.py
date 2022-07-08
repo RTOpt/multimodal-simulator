@@ -18,6 +18,7 @@ class Event(object):
 
     def add_to_queue(self):
         self.queue.put(self)
+        #self.queue.put(self)
 
     def get_event(self):
         """Gets the first event in the event list"""

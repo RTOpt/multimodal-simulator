@@ -1,5 +1,6 @@
 import sys
 sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal')
+#from queue import PriorityQueue
 from priority_queue import PriorityQueue
 from vehicle_event_process import *
 

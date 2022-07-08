@@ -2,21 +2,23 @@ from event import Event
 from vehicle import *
 from optimization_event_process import *
 from passenger_event_process import *
-time = 0
 
 class VehicleReady(Event):
     def __init__(self, vehicle, queue):
         super().__init__('VehicleReady', vehicle.start_time, queue)
         self.vehicle = vehicle
+        self.vehicle.route = Route(self.vehicle)
 
     def process(self, env):
 
         #Assign the vehicle to a route
-        route = Route(self.vehicle)
+        #route = Route(self.vehicle)
+        #self.vehicle.route = route
 
         # TODO : OPTIMIZE EVENT
-        Optimize(self.queue).add_to_queue()
-        VehicleBoarding(route, self.queue).add_to_queue()
+
+        Optimize(env.current_time, self.queue).add_to_queue()
+        #VehicleBoarding(route, self.queue).add_to_queue()
 
         return 'Vehicle Ready process is implemented'
 

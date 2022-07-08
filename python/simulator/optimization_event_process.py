@@ -4,10 +4,9 @@ from vehicle import *
 from network import *
 from python.optimization import optimization
 
-time = 0
 
 class Optimize(Event):
-    def __init__(self, queue):
+    def __init__(self, time, queue):
         super().__init__('Optimize', time, queue)
         self.queue = queue
 
@@ -15,13 +14,13 @@ class Optimize(Event):
         #ne pas modifier la route ici
         # envoyer le vecteur de next_stops, current stops, passengers to pick up
         optimization.optimization_algo(env)
-        EnvironmentUpdate(self.queue).add_to_queue()
+        EnvironmentUpdate(env.current_time, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
 
 class EnvironmentUpdate(Event):
-    def __init__(self, queue):
+    def __init__(self, time, queue):
         super().__init__('EnvironmentUpdate', time, queue)
 
 
@@ -30,12 +29,18 @@ class EnvironmentUpdate(Event):
         # assigned_vehicle = free_vehicles[0]
         # self.request.assign_vehicle(assigned_vehicle)
 
-        PassengerUpdate(assigned_vehicle, self.request)
+
+        for req in env.assigned_requests:
+            PassengerUpdate(req.assigned_vehicle, req)
+            PassengerAssignment(req, self.queue).add_to_queue()
+
         passengers_to_board = []
         next_stops = []
         route_id = []
-        RouteUpdate(passengers_to_board, next_stops, route_id)
 
-        PassengerAssignment(self.request, self.queue).add_to_queue()
+        for veh in env.assigned_vehicles:
+            RouteUpdate(passengers_to_board, next_stops, route_id)
+
+
 
         return 'Environment Update process is implemented'

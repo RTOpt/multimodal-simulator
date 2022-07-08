@@ -13,9 +13,10 @@ class PassengersStatus(Enum):
 
 class VehicleStatus(Enum):
     """Represents the different status of Vehicles"""
-    BOARDING = 1
-    ENROUTE = 2
-    ALIGHTING = 3
+    RELEASE = 1
+    BOARDING = 2
+    ENROUTE = 3
+    ALIGHTING = 4
 
 class EnvironmentStatus(Enum):
     IDLE = 1
