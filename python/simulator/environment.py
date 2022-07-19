@@ -6,7 +6,8 @@ from request import *
 
 class Environment(object):
 
-    def __init__(self, network=None):
+    def __init__(self, optimization, network=None):
+        # Patrick: Added optimization, status
         self.current_time = 0
         self.requests = []
         self.assigned_requests = []
@@ -15,9 +16,16 @@ class Environment(object):
         self.assigned_vehicles = []
         self.non_assigned_vehicles = []
         self.network = network
+        self.optimization = optimization
+        self.status = EnvironmentStatus.IDLE
 
     def get_requests(self):
         return self.requests
+
+    def get_request_by_id(self, req_id):
+        for req in self.requests:
+            if req.req_id == req_id:
+                return req
 
     def add_request(self, nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time):
         """ Adds a new request to the requests list"""
@@ -31,9 +39,21 @@ class Environment(object):
     def get_vehicles(self):
         return self.vehicles
 
-    def add_vehicle(self, veh_id, start_time, start_stop, capacity):
+    def get_vehicle_by_id(self, veh_id):
+        for veh in self.vehicles:
+            if veh.id == veh_id:
+                return veh
+
+    def add_vehicle(self, veh_id, start_time, start_stop, capacity, next_stops=None):
         """ Adds a new vehicle to the vehicles list"""
-        new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
+        print("add_vehicle: ", list(map(lambda x: x.location.label, next_stops)))
+        # Patrick: Added next_stops
+        # Patrick: Can we add a route here?
+        if next_stops is not None:
+            new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
+            new_veh.route = Route(new_veh, next_stops)
+        else:
+            new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
         self.vehicles.append(new_veh)
 
     def remove_vehicle(self, vehicle_id):
@@ -41,18 +61,56 @@ class Environment(object):
         self.vehicles = [item for item in self.vehicles if item.attribute != vehicle_id]
 
     def get_non_assigned_requests(self):
-        for req in self.requests:
-            if req.status == PassengersStatus.RELEASE:
-                self.non_assigned_requests.append(req)
+        # Patrick: OLD
+        # for req in self.requests:
+        #     if req.status == PassengersStatus.RELEASE:
+        #         self.non_assigned_requests.append(req)
+
+        self.update_non_assigned_requests()
+
         return self.non_assigned_requests
 
-    def __update_non_assigned_vehicles(self):
-        for veh in self.vehicles:
-            if veh.route.status == VehicleStatus.BOARDING:
-                self.non_assigned_vehicles.append(veh)
-
     def get_non_assigned_vehicles(self):
-        for veh in self.vehicles:
-            if veh.route.status == VehicleStatus.BOARDING:
-                self.non_assigned_vehicles.append(veh)
+        # Patrick: OLD
+        # for veh in self.vehicles:
+        #     if veh.route.status == VehicleStatus.BOARDING:
+        #         self.non_assigned_vehicles.append(veh)
+
+        self.update_non_assigned_vehicles()
+
         return self.non_assigned_vehicles
+
+    # Patrick: Added
+    def update_status(self, status):
+        self.status = status
+
+    def update_non_assigned_requests(self):
+        # Patrick: Shouldn't we reinitialize the list non_assigned_requests every time?
+        self.non_assigned_requests = []  # Was not there before
+        self.assigned_requests = []  # Was not there before
+
+        for req in self.requests:
+            # Shouldn't we consider a request with PassengersStatus.ASSIGNMENT a non-assigned request as well?
+            if req.status == PassengersStatus.RELEASE or req.status == PassengersStatus.ASSIGNMENT:
+                self.non_assigned_requests.append(req)
+            else:
+                self.assigned_requests.append(req)
+            # OLD
+            # if req.status == PassengersStatus.RELEASE:
+            #     self.non_assigned_requests.append(req)
+        return self.non_assigned_requests
+
+    def update_non_assigned_vehicles(self):
+        # Patrick: Shouldn't we reinitialize the list non_assigned_vehicles every time?
+        self.non_assigned_vehicles = []  # Was not there before
+        self.assigned_vehicles = []  # Was not there before
+
+        for veh in self.vehicles:
+            # Patrick: Shouldn't the vehicle status be RELEASE (or READY)?
+            if veh.route.status == VehicleStatus.RELEASE:
+                self.non_assigned_vehicles.append(veh)
+            else:
+                self.assigned_vehicles.append(veh)
+            # OLD
+            # if veh.route.status == VehicleStatus.BOARDING:
+            #     self.non_assigned_vehicles.append(veh)
