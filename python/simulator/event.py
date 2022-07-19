@@ -4,10 +4,16 @@ class Event(object):
     """An event with event_number occurs at a specific time ``event_time`` and involves a specific
         event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """
 
-    def __init__(self, event_name, event_time, queue):
+    def __init__(self, event_name, queue, event_time = None):
         self.name = event_name
-        self.time = event_time
         self.queue = queue
+        self.time = event_time
+
+        if event_time is None:
+            self.time = queue.env.current_time
+        elif event_time < queue.env.current_time:
+            self.time = queue.env.current_time
+            print("WARNING: event_time is smaller than current_time")
 
     def process(self, env):
         raise NotImplementedError('Process not implemented')
@@ -18,7 +24,6 @@ class Event(object):
 
     def add_to_queue(self):
         self.queue.put(self)
-        #self.queue.put(self)
 
     def get_event(self):
         """Gets the first event in the event list"""

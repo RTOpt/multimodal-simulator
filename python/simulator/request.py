@@ -1,4 +1,5 @@
-from statuts import *
+from status import *
+
 
 class Request(object):
     """The ``Request`` class mostly serves as a structure for storing basic
@@ -30,6 +31,7 @@ class Request(object):
     def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
         self.req_id = req_id
         self.status = PassengersStatus.RELEASE
+        # Patrick: Should we use an object Location for origin and destination?
         self.origin = origin
         self.destination = destination
         self.nb_passengers = nb_passengers
@@ -47,7 +49,7 @@ class Request(object):
 
     def assign_vehicle(self, vehicle):
         """Assigns a vehicle to transport the passengers of the request"""
-        #verifier si assign is not none
+        # verifier si assign is not none
         if self.assigned_vehicle is not None:
             raise ValueError("Request (%d) is already assigned to a vehicle." % self.req_id)
         self.assigned_vehicle = vehicle
@@ -56,19 +58,15 @@ class Request(object):
 
     def assign_route(self, path):
         """Assigns a route to the request"""
+        # Patrick: What type of object is path? Shouldn't we assign an object of type Route?
+        # Since Vehicle already contains a Route, why do we need to assign the Route directly to the Request?
         self.path = path
 
 
 class PassengerUpdate(object):
-    def __init__(self, vehicle, request):
-        self.assigned_vehicle = vehicle
-        self.boarding_stop = request.origin
-        self.alight_stop = request.destination
-        self.request_id = request.req_id
-
-
-
-
+    def __init__(self, vehicle_id, request_id):
+        self.assigned_vehicle_id = vehicle_id
+        self.request_id = request_id
 
 
 class Trip(Request):
@@ -83,10 +81,8 @@ class Trip(Request):
         destination_affected_request: tuple of floats (x,y)
             GPS coordinates of the destination point of the affected request.
     """
+
     def __init__(self):
         self.affected_vehicle = 0
         self.origin_affected_request = 0
         self.destination_affected_request = 0
-
-
-

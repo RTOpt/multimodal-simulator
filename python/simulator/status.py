@@ -13,6 +13,7 @@ class PassengersStatus(Enum):
 
 class VehicleStatus(Enum):
     """Represents the different status of Vehicles"""
+    # Patrick: Shouldn't it be READY instead of RELEASE?
     RELEASE = 1
     BOARDING = 2
     ENROUTE = 3
