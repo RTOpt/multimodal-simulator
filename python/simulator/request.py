@@ -42,7 +42,12 @@ class Request(object):
         self.path = None
 
     def __str__(self):
-        return str(self.__class__) + ": " + str(self.__dict__)
+        # Patrick: Modified
+        class_string = str(self.__class__) + ": {"
+        for attribute, value in self.__dict__.items():
+            class_string += str(attribute) + ": " + str(value) + ",\n"
+        class_string += "}"
+        return class_string
 
     def update_passenger_status(self, status):
         self.status = status
