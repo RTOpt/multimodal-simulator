@@ -4,22 +4,22 @@ from enum import Enum
 class PassengersStatus(Enum):
     """Represents the different status of Requests"""
     RELEASE = 1
-    ASSIGNMENT = 2
-    ASSIGNED = 3
-    READY = 4
-    ONBOARD = 5
-    COMPLETE = 7
+    ASSIGNED = 2
+    READY = 3
+    ONBOARD = 4
+    COMPLETE = 5
 
 
 class VehicleStatus(Enum):
     """Represents the different status of Vehicles"""
-    # Patrick: Shouldn't it be READY instead of RELEASE?
     RELEASE = 1
     BOARDING = 2
     ENROUTE = 3
     ALIGHTING = 4
+    # Patrick: Should we add COMPLETE (or END)?
+    COMPLETE = 5
 
-class EnvironmentStatus(Enum):
+class OptimizationStatus(Enum):
     IDLE = 1
     OPTIMIZING = 2
     UPDATEENVIRONMENT = 3

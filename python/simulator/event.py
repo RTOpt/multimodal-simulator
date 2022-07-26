@@ -13,7 +13,8 @@ class Event(object):
             self.time = queue.env.current_time
         elif event_time < queue.env.current_time:
             self.time = queue.env.current_time
-            print("WARNING: event_time is smaller than current_time")
+            print("WARNING: {}: event_time ({}) is smaller than current_time ({})".format(event_name, event_time,
+                                                                                      queue.env.current_time))
 
     def process(self, env):
         raise NotImplementedError('Process not implemented')

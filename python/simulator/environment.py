@@ -17,7 +17,6 @@ class Environment(object):
         self.non_assigned_vehicles = []
         self.network = network
         self.optimization = optimization
-        self.status = EnvironmentStatus.IDLE
 
     def get_requests(self):
         return self.requests
@@ -31,6 +30,8 @@ class Environment(object):
         """ Adds a new request to the requests list"""
         new_req = Request(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
         self.requests.append(new_req)
+
+        return new_req
 
     def remove_request(self, request_id):
         """ Removes a request from the requests list based on its id"""
@@ -46,15 +47,17 @@ class Environment(object):
 
     def add_vehicle(self, veh_id, start_time, start_stop, capacity, next_stops=None):
         """ Adds a new vehicle to the vehicles list"""
-        print("add_vehicle: ", list(map(lambda x: x.location.label, next_stops)))
         # Patrick: Added next_stops
         # Patrick: Can we add a route here?
         if next_stops is not None:
             new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
+
             new_veh.route = Route(new_veh, next_stops)
         else:
             new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
         self.vehicles.append(new_veh)
+
+        return new_veh
 
     def remove_vehicle(self, vehicle_id):
         """ Removes a vehicle from the vehicles list based on its id"""
@@ -80,18 +83,15 @@ class Environment(object):
 
         return self.non_assigned_vehicles
 
-    # Patrick: Added
-    def update_status(self, status):
-        self.status = status
-
     def update_non_assigned_requests(self):
         # Patrick: Shouldn't we reinitialize the list non_assigned_requests every time?
         self.non_assigned_requests = []  # Was not there before
         self.assigned_requests = []  # Was not there before
 
+        # À faire par les événements
         for req in self.requests:
             # Shouldn't we consider a request with PassengersStatus.ASSIGNMENT a non-assigned request as well?
-            if req.status == PassengersStatus.RELEASE or req.status == PassengersStatus.ASSIGNMENT:
+            if req.status == PassengersStatus.RELEASE:
                 self.non_assigned_requests.append(req)
             else:
                 self.assigned_requests.append(req)

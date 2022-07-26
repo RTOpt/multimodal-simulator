@@ -1,13 +1,19 @@
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
+from python.simulator.status import OptimizationStatus, PassengersStatus
+
 
 class Optimization(object):
 
     def __init__(self):
-        pass
+        self.status = OptimizationStatus.IDLE
 
     def optimize(self):
         raise NotImplementedError('optimize not implemented')
+
+    # Patrick: Added
+    def update_status(self, status):
+        self.status = status
 
 
 class GreedyOptimization(Optimization):
@@ -58,44 +64,68 @@ class BusOptimization(Optimization):
         self.__non_assigned_released_requests_list = None
         self.__non_assigned_vehicles_list = None
 
-    def optimize(self, env):
-
+    def optimize(self, state):
+        # state: copie profonde (peut-être partielle) de l'environnement
+        # optimization_result: state, modified_passengers, modified_routes, etc.
         print("\n******************\nOPTIMIZE:\n")
-        print("current_time={}".format(env.current_time))
+        print("current_time={}".format(state.current_time))
 
-        self.__non_assigned_vehicles_list = env.get_non_assigned_vehicles()
-        self.__non_assigned_released_requests_list = filter(lambda x: x.release_time <= env.current_time,
-                                                            env.get_non_assigned_requests())
+        self.__non_assigned_vehicles_list = state.get_non_assigned_vehicles()
+        self.__non_assigned_released_requests_list = state.get_non_assigned_requests()
+        # self.__non_assigned_released_requests_list = list(
+        #     x for x in state.get_non_assigned_requests() if x.release_time <= state.current_time)
 
-        request_id_vehicle_id_route_time_assignment_triplets_list = []
+        request_vehicle_pairs_list = []
+        modified_requests = []
+        modified_vehicles = []
 
         for req in self.__non_assigned_released_requests_list:
             print("req={}".format(req))
-            potential_vehicles_list = self.__get_vehicles_containing_stops_list(req.origin, req.destination)
+            potential_vehicles_list = self.__get_vehicles_containing_stops_list(req.origin.label, req.destination.label)
+            # Modifier map avec list
             print("potential_vehicles_list={}".format(list(map(lambda x: x.id, potential_vehicles_list))))
             for veh in potential_vehicles_list:
                 print("req.ready_time={}, veh.start_time={}".format(req.ready_time, veh.start_time))
                 if req.ready_time <= veh.start_time:
-                    next_stops_arrival_departure_times_dict_list = self.__calculate_next_stops_arrival_departure_times(
-                        veh.route)
-                    request_id_vehicle_id_route_time_assignment_triplets_list.append((req.req_id, veh.id,
-                                                                                    next_stops_arrival_departure_times_dict_list))
+                    request_vehicle_pairs_list.append((req, veh))
+                    req.assign_vehicle(veh)
+                    veh.route.assign(req)
+                    req.update_passenger_status(PassengersStatus.ASSIGNED)
+                    modified_requests.append(req)
+                    modified_vehicles.append(veh)
                     break
 
-        print("request_id_vehicle_id_route_time_assignment_triplets_list={}".format(request_id_vehicle_id_route_time_assignment_triplets_list))
+        print("request_vehicle_pairs_list:")
+        for req, veh in request_vehicle_pairs_list:
+            print("---(req_id={},veh_id={})".format(req.req_id, veh.id))
+
+        for req, veh in request_vehicle_pairs_list:
+            if veh.route.current_stop is not None and req.origin.label == veh.route.current_stop.location.label:
+                veh.route.current_stop.passengers_to_board.append(req)
+
+            for stop in veh.route.next_stops:
+                if req.origin.label == stop.location.label:
+                    stop.passengers_to_board.append(req)
+                elif req.destination.label == stop.location.label:
+                    stop.passengers_to_alight.append(req)
+
+
 
         print("END OPTIMIZE\n*******************")
 
-        return request_id_vehicle_id_route_time_assignment_triplets_list
+        # Remplacer request_id_vehicle_id_route_time_assignment_triplets_list par une classe container.
+        # liste des objets requêtes et véhicules modifiés.
+
+        return OptimizationResult(state, modified_requests, modified_vehicles)
 
     def __get_vehicles_containing_stops_list(self, first_stop_id, second_stop_id):
         print("first_stop_id={}, second_stop_id={}".format(first_stop_id, second_stop_id))
         vehicles_containing_stops_list = []
         for veh in self.__non_assigned_vehicles_list:
             current_stop_id = veh.route.current_stop.location.label
-            next_stops_ids_list = list(map(lambda x: x.location.label, veh.route.next_stops))
+            next_stops_ids_list = list(x.location.label for x in veh.route.next_stops)
 
-            # print(type(first_stop_id), type(second_stop_id))
+            # print(type(current_stop_id), type(first_stop_id), type(second_stop_id))
             # print("current_stop_id={}, next_stops_ids_list={}".format(current_stop_id, next_stops_ids_list))
             # print("type(current_stop_id)={}, type(next_stops_ids[0])={}".format(type(current_stop_id), type(next_stops_ids_list[0])))
             # print("first_stop_id == current_stop_id={}".format(first_stop_id == current_stop_id))
@@ -109,28 +139,33 @@ class BusOptimization(Optimization):
 
         return vehicles_containing_stops_list
 
-    def __calculate_next_stops_arrival_departure_times(self, route):
+    # def __calculate_next_stops_arrival_departure_times(self, route):
+    #
+    #     next_stops_arrival_departure_times_dict_list = []
+    #
+    #     current_stop_arrival_departure_times_dict = {
+    #         'location': route.current_stop.location,
+    #         'arrival_time': route.current_stop.arrival_time,
+    #         'departure_time': route.current_stop.arrival_time + BOARDING_TIME
+    #     }
+    #     next_stops_arrival_departure_times_dict_list.append(current_stop_arrival_departure_times_dict)
+    #
+    #     previous_stop_time = route.current_stop.arrival_time + BOARDING_TIME
+    #     for stop in route.next_stops:
+    #         stop_arrival_departure_times_dict = {
+    #             'location': stop.location,
+    #             'arrival_time': previous_stop_time + TRAVEL_TIME,
+    #             'departure_time': previous_stop_time + TRAVEL_TIME + BOARDING_TIME
+    #         }
+    #         next_stops_arrival_departure_times_dict_list.append(stop_arrival_departure_times_dict)
+    #         previous_stop_time = previous_stop_time + TRAVEL_TIME + BOARDING_TIME
+    #
+    #     return next_stops_arrival_departure_times_dict_list
 
-        BOARDING_TIME = 1
-        TRAVEL_TIME = 2
 
-        next_stops_arrival_departure_times_dict_list = []
+class OptimizationResult(object):
 
-        current_stop_arrival_departure_times_dict = {
-            'location': route.current_stop.location,
-            'arrival_time': route.current_stop.arrival_time,
-            'departure_time': route.current_stop.arrival_time + BOARDING_TIME
-        }
-        next_stops_arrival_departure_times_dict_list.append(current_stop_arrival_departure_times_dict)
-
-        previous_stop_time = route.current_stop.arrival_time + BOARDING_TIME
-        for stop in route.next_stops:
-            stop_arrival_departure_times_dict = {
-                'location': stop.location,
-                'arrival_time': previous_stop_time + TRAVEL_TIME,
-                'departure_time': previous_stop_time + TRAVEL_TIME + BOARDING_TIME
-            }
-            next_stops_arrival_departure_times_dict_list.append(stop_arrival_departure_times_dict)
-            previous_stop_time = previous_stop_time + TRAVEL_TIME + BOARDING_TIME
-
-        return next_stops_arrival_departure_times_dict_list
+    def __init__(self, state, modified_requests, modified_vehicles):
+        self.state = state
+        self.modified_requests = modified_requests
+        self.modified_vehicles = modified_vehicles

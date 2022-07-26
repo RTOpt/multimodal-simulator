@@ -6,13 +6,19 @@ from request import *
 
 
 class PassengerRelease(Event):
-    def __init__(self, request, queue):
-        super().__init__('PassengerRelease', queue, request.release_time)
-        self.request = request
+    def __init__(self, queue, request_data_dict):
+        super().__init__('PassengerRelease', queue, request_data_dict['release_time'])
+        self.request_data_dict = request_data_dict
 
     def process(self, env):
         # TODO : modify release to wait assignment
-        self.request.update_passenger_status(PassengersStatus.ASSIGNMENT)
+
+        request = env.add_request(self.request_data_dict['nb_requests'], self.request_data_dict['origin'],
+                                  self.request_data_dict['destination'], self.request_data_dict['nb_passengers'],
+                                  self.request_data_dict['ready_time'], self.request_data_dict['due_time'],
+                                  self.request_data_dict['release_time'])
+
+        request.update_passenger_status(PassengersStatus.RELEASE)
 
         # Start optimization
         Optimize(env.current_time, self.queue).add_to_queue()
@@ -36,17 +42,16 @@ class PassengerAssignment(Event):
         request = env.get_request_by_id(self.passenger_update.request_id)
         vehicle = env.get_vehicle_by_id(self.passenger_update.assigned_vehicle_id)
 
-        print("request.req_id={}".format(request.req_id))
         request.assign_vehicle(vehicle)
 
-        # Patrick: Do we assign the Request to the Vehicle here?
+        # Patrick: Do we assign the Request to the Vehicle here or in VehicleNotification?
         vehicle.route.assign(request)
 
         # Patrick: Where do we update the (non)-assigned requests/vehicles in the environment?
 
         # Mettre à jour l'objet Request (ou Trip) assign
         # Patrick: Why is the status READY? Shouldn't it be ASSIGNMENT?
-        request.update_passenger_status(PassengersStatus.READY)
+        request.update_passenger_status(PassengersStatus.ASSIGNED)
 
         # le cas ou la date de release différente de la ready date
         PassengerReady(request, self.queue).add_to_queue()
@@ -61,31 +66,29 @@ class PassengerReady(Event):
         self.request = request
 
     def process(self, env):
-        # Patrick: Why is the status ONBOARD? Shouldn't it be READY?
-        self.request.update_passenger_status(PassengersStatus.ONBOARD)
+        self.request.update_passenger_status(PassengersStatus.READY)
         return 'Passenger Ready process is implemented'
 
 
 class PassengerToBoard(Event):
     def __init__(self, request, queue):
-        super().__init__('PassengerToBoard', queue, request.ready_time)
+        super().__init__('PassengerToBoard', queue, max(request.ready_time, queue.env.current_time))
         self.request = request
 
     def process(self, env):
         # End of process
+        self.request.update_passenger_status(PassengersStatus.ONBOARD)
 
-        ## Notify vehicle to board
-        # TODO : VehiclePassengerBoarded
         VehicleBoarded(self.request, self.queue).add_to_queue()
 
-        return 'Passenger On Board process is implemented'
+        return 'Passenger To Board process is implemented'
 
 
 class PassengerAlighting(Event):
     def __init__(self, request, queue):
         super().__init__('PassengerAlighting', queue)
-        self.__request = request
+        self.request = request
 
     def process(self, env):
-        self.request.status = PassengersStatus.ALIGHT
+        self.request.update_passenger_status(PassengersStatus.COMPLETE)
         return 'Passenger Alighting process is implemented'
