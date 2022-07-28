@@ -1,5 +1,3 @@
-from typing import List, Any
-
 from vehicle import *
 from request import *
 
@@ -45,16 +43,9 @@ class Environment(object):
             if veh.id == veh_id:
                 return veh
 
-    def add_vehicle(self, veh_id, start_time, start_stop, capacity, next_stops=None):
+    def add_vehicle(self, veh_id, start_time, start_stop, capacity):
         """ Adds a new vehicle to the vehicles list"""
-        # Patrick: Added next_stops
-        # Patrick: Can we add a route here?
-        if next_stops is not None:
-            new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
-
-            new_veh.route = Route(new_veh, next_stops)
-        else:
-            new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
+        new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
         self.vehicles.append(new_veh)
 
         return new_veh

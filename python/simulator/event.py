@@ -1,5 +1,3 @@
-from queue import PriorityQueue
-
 class Event(object):
     """An event with event_number occurs at a specific time ``event_time`` and involves a specific
         event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """

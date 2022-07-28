@@ -1,17 +1,15 @@
 from event import Event
-# from optimization_event_process import *
 from optimization_event_process import Optimize
 from python.simulator.vehicle_event_process import VehicleBoarded
 from request import *
 
 
 class PassengerRelease(Event):
-    def __init__(self, queue, request_data_dict):
+    def __init__(self, request_data_dict, queue):
         super().__init__('PassengerRelease', queue, request_data_dict['release_time'])
         self.request_data_dict = request_data_dict
 
     def process(self, env):
-        # TODO : modify release to wait assignment
 
         request = env.add_request(self.request_data_dict['nb_requests'], self.request_data_dict['origin'],
                                   self.request_data_dict['destination'], self.request_data_dict['nb_passengers'],
@@ -20,22 +18,15 @@ class PassengerRelease(Event):
 
         request.update_passenger_status(PassengersStatus.RELEASE)
 
-        # Start optimization
         Optimize(env.current_time, self.queue).add_to_queue()
+
         return 'Passenger Release process is implemented'
 
 
 class PassengerAssignment(Event):
-    # def __init__(self, passenger_update, queue):
-    #     #TODO : passenger_update
-    #     super().__init__('PassengerAssignment', passenger_update.release_time, queue)
-    #     self.passenger_update = passenger_update
-
     def __init__(self, passenger_update, queue):
-        # TODO : passenger_update
         super().__init__('PassengerAssignment', queue)
         self.passenger_update = passenger_update
-        # self.request = request
 
     def process(self, env):
 
@@ -44,16 +35,8 @@ class PassengerAssignment(Event):
 
         request.assign_vehicle(vehicle)
 
-        # Patrick: Do we assign the Request to the Vehicle here or in VehicleNotification?
-        vehicle.route.assign(request)
-
-        # Patrick: Where do we update the (non)-assigned requests/vehicles in the environment?
-
-        # Mettre à jour l'objet Request (ou Trip) assign
-        # Patrick: Why is the status READY? Shouldn't it be ASSIGNMENT?
         request.update_passenger_status(PassengersStatus.ASSIGNED)
 
-        # le cas ou la date de release différente de la ready date
         PassengerReady(request, self.queue).add_to_queue()
 
         return 'Passenger Assignment process is implemented'
@@ -61,7 +44,6 @@ class PassengerAssignment(Event):
 
 class PassengerReady(Event):
     def __init__(self, request, queue):
-        # max(ready_time, current_time)
         super().__init__('PassengerReady', queue, max(request.ready_time, queue.env.current_time))
         self.request = request
 
@@ -76,7 +58,6 @@ class PassengerToBoard(Event):
         self.request = request
 
     def process(self, env):
-        # End of process
         self.request.update_passenger_status(PassengersStatus.ONBOARD)
 
         VehicleBoarded(self.request, self.queue).add_to_queue()

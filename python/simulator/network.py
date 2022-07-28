@@ -1,23 +1,21 @@
-import sys
-sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal/data/test')
-import itertools
 import networkx as nx
-from networkx.algorithms.shortest_paths.generic import shortest_path
 import math
-
 
 
 class Position(object):
     def __init__(self, coordinates):
         self.coordinates = coordinates
 
+
 def get_manhattan_distance(node1, node2):
     dist = abs(int(node1[0]) - int(node2[0])) + abs(int(node2[0]) - int(node2[0]))
     return dist
 
+
 def get_euclidean_distance(node1, node2):
-    dist = math.sqrt(((int(node1[0]) - int(node2[0]))**2 + (int(node2[0]) - int(node2[0]))**2).round(2))
+    dist = math.sqrt(((int(node1[0]) - int(node2[0])) ** 2 + (int(node2[0]) - int(node2[0])) ** 2).round(2))
     return dist
+
 
 class Node(object):
     def __init__(self, node_id, coordinates):
@@ -25,7 +23,7 @@ class Node(object):
         self.coordinates = coordinates
         self.in_arcs = []
         self._out_arcs = []
-        #Position.__init__(self, coordinates)
+        # Position.__init__(self, coordinates)
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
@@ -46,21 +44,12 @@ class Arc(object):
 
 def create_graph(nodes):
     G = nx.DiGraph()
-    #G.add_edges_from(itertools.permutations(nodes, 2))
+    # G.add_edges_from(itertools.permutations(nodes, 2))
     for i in range(len(nodes)):
         for j in range(i + 1, len(nodes)):
             if i != j:
-                #Manhattan Distance OR Euclidean Distance
-                dist = get_manhattan_distance(nodes[i].get_coordinates(),nodes[j].get_coordinates())
-                cost = get_manhattan_distance(nodes[i].get_coordinates(),nodes[j].get_coordinates())
+                # Manhattan Distance OR Euclidean Distance
+                dist = get_manhattan_distance(nodes[i].get_coordinates(), nodes[j].get_coordinates())
+                cost = get_manhattan_distance(nodes[i].get_coordinates(), nodes[j].get_coordinates())
                 G.add_edge(nodes[i], nodes[j], cost=cost, legnth=dist)
     return G
-
-
-
-
-
-
-
-
-
