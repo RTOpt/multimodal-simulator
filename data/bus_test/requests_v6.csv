@@ -1,0 +1,5 @@
+origin;destination;nb_passengers;ready_time;due_time;release_time
+0;5;1;2;30;1
+0;7;1;4;30;1
+0;3;1;2;30;1
+1;3;1;2;30;1

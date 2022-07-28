@@ -1,10 +1,3 @@
-import sys
-
-sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal/data/test')
-
-import numpy as np
-from enum import Enum
-from config import *
 from status import *
 
 
@@ -28,13 +21,12 @@ class Vehicle(object):
     """
 
     def __init__(self, veh_id, start_time, start_stop, capacity):
-        # Patrick: Can we add a route here?
+        self.route = None
         self.id = veh_id
         self.start_time = start_time
         self.start_stop = start_stop
         self.capacity = capacity
 
-    # Patrick: Added
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
@@ -69,11 +61,7 @@ class Route(object):
     """
 
     def __init__(self, vehicle, next_stops=[]):
-        # Patrick: Added next_stops
         self.vehicle = vehicle
-        # Patrick: Why is the vehicle status BOARDING and not RELEASE (or READY)?
-        # OLD
-        # self.status = VehicleStatus.BOARDING
         self.status = VehicleStatus.RELEASE
         self.current_stop = vehicle.start_stop
         self.next_stops = next_stops
@@ -81,9 +69,8 @@ class Route(object):
         self.onboard_requests = []
         self.assigned_requests = []
         self.alighted_requests = []
-        self.load = 0
+        self.load = 0  # Patrick: Is the load different from len(self.onboard_requests)?
 
-    # Patrick: Added
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
@@ -93,7 +80,12 @@ class Route(object):
                 class_string += str(attribute) + ": ["
                 for stop in value:
                     class_string += str(stop) + ", "
-                class_string += str(attribute) + ": ] "
+                class_string += "], "
+            elif attribute == "previous_stops":
+                class_string += str(attribute) + ": ["
+                for stop in value:
+                    class_string += str(stop) + ", "
+                class_string += "], "
             else:
                 class_string += str(attribute) + ": " + str(value) + ", "
         class_string += "}"
@@ -110,46 +102,17 @@ class Route(object):
         # Patrick: Should we increase self.load?
         self.load += 1
 
-    # OLD:
-    # def depart(self, request):
     def depart(self):
         """Departs the vehicle"""
-        # Patrick: Why do we have request as argument?
-        # Patrick: current_stop has already been added to previous_stops when the vehicle arrived (see below).
-        # If we add it here as well, won't we have it twice?
         self.previous_stops.append(self.current_stop)
-
-        # Patrick: Is this OK?
         self.current_stop = None
-        # Patrick: OLD
-        # self.current_stop = request.origin
 
-        # Patrick: Shouldn't the list of next stops be already known (i.e., right after optimizing?)
-        # self.next_stops.append(request.destination)
-
-    # OLD:
-    # def arrive(self, request):
     def arrive(self):
         """Arrives the vehicle"""
-        # Patrick: Why did we have request as argument? (Now removed)
-
-        # Patrick: OLD (now, only in depart)
-        # self.previous_stops.append(self.current_stop)
-
-        # Patrick: Is this OK?
         self.current_stop = self.next_stops.pop(0)
-        # Patrick: OLD
-        # self.current_stop = request.destination
-
-        # Patrick: Why did we reinitialize next_stops when the vehicle arrives?
-        # OLD:
-        # self.next_stops = []
 
     def alight(self, request):
         """Alights passengers who reached their destination from the vehicle"""
-        # OLD:
-        # alighted_requests = [request for request in self.onboard_requests if request.destination == self.current_stop]
-
         self.onboard_requests.remove(request)
         self.alighted_requests.append(request)
         self.current_stop.alight(request)
@@ -158,18 +121,11 @@ class Route(object):
 
     def nb_free_places(self):
         """Returns the number of places remaining in the vehicle"""
-        # Patrick: Should self.load == len(self.onboard_requests)
         return self.capacity - self.load
 
     def assign(self, request):
         """Assigns a new request to the vehicle"""
         self.assigned_requests.append(request)
-
-    # Patrick: OLD
-    # def request_to_pickup(self):
-    #     """Updates the list of request to pick up by the vehicle"""
-    #     next_request_to_pickup = self.current_stop.passengers_to_board
-    #     return next_request_to_pickup
 
     def requests_to_pickup(self):
         """Updates the list of requests to pick up by the vehicle"""
@@ -201,18 +157,16 @@ class Stop(object):
     """
 
     def __init__(self, stop_type, arrival_time, departure_time, location):
-        # NEW: alighted_passengers, location
-        self.stop_type = stop_type
+        self.stop_type = stop_type  # Patrick: What is this used for?
         self.arrival_time = arrival_time
         self.departure_time = departure_time
-        self.passengers_to_board = []  # mettre a jour
-        self.boarding_passengers = []  # Why is it required?
+        self.passengers_to_board = []
+        self.boarding_passengers = []
         self.boarded_passengers = []
         self.passengers_to_alight = []
         self.alighted_passengers = []
         self.location = location
 
-    # Patrick: Added
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
@@ -240,17 +194,12 @@ class Stop(object):
 
     def board(self, request):
         """Passenger who is boarding becomes boarded"""
-        # OLD:
-        # self.passengers_to_board.append(request)
 
         self.boarding_passengers.remove(request)
         self.boarded_passengers.append(request)
 
     def alight(self, request):
         """Passengers who reached their stop leave the vehicle"""
-        # OLD:
-        # self.passengers_to_alight.append(request)
-        # self.boarded_passengers.append(request)
 
         self.passengers_to_alight.remove(request)
         self.alighted_passengers.append(request)
@@ -263,11 +212,12 @@ class Location(object):
 
 class GPSLocation(Location):
     def __init__(self, gps_coordinates):
+        # gps_coordinates is an object of type Node
         super().__init__()
         self.gps_coordinates = gps_coordinates
 
     def __str__(self):
-        return self.gps_coordinates
+        return "({},{})".format(self.gps_coordinates.get_coordinates()[0], self.gps_coordinates.get_coordinates()[1])
 
 
 class LabelLocation(Location):
@@ -281,15 +231,9 @@ class LabelLocation(Location):
 
 class RouteUpdate(object):
     def __init__(self, vehicle_id, current_stop_passengers_to_board=None, next_stops=None,
-                 current_stop_departure_time=None):
-        # Patrick: route_id replaced with vehicle_id
-        # current stop de la route ne jamais le modifier
+                 current_stop_departure_time=None, assigned_requests=None):
+        self.vehicle_id = vehicle_id
         self.current_stop_passengers_to_board = current_stop_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-
-        # Patrick: There is no route_id in Route. Is it vehicle_id?
-        self.vehicle_id = vehicle_id
-
-        # OLD
-        # self.route_id = route_id
+        self.assigned_requests = assigned_requests

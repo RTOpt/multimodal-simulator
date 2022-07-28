@@ -1,29 +1,23 @@
 import sys
 
-# sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal')
 from event_queue import EventQueue
-from python.optimization.optimization import GreedyOptimization, BusOptimization
+from python.optimization.optimization import ShuttleOptimization, BusOptimization
 from python.simulator.passenger_event_process import PassengerRelease
 from vehicle_event_process import *
 
-from vehicle import *
-from request import *
 from read_data import *
-from status import *
 from environment import *
-from event import *
 
 
 def init_simulation(queue, request_data_list, vehicle_data_list):
     for vehicle_data_dict in vehicle_data_list:
-        VehicleReady(queue, vehicle_data_dict).add_to_queue()
+        VehicleReady(vehicle_data_dict, queue).add_to_queue()
 
     for request_data_dict in request_data_list:
-        PassengerRelease(queue, request_data_dict).add_to_queue()
+        PassengerRelease(request_data_dict, queue).add_to_queue()
 
 
 def simulate(env, queue, request_data_list, vehicle_data_list):
-    # init_simulation(env.get_requests(), env.get_vehicles(), queue, request_data_list, vehicle_data_list)
     init_simulation(queue, request_data_list, vehicle_data_list)
 
     # main loop of the simulation
@@ -32,7 +26,7 @@ def simulate(env, queue, request_data_list, vehicle_data_list):
 
         event_time, current_event = queue.pop()
 
-        # Patrick: When should we update env.current_time?
+        # Patrick: Should we update env.current_time here?
         env.current_time = event_time
 
         print("current_time={} | event_time={} | current_event={}".format(env.current_time, event_time, current_event))
@@ -43,28 +37,46 @@ def simulate(env, queue, request_data_list, vehicle_data_list):
     print_environment(queue.env)
 
 
-def print_environment(env):
-    print("\n***************\nENVIRONMENT")
+def print_environment_status(env):
+    print("\n***************\nENVIRONMENT STATUS")
     print("env.current_time={}".format(env.current_time))
     print("OptimizationStatus: {}".format(env.optimization.status))
     print("Vehicles:")
     for vehicle in env.get_vehicles():
-        # print(vehicle)
-        print(" --id: {}, status: {}".format(vehicle.id, vehicle.route.status, vehicle.route.current_stop))
-        print("  --previous_stops:")
-        for stop in vehicle.route.previous_stops:
-            print("   --{}: {}".format(stop.location, stop))
-        print("  --current_stop:")
-        if vehicle.route.current_stop is not None:
-            print("   --{}: {}".format(vehicle.route.current_stop.location, vehicle.route.current_stop))
-        else:
-            print("   --{}".format(vehicle.route.current_stop))
-        print("  --next_stops:")
-        for stop in vehicle.route.next_stops:
-            print("   --{}: {}".format(stop.location, stop))
+        print("{}: {}".format(vehicle.id, vehicle.route.status))
     print("Requests:")
     for request in env.get_requests():
-        print(request)
+        print("{}: {}".format(request.req_id, request.status))
+    print("***************\n")
+
+
+def print_environment(env):
+    print("\n***************\nENVIRONMENT STATUS")
+    print("env.current_time={}".format(env.current_time))
+    print("OptimizationStatus: {}".format(env.optimization.status))
+    print("Vehicles:")
+    for veh in env.get_vehicles():
+        assigned_requests_id = [req.req_id for req in veh.route.assigned_requests]
+        print("{}: status: {}, start_time: {}, assigned_requests: {}".format(veh.id, veh.route.status, veh.start_time,
+                                                                             assigned_requests_id))
+        print("  --previous_stops:")
+        for stop in veh.route.previous_stops:
+            print("   --{}: {}".format(stop.location, stop))
+        print("  --current_stop:")
+        if veh.route.current_stop is not None:
+            print("   --{}: {}".format(veh.route.current_stop.location, veh.route.current_stop))
+        else:
+            print("   --{}".format(veh.route.current_stop))
+        print("  --next_stops:")
+        for stop in veh.route.next_stops:
+            print("   --{}: {}".format(stop.location, stop))
+    print("Requests:")
+    for req in env.get_requests():
+        assigned_vehicle_id = req.assigned_vehicle.id if req.assigned_vehicle is not None else None
+        print("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}".
+              format(req.status, req.req_id, req.origin, req.destination, req.release_time, req.ready_time,
+                     req.due_time,
+                     assigned_vehicle_id))
     print("***************\n")
 
 
@@ -81,13 +93,13 @@ def create_environment_from_files(nodes_file_path, requests_file_path, vehicles_
     nodes = read_file_nodes(nodes_file_path)
     g = create_graph(nodes)
 
-    opt = GreedyOptimization()
+    opt = ShuttleOptimization()
     env = Environment(opt, g)
 
-    read_file_bus_requests(requests_file_path, env)
-    read_file_bus_vehicles(vehicles_file_path, env)
+    request_data_list = read_file_requests(requests_file_path)
+    vehicle_data_list = read_file_vehicles(vehicles_file_path)
 
-    return env
+    return env, request_data_list, vehicle_data_list
 
 
 def create_bus_environment_from_files(requests_file_path, vehicles_file_path):
@@ -102,16 +114,22 @@ def create_bus_environment_from_files(requests_file_path, vehicles_file_path):
 
 def main(argv):
     if len(argv) == 4:
-        print("STANDARD")
-        nodes_file_path = argv[1]
-        requests_file_path = argv[2]
-        vehicles_file_path = argv[3]
-        env = create_environment_from_files(nodes_file_path, requests_file_path, vehicles_file_path)
-    elif len(argv) == 3:
-        print("BUS")
+        # 3 arguments have to be passed: the relative paths to the requests, the vehicles and the nodes.
+        # For example: ../../data/test/requests.csv ../../data/test/vehicles.csv ../../data/test/nodes.csv
+        print("SHUTTLE")
         requests_file_path = argv[1]
         vehicles_file_path = argv[2]
-        env, request_data_list, vehicle_data_list = create_bus_environment_from_files(requests_file_path, vehicles_file_path)
+        nodes_file_path = argv[3]
+        env, request_data_list, vehicle_data_list = create_environment_from_files(nodes_file_path, requests_file_path,
+                                                                                  vehicles_file_path)
+    elif len(argv) == 3:
+        print("BUS")
+        # 2 arguments have to be passed: the relative paths to the requests and the vehicles.
+        # For example: ../../data/bus_test/requests_v1.csv ../../data/bus_test/vehicles_v1.csv
+        requests_file_path = argv[1]
+        vehicles_file_path = argv[2]
+        env, request_data_list, vehicle_data_list = create_bus_environment_from_files(requests_file_path,
+                                                                                      vehicles_file_path)
     else:
         raise ValueError("Either 3 or 4 arguments must be passed to the program!")
 
