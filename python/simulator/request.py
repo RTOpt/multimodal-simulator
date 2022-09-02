@@ -38,6 +38,8 @@ class Request(object):
         self.due_time = due_time
         self.release_time = release_time
         self.assigned_vehicle = None
+        self.next_vehicles = None
+        self.previous_vehicles = []
         self.path = None
 
     def __str__(self):
@@ -71,9 +73,10 @@ class Request(object):
 
 
 class PassengerUpdate(object):
-    def __init__(self, vehicle_id, request_id):
+    def __init__(self, vehicle_id, request_id, next_vehicles_ids=None):
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
+        self.next_vehicles_ids = next_vehicles_ids
 
 
 class Trip(Request):

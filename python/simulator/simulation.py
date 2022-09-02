@@ -5,8 +5,9 @@ from python.optimization.optimization import ShuttleOptimization, BusOptimizatio
 from python.simulator.passenger_event_process import PassengerRelease
 from vehicle_event_process import *
 
-from read_data import *
 from environment import *
+
+from data_reader import GTFSReader, BusDataReader, ShuttleDataReader
 
 
 def init_simulation(queue, request_data_list, vehicle_data_list):
@@ -57,6 +58,7 @@ def print_environment(env):
     print("Vehicles:")
     for veh in env.get_vehicles():
         assigned_requests_id = [req.req_id for req in veh.route.assigned_requests]
+
         print("{}: status: {}, start_time: {}, assigned_requests: {}".format(veh.id, veh.route.status, veh.start_time,
                                                                              assigned_requests_id))
         print("  --previous_stops:")
@@ -73,10 +75,12 @@ def print_environment(env):
     print("Requests:")
     for req in env.get_requests():
         assigned_vehicle_id = req.assigned_vehicle.id if req.assigned_vehicle is not None else None
-        print("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}".
-              format(req.status, req.req_id, req.origin, req.destination, req.release_time, req.ready_time,
-                     req.due_time,
-                     assigned_vehicle_id))
+        previous_vehicles_ids = [veh.id for veh in req.previous_vehicles] if req.previous_vehicles is not None else None
+        next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_vehicles is not None else None
+        print("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}, "
+              "previous_vehicles_ids: {}, next_vehicles_ids: {}".
+              format(req.req_id, req.status, req.origin, req.destination, req.release_time, req.ready_time,
+                     req.due_time, assigned_vehicle_id, previous_vehicles_ids, next_vehicles_ids))
     print("***************\n")
 
 
@@ -89,29 +93,6 @@ def display_instance(instances):
         print(i)
 
 
-def create_environment_from_files(nodes_file_path, requests_file_path, vehicles_file_path):
-    nodes = read_file_nodes(nodes_file_path)
-    g = create_graph(nodes)
-
-    opt = ShuttleOptimization()
-    env = Environment(opt, g)
-
-    request_data_list = read_file_requests(requests_file_path)
-    vehicle_data_list = read_file_vehicles(vehicles_file_path)
-
-    return env, request_data_list, vehicle_data_list
-
-
-def create_bus_environment_from_files(requests_file_path, vehicles_file_path):
-    opt = BusOptimization()
-    env = Environment(opt)
-
-    request_data_list = read_file_bus_requests(requests_file_path)
-    vehicle_data_list = read_file_bus_vehicles(vehicles_file_path)
-
-    return env, request_data_list, vehicle_data_list
-
-
 def main(argv):
     if len(argv) == 4:
         # 3 arguments have to be passed: the relative paths to the requests, the vehicles and the nodes.
@@ -120,18 +101,39 @@ def main(argv):
         requests_file_path = argv[1]
         vehicles_file_path = argv[2]
         nodes_file_path = argv[3]
-        env, request_data_list, vehicle_data_list = create_environment_from_files(nodes_file_path, requests_file_path,
-                                                                                  vehicles_file_path)
+
+        data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
+        nodes = data_reader.get_node_data()
+        g = create_graph(nodes)
     elif len(argv) == 3:
         print("BUS")
         # 2 arguments have to be passed: the relative paths to the requests and the vehicles.
         # For example: ../../data/bus_test/requests_v1.csv ../../data/bus_test/vehicles_v1.csv
         requests_file_path = argv[1]
         vehicles_file_path = argv[2]
-        env, request_data_list, vehicle_data_list = create_bus_environment_from_files(requests_file_path,
-                                                                                      vehicles_file_path)
+
+        data_reader = BusDataReader(requests_file_path, vehicles_file_path)
+        g = None
+    elif len(argv) == 2:
+        print("GTFS")
+        # The folder containing the GTFS data has to be passed as argument.
+        # For example: ../../data/bus_test/gtfs_test/
+        gtfs_folder = argv[1]
+
+        data_reader = GTFSReader(gtfs_folder, "requests_gtfs.csv")
+        g = None
     else:
-        raise ValueError("Either 3 or 4 arguments must be passed to the program!")
+        raise ValueError("Either 1, 2 or 3 arguments must be passed to the program!")
+
+    vehicle_data_list = data_reader.get_vehicle_data()
+    request_data_list = data_reader.get_request_data()
+
+    if g is not None:
+        opt = ShuttleOptimization()
+        env = Environment(opt, g)
+    else:
+        opt = BusOptimization()
+        env = Environment(opt)
 
     eq = EventQueue(env)
     simulate(env, eq, request_data_list, vehicle_data_list)

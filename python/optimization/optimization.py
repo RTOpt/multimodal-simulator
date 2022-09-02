@@ -1,3 +1,4 @@
+import networkx as nx
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
 from python.simulator.network import get_manhattan_distance
@@ -24,7 +25,7 @@ class ShuttleOptimization(Optimization):
         super().__init__()
 
     def optimize(self, state):
-        BOARDING_TIME = 1 # Time between arrival_time and departure_time
+        BOARDING_TIME = 1  # Time between arrival_time and departure_time
 
         print("\n******************\nOPTIMIZE (GreedyOptimization):\n")
         print("current_time={}".format(state.current_time))
@@ -43,7 +44,7 @@ class ShuttleOptimization(Optimization):
                                                                 key=lambda x: x.route.current_stop.departure_time)
         for req in non_assigned_requests:
             potential_non_assigned_vehicles = list(x for x in non_assigned_vehicles_sorted_by_departure_time
-                                                          if x.route.current_stop.departure_time >= req.ready_time)
+                                                   if x.route.current_stop.departure_time >= req.ready_time)
             # The passenger must be ready before the departure time.
             print("potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
             if len(potential_non_assigned_vehicles) != 0:
@@ -96,7 +97,7 @@ class ShuttleOptimization(Optimization):
             for stop in veh.route.next_stops:
                 if req.origin.gps_coordinates.get_coordinates() == stop.location.gps_coordinates.get_coordinates():
                     stop.passengers_to_board.append(req)
-                elif req.destination.gps_coordinates.get_coordinates() == stop.location.gps_coordinates.\
+                elif req.destination.gps_coordinates.get_coordinates() == stop.location.gps_coordinates. \
                         get_coordinates():
                     stop.passengers_to_alight.append(req)
 
@@ -125,9 +126,12 @@ class BusOptimization(Optimization):
 
     def __init__(self):
         super().__init__()
+        self.__modified_vehicles = None
+        self.__modified_requests = None
         self.__non_assigned_released_requests_list = None
         self.__non_assigned_vehicles_list = None
         self.__all_vehicles = None
+        self.__state = None
 
     def optimize(self, state):
         print("\n******************\nOPTIMIZE (BusOptimization):\n")
@@ -136,72 +140,168 @@ class BusOptimization(Optimization):
         self.__non_assigned_vehicles_list = state.get_non_assigned_vehicles()
         self.__non_assigned_released_requests_list = state.get_non_assigned_requests()
         self.__all_vehicles = state.vehicles
+        self.__state = state
 
-        request_vehicle_pairs_list = []
-        modified_requests = []
-        modified_vehicles = []
+        self.__create_graph_from_state()
+
+        self.__modified_requests = []
+        self.__modified_vehicles = []
 
         for req in self.__non_assigned_released_requests_list:
-            potential_vehicles_list = self.__get_vehicles_containing_stops_list(req.origin.label, req.destination.label)
-            for veh in potential_vehicles_list:
-                if veh.route.current_stop is not None and req.origin.label == veh.route.current_stop.location.label:
-                    req_origin_stop_departure_time = veh.route.current_stop.departure_time
-                else:
-                    req_origin_stop_departure_time = self.__get_stop_departure_time_by_stop_id(req.origin.label,
-                                                                                               veh.route.next_stops)
-                if req_origin_stop_departure_time is not None and req.ready_time <= req_origin_stop_departure_time:
-                    request_vehicle_pairs_list.append((req, veh))
-                    req.assign_vehicle(veh)
-                    veh.route.assign(req)
-                    req.update_passenger_status(PassengersStatus.ASSIGNED)
-                    modified_requests.append(req)
-                    modified_vehicles.append(veh)
-                    break
+            potential_source_nodes = self.__find_potential_source_nodes(req)
+            potential_target_nodes = self.__find_potential_target_nodes(req)
 
-        print("request_vehicle_pairs_list:")
-        for req, veh in request_vehicle_pairs_list:
-            print("---(req_id={},veh_id={})".format(req.req_id, veh.id))
+            if len(potential_source_nodes) != 0 and len(potential_target_nodes) != 0:
+                print("req.req_id={}".format(req.req_id))
 
-        for req, veh in request_vehicle_pairs_list:
-            if veh.route.current_stop is not None and req.origin.label == veh.route.current_stop.location.label:
-                veh.route.current_stop.passengers_to_board.append(req)
+                feasible_paths = self.__find_feasible_paths(potential_source_nodes, potential_target_nodes)
+                if len(feasible_paths) > 0:
+                    optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
+                    print("optimal_path={}".format(optimal_path))
+                    optimal_route = self.__get_route_from_path(optimal_path)
+                    print("optimal_route={}".format(optimal_route))
 
-            for stop in veh.route.next_stops:
-                if req.origin.label == stop.location.label:
-                    stop.passengers_to_board.append(req)
-                elif req.destination.label == stop.location.label:
-                    stop.passengers_to_alight.append(req)
+                    self.__assign_request_to_route(req, optimal_route)
+                    self.__assign_request_to_stops(req, optimal_route)
 
         print("END OPTIMIZE\n*******************")
 
-        return OptimizationResult(state, modified_requests, modified_vehicles)
+        # Draw the network.
+        # if len(self.__modified_requests) > 0:
+        #     print(self.__bus_network_graph)
+        #     import matplotlib.pyplot as plt
+        #     pos = nx.spring_layout(self.__bus_network_graph, seed=0)
+        #     nx.draw(self.__bus_network_graph, pos, with_labels=True)
+        #     labels = nx.get_edge_attributes(self.__bus_network_graph, 'weight')
+        #     nx.draw_networkx_edge_labels(self.__bus_network_graph, pos, edge_labels=labels)
+        #     plt.show()
 
-    def __get_vehicles_containing_stops_list(self, first_stop_id, second_stop_id):
-        vehicles_containing_stops_list = []
-        for veh in self.__all_vehicles:
-            # self.__all_vehicles instead of self.__non_assigned_vehicles_list since requests can be assigned to
-            # vehicles that were already assigned other requests.
-            if veh.route.current_stop is not None:
-                current_stop_id = veh.route.current_stop.location.label
+        return OptimizationResult(state, self.__modified_requests, self.__modified_vehicles)
+
+    def __create_graph_from_state(self):
+
+        self.__bus_network_graph = nx.DiGraph()
+
+        for vehicle in self.__all_vehicles:
+
+            if vehicle.route.current_stop is not None:
+                first_stop = vehicle.route.current_stop
+                remaining_stops = vehicle.route.next_stops
             else:
-                current_stop_id = None
-            next_stops_ids_list = list(x.location.label for x in veh.route.next_stops)
+                first_stop = vehicle.route.next_stops[0]
+                remaining_stops = vehicle.route.next_stops[1:]
 
-            if first_stop_id == current_stop_id and second_stop_id in next_stops_ids_list:
-                vehicles_containing_stops_list.append(veh)
-            elif first_stop_id != current_stop_id and first_stop_id in next_stops_ids_list and second_stop_id in next_stops_ids_list:
-                if next_stops_ids_list.index(first_stop_id) < next_stops_ids_list.index(second_stop_id):
-                    vehicles_containing_stops_list.append(veh)
+            first_node = (first_stop.location.label, vehicle.id, first_stop.arrival_time, first_stop.departure_time)
 
-        return vehicles_containing_stops_list
+            for stop in remaining_stops:
+                second_node = (stop.location.label, vehicle.id, stop.arrival_time, stop.departure_time)
+                self.__bus_network_graph.add_edge(first_node, second_node, weight=second_node[2] - first_node[2])
+                first_node = (stop.location.label, vehicle.id, stop.arrival_time, stop.departure_time)
 
-    def __get_stop_departure_time_by_stop_id(self, stop_id, stops_list):
-        stop_departure_time = None
-        for stop in stops_list:
+        for node1 in self.__bus_network_graph.nodes:
+            for node2 in self.__bus_network_graph.nodes:
+                if node1[0] == node2[0] and node1[1] != node2[1]:
+                    # Nodes correspond to same stop but different vehicles
+                    if node2[3] > node1[2]:
+                        # Departure time of the second node is greater than the arrival time of the first node.
+                        # A connection is possible
+                        self.__bus_network_graph.add_edge(node1, node2, weight=node2[3] - node1[2])
+
+    def __find_potential_source_nodes(self, request):
+        potential_source_nodes = []
+        for node in self.__bus_network_graph.nodes():
+            if node[0] == request.origin.label and node[3] >= request.ready_time:
+                potential_source_nodes.append(node)
+
+        return potential_source_nodes
+
+    def __find_potential_target_nodes(self, request):
+        potential_target_nodes = []
+        for node in self.__bus_network_graph.nodes():
+            if node[0] == request.destination.label and node[2] <= request.due_time:
+                potential_target_nodes.append(node)
+
+        return potential_target_nodes
+
+    def __find_feasible_paths(self, potential_source_nodes, potential_target_nodes):
+        distance_dict, path_dict = nx.multi_source_dijkstra(self.__bus_network_graph, set(potential_source_nodes))
+        feasible_paths = []
+        for node, distance in distance_dict.items():
+            print("{}: {}".format(node, distance))
+            print(path_dict[node])
+            if node in potential_target_nodes:
+                feasible_paths.append(path_dict[node])
+
+        return feasible_paths
+
+    def __get_route_from_path(self, path):
+        route = []
+
+        leg_vehicle_id = path[0][1]
+        leg_vehicle = self.__state.get_vehicle_by_id(leg_vehicle_id)
+        leg_stop_id = path[0][0]
+        route.append((leg_vehicle, leg_stop_id))
+
+        for node in path:
+            if node[1] != leg_vehicle_id:
+                leg_vehicle_id = node[1]
+                leg_vehicle = self.__state.get_vehicle_by_id(leg_vehicle_id)
+                leg_stop_id = node[0]
+                route.append((leg_vehicle, leg_stop_id))
+
+        return route
+
+    def __assign_request_to_route(self, request, route):
+
+        first_vehicle = route[0][0]
+        request.assign_vehicle(first_vehicle)
+        first_vehicle.route.assign(request)
+        self.__modified_vehicles.append(first_vehicle)
+
+        request.next_vehicles = []
+        for route_leg in route[1:]:
+            next_vehicle = route_leg[0]
+            next_vehicle.route.assign(request)
+            request.next_vehicles.append(next_vehicle)
+            self.__modified_vehicles.append(next_vehicle)
+
+        self.__modified_requests.append(request)
+        request.update_passenger_status(PassengersStatus.ASSIGNED)
+
+    def __assign_request_to_stops(self, request, route):
+        is_connection = False
+        previous_vehicle = None
+        vehicle = None
+        for route_leg in route:
+            stop_id = route_leg[1]
+            vehicle = route_leg[0]
+            stop = self.__get_stop_by_stop_id(stop_id, vehicle)
+
+            print("passengers_to_board: {} -> {}".format(request.req_id, vehicle.id))
+            stop.passengers_to_board.append(request)
+            print("stop: {}".format(stop))
+            if is_connection:
+                connection_stop = self.__get_stop_by_stop_id(stop_id, previous_vehicle)
+                connection_stop.passengers_to_alight.append(request)
+                print(connection_stop)
+
+            is_connection = True
+            previous_vehicle = route_leg[0]
+
+        print("vehicle.id={} | request.origin.label={}".format(vehicle.id, request.origin.label))
+        destination_stop = self.__get_stop_by_stop_id(request.destination.label, vehicle)
+        destination_stop.passengers_to_alight.append(request)
+
+    def __get_stop_by_stop_id(self, stop_id, vehicle):
+        found_stop = None
+        if vehicle.route.current_stop is not None and stop_id == vehicle.route.current_stop.location.label:
+            found_stop = vehicle.route.current_stop
+
+        for stop in vehicle.route.next_stops:
             if stop_id == stop.location.label:
-                stop_departure_time = stop.departure_time
+                found_stop = stop
 
-        return stop_departure_time
+        return found_stop
 
 
 class OptimizationResult(object):
