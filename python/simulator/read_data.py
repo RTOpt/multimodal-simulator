@@ -54,7 +54,7 @@ def read_file_vehicles(file_name):
             start_stop_location = GPSLocation(Node(None, ast.literal_eval(row[2])))
             capacity = int(row[3])
 
-            # Patrick: I am not sur if the departure time and the arrival time should be the same for start_stop. Here,
+            # Patrick: I am not sure if the departure time and the arrival time should be the same for start_stop. Here,
             # I supposed that departure_time = arrival_time + 1 (I made this assumption in the optimization as well.)
             start_stop = Stop(None, start_time, start_time + 1, start_stop_location)
 
@@ -85,8 +85,8 @@ def read_file_nodes(file_name):
 
 def read_file_bus_requests(file_name):
     request_data_list = []
-    with open(file_name, 'r') as rFile:
-        reader = csv.reader(rFile, delimiter=';')
+    with open(file_name, 'r') as file:
+        reader = csv.reader(file, delimiter=';')
         next(reader, None)
         nb_requests = 1
         for row in reader:

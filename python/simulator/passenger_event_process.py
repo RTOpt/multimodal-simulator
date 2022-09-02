@@ -33,7 +33,13 @@ class PassengerAssignment(Event):
         request = env.get_request_by_id(self.passenger_update.request_id)
         vehicle = env.get_vehicle_by_id(self.passenger_update.assigned_vehicle_id)
 
+        if self.passenger_update.next_vehicles_ids is not None:
+            next_vehicles = [env.get_vehicle_by_id(veh_id) for veh_id in self.passenger_update.next_vehicles_ids]
+        else:
+            next_vehicles = None
+
         request.assign_vehicle(vehicle)
+        request.next_vehicles = next_vehicles
 
         request.update_passenger_status(PassengersStatus.ASSIGNED)
 
@@ -71,5 +77,10 @@ class PassengerAlighting(Event):
         self.request = request
 
     def process(self, env):
-        self.request.update_passenger_status(PassengersStatus.COMPLETE)
+        if self.request.next_vehicles is None or len(self.request.next_vehicles) == 0:
+            self.request.update_passenger_status(PassengersStatus.COMPLETE)
+        else:
+            self.request.previous_vehicles.append(self.request.assigned_vehicle)
+            self.request.assigned_vehicle = self.request.next_vehicles.pop(0)
+            self.request.update_passenger_status(PassengersStatus.READY)
         return 'Passenger Alighting process is implemented'

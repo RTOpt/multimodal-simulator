@@ -39,7 +39,8 @@ class EnvironmentUpdate(Event):
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from passenger_event_process import PassengerAssignment
         for req in self.optimization_result.modified_requests:
-            passenger_update = PassengerUpdate(req.assigned_vehicle.id, req.req_id)
+            next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_vehicles is not None else None
+            passenger_update = PassengerUpdate(req.assigned_vehicle.id, req.req_id, next_vehicles_ids)
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
