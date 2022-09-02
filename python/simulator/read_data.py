@@ -29,12 +29,12 @@ def read_file_requests(file_name):
         for row in reader:
             request_data_dict = {
                 'nb_requests': nb_requests,
-                'origin': GPSLocation(Node(None, ast.literal_eval(row[0]))),
-                'destination': GPSLocation(Node(None, ast.literal_eval(row[1]))),
-                'nb_passengers': int(row[2]),
-                'ready_time': int(row[3]),
-                'due_time': int(row[4]),
-                'release_time': int(row[5])
+                'origin': GPSLocation(Node(None, (ast.literal_eval(row[0]),ast.literal_eval(row[1])))),
+                'destination': GPSLocation(Node(None, (ast.literal_eval(row[2]),ast.literal_eval(row[3])))),
+                'nb_passengers': int(row[4]),
+                'ready_time': int(row[5]),
+                'due_time': int(row[6]),
+                'release_time': int(row[7])
             }
             request_data_list.append(request_data_dict)
             nb_requests += 1
@@ -51,8 +51,8 @@ def read_file_vehicles(file_name):
         for row in reader:
             vehicle_id = int(row[0])
             start_time = int(row[1])
-            start_stop_location = GPSLocation(Node(None, ast.literal_eval(row[2])))
-            capacity = int(row[3])
+            start_stop_location = GPSLocation(Node(None, (ast.literal_eval(row[2]),ast.literal_eval(row[3]))))
+            capacity = int(row[4])
 
             # Patrick: I am not sur if the departure time and the arrival time should be the same for start_stop. Here,
             # I supposed that departure_time = arrival_time + 1 (I made this assumption in the optimization as well.)
@@ -76,7 +76,7 @@ def read_file_nodes(file_name):
         reader = csv.reader(rFile, delimiter=';')
         next(reader, None)
         for row in reader:
-            nodes.append(Node(row[0], ast.literal_eval(row[1])))
+            nodes.append(Node(row[0], (ast.literal_eval(row[1]), ast.literal_eval(row[2]))))
 
     return nodes
 

@@ -19,21 +19,10 @@ class EventQueue(object):
     def put(self, event):
 
         # Why -event.time?
-        # self.queue.put((-event.time, event))
-        self.__queue.put((event.time, event))
+        # self.__queue.put((-event.time, event))
+        self.__queue.put((event.time, self.__index, event))
         self.__index += 1
 
     # pop an element based on Priority time
     def pop(self):
-
         return self.__queue.get()
-
-#
-# q = PriorityQueue()
-# q.put((10,'Red balls'))
-# q.put((8,'Pink balls'))
-# q.put((5,'White balls'))
-# q.put((4,'Green balls'))
-# while not q.empty():
-#     item = q.get()
-#     print(item)

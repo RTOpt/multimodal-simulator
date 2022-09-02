@@ -1,4 +1,5 @@
 import sys
+sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal')
 
 from event_queue import EventQueue
 from python.optimization.optimization import ShuttleOptimization, BusOptimization
@@ -24,7 +25,7 @@ def simulate(env, queue, request_data_list, vehicle_data_list):
     while not queue.is_empty():
         print_environment(queue.env)
 
-        event_time, current_event = queue.pop()
+        event_time, event_index, current_event = queue.pop()
 
         # Patrick: Should we update env.current_time here?
         env.current_time = event_time
@@ -74,7 +75,7 @@ def print_environment(env):
     for req in env.get_requests():
         assigned_vehicle_id = req.assigned_vehicle.id if req.assigned_vehicle is not None else None
         print("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}".
-              format(req.status, req.req_id, req.origin, req.destination, req.release_time, req.ready_time,
+              format(req.req_id, req.status, req.origin, req.destination, req.release_time, req.ready_time,
                      req.due_time,
                      assigned_vehicle_id))
     print("***************\n")
@@ -129,7 +130,7 @@ def main(argv):
         requests_file_path = argv[1]
         vehicles_file_path = argv[2]
         env, request_data_list, vehicle_data_list = create_bus_environment_from_files(requests_file_path,
-                                                                                      vehicles_file_path)
+                                                                                        vehicles_file_path)
     else:
         raise ValueError("Either 3 or 4 arguments must be passed to the program!")
 
