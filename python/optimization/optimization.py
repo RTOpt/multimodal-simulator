@@ -3,6 +3,7 @@ from networkx.algorithms.shortest_paths.generic import shortest_path
 from python.simulator.network import get_manhattan_distance
 from python.simulator.status import OptimizationStatus, PassengersStatus
 from python.simulator.vehicle import Stop, GPSLocation
+from python.simulator.vehicle_event_process import VehicleNotification
 
 
 class Optimization(object):
@@ -38,6 +39,7 @@ class ShuttleOptimization(Optimization):
         request_vehicle_pairs_list = []
         modified_requests = []
         modified_vehicles = []
+        requests_remain_unassigned = []
 
         non_assigned_vehicles_sorted_by_departure_time = sorted(non_assigned_vehicles,
                                                                 key=lambda x: x.route.current_stop.departure_time)
@@ -49,6 +51,9 @@ class ShuttleOptimization(Optimization):
             if len(potential_non_assigned_vehicles) != 0:
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
+                # Asma : The assigned vehicle must be removed from the non_assigned_vehicles_sorted_by_departure_time
+                non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
+                                                                  if not assigned_vehicle.id == x.id]
 
                 path = self.__get_path(state.network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
@@ -71,7 +76,6 @@ class ShuttleOptimization(Optimization):
                     previous_node = node
 
                 assigned_vehicle.route.next_stops = next_stops
-
                 req.assign_vehicle(assigned_vehicle)
                 assigned_vehicle.route.assign(req)
                 req.update_passenger_status(PassengersStatus.ASSIGNED)
@@ -85,6 +89,10 @@ class ShuttleOptimization(Optimization):
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
                 modified_requests.append(req)
                 modified_vehicles.append(assigned_vehicle)
+
+            else:
+                requests_remain_unassigned.append(req)
+
 
         print("request_vehicle_pairs_list:")
         for req, veh in request_vehicle_pairs_list:
@@ -102,7 +110,7 @@ class ShuttleOptimization(Optimization):
 
         print("END OPTIMIZE\n*******************")
 
-        return OptimizationResult(state, modified_requests, modified_vehicles)
+        return OptimizationResult(state, modified_requests, modified_vehicles, requests_remain_unassigned)
 
     def __find_shortest_path(self, G, o, d):
         path = shortest_path(G, source=o, target=d, weight='length')
@@ -206,7 +214,8 @@ class BusOptimization(Optimization):
 
 class OptimizationResult(object):
 
-    def __init__(self, state, modified_requests, modified_vehicles):
+    def __init__(self, state, modified_requests, modified_vehicles, requests_remain_unassigned):
         self.state = state
         self.modified_requests = modified_requests
         self.modified_vehicles = modified_vehicles
+        self.requests_remain_unassigned = requests_remain_unassigned

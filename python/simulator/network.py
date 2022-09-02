@@ -46,7 +46,7 @@ def create_graph(nodes):
     G = nx.DiGraph()
     # G.add_edges_from(itertools.permutations(nodes, 2))
     for i in range(len(nodes)):
-        for j in range(i + 1, len(nodes)):
+        for j in range(len(nodes)):
             if i != j:
                 # Manhattan Distance OR Euclidean Distance
                 dist = get_manhattan_distance(nodes[i].get_coordinates(), nodes[j].get_coordinates())

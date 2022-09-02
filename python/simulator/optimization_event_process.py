@@ -22,7 +22,9 @@ class Optimize(Event):
         state = copy.deepcopy(env)
         optimization_result = env.optimization.optimize(state)
 
-        EnvironmentUpdate(optimization_result, self.queue).process(env)
+        # OLD Code :
+        # EnvironmentUpdate(optimization_result, self.queue).process(env)
+        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
@@ -43,7 +45,7 @@ class EnvironmentUpdate(Event):
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from vehicle_event_process import VehicleNotification
+        from vehicle_event_process import VehicleNotification, VehicleBoarding
         for veh in self.optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
                 current_stop_passengers_to_board = veh.route.current_stop.passengers_to_board
@@ -58,6 +60,8 @@ class EnvironmentUpdate(Event):
                                        current_stop_departure_time=current_stop_departure_time,
                                        assigned_requests=veh.route.assigned_requests)
             VehicleNotification(route_update, self.queue).add_to_queue()
+
+
 
         env.optimization.update_status(OptimizationStatus.IDLE)
 
