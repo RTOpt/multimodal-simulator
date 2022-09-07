@@ -15,6 +15,12 @@ class Optimize(Event):
 
     def process(self, env):
 
+        status = env.optimization.status
+        if env.optimization.status.name != 'IDLE':
+            self.time += 1
+            self.add_to_queue()
+            return 'Optimize event has been put back in the queue'
+
         env.optimization.update_status(OptimizationStatus.OPTIMIZING)
 
         # The variable state contains a deep copy of the environment so that we do not modify the environment during the
@@ -24,6 +30,7 @@ class Optimize(Event):
 
         # OLD Code :
         # EnvironmentUpdate(optimization_result, self.queue).process(env)
+
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
@@ -62,7 +69,16 @@ class EnvironmentUpdate(Event):
             VehicleNotification(route_update, self.queue).add_to_queue()
 
 
-
-        env.optimization.update_status(OptimizationStatus.IDLE)
+        EnvironmentIdle(self.queue).add_to_queue()
 
         return 'Environment Update process is implemented'
+
+class EnvironmentIdle(Event):
+    def __init__(self, queue):
+        super().__init__('EnvironmentIdle', queue)
+
+
+    def process(self, env):
+        env.optimization.update_status(OptimizationStatus.IDLE)
+
+        return 'Environment Idle process is implemented'
