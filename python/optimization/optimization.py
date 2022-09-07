@@ -39,7 +39,6 @@ class ShuttleOptimization(Optimization):
         request_vehicle_pairs_list = []
         modified_requests = []
         modified_vehicles = []
-        requests_remain_unassigned = []
 
         non_assigned_vehicles_sorted_by_departure_time = sorted(non_assigned_vehicles,
                                                                 key=lambda x: x.route.current_stop.departure_time)
@@ -52,8 +51,8 @@ class ShuttleOptimization(Optimization):
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
                 # Asma : The assigned vehicle must be removed from the non_assigned_vehicles_sorted_by_departure_time
-                non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
-                                                                  if not assigned_vehicle.id == x.id]
+                # non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
+                #                                                   if not assigned_vehicle.id == x.id]
 
                 path = self.__get_path(state.network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
@@ -90,8 +89,6 @@ class ShuttleOptimization(Optimization):
                 modified_requests.append(req)
                 modified_vehicles.append(assigned_vehicle)
 
-            else:
-                requests_remain_unassigned.append(req)
 
 
         print("request_vehicle_pairs_list:")
@@ -110,7 +107,7 @@ class ShuttleOptimization(Optimization):
 
         print("END OPTIMIZE\n*******************")
 
-        return OptimizationResult(state, modified_requests, modified_vehicles, requests_remain_unassigned)
+        return OptimizationResult(state, modified_requests, modified_vehicles)
 
     def __find_shortest_path(self, G, o, d):
         path = shortest_path(G, source=o, target=d, weight='length')
@@ -214,8 +211,7 @@ class BusOptimization(Optimization):
 
 class OptimizationResult(object):
 
-    def __init__(self, state, modified_requests, modified_vehicles, requests_remain_unassigned):
+    def __init__(self, state, modified_requests, modified_vehicles):
         self.state = state
         self.modified_requests = modified_requests
         self.modified_vehicles = modified_vehicles
-        self.requests_remain_unassigned = requests_remain_unassigned

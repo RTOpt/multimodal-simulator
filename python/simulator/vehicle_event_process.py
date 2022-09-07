@@ -101,7 +101,6 @@ class VehicleNotification(Event):
             for stop in self.route_update.next_stops:
                 self.__update_stop_with_actual_requests(env, stop)
             vehicle.route.next_stops = self.route_update.next_stops
-            #VehicleBoarding(vehicle.route, self.queue).add_to_queue()
 
         if self.route_update.current_stop_passengers_to_board is not None:
             vehicle.route.current_stop.passengers_to_board = \
