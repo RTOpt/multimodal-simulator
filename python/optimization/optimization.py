@@ -1,9 +1,12 @@
+import logging
+
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
 from python.simulator.network import get_manhattan_distance
 from python.simulator.status import OptimizationStatus, PassengersStatus
 from python.simulator.vehicle import Stop, GPSLocation
-from python.simulator.vehicle_event_process import VehicleNotification
+
+logger = logging.getLogger(__name__)
 
 
 class Optimization(object):
@@ -27,14 +30,14 @@ class ShuttleOptimization(Optimization):
     def optimize(self, state):
         BOARDING_TIME = 1 # Time between arrival_time and departure_time
 
-        print("\n******************\nOPTIMIZE (GreedyOptimization):\n")
-        print("current_time={}".format(state.current_time))
+        logger.info("\n******************\nOPTIMIZE (GreedyOptimization):\n")
+        logger.info("current_time={}".format(state.current_time))
 
         non_assigned_requests = state.get_non_assigned_requests()
         non_assigned_vehicles = state.get_non_assigned_vehicles()
 
-        print("non_assigned_requests={}".format(list(req.req_id for req in non_assigned_requests)))
-        print("non_assigned_vehicles={}".format(list(veh.id for veh in non_assigned_vehicles)))
+        logger.debug("non_assigned_requests={}".format(list(req.req_id for req in non_assigned_requests)))
+        logger.debug("non_assigned_vehicles={}".format(list(veh.id for veh in non_assigned_vehicles)))
 
         request_vehicle_pairs_list = []
         modified_requests = []
@@ -46,7 +49,7 @@ class ShuttleOptimization(Optimization):
             potential_non_assigned_vehicles = list(x for x in non_assigned_vehicles_sorted_by_departure_time
                                                           if x.route.current_stop.departure_time >= req.ready_time)
             # The passenger must be ready before the departure time.
-            print("potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
+            logger.debug("potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
             if len(potential_non_assigned_vehicles) != 0:
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
@@ -58,7 +61,7 @@ class ShuttleOptimization(Optimization):
                                        req.destination.gps_coordinates.get_coordinates())
 
                 req.assign_route(path)
-                print("req.path={}".format(list("(" + str(node.get_coordinates()[0]) + "," +
+                logger.debug("req.path={}".format(list("(" + str(node.get_coordinates()[0]) + "," +
                                                 str(node.get_coordinates()[1]) + ")" for node in req.path)))
 
                 departure_time = assigned_vehicle.route.current_stop.departure_time
@@ -79,21 +82,19 @@ class ShuttleOptimization(Optimization):
                 assigned_vehicle.route.assign(req)
                 req.update_passenger_status(PassengersStatus.ASSIGNED)
 
-                print(assigned_vehicle)
+                logger.debug(assigned_vehicle)
 
-                print("assigned_vehicle={}".format(req.assigned_vehicle.id))
-                print("assigned_requests={}".format(list(req.req_id for req in
+                logger.debug("assigned_vehicle={}".format(req.assigned_vehicle.id))
+                logger.debug("assigned_requests={}".format(list(req.req_id for req in
                                                          assigned_vehicle.route.assigned_requests)))
 
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
                 modified_requests.append(req)
                 modified_vehicles.append(assigned_vehicle)
 
-
-
-        print("request_vehicle_pairs_list:")
+        logger.debug("request_vehicle_pairs_list:")
         for req, veh in request_vehicle_pairs_list:
-            print("---(req_id={},veh_id={})".format(req.req_id, veh.id))
+            logger.debug("---(req_id={},veh_id={})".format(req.req_id, veh.id))
 
         for req, veh in request_vehicle_pairs_list:
             veh.route.current_stop.passengers_to_board.append(req)
@@ -105,7 +106,7 @@ class ShuttleOptimization(Optimization):
                         get_coordinates():
                     stop.passengers_to_alight.append(req)
 
-        print("END OPTIMIZE\n*******************")
+        logger.info("END OPTIMIZE\n*******************")
 
         return OptimizationResult(state, modified_requests, modified_vehicles)
 
@@ -135,8 +136,8 @@ class BusOptimization(Optimization):
         self.__all_vehicles = None
 
     def optimize(self, state):
-        print("\n******************\nOPTIMIZE (BusOptimization):\n")
-        print("current_time={}".format(state.current_time))
+        logger.info("\n******************\nOPTIMIZE (BusOptimization):\n")
+        logger.info("current_time={}".format(state.current_time))
 
         self.__non_assigned_vehicles_list = state.get_non_assigned_vehicles()
         self.__non_assigned_released_requests_list = state.get_non_assigned_requests()
@@ -163,9 +164,9 @@ class BusOptimization(Optimization):
                     modified_vehicles.append(veh)
                     break
 
-        print("request_vehicle_pairs_list:")
+        logger.debug("request_vehicle_pairs_list:")
         for req, veh in request_vehicle_pairs_list:
-            print("---(req_id={},veh_id={})".format(req.req_id, veh.id))
+            logger.debug("---(req_id={},veh_id={})".format(req.req_id, veh.id))
 
         for req, veh in request_vehicle_pairs_list:
             if veh.route.current_stop is not None and req.origin.label == veh.route.current_stop.location.label:
@@ -177,7 +178,7 @@ class BusOptimization(Optimization):
                 elif req.destination.label == stop.location.label:
                     stop.passengers_to_alight.append(req)
 
-        print("END OPTIMIZE\n*******************")
+        logger.debug("END OPTIMIZE\n*******************")
 
         return OptimizationResult(state, modified_requests, modified_vehicles)
 

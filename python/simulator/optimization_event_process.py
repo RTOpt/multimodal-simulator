@@ -14,8 +14,6 @@ class Optimize(Event):
         self.queue = queue
 
     def process(self, env):
-
-        status = env.optimization.status
         if env.optimization.status.name != 'IDLE':
             self.time += 1
             self.add_to_queue()
@@ -68,15 +66,14 @@ class EnvironmentUpdate(Event):
                                        assigned_requests=veh.route.assigned_requests)
             VehicleNotification(route_update, self.queue).add_to_queue()
 
-
         EnvironmentIdle(self.queue).add_to_queue()
 
         return 'Environment Update process is implemented'
 
+
 class EnvironmentIdle(Event):
     def __init__(self, queue):
         super().__init__('EnvironmentIdle', queue)
-
 
     def process(self, env):
         env.optimization.update_status(OptimizationStatus.IDLE)
