@@ -3,7 +3,7 @@ from optimization_event_process import *
 
 class VehicleReady(Event):
     def __init__(self, vehicle_data_dict, queue):
-        super().__init__('VehicleReady', queue)
+        super().__init__('VehicleReady', queue, vehicle_data_dict['start_time'])
         self.vehicle_data_dict = vehicle_data_dict
 
     def process(self, env):
@@ -30,6 +30,7 @@ class VehicleBoarding(Event):
 
         self.route.update_vehicle_status(VehicleStatus.BOARDING)
 
+
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from python.simulator.passenger_event_process import PassengerToBoard
 
@@ -46,6 +47,7 @@ class VehicleBoarding(Event):
             # End of route
             # Patrick: Should we set the status to COMPLETE if there are no next stops?
             self.route.update_vehicle_status(VehicleStatus.COMPLETE)
+            Optimize(env.current_time, self.queue).add_to_queue()
 
         return 'Vehicle Boarding process is implemented'
 

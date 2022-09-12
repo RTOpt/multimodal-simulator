@@ -5,9 +5,10 @@ class PassengersStatus(Enum):
     """Represents the different status of Requests"""
     RELEASE = 1
     ASSIGNED = 2
-    READY = 3
-    ONBOARD = 4
-    COMPLETE = 5
+    NONASSIGNED = 3
+    READY = 4
+    ONBOARD = 5
+    COMPLETE = 6
 
 
 class VehicleStatus(Enum):

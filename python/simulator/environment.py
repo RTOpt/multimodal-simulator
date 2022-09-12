@@ -98,7 +98,7 @@ class Environment(object):
 
         for veh in self.vehicles:
             # Patrick: Shouldn't the vehicle status be RELEASE (or READY)?
-            if veh.route.status == VehicleStatus.RELEASE:
+            if veh.route.status == VehicleStatus.RELEASE or veh.route.status == VehicleStatus.COMPLETE:
                 self.non_assigned_vehicles.append(veh)
             else:
                 self.assigned_vehicles.append(veh)

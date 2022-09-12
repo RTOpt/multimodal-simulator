@@ -71,13 +71,11 @@ class Request(object):
         # that we really need it.
         self.path = path
 
-
 class PassengerUpdate(object):
     def __init__(self, vehicle_id, request_id, next_vehicles_ids=None):
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
         self.next_vehicles_ids = next_vehicles_ids
-
 
 class Trip(Request):
     """The ``Trip`` class serves as a structure for storing basic

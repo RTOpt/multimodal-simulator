@@ -96,15 +96,16 @@ class Route(object):
 
     def board(self, request):
         """Boards passengers who are ready to pick up"""
-
-        self.onboard_requests.append(request)
-        self.current_stop.board(request)
-        # Patrick: Should we increase self.load?
-        self.load += 1
+        if request is not None:
+            self.onboard_requests.append(request)
+            self.current_stop.board(request)
+            # Patrick: Should we increase self.load?
+            self.load += 1
 
     def depart(self):
         """Departs the vehicle"""
-        self.previous_stops.append(self.current_stop)
+        if self.current_stop is not None:
+            self.previous_stops.append(self.current_stop)
         self.current_stop = None
 
     def arrive(self):
