@@ -3,7 +3,7 @@ from optimization_event_process import *
 
 class VehicleReady(Event):
     def __init__(self, vehicle_data_dict, queue):
-        super().__init__('VehicleReady', queue, vehicle_data_dict['start_time'])
+        super().__init__('VehicleReady', queue, vehicle_data_dict['release_time'])
         self.vehicle_data_dict = vehicle_data_dict
 
     def process(self, env):
@@ -29,7 +29,6 @@ class VehicleBoarding(Event):
     def process(self, env):
 
         self.route.update_vehicle_status(VehicleStatus.BOARDING)
-
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from python.simulator.passenger_event_process import PassengerToBoard

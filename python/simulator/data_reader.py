@@ -64,12 +64,14 @@ class ShuttleDataReader(DataReader):
                 # I supposed that departure_time = arrival_time + 1 (I made this assumption in the optimization as well.)
                 start_stop = Stop(None, start_time, start_time + 1, start_stop_location)
 
+                # For shuttles, release time is the same as start time.
                 vehicle_data_dict = {
                     'vehicle_id': vehicle_id,
                     'start_time': start_time,
                     'start_stop': start_stop,
                     'capacity': capacity,
-                    'next_stops': []
+                    'next_stops': [],
+                    'release_time': start_time
                 }
                 vehicle_data_list.append(vehicle_data_dict)
 
@@ -126,6 +128,9 @@ class BusDataReader(DataReader):
                 vehicle_id = int(row[0])
                 start_time = int(row[1])
 
+                # For buses, the bus schedule is known at the beginning of the simulation.
+                release_time = 0
+
                 stop_ids_list = list(str(x) for x in list(ast.literal_eval(row[2])))
                 start_stop_location = LabelLocation(stop_ids_list[0])
 
@@ -148,7 +153,8 @@ class BusDataReader(DataReader):
                     'start_time': start_time,
                     'start_stop': start_stop,
                     'capacity': capacity,
-                    'next_stops': next_stops
+                    'next_stops': next_stops,
+                    'release_time': release_time
                 }
 
                 vehicle_data_list.append(vehicle_data_dict)
@@ -157,10 +163,10 @@ class BusDataReader(DataReader):
 
 
 class GTFSReader(DataReader):
-    def __init__(self, data_folder, requests_file_name, stop_times_file_name="stop_times.txt",
+    def __init__(self, data_folder, requests_file_path, stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt", trips_file_name="trips.txt"):
         self.__data_folder = data_folder
-        self.__requests_file_path = data_folder + requests_file_name
+        self.__requests_file_path = requests_file_path
         self.__stop_times_path = data_folder + stop_times_file_name
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
@@ -205,11 +211,9 @@ class GTFSReader(DataReader):
         vehicle_data_list = []
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict.items():
-            print("{}: ".format(trip_id))
             service_id = self.__trip_service_dict[trip_id]
             dates_list = self.__service_dates_dict[service_id]
             for date in dates_list:
-                # print("date={}".format(date))
                 vehicle_data_dict = self.__get_vehicle_data_dict(trip_id, stop_time_list, date)
                 vehicle_data_list.append(vehicle_data_dict)
         return vehicle_data_list
@@ -217,6 +221,9 @@ class GTFSReader(DataReader):
     def __get_vehicle_data_dict(self, trip_id, stop_time_list, date_string):
 
         vehicle_id = trip_id
+
+        # For buses, the bus schedule is known at the beginning of the simulation.
+        release_time = 0
 
         start_stop_time = stop_time_list[0]  # Initial stop
         start_stop_arrival_time = self.__get_timestamp_from_date_and_time_strings(date_string,
@@ -233,7 +240,8 @@ class GTFSReader(DataReader):
             'start_time': start_stop_arrival_time,
             'start_stop': start_stop,
             'capacity': self.__CAPACITY,
-            'next_stops': next_stops
+            'next_stops': next_stops,
+            'release_time': release_time
         }
 
         return vehicle_data_dict
@@ -241,10 +249,6 @@ class GTFSReader(DataReader):
     def __get_next_stops(self, stop_time_list, date_string):
         next_stops = []
         for stop_time in stop_time_list[1:]:
-            # print("{} , {}, {}, {} , {}, {}".format(stop_time.arrival_time, stop_time.departure_time,
-            #                                         stop_time.stop_id, stop_time.stop_sequence,
-            #                                         stop_time.pickup_type, stop_time.drop_off_type))
-
             arrival_time = self.__get_timestamp_from_date_and_time_strings(date_string, stop_time.arrival_time)
             departure_time = self.__get_timestamp_from_date_and_time_strings(date_string, stop_time.departure_time)
 

@@ -12,14 +12,11 @@ logger = logging.getLogger(__name__)
 class Optimization(object):
 
     def __init__(self):
-        self.__state = None
         self.status = OptimizationStatus.IDLE
 
     def optimize(self, state):
-        self.__state = state
         raise NotImplementedError('optimize not implemented')
 
-    # Patrick: Added
     def update_status(self, status):
         self.status = status
 
@@ -51,7 +48,8 @@ class ShuttleOptimization(Optimization):
             potential_non_assigned_vehicles = list(x for x in non_assigned_vehicles_sorted_by_departure_time
                                                    if x.route.current_stop.departure_time >= req.ready_time)
             # The passenger must be ready before the departure time.
-            logger.debug("potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
+            logger.debug(
+                "potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
             if len(potential_non_assigned_vehicles) != 0:
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
@@ -64,7 +62,7 @@ class ShuttleOptimization(Optimization):
 
                 req.assign_route(path)
                 logger.debug("req.path={}".format(list("(" + str(node.get_coordinates()[0]) + "," +
-                                                str(node.get_coordinates()[1]) + ")" for node in req.path)))
+                                                       str(node.get_coordinates()[1]) + ")" for node in req.path)))
 
                 departure_time = assigned_vehicle.route.current_stop.departure_time
                 previous_node = path[0]
@@ -88,7 +86,7 @@ class ShuttleOptimization(Optimization):
 
                 logger.debug("assigned_vehicle={}".format(req.assigned_vehicle.id))
                 logger.debug("assigned_requests={}".format(list(req.req_id for req in
-                                                         assigned_vehicle.route.assigned_requests)))
+                                                                assigned_vehicle.route.assigned_requests)))
 
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
                 modified_requests.append(req)
@@ -141,43 +139,45 @@ class BusOptimization(Optimization):
         self.__state = None
 
     def optimize(self, state):
-
-        super().optimize(state)
-
         logger.info("\n******************\nOPTIMIZE (BusOptimization):\n")
         logger.info("current_time={}".format(state.current_time))
 
+        self.__state = state
         self.__non_assigned_vehicles_list = state.get_non_assigned_vehicles()
         self.__non_assigned_released_requests_list = state.get_non_assigned_requests()
         self.__all_vehicles = state.vehicles
-
 
         self.__create_graph_from_state()
 
         self.__modified_requests = []
         self.__modified_vehicles = []
 
+        logger.debug("self.__non_assigned_released_requests_list={}".format(self.__non_assigned_released_requests_list))
+
         for req in self.__non_assigned_released_requests_list:
             potential_source_nodes = self.__find_potential_source_nodes(req)
             potential_target_nodes = self.__find_potential_target_nodes(req)
 
+            logger.debug("potential_source_nodes={}".format(potential_source_nodes))
+            logger.debug("potential_target_nodes={}".format(potential_target_nodes))
+
             if len(potential_source_nodes) != 0 and len(potential_target_nodes) != 0:
-                print("req.req_id={}".format(req.req_id))
+                logger.debug("req.req_id={}".format(req.req_id))
                 feasible_paths = self.__find_feasible_paths(potential_source_nodes, potential_target_nodes)
                 if len(feasible_paths) > 0:
                     optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
-                    print("optimal_path={}".format(optimal_path))
+                    logger.debug("optimal_path={}".format(optimal_path))
                     optimal_route = self.__get_route_from_path(optimal_path)
-                    print("optimal_route={}".format(optimal_route))
+                    logger.debug("optimal_route={}".format(optimal_route))
 
                     self.__assign_request_to_route(req, optimal_route)
                     self.__assign_request_to_stops(req, optimal_route)
 
-        logger.debug("END OPTIMIZE\n*******************")
+        logger.info("END OPTIMIZE\n*******************")
 
         # Draw the network.
         # if len(self.__modified_requests) > 0:
-        #     print(self.__bus_network_graph)
+        #     logger.debug(self.__bus_network_graph)
         #     import matplotlib.pyplot as plt
         #     pos = nx.spring_layout(self.__bus_network_graph, seed=0)
         #     nx.draw(self.__bus_network_graph, pos, with_labels=True)
@@ -236,8 +236,8 @@ class BusOptimization(Optimization):
         distance_dict, path_dict = nx.multi_source_dijkstra(self.__bus_network_graph, set(potential_source_nodes))
         feasible_paths = []
         for node, distance in distance_dict.items():
-            print("{}: {}".format(node, distance))
-            print(path_dict[node])
+            logger.debug("{}: {}".format(node, distance))
+            logger.debug(path_dict[node])
             if node in potential_target_nodes:
                 feasible_paths.append(path_dict[node])
 
@@ -286,18 +286,18 @@ class BusOptimization(Optimization):
             vehicle = route_leg[0]
             stop = self.__get_stop_by_stop_id(stop_id, vehicle)
 
-            print("passengers_to_board: {} -> {}".format(request.req_id, vehicle.id))
+            logger.debug("passengers_to_board: {} -> {}".format(request.req_id, vehicle.id))
             stop.passengers_to_board.append(request)
-            print("stop: {}".format(stop))
+            logger.debug("stop: {}".format(stop))
             if is_connection:
                 connection_stop = self.__get_stop_by_stop_id(stop_id, previous_vehicle)
                 connection_stop.passengers_to_alight.append(request)
-                print(connection_stop)
+                logger.debug(connection_stop)
 
             is_connection = True
             previous_vehicle = route_leg[0]
 
-        print("vehicle.id={} | request.origin.label={}".format(vehicle.id, request.origin.label))
+        logger.debug("vehicle.id={} | request.origin.label={}".format(vehicle.id, request.origin.label))
         destination_stop = self.__get_stop_by_stop_id(request.destination.label, vehicle)
         destination_stop.passengers_to_alight.append(request)
 

@@ -12,7 +12,6 @@ from vehicle_event_process import *
 
 from environment import *
 
-
 from data_reader import GTFSReader, BusDataReader, ShuttleDataReader
 
 logger = logging.getLogger(__name__)
@@ -35,10 +34,10 @@ def simulate(env, queue, request_data_list, vehicle_data_list):
 
         event_time, event_index, current_event = queue.pop()
 
-        # Patrick: Should we update env.current_time here?
         env.current_time = event_time
 
-        logger.info("current_time={} | event_time={} | current_event={}".format(env.current_time, event_time, current_event))
+        logger.info(
+            "current_time={} | event_time={} | current_event={}".format(env.current_time, event_time, current_event))
         process_event = current_event.process(env)
         logger.info("process_event: {}".format(process_event))
 
@@ -67,8 +66,9 @@ def print_environment(env):
     for veh in env.get_vehicles():
         assigned_requests_id = [req.req_id for req in veh.route.assigned_requests]
 
-        logger.info("{}: status: {}, start_time: {}, assigned_requests: {}".format(veh.id, veh.route.status, veh.start_time,
-                                                                             assigned_requests_id))
+        logger.info(
+            "{}: status: {}, start_time: {}, assigned_requests: {}".format(veh.id, veh.route.status, veh.start_time,
+                                                                           assigned_requests_id))
         logger.debug("  --previous_stops:")
         for stop in veh.route.previous_stops:
             logger.debug("   --{}: {}".format(stop.location, stop))
@@ -88,9 +88,9 @@ def print_environment(env):
         next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_vehicles is not None else None
 
         logger.info("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}, "
-              "previous_vehicles_ids: {}, next_vehicles_ids: {}".
-              format(req.req_id, req.status, req.origin, req.destination, req.release_time, req.ready_time,
-                     req.due_time, assigned_vehicle_id, previous_vehicles_ids, next_vehicles_ids))
+                    "previous_vehicles_ids: {}, next_vehicles_ids: {}".
+                    format(req.req_id, req.status, req.origin, req.destination, req.release_time, req.ready_time,
+                           req.due_time, assigned_vehicle_id, previous_vehicles_ids, next_vehicles_ids))
         logger.info("***************\n")
 
 
@@ -130,9 +130,10 @@ def add_arguments(parser):
     parser.add_argument("-r", "--requests", help="path to the file containing the requests")
     parser.add_argument("-v", "--vehicles", help="path to the file containing the vehicles")
     parser.add_argument("-n", "--nodes", help="path to the file containing the nodes (with 'shuttle' only)")
-    parser.add_argument("--gtfs", help="input files are in the gtfs format", action="store_true")
     parser.add_argument("type", help="type of optimization ('shuttle' or 'bus')")
     parser.add_argument("--log-level", help="the log level (by default: DEBUG)", default="DEBUG")
+    parser.add_argument("--gtfs", help="input files are in the GTFS format", action="store_true")
+    parser.add_argument("--gtfsfolder", help="the path to the folder containing the files in the GTFS format")
 
 
 def check_arguments(args):
@@ -142,8 +143,8 @@ def check_arguments(args):
         raise ValueError("Shuttle optimization requires the path to the nodes (--nodes)!")
     elif (args.type == "shuttle" or args.type == "bus") and args.requests is None:
         raise ValueError("Shuttle optimization requires the path to the requests (--requests)!")
-    elif (args.type == "shuttle" or args.type == "bus") and args.vehicles is None:
-        raise ValueError("Shuttle optimization requires the path to the vehicles (--vehicles)!")
+    elif (args.type == "shuttle" or args.type == "bus") and (args.vehicles is None and not args.gtfs):
+        raise ValueError("the path to the vehicles (--vehicles) is required!")
 
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_log_level, int):
@@ -155,7 +156,7 @@ def configure_logger(log_level=logging.DEBUG, log_filename=None):
 
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
-    console_stream_handler.setFormatter(ColoredFormatter())
+    console_stream_handler.setFormatter(ColoredFormatter(fmt='%(message)s'))
 
     root_logger = logging.getLogger()
 
@@ -168,7 +169,7 @@ def configure_logger(log_level=logging.DEBUG, log_filename=None):
     root_logger.info("log_level={}".format(log_level))
 
 
-def main(argv):
+def main():
     parser = argparse.ArgumentParser()
     add_arguments(parser)
     args = parser.parse_args()
@@ -180,65 +181,38 @@ def main(argv):
     requests_file_path = args.requests
     vehicles_file_path = args.vehicles
 
+    g = None
+
     if args.type == "shuttle":
         logger.info("SHUTTLE")
+
         nodes_file_path = args.nodes
-        env, request_data_list, vehicle_data_list = create_environment_from_files(nodes_file_path, requests_file_path,
-                                                                                  vehicles_file_path)
+
+        data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
+        nodes = data_reader.get_node_data()
+        g = create_graph(nodes)
+
     elif args.type == "bus":
         logger.info("BUS")
-        env, request_data_list, vehicle_data_list = create_bus_environment_from_files(requests_file_path,
-                                                                                      vehicles_file_path)
+
+        if args.gtfs:
+            data_reader = GTFSReader(args.gtfsfolder, requests_file_path)
+        else:
+            data_reader = BusDataReader(requests_file_path, vehicles_file_path)
+
+    if g is not None:
+        opt = ShuttleOptimization()
+        env = Environment(opt, g)
+    else:
+        opt = BusOptimization()
+        env = Environment(opt)
+
+    vehicle_data_list = data_reader.get_vehicle_data()
+    request_data_list = data_reader.get_request_data()
 
     eq = EventQueue(env)
     simulate(env, eq, request_data_list, vehicle_data_list)
 
 
-
-
-
-
-    # if len(argv) == 4:
-    #     # 3 arguments have to be passed: the relative paths to the requests, the vehicles and the nodes.
-    #     # For example: ../../data/test/requests.csv ../../data/test/vehicles.csv ../../data/test/nodes.csv
-    #     print("SHUTTLE")
-    #     requests_file_path = argv[1]
-    #     vehicles_file_path = argv[2]
-    #     nodes_file_path = argv[3]
-    #
-    #     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
-    #     nodes = data_reader.get_node_data()
-    #     g = create_graph(nodes)
-    # elif len(argv) == 3:
-    #     print("BUS")
-    #     # 2 arguments have to be passed: the relative paths to the requests and the vehicles.
-    #     # For example: ../../data/bus_test/requests_v1.csv ../../data/bus_test/vehicles_v1.csv
-    #     requests_file_path = argv[1]
-    #     vehicles_file_path = argv[2]
-    #
-    #     data_reader = BusDataReader(requests_file_path, vehicles_file_path)
-    #     g = None
-    # elif len(argv) == 2:
-    #     print("GTFS")
-    #     # The folder containing the GTFS data has to be passed as argument.
-    #     # For example: ../../data/bus_test/gtfs_test/
-    #     gtfs_folder = argv[1]
-    #
-    #     data_reader = GTFSReader(gtfs_folder, "requests_gtfs.csv")
-    #     g = None
-    # else:
-    #     raise ValueError("Either 1, 2 or 3 arguments must be passed to the program!")
-    #
-    # vehicle_data_list = data_reader.get_vehicle_data()
-    # request_data_list = data_reader.get_request_data()
-    #
-    # if g is not None:
-    #     opt = ShuttleOptimization()
-    #     env = Environment(opt, g)
-    # else:
-    #     opt = BusOptimization()
-    #     env = Environment(opt)
-
-
 if __name__ == '__main__':
-    main(sys.argv)
+    main()
