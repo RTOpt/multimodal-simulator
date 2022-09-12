@@ -15,7 +15,6 @@ class Optimize(Event):
 
     def process(self, env):
 
-        status = env.optimization.status
         if env.optimization.status.name != 'IDLE':
             self.time += 1
             self.add_to_queue()
@@ -54,7 +53,7 @@ class EnvironmentUpdate(Event):
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from vehicle_event_process import VehicleNotification, VehicleBoarding
         for veh in self.optimization_result.modified_vehicles:
-            if veh.route.current_stop is not None:
+            if (veh.route.current_stop is not None) and (len(veh.route.current_stop.boarding_passengers) != 0):
                 current_stop_passengers_to_board = veh.route.current_stop.passengers_to_board
                 current_stop_departure_time = veh.route.current_stop.departure_time
             else:
