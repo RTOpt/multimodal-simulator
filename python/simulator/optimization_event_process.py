@@ -7,6 +7,8 @@ from python.optimization import optimization
 
 import copy
 
+logger = logging.getLogger(__name__)
+
 
 class Optimize(Event):
     def __init__(self, time, queue):
@@ -46,8 +48,10 @@ class EnvironmentUpdate(Event):
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from passenger_event_process import PassengerAssignment
         for req in self.optimization_result.modified_requests:
-            next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_vehicles is not None else None
-            passenger_update = PassengerUpdate(req.assigned_vehicle.id, req.req_id, next_vehicles_ids)
+            # next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_legs is not None else None
+            logger.debug("req.next_legs={}".format(req.next_legs))
+            next_legs = req.next_legs if hasattr(req, 'next_legs') else None
+            passenger_update = PassengerUpdate(req.assigned_vehicle.id, req.req_id, next_legs)
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.

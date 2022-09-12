@@ -1,6 +1,10 @@
 from status import *
 
 
+# class Request
+#
+#     classe de base
+
 class Request(object):
     """The ``Request`` class mostly serves as a structure for storing basic
        information about the request
@@ -38,8 +42,8 @@ class Request(object):
         self.due_time = due_time
         self.release_time = release_time
         self.assigned_vehicle = None
-        self.next_vehicles = None
-        self.previous_vehicles = []
+        # self.next_vehicles = None
+        # self.previous_vehicles = []
         self.path = None
 
     def __str__(self):
@@ -59,7 +63,8 @@ class Request(object):
         # Optimize(Event). Therefore, the optimization results of the two Optimize(Event) should be the same and, as a
         # consequence, the same vehicle will be reassigned to the request.
         if self.assigned_vehicle is not None and self.assigned_vehicle != vehicle:
-            raise ValueError("Request (%d) is already assigned to a vehicle." % self.req_id)
+            raise ValueError("Request ({}) is already assigned to a vehicle ({}).".format(self.req_id,
+                                                                                          self.assigned_vehicle.id))
         self.assigned_vehicle = vehicle
         self.status = PassengersStatus.ASSIGNED
         return self.assigned_vehicle
@@ -71,11 +76,19 @@ class Request(object):
         # that we really need it.
         self.path = path
 
+
 class PassengerUpdate(object):
-    def __init__(self, vehicle_id, request_id, next_vehicles_ids=None):
+    def __init__(self, vehicle_id, request_id, next_legs=None):
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
-        self.next_vehicles_ids = next_vehicles_ids
+        self.next_legs = next_legs
+
+
+class Leg(Request):
+
+    def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
+        super().__init__(req_id, origin, destination, nb_passengers, ready_time, due_time, release_time)
+
 
 class Trip(Request):
     """The ``Trip`` class serves as a structure for storing basic
@@ -90,7 +103,15 @@ class Trip(Request):
             GPS coordinates of the destination point of the affected request.
     """
 
-    def __init__(self):
-        self.affected_vehicle = 0
-        self.origin_affected_request = 0
-        self.destination_affected_request = 0
+    # succession de legs
+
+    def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
+        super().__init__(req_id, origin, destination, nb_passengers, ready_time, due_time, release_time)
+
+        # self.affected_vehicle = 0
+        # self.origin_affected_request = 0
+        # self.destination_affected_request = 0
+
+        self.previous_legs = []
+        self.current_leg = None
+        self.next_legs = None

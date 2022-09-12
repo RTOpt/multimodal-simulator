@@ -1,4 +1,8 @@
+import logging
+
 from status import *
+
+logger = logging.getLogger(__name__)
 
 
 class Vehicle(object):
@@ -98,6 +102,7 @@ class Route(object):
         """Boards passengers who are ready to pick up"""
         if request is not None:
             self.onboard_requests.append(request)
+            logger.debug("self.vehicle.id={}".format(self.vehicle.id))
             self.current_stop.board(request)
             # Patrick: Should we increase self.load?
             self.load += 1

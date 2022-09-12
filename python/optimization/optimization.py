@@ -3,6 +3,7 @@ import logging
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
 from python.simulator.network import get_manhattan_distance
+from python.simulator.request import Leg
 from python.simulator.status import OptimizationStatus, PassengersStatus
 from python.simulator.vehicle import Stop, GPSLocation
 
@@ -134,7 +135,6 @@ class BusOptimization(Optimization):
         self.__modified_vehicles = None
         self.__modified_requests = None
         self.__non_assigned_released_requests_list = None
-        self.__non_assigned_vehicles_list = None
         self.__all_vehicles = None
         self.__state = None
 
@@ -143,7 +143,6 @@ class BusOptimization(Optimization):
         logger.info("current_time={}".format(state.current_time))
 
         self.__state = state
-        self.__non_assigned_vehicles_list = state.get_non_assigned_vehicles()
         self.__non_assigned_released_requests_list = state.get_non_assigned_requests()
         self.__all_vehicles = state.vehicles
 
@@ -155,6 +154,7 @@ class BusOptimization(Optimization):
         logger.debug("self.__non_assigned_released_requests_list={}".format(self.__non_assigned_released_requests_list))
 
         for req in self.__non_assigned_released_requests_list:
+            print("non_assigned req: {}".format(req.req_id))
             potential_source_nodes = self.__find_potential_source_nodes(req)
             potential_target_nodes = self.__find_potential_target_nodes(req)
 
@@ -248,30 +248,44 @@ class BusOptimization(Optimization):
 
         leg_vehicle_id = path[0][1]
         leg_vehicle = self.__state.get_vehicle_by_id(leg_vehicle_id)
-        leg_stop_id = path[0][0]
-        route.append((leg_vehicle, leg_stop_id))
+        leg_first_stop_id = path[0][0]
 
         for node in path:
             if node[1] != leg_vehicle_id:
+                leg_second_stop_id = node[0]
+                route.append((leg_vehicle, leg_first_stop_id, leg_second_stop_id))
+
                 leg_vehicle_id = node[1]
                 leg_vehicle = self.__state.get_vehicle_by_id(leg_vehicle_id)
-                leg_stop_id = node[0]
-                route.append((leg_vehicle, leg_stop_id))
+                leg_first_stop_id = node[0]
+
+        # Last leg
+        last_leg_second_stop = path[-1][0]
+        route.append((leg_vehicle, leg_first_stop_id, last_leg_second_stop))
 
         return route
 
     def __assign_request_to_route(self, request, route):
 
+        logger.debug("route={}".format(route))
+
         first_vehicle = route[0][0]
         request.assign_vehicle(first_vehicle)
         first_vehicle.route.assign(request)
-        self.__modified_vehicles.append(first_vehicle)
 
-        request.next_vehicles = []
-        for route_leg in route[1:]:
-            next_vehicle = route_leg[0]
+        # self.__modified_vehicles.append(first_vehicle)
+
+        request.next_legs = []
+        for route_leg_tuple in route:
+
+            next_vehicle = route_leg_tuple[0]
             next_vehicle.route.assign(request)
-            request.next_vehicles.append(next_vehicle)
+
+            next_leg = Leg(request.req_id, route_leg_tuple[1], route_leg_tuple[2], request.nb_passengers,
+                           request.ready_time, request.due_time, request.release_time)
+            next_leg.assigned_vehicle = next_vehicle
+
+            request.next_legs.append(next_leg)
             self.__modified_vehicles.append(next_vehicle)
 
         self.__modified_requests.append(request)
@@ -297,7 +311,9 @@ class BusOptimization(Optimization):
             is_connection = True
             previous_vehicle = route_leg[0]
 
-        logger.debug("vehicle.id={} | request.origin.label={}".format(vehicle.id, request.origin.label))
+        logger.debug("vehicle.id={} | request.origin.label={} | request.destination.label={}".format(vehicle.id,
+                                                                                                request.origin.label,
+                                                                                                request.destination.label))
         destination_stop = self.__get_stop_by_stop_id(request.destination.label, vehicle)
         destination_stop.passengers_to_alight.append(request)
 
@@ -319,3 +335,11 @@ class OptimizationResult(object):
         self.state = state
         self.modified_requests = modified_requests
         self.modified_vehicles = modified_vehicles
+
+
+class Splitter(object):
+    pass
+
+
+class Dispatcher(object):
+    pass
