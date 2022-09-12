@@ -83,14 +83,15 @@ def print_environment(env):
     logger.debug("Requests:")
     for req in env.get_requests():
         assigned_vehicle_id = req.assigned_vehicle.id if req.assigned_vehicle is not None else None
-
-        previous_vehicles_ids = [veh.id for veh in req.previous_vehicles] if req.previous_vehicles is not None else None
-        next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_vehicles is not None else None
+        previous_legs_vehicle = [leg.assigned_vehicle for leg in req.previous_legs] \
+            if hasattr(req, 'previous_legs') and req.previous_legs is not None else None
+        next_legs_vehicle = [leg.assigned_vehicle for leg in req.next_legs] \
+            if hasattr(req, 'next_legs') and req.next_legs is not None else None
 
         logger.info("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, assigned_vehicle: {}, "
-                    "previous_vehicles_ids: {}, next_vehicles_ids: {}".
+                    "previous_legs_vehicle: {}, next_legs_vehicle: {}".
                     format(req.req_id, req.status, req.origin, req.destination, req.release_time, req.ready_time,
-                           req.due_time, assigned_vehicle_id, previous_vehicles_ids, next_vehicles_ids))
+                           req.due_time, assigned_vehicle_id, previous_legs_vehicle, next_legs_vehicle))
         logger.info("***************\n")
 
 
@@ -156,7 +157,7 @@ def configure_logger(log_level=logging.DEBUG, log_filename=None):
 
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
-    console_stream_handler.setFormatter(ColoredFormatter(fmt='%(message)s'))
+    console_stream_handler.setFormatter(ColoredFormatter())
 
     root_logger = logging.getLogger()
 

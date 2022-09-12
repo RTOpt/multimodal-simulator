@@ -26,7 +26,8 @@ class Environment(object):
 
     def add_request(self, nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time):
         """ Adds a new request to the requests list"""
-        new_req = Request(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
+        # new_req = Request(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
+        new_req = Trip(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
         self.requests.append(new_req)
 
         return new_req
