@@ -46,7 +46,6 @@ class VehicleBoarding(Event):
             # End of route
             # Patrick: Should we set the status to COMPLETE if there are no next stops?
             self.route.update_vehicle_status(VehicleStatus.COMPLETE)
-            Optimize(env.current_time, self.queue).add_to_queue()
 
         return 'Vehicle Boarding process is implemented'
 
@@ -79,8 +78,9 @@ class VehicleArrival(Event):
         from python.simulator.passenger_event_process import PassengerAlighting
         passengers_to_alight_copy = self.route.current_stop.passengers_to_alight.copy()
         for request in passengers_to_alight_copy:
-            self.route.alight(request)
-            PassengerAlighting(request, self.queue).add_to_queue()
+            if request in self.route.onboard_requests:
+                self.route.alight(request)
+                PassengerAlighting(request, self.queue).add_to_queue()
 
         VehicleBoarding(self.route, self.queue).add_to_queue()
 
