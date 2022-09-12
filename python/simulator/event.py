@@ -2,7 +2,7 @@ class Event(object):
     """An event with event_number occurs at a specific time ``event_time`` and involves a specific
         event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """
 
-    def __init__(self, event_name, queue, event_time = None):
+    def __init__(self, event_name, queue, event_time=None):
         self.name = event_name
         self.queue = queue
         self.time = event_time

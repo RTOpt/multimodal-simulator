@@ -14,6 +14,10 @@ class Optimize(Event):
         self.queue = queue
 
     def process(self, env):
+        if env.optimization.status.name != 'IDLE':
+            self.time += 1
+            self.add_to_queue()
+            return 'Optimize event has been put back in the queue'
 
         env.optimization.update_status(OptimizationStatus.OPTIMIZING)
 
@@ -22,7 +26,10 @@ class Optimize(Event):
         state = copy.deepcopy(env)
         optimization_result = env.optimization.optimize(state)
 
-        EnvironmentUpdate(optimization_result, self.queue).process(env)
+        # OLD Code :
+        # EnvironmentUpdate(optimization_result, self.queue).process(env)
+
+        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
@@ -44,7 +51,7 @@ class EnvironmentUpdate(Event):
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from vehicle_event_process import VehicleNotification
+        from vehicle_event_process import VehicleNotification, VehicleBoarding
         for veh in self.optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
                 current_stop_passengers_to_board = veh.route.current_stop.passengers_to_board
@@ -60,6 +67,16 @@ class EnvironmentUpdate(Event):
                                        assigned_requests=veh.route.assigned_requests)
             VehicleNotification(route_update, self.queue).add_to_queue()
 
-        env.optimization.update_status(OptimizationStatus.IDLE)
+        EnvironmentIdle(self.queue).add_to_queue()
 
         return 'Environment Update process is implemented'
+
+
+class EnvironmentIdle(Event):
+    def __init__(self, queue):
+        super().__init__('EnvironmentIdle', queue)
+
+    def process(self, env):
+        env.optimization.update_status(OptimizationStatus.IDLE)
+
+        return 'Environment Idle process is implemented'
