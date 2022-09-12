@@ -55,8 +55,8 @@ class ShuttleOptimization(Optimization):
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
                 # Asma : The assigned vehicle must be removed from the non_assigned_vehicles_sorted_by_departure_time
-                # non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
-                #                                                   if not assigned_vehicle.id == x.id]
+                non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
+                                                                   if not assigned_vehicle.id == x.id]
 
                 path = self.__get_path(state.network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
@@ -66,19 +66,27 @@ class ShuttleOptimization(Optimization):
                                                        str(node.get_coordinates()[1]) + ")" for node in req.path)))
 
                 departure_time = assigned_vehicle.route.current_stop.departure_time
-                previous_node = path[0]
+                # previous_node = path[0]
+
+                # Asma : temporary solution - the code should be rearranged to
+                if hasattr(assigned_vehicle.route.current_stop.location, 'gps_coordinates'):
+                    previous_node = assigned_vehicle.route.current_stop.location.gps_coordinates
+                else:
+                    previous_node = assigned_vehicle.route.current_stop.location
+
                 next_stops = []
-                for node in path[1:]:
-                    # First node is excluded because it is the current_stop.
+                # OLD CODE : for node in path[1:]:
+                for node in path:
+                    # First node is excluded because it is the current_stop. Asma not necessarily
                     distance = get_manhattan_distance(previous_node.get_coordinates(), node.get_coordinates())
                     arrival_time = departure_time + distance
                     departure_time = arrival_time + BOARDING_TIME
-                    location = GPSLocation(node)
+                    location = node
                     stop = Stop(None, arrival_time, departure_time, location)
                     next_stops.append(stop)
                     previous_node = node
 
-                assigned_vehicle.route.next_stops = next_stops
+                assigned_vehicle.route.next_stops.extend(next_stops)
                 req.assign_vehicle(assigned_vehicle)
                 assigned_vehicle.route.assign(req)
                 req.update_passenger_status(PassengersStatus.ASSIGNED)
@@ -101,10 +109,9 @@ class ShuttleOptimization(Optimization):
             veh.route.current_stop.passengers_to_board.append(req)
 
             for stop in veh.route.next_stops:
-                if req.origin.gps_coordinates.get_coordinates() == stop.location.gps_coordinates.get_coordinates():
+                if req.origin.gps_coordinates.get_coordinates() == stop.location.get_coordinates():
                     stop.passengers_to_board.append(req)
-                elif req.destination.gps_coordinates.get_coordinates() == stop.location.gps_coordinates. \
-                        get_coordinates():
+                elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates():
                     stop.passengers_to_alight.append(req)
 
         logger.info("END OPTIMIZE\n*******************")
