@@ -1,5 +1,3 @@
-import sys
-import logging
 import argparse
 
 # sys.path.append('C:/Users/asmam/PycharmProjects/SimulatorMultimodal')
@@ -12,7 +10,7 @@ from vehicle_event_process import *
 
 from environment import *
 
-from data_reader import GTFSReader, BusDataReader, ShuttleDataReader
+from python.reader.data_reader import GTFSReader, BusDataReader, ShuttleDataReader
 
 logger = logging.getLogger(__name__)
 
@@ -104,29 +102,6 @@ def display_instance(instances):
         logger.info(i)
 
 
-# def create_environment_from_files(nodes_file_path, requests_file_path, vehicles_file_path):
-#     nodes = read_file_nodes(nodes_file_path)
-#     g = create_graph(nodes)
-#
-#     opt = ShuttleOptimization()
-#     env = Environment(opt, g)
-#
-#     request_data_list = read_file_requests(requests_file_path)
-#     vehicle_data_list = read_file_vehicles(vehicles_file_path)
-#
-#     return env, request_data_list, vehicle_data_list
-#
-#
-# def create_bus_environment_from_files(requests_file_path, vehicles_file_path):
-#     opt = BusOptimization()
-#     env = Environment(opt)
-#
-#     request_data_list = read_file_bus_requests(requests_file_path)
-#     vehicle_data_list = read_file_bus_vehicles(vehicles_file_path)
-#
-#     return env, request_data_list, vehicle_data_list
-
-
 def add_arguments(parser):
     parser.add_argument("-r", "--requests", help="path to the file containing the requests")
     parser.add_argument("-v", "--vehicles", help="path to the file containing the vehicles")
@@ -134,7 +109,7 @@ def add_arguments(parser):
     parser.add_argument("type", help="type of optimization ('shuttle' or 'bus')")
     parser.add_argument("--log-level", help="the log level (by default: DEBUG)", default="DEBUG")
     parser.add_argument("--gtfs", help="input files are in the GTFS format", action="store_true")
-    parser.add_argument("--gtfsfolder", help="the path to the folder containing the files in the GTFS format")
+    parser.add_argument("--gtfs-folder", help="the path to the folder containing the files in the GTFS format")
 
 
 def check_arguments(args):
@@ -158,6 +133,7 @@ def configure_logger(log_level=logging.DEBUG, log_filename=None):
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
     console_stream_handler.setFormatter(ColoredFormatter())
+    # Add fmt="%(message)s" as argument if you only want to see the output (without time and line numbers).
 
     root_logger = logging.getLogger()
 
@@ -185,6 +161,7 @@ def main():
     g = None
 
     if args.type == "shuttle":
+        # Parameters example: shuttle -r ../../data/test0_shuttle/requests.csv -v ../../data/test0_shuttle/vehicles.csv -n ../../data/test0_shuttle/nodes.csv
         logger.info("SHUTTLE")
 
         nodes_file_path = args.nodes
@@ -197,7 +174,8 @@ def main():
         logger.info("BUS")
 
         if args.gtfs:
-            data_reader = GTFSReader(args.gtfsfolder, requests_file_path)
+            # Parameters example: bus - -gtfs - -gtfs - folder.. /../ data / bus_test / gtfs_test / -r.. /../ data / bus_test / gtfs_test / requests_gtfs.csv
+            data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
         else:
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
 
