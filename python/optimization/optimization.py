@@ -55,8 +55,9 @@ class ShuttleOptimization(Optimization):
 
                 assigned_vehicle = potential_non_assigned_vehicles.pop(0)
                 # Asma : The assigned vehicle must be removed from the non_assigned_vehicles_sorted_by_departure_time
-                non_assigned_vehicles_sorted_by_departure_time = [x for x in non_assigned_vehicles_sorted_by_departure_time
-                                                                   if not assigned_vehicle.id == x.id]
+                non_assigned_vehicles_sorted_by_departure_time = [x for x in
+                                                                  non_assigned_vehicles_sorted_by_departure_time
+                                                                  if not assigned_vehicle.id == x.id]
 
                 path = self.__get_path(state.network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
@@ -284,7 +285,6 @@ class BusOptimization(Optimization):
 
         request.next_legs = []
         for route_leg_tuple in route:
-
             next_vehicle = route_leg_tuple[0]
             next_vehicle.route.assign(request)
 
@@ -319,8 +319,8 @@ class BusOptimization(Optimization):
             previous_vehicle = route_leg[0]
 
         logger.debug("vehicle.id={} | request.origin.label={} | request.destination.label={}".format(vehicle.id,
-                                                                                                request.origin.label,
-                                                                                                request.destination.label))
+                                                                                                     request.origin.label,
+                                                                                                     request.destination.label))
         destination_stop = self.__get_stop_by_stop_id(request.destination.label, vehicle)
         destination_stop.passengers_to_alight.append(request)
 
@@ -343,6 +343,8 @@ class OptimizationResult(object):
         self.modified_requests = modified_requests
         self.modified_vehicles = modified_vehicles
 
+
+# TODO: Define Splitter and Dispatcher
 
 class Splitter(object):
     pass
