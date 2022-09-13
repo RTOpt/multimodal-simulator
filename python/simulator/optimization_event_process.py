@@ -51,9 +51,9 @@ class EnvironmentUpdate(Event):
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from vehicle_event_process import VehicleNotification, VehicleBoarding
+        from vehicle_event_process import VehicleNotification
         for veh in self.optimization_result.modified_vehicles:
-            if (veh.route.current_stop is not None) and (len(veh.route.current_stop.boarding_passengers) != 0):
+            if veh.route.current_stop is not None:
                 current_stop_passengers_to_board = veh.route.current_stop.passengers_to_board
                 current_stop_departure_time = veh.route.current_stop.departure_time
             else:
