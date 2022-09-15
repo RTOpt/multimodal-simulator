@@ -1,11 +1,10 @@
-from event import Event
-# from passenger_event_process import PassengerAssignment
-from request import PassengerUpdate
-from vehicle import *
-from network import *
-from python.optimization import optimization
-
 import copy
+import logging
+
+from python.multimodalsim.simulator.event import Event
+from python.multimodalsim.simulator.request import PassengerUpdate
+from python.multimodalsim.simulator.status import OptimizationStatus
+from python.multimodalsim.simulator.vehicle import RouteUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,7 @@ class Optimize(Event):
         # The variable state contains a deep copy of the environment so that we do not modify the environment during the
         # optimization.
         state = copy.deepcopy(env)
-        optimization_result = env.optimization.optimize(state)
-
-        # OLD Code :
-        # EnvironmentUpdate(optimization_result, self.queue).process(env)
+        optimization_result = env.optimization.dispatch(state)
 
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
@@ -46,29 +42,36 @@ class EnvironmentUpdate(Event):
         env.optimization.update_status(OptimizationStatus.UPDATEENVIRONMENT)
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from passenger_event_process import PassengerAssignment
-        for req in self.optimization_result.modified_requests:
-            # next_vehicles_ids = [veh.id for veh in req.next_vehicles] if req.next_legs is not None else None
-            logger.debug("req.next_legs={}".format(req.next_legs))
-            next_legs = req.next_legs if hasattr(req, 'next_legs') else None
-            passenger_update = PassengerUpdate(req.assigned_vehicle.id, req.req_id, next_legs)
+        from python.multimodalsim.simulator.passenger_event_process import PassengerAssignment
+        for trip in self.optimization_result.modified_requests:
+            # next_vehicles_ids = [veh.id for veh in trip.next_vehicles] if trip.next_legs is not None else None
+            # logger.debug("trip.next_legs={}".format(trip.next_legs))
+            current_leg = trip.current_leg
+            next_legs = trip.next_legs
+
+            passenger_update = PassengerUpdate(trip.current_leg.assigned_vehicle.id, trip.req_id, current_leg,
+                                               next_legs)
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from vehicle_event_process import VehicleNotification, VehicleBoarding
+        from python.multimodalsim.simulator.vehicle_event_process import VehicleNotification
         for veh in self.optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
-                current_stop_passengers_to_board = veh.route.current_stop.passengers_to_board
+                current_stop_modified_passengers_to_board = [trip for trip in veh.route.current_stop.passengers_to_board
+                                                             if trip in self.optimization_result.modified_requests]
+                logger.debug("modified passengers: {}".format([trip.req_id for trip in current_stop_modified_passengers_to_board]))
                 current_stop_departure_time = veh.route.current_stop.departure_time
             else:
-                current_stop_passengers_to_board = None
+                current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
 
             next_stops = veh.route.next_stops
-            route_update = RouteUpdate(veh.id, current_stop_passengers_to_board=current_stop_passengers_to_board,
+            route_update = RouteUpdate(veh.id,
+                                       current_stop_modified_passengers_to_board=
+                                       current_stop_modified_passengers_to_board,
                                        next_stops=next_stops,
                                        current_stop_departure_time=current_stop_departure_time,
-                                       assigned_requests=veh.route.assigned_requests)
+                                       assigned_trips=veh.route.assigned_trips)
             VehicleNotification(route_update, self.queue).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
