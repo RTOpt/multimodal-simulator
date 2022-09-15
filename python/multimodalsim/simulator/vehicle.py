@@ -1,6 +1,6 @@
 import logging
 
-from status import *
+from python.multimodalsim.simulator.status import VehicleStatus
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class Route(object):
     information about the routes. This class inherits from Vehicle class.
        Properties
        ----------
-        onboard_requests: list
+        onboard_trips: list
             Ids of requests currently on board.
         current_stops: list of tuples of floats (x,y)
            each element of the list corresponds to the GPS coordinates of a current stop of the vehicle.
@@ -70,10 +70,10 @@ class Route(object):
         self.current_stop = vehicle.start_stop
         self.next_stops = next_stops
         self.previous_stops = []
-        self.onboard_requests = []
-        self.assigned_requests = []
-        self.alighted_requests = []
-        self.load = 0  # Patrick: Is the load different from len(self.onboard_requests)?
+        self.onboard_trips = []
+        self.assigned_trips = []
+        self.alighted_trips = []
+        self.load = 0  # Patrick: Is the load different from len(self.onboard_trips)?
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -101,7 +101,7 @@ class Route(object):
     def board(self, request):
         """Boards passengers who are ready to pick up"""
         if request is not None:
-            self.onboard_requests.append(request)
+            self.onboard_trips.append(request)
             logger.debug("self.vehicle.id={}".format(self.vehicle.id))
             self.current_stop.board(request)
             # Patrick: Should we increase self.load?
@@ -119,8 +119,8 @@ class Route(object):
 
     def alight(self, request):
         """Alights passengers who reached their destination from the vehicle"""
-        self.onboard_requests.remove(request)
-        self.alighted_requests.append(request)
+        self.onboard_trips.remove(request)
+        self.alighted_trips.append(request)
         self.current_stop.alight(request)
         # Patrick: Should we decrease self.load?
         self.load -= 1
@@ -130,8 +130,8 @@ class Route(object):
         return self.capacity - self.load
 
     def assign(self, request):
-        """Assigns a new request to the vehicle"""
-        self.assigned_requests.append(request)
+        """Assigns a new trip to the vehicle"""
+        self.assigned_trips.append(request)
 
     def requests_to_pickup(self):
         """Updates the list of requests to pick up by the vehicle"""
@@ -236,10 +236,10 @@ class LabelLocation(Location):
 
 
 class RouteUpdate(object):
-    def __init__(self, vehicle_id, current_stop_passengers_to_board=None, next_stops=None,
-                 current_stop_departure_time=None, assigned_requests=None):
+    def __init__(self, vehicle_id, current_stop_modified_passengers_to_board=None, next_stops=None,
+                 current_stop_departure_time=None, assigned_trips=None):
         self.vehicle_id = vehicle_id
-        self.current_stop_passengers_to_board = current_stop_passengers_to_board
+        self.current_stop_modified_passengers_to_board = current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-        self.assigned_requests = assigned_requests
+        self.assigned_trips = assigned_trips

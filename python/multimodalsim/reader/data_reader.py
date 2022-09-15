@@ -2,8 +2,8 @@ import csv
 import ast
 from datetime import datetime, timedelta
 
-from python.simulator.network import Node
-from python.simulator.vehicle import LabelLocation, Stop, GPSLocation
+from python.multimodalsim.simulator.network import Node
+from python.multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation
 
 
 class DataReader(object):
@@ -24,7 +24,7 @@ class ShuttleDataReader(DataReader):
         self.__nodes_file_path = nodes_file_path
 
     def get_request_data(self):
-        """ read request from a file
+        """ read trip from a file
                    format:
                    requestId, origin, destination, nb_passengers, ready_date, due_date, release_date
             """

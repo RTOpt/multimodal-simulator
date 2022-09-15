@@ -8,7 +8,7 @@ from dateutil.parser import parse
 ##################################################################################
 # Data File Path
 ##################################################################################
-ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 print(ROOT_PATH)
 
 

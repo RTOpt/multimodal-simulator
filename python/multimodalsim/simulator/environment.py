@@ -1,40 +1,41 @@
-from vehicle import *
-from request import *
+from python.multimodalsim.simulator.request import Trip
+from python.multimodalsim.simulator.status import PassengersStatus, VehicleStatus
+from python.multimodalsim.simulator.vehicle import Vehicle
 
 
 class Environment(object):
 
     def __init__(self, optimization, network=None):
         # Patrick: Added optimization, status
+        self.non_assigned_trips = None
         self.current_time = 0
-        self.requests = []
-        self.assigned_requests = []
-        self.non_assigned_requests = []
+        self.trips = []
+        self.assigned_trips = []
+        self.non_assigned_trips = []
         self.vehicles = []
         self.assigned_vehicles = []
         self.non_assigned_vehicles = []
         self.network = network
         self.optimization = optimization
 
-    def get_requests(self):
-        return self.requests
+    def get_trips(self):
+        return self.trips
 
-    def get_request_by_id(self, req_id):
-        for req in self.requests:
-            if req.req_id == req_id:
-                return req
+    def get_trip_by_id(self, req_id):
+        for trip in self.trips:
+            if trip.req_id == req_id:
+                return trip
 
-    def add_request(self, nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time):
-        """ Adds a new request to the requests list"""
-        # new_req = Request(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
+    def add_trip(self, nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time):
+        """ Adds a new trip to the requests list"""
         new_req = Trip(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
-        self.requests.append(new_req)
+        self.trips.append(new_req)
 
         return new_req
 
-    def remove_request(self, request_id):
-        """ Removes a request from the requests list based on its id"""
-        self.requests = [item for item in self.requests if item.attribute != request_id]
+    def remove_trip(self, trip_id):
+        """ Removes a trip from the requests list based on its id"""
+        self.trips = [item for item in self.trips if item.attribute != trip_id]
 
     def get_vehicles(self):
         return self.vehicles
@@ -55,15 +56,15 @@ class Environment(object):
         """ Removes a vehicle from the vehicles list based on its id"""
         self.vehicles = [item for item in self.vehicles if item.attribute != vehicle_id]
 
-    def get_non_assigned_requests(self):
+    def get_non_assigned_trips(self):
         # Patrick: OLD
         # for req in self.requests:
         #     if req.status == PassengersStatus.RELEASE:
-        #         self.non_assigned_requests.append(req)
+        #         self.non_assigned_trips.append(req)
 
-        self.update_non_assigned_requests()
+        self.update_non_assigned_trips()
 
-        return self.non_assigned_requests
+        return self.non_assigned_trips
 
     def get_non_assigned_vehicles(self):
         # Patrick: OLD
@@ -75,22 +76,21 @@ class Environment(object):
 
         return self.non_assigned_vehicles
 
-    def update_non_assigned_requests(self):
-        # Patrick: Shouldn't we reinitialize the list non_assigned_requests every time?
-        self.non_assigned_requests = []  # Was not there before
-        self.assigned_requests = []  # Was not there before
+    def update_non_assigned_trips(self):
+        self.non_assigned_trips = []
+        self.assigned_trips = []
 
         # À faire par les événements
-        for req in self.requests:
-            # Shouldn't we consider a request with PassengersStatus.ASSIGNMENT a non-assigned request as well?
-            if req.status == PassengersStatus.RELEASE:
-                self.non_assigned_requests.append(req)
+        for trip in self.trips:
+            # Shouldn't we consider a trip with PassengersStatus.ASSIGNMENT a non-assigned trip as well?
+            if trip.status == PassengersStatus.RELEASE:
+                self.non_assigned_trips.append(trip)
             else:
-                self.assigned_requests.append(req)
+                self.assigned_trips.append(trip)
             # OLD
             # if req.status == PassengersStatus.RELEASE:
-            #     self.non_assigned_requests.append(req)
-        return self.non_assigned_requests
+            #     self.non_assigned_trips.append(req)
+        return self.non_assigned_trips
 
     def update_non_assigned_vehicles(self):
         # Patrick: Shouldn't we reinitialize the list non_assigned_vehicles every time?

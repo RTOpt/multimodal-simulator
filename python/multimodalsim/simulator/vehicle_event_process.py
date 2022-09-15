@@ -1,4 +1,11 @@
-from optimization_event_process import *
+import logging
+
+from python.multimodalsim.simulator.event import Event
+from python.multimodalsim.simulator.optimization_event_process import Optimize
+from python.multimodalsim.simulator.status import VehicleStatus
+from python.multimodalsim.simulator.vehicle import Route
+
+logger = logging.getLogger(__name__)
 
 
 class VehicleReady(Event):
@@ -31,7 +38,7 @@ class VehicleBoarding(Event):
         self.route.update_vehicle_status(VehicleStatus.BOARDING)
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from python.simulator.passenger_event_process import PassengerToBoard
+        from python.multimodalsim.simulator.passenger_event_process import PassengerToBoard
 
         if len(self.route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -75,10 +82,10 @@ class VehicleArrival(Event):
 
         self.route.arrive()
 
-        from python.simulator.passenger_event_process import PassengerAlighting
+        from python.multimodalsim.simulator.passenger_event_process import PassengerAlighting
         passengers_to_alight_copy = self.route.current_stop.passengers_to_alight.copy()
         for request in passengers_to_alight_copy:
-            if request in self.route.onboard_requests:
+            if request in self.route.onboard_trips:
                 self.route.alight(request)
                 PassengerAlighting(request, self.queue).add_to_queue()
 
@@ -95,24 +102,31 @@ class VehicleNotification(Event):
     def process(self, env):
 
         vehicle = env.get_vehicle_by_id(self.route_update.vehicle_id)
+        logger.debug("vehicle.id={}".format(vehicle.id))
 
         if self.route_update.next_stops is not None:
             for stop in self.route_update.next_stops:
                 self.__update_stop_with_actual_requests(env, stop)
             vehicle.route.next_stops = self.route_update.next_stops
 
-        if self.route_update.current_stop_passengers_to_board is not None:
-            vehicle.route.current_stop.passengers_to_board = \
-                self.__replace_copy_requests_with_actual_requests(env,
-                                                                  self.route_update.current_stop_passengers_to_board)
+        if self.route_update.current_stop_modified_passengers_to_board is not None:
+            # Add passengers to board that were modified by optimization
+            # and that are not already present in vehicle.route.current_stop.passengers_to_board
+            actual_modified_passengers_to_board = self.__replace_copy_requests_with_actual_requests(
+                env, self.route_update.current_stop_modified_passengers_to_board)
+            for trip in actual_modified_passengers_to_board:
+                if trip not in vehicle.route.current_stop.passengers_to_board:
+                    vehicle.route.current_stop.passengers_to_board.append(trip)
 
-        if self.route_update.current_stop_departure_time is not None:
+        if self.route_update.current_stop_departure_time is not None and vehicle.route.current_stop is not None:
+            # If vehicle.route.current_stop.departure_time is equal to env.current_time, then the vehicle may have
+            # already left the current stop. In this case vehicle.route.current_stop is None, and we do not modify it.
             vehicle.route.current_stop.departure_time = self.route_update.current_stop_departure_time
 
-        if self.route_update.assigned_requests is not None:
-            vehicle.route.assigned_requests = \
+        if self.route_update.assigned_trips is not None:
+            vehicle.route.assigned_trips = \
                 self.__replace_copy_requests_with_actual_requests(env,
-                                                                  self.route_update.assigned_requests)
+                                                                  self.route_update.assigned_trips)
 
         return 'Notify Vehicle process is implemented'
 
@@ -125,18 +139,18 @@ class VehicleNotification(Event):
 
     def __replace_copy_requests_with_actual_requests(self, env, requests_list):
 
-        return list(env.get_request_by_id(req.req_id) for req in requests_list)
+        return list(env.get_trip_by_id(req.req_id) for req in requests_list)
 
 
 class VehicleBoarded(Event):
-    def __init__(self, request, queue):
+    def __init__(self, trip, queue):
         super().__init__('VehicleBoarded', queue)
-        self.request = request
+        self.trip = trip
 
     def process(self, env):
-        route = self.request.assigned_vehicle.route
+        route = self.trip.current_leg.assigned_vehicle.route
 
-        route.board(self.request)
+        route.board(self.trip)
 
         if len(route.current_stop.boarding_passengers) == 0:
             # All passengers are on board
