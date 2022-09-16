@@ -1,9 +1,9 @@
 import logging
 
-from python.multimodalsim.simulator.event import Event
-from python.multimodalsim.simulator.optimization_event_process import Optimize
-from python.multimodalsim.simulator.status import PassengersStatus
-from python.multimodalsim.simulator.vehicle_event_process import VehicleBoarded
+from multimodalsim.simulator.event import Event
+from multimodalsim.simulator.optimization_event_process import Optimize
+from multimodalsim.simulator.status import PassengersStatus
+from multimodalsim.simulator.vehicle_event_process import VehicleBoarded
 
 logger = logging.getLogger(__name__)
 

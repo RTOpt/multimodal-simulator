@@ -1,6 +1,6 @@
 import logging
 
-from python.multimodalsim.simulator.status import VehicleStatus
+from multimodalsim.simulator.status import VehicleStatus
 
 logger = logging.getLogger(__name__)
 

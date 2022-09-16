@@ -1,8 +1,8 @@
 import logging
 
-from python.multimodalsim.logger.formatter import ColoredFormatter
-from python.multimodalsim.simulator.passenger_event_process import PassengerRelease
-from python.multimodalsim.simulator.vehicle_event_process import VehicleReady
+from multimodalsim.logger.formatter import ColoredFormatter
+from multimodalsim.simulator.passenger_event_process import PassengerRelease
+from multimodalsim.simulator.vehicle_event_process import VehicleReady
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,10 @@
 import copy
 import logging
 
-from python.multimodalsim.simulator.event import Event
-from python.multimodalsim.simulator.request import PassengerUpdate
-from python.multimodalsim.simulator.status import OptimizationStatus
-from python.multimodalsim.simulator.vehicle import RouteUpdate
+from multimodalsim.simulator.event import Event
+from multimodalsim.simulator.request import PassengerUpdate
+from multimodalsim.simulator.status import OptimizationStatus
+from multimodalsim.simulator.vehicle import RouteUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class EnvironmentUpdate(Event):
         env.optimization.update_status(OptimizationStatus.UPDATEENVIRONMENT)
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from python.multimodalsim.simulator.passenger_event_process import PassengerAssignment
+        from multimodalsim.simulator.passenger_event_process import PassengerAssignment
         for trip in self.optimization_result.modified_requests:
             # next_vehicles_ids = [veh.id for veh in trip.next_vehicles] if trip.next_legs is not None else None
             # logger.debug("trip.next_legs={}".format(trip.next_legs))
@@ -54,7 +54,7 @@ class EnvironmentUpdate(Event):
             PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from python.multimodalsim.simulator.vehicle_event_process import VehicleNotification
+        from multimodalsim.simulator.vehicle_event_process import VehicleNotification
         for veh in self.optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
                 current_stop_modified_passengers_to_board = [trip for trip in veh.route.current_stop.passengers_to_board

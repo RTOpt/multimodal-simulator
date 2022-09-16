@@ -3,7 +3,6 @@ constants are found here
 """
 
 import os
-from dateutil.parser import parse
 
 ##################################################################################
 # Data File Path

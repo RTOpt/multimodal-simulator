@@ -1,6 +1,6 @@
-from python.multimodalsim.simulator.request import Trip
-from python.multimodalsim.simulator.status import PassengersStatus, VehicleStatus
-from python.multimodalsim.simulator.vehicle import Vehicle
+from multimodalsim.simulator.request import Trip
+from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
+from multimodalsim.simulator.vehicle import Vehicle
 
 
 class Environment(object):

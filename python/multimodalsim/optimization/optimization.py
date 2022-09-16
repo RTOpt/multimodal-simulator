@@ -1,6 +1,6 @@
 import logging
 
-from python.multimodalsim.simulator.status import OptimizationStatus
+from multimodalsim.simulator.status import OptimizationStatus
 
 logger = logging.getLogger(__name__)
 
