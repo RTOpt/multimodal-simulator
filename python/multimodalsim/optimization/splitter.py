@@ -2,8 +2,8 @@ import logging
 
 import networkx as nx
 
-from python.multimodalsim.simulator.request import Leg
-from python.multimodalsim.simulator.vehicle import LabelLocation
+from multimodalsim.simulator.request import Leg
+from multimodalsim.simulator.vehicle import LabelLocation
 
 logger = logging.getLogger(__name__)
 

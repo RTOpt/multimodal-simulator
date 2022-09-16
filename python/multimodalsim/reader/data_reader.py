@@ -2,8 +2,8 @@ import csv
 import ast
 from datetime import datetime, timedelta
 
-from python.multimodalsim.simulator.network import Node
-from python.multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation
+from multimodalsim.simulator.network import Node
+from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation
 
 
 class DataReader(object):

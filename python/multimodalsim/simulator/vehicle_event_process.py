@@ -1,9 +1,9 @@
 import logging
 
-from python.multimodalsim.simulator.event import Event
-from python.multimodalsim.simulator.optimization_event_process import Optimize
-from python.multimodalsim.simulator.status import VehicleStatus
-from python.multimodalsim.simulator.vehicle import Route
+from multimodalsim.simulator.event import Event
+from multimodalsim.simulator.optimization_event_process import Optimize
+from multimodalsim.simulator.status import VehicleStatus
+from multimodalsim.simulator.vehicle import Route
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class VehicleBoarding(Event):
         self.route.update_vehicle_status(VehicleStatus.BOARDING)
 
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from python.multimodalsim.simulator.passenger_event_process import PassengerToBoard
+        from multimodalsim.simulator.passenger_event_process import PassengerToBoard
 
         if len(self.route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -82,7 +82,7 @@ class VehicleArrival(Event):
 
         self.route.arrive()
 
-        from python.multimodalsim.simulator.passenger_event_process import PassengerAlighting
+        from multimodalsim.simulator.passenger_event_process import PassengerAlighting
         passengers_to_alight_copy = self.route.current_stop.passengers_to_alight.copy()
         for request in passengers_to_alight_copy:
             if request in self.route.onboard_trips:

@@ -1,9 +1,9 @@
 import logging
 
-from python.multimodalsim.optimization.optimization import OptimizationResult
-from python.multimodalsim.simulator.network import get_manhattan_distance
-from python.multimodalsim.simulator.status import PassengersStatus
-from python.multimodalsim.simulator.vehicle import Stop
+from multimodalsim.optimization.optimization import OptimizationResult
+from multimodalsim.simulator.network import get_manhattan_distance
+from multimodalsim.simulator.status import PassengersStatus
+from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
 logger = logging.getLogger(__name__)

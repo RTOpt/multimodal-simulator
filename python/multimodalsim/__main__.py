@@ -1,15 +1,15 @@
 import argparse
 import logging
 
-from python.multimodalsim.logger.formatter import ColoredFormatter
-from python.multimodalsim.optimization.dispatcher import ShuttleGreedyDispatcher, FixedLineDispatcher
-from python.multimodalsim.optimization.optimization import FixedLineOptimization, ShuttleGreedyOptimization
-from python.multimodalsim.optimization.splitter import OneLegSplitter, MultimodalSplitter
-from python.multimodalsim.reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
-from python.multimodalsim.simulator.environment import Environment
-from python.multimodalsim.simulator.event_queue import EventQueue
-from python.multimodalsim.simulator.network import create_graph
-from python.multimodalsim.simulator.simulation import simulate
+from logger.formatter import ColoredFormatter
+from optimization.dispatcher import ShuttleGreedyDispatcher, FixedLineDispatcher
+from optimization.optimization import FixedLineOptimization, ShuttleGreedyOptimization
+from optimization.splitter import OneLegSplitter, MultimodalSplitter
+from reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
+from simulator.environment import Environment
+from simulator.event_queue import EventQueue
+from simulator.network import create_graph
+from simulator.simulation import simulate
 
 logger = logging.getLogger(__name__)
 
