@@ -1,6 +1,7 @@
 import copy
 import logging
 
+from multimodalsim.optimization.state import State
 from multimodalsim.simulator.event import Event
 from multimodalsim.simulator.request import PassengerUpdate
 from multimodalsim.simulator.status import OptimizationStatus
@@ -24,6 +25,9 @@ class Optimize(Event):
 
         # The variable state contains a deep copy of the environment so that we do not modify the environment during the
         # optimization.
+
+        # TODO: Define State
+        # state = State(env)
         state = copy.deepcopy(env)
         optimization_result = env.optimization.dispatch(state)
 

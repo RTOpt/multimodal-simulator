@@ -26,12 +26,9 @@ class Environment(object):
             if trip.req_id == req_id:
                 return trip
 
-    def add_trip(self, nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time):
-        """ Adds a new trip to the requests list"""
-        new_req = Trip(nb_requests, origin, destination, nb_passengers, ready_time, due_time, release_time)
-        self.trips.append(new_req)
-
-        return new_req
+    def add_trip(self, trip):
+        """ Adds a new trip to the trips list"""
+        self.trips.append(trip)
 
     def remove_trip(self, trip_id):
         """ Removes a trip from the requests list based on its id"""
@@ -45,12 +42,9 @@ class Environment(object):
             if veh.id == veh_id:
                 return veh
 
-    def add_vehicle(self, veh_id, start_time, start_stop, capacity):
+    def add_vehicle(self, vehicle):
         """ Adds a new vehicle to the vehicles list"""
-        new_veh = Vehicle(veh_id, start_time, start_stop, capacity)
-        self.vehicles.append(new_veh)
-
-        return new_veh
+        self.vehicles.append(vehicle)
 
     def remove_vehicle(self, vehicle_id):
         """ Removes a vehicle from the vehicles list based on its id"""

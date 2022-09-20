@@ -24,12 +24,15 @@ class Vehicle(object):
             Maximum number of passengers that can fit the vehicle
     """
 
-    def __init__(self, veh_id, start_time, start_stop, capacity):
+    # Mettre __ + decorators
+
+    def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
         self.route = None
         self.id = veh_id
         self.start_time = start_time
         self.start_stop = start_stop
         self.capacity = capacity
+        self.release_time = release_time
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -70,6 +73,9 @@ class Route(object):
         self.current_stop = vehicle.start_stop
         self.next_stops = next_stops
         self.previous_stops = []
+
+        # legs plutôt que trips
+
         self.onboard_trips = []
         self.assigned_trips = []
         self.alighted_trips = []
@@ -137,6 +143,7 @@ class Route(object):
         """Updates the list of requests to pick up by the vehicle"""
         return self.current_stop.passengers_to_board
 
+    # def deep_copy(self, vehicle, etc.):
 
 class Stop(object):
     """A stop is located somewhere along the network.  New requests
@@ -209,6 +216,8 @@ class Stop(object):
 
         self.passengers_to_alight.remove(request)
         self.alighted_passengers.append(request)
+
+    # def deep_copy(self):
 
 
 class Location(object):

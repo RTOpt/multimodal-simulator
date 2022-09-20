@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='multimodalsim',
-    version='',
+    version='0.0.1',
     packages=['multimodalsim', 'multimodalsim.logger', 'multimodalsim.optimization', 'multimodalsim.reader', 'multimodalsim.simulator'],
     package_dir={'multimodalsim': 'multimodalsim'},
     url='',
