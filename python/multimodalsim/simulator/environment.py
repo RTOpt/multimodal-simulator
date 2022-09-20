@@ -22,9 +22,30 @@ class Environment(object):
         return self.trips
 
     def get_trip_by_id(self, req_id):
+        found_trip = None
         for trip in self.trips:
             if trip.req_id == req_id:
-                return trip
+                found_trip = trip
+        return found_trip
+
+    def get_leg_by_id(self, leg_id):
+        # Look for the leg in the legs of all trips.
+        found_leg = None
+        for trip in self.trips:
+            # Current leg
+            if trip.current_leg is not None and trip.current_leg.req_id == leg_id:
+                found_leg = trip.current_leg
+            # Previous legs
+            for leg in trip.previous_legs:
+                if leg.req_id == leg_id:
+                    found_leg = leg
+            # Next legs
+            if trip.next_legs is not None:
+                for leg in trip.next_legs:
+                    if leg.req_id == leg_id:
+                        found_leg = leg
+
+        return found_leg
 
     def add_trip(self, trip):
         """ Adds a new trip to the trips list"""

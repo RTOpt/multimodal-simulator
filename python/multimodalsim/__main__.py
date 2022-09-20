@@ -48,7 +48,8 @@ def configure_logger(log_level=logging.INFO, log_filename=None):
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
     console_stream_handler.setFormatter(ColoredFormatter(fmt="%(message)s"))
-    # Add fmt="%(message)s" as argument if you only want to see the output (without time and line numbers).
+    # Add fmt="%(message)s" as argument of ColoredFormatter if you only want to see the output (without time and line
+    # numbers).
 
     root_logger = logging.getLogger()
 

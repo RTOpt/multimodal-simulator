@@ -53,7 +53,7 @@ class Route(object):
     information about the routes. This class inherits from Vehicle class.
        Properties
        ----------
-        onboard_trips: list
+        onboard_legs: list
             Ids of requests currently on board.
         current_stops: list of tuples of floats (x,y)
            each element of the list corresponds to the GPS coordinates of a current stop of the vehicle.
@@ -74,12 +74,11 @@ class Route(object):
         self.next_stops = next_stops
         self.previous_stops = []
 
-        # legs plutôt que trips
+        self.onboard_legs = []
+        self.assigned_legs = []
+        self.alighted_legs = []
 
-        self.onboard_trips = []
-        self.assigned_trips = []
-        self.alighted_trips = []
-        self.load = 0  # Patrick: Is the load different from len(self.onboard_trips)?
+        self.load = 0  # Patrick: Is the load different from len(self.onboard_legs)?
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -104,12 +103,12 @@ class Route(object):
     def update_vehicle_status(self, status):
         self.status = status
 
-    def board(self, request):
+    def board(self, trip):
         """Boards passengers who are ready to pick up"""
-        if request is not None:
-            self.onboard_trips.append(request)
-            logger.debug("self.vehicle.id={}".format(self.vehicle.id))
-            self.current_stop.board(request)
+        if trip is not None:
+            self.assigned_legs.remove(trip.current_leg)
+            self.onboard_legs.append(trip.current_leg)
+            self.current_stop.board(trip)
             # Patrick: Should we increase self.load?
             self.load += 1
 
@@ -123,11 +122,11 @@ class Route(object):
         """Arrives the vehicle"""
         self.current_stop = self.next_stops.pop(0)
 
-    def alight(self, request):
+    def alight(self, trip):
         """Alights passengers who reached their destination from the vehicle"""
-        self.onboard_trips.remove(request)
-        self.alighted_trips.append(request)
-        self.current_stop.alight(request)
+        self.onboard_legs.remove(trip.current_leg)
+        self.alighted_legs.append(trip.current_leg)
+        self.current_stop.alight(trip)
         # Patrick: Should we decrease self.load?
         self.load -= 1
 
@@ -135,9 +134,9 @@ class Route(object):
         """Returns the number of places remaining in the vehicle"""
         return self.capacity - self.load
 
-    def assign(self, request):
-        """Assigns a new trip to the vehicle"""
-        self.assigned_trips.append(request)
+    def assign_leg(self, leg):
+        """Assigns a new leg to the route"""
+        self.assigned_legs.append(leg)
 
     def requests_to_pickup(self):
         """Updates the list of requests to pick up by the vehicle"""
@@ -246,9 +245,9 @@ class LabelLocation(Location):
 
 class RouteUpdate(object):
     def __init__(self, vehicle_id, current_stop_modified_passengers_to_board=None, next_stops=None,
-                 current_stop_departure_time=None, assigned_trips=None):
+                 current_stop_departure_time=None, assigned_legs=None):
         self.vehicle_id = vehicle_id
         self.current_stop_modified_passengers_to_board = current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-        self.assigned_trips = assigned_trips
+        self.assigned_legs = assigned_legs

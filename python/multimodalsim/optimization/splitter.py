@@ -125,11 +125,13 @@ class MultimodalSplitter(Splitter):
         leg_vehicle_id = path[0][1]
         leg_first_stop_id = path[0][0]
 
+        leg_number = 1
         for node in path:
             if node[1] != leg_vehicle_id:
                 leg_second_stop_id = node[0]
 
-                leg = Leg(self.__request.req_id, LabelLocation(leg_first_stop_id), LabelLocation(leg_second_stop_id),
+                leg_id = self.__request.req_id + "_" + str(leg_number)
+                leg = Leg(leg_id, LabelLocation(leg_first_stop_id), LabelLocation(leg_second_stop_id),
                           self.__request.nb_passengers, self.__request.ready_time, self.__request.due_time,
                           self.__request.release_time)
                 legs.append(leg)
@@ -137,9 +139,12 @@ class MultimodalSplitter(Splitter):
                 leg_vehicle_id = node[1]
                 leg_first_stop_id = node[0]
 
+                leg_number += 1
+
         # Last leg
         last_leg_second_stop = path[-1][0]
-        last_leg = Leg(self.__request.req_id, LabelLocation(leg_first_stop_id), LabelLocation(last_leg_second_stop),
+        leg_id = self.__request.req_id + "_" + str(leg_number)
+        last_leg = Leg(leg_id, LabelLocation(leg_first_stop_id), LabelLocation(last_leg_second_stop),
                        self.__request.nb_passengers, self.__request.ready_time, self.__request.due_time,
                        self.__request.release_time)
         legs.append(last_leg)

@@ -35,7 +35,7 @@ class ShuttleDataReader(DataReader):
             next(reader, None)
             nb_requests = 1
             for row in reader:
-                trip = Trip(nb_requests, GPSLocation(Node(None, (ast.literal_eval(row[0]), ast.literal_eval(row[1])))),
+                trip = Trip(str(nb_requests), GPSLocation(Node(None, (ast.literal_eval(row[0]), ast.literal_eval(row[1])))),
                             GPSLocation(Node(None, (ast.literal_eval(row[2]), ast.literal_eval(row[3])))), int(row[4]),
                             int(row[5]), int(row[6]), int(row[7]))
 
@@ -92,7 +92,7 @@ class BusDataReader(DataReader):
             next(reader, None)
             nb_requests = 1
             for row in reader:
-                trip = Trip(nb_requests, LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
+                trip = Trip(str(nb_requests), LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
                             int(row[3]), int(row[4]), int(row[5]))
 
                 trips_list.append(trip)
@@ -174,7 +174,7 @@ class GTFSReader(DataReader):
                 release_date_string, release_time_string = row[5].split(" ")
                 release_time = self.__get_timestamp_from_date_and_time_strings(release_date_string, release_time_string)
 
-                trip = Trip(nb_requests, LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
+                trip = Trip(str(nb_requests), LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
                             ready_time, due_time, release_time)
 
                 trips.append(trip)

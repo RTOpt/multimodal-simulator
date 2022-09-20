@@ -36,11 +36,14 @@ class ConsoleVisualizer(Visualizer):
         logger.debug("OptimizationStatus: {}".format(env.optimization.status))
         logger.debug("Vehicles:")
         for veh in env.get_vehicles():
-            assigned_requests_id = [req.req_id for req in veh.route.assigned_trips]
+            assigned_legs_id = [leg.req_id for leg in veh.route.assigned_legs]
+            onboard_legs_id = [leg.req_id for leg in veh.route.onboard_legs]
+            alighted_legs_id = [leg.req_id for leg in veh.route.alighted_legs]
 
             logger.debug(
-                "{}: status: {}, start_time: {}, assigned_trips: {}".format(veh.id, veh.route.status, veh.start_time,
-                                                                            assigned_requests_id))
+                "{}: status: {}, start_time: {}, assigned_legs: {}, "
+                "onboard_legs: {}, alighted_legs: {}".format(veh.id, veh.route.status, veh.start_time,
+                                                             assigned_legs_id, onboard_legs_id, alighted_legs_id))
             logger.debug("  --previous_stops:")
             for stop in veh.route.previous_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
@@ -67,8 +70,8 @@ class ConsoleVisualizer(Visualizer):
             next_legs = [{"O": leg.origin.__str__(), "D": leg.destination.__str__()} for leg in trip.next_legs] \
                 if hasattr(trip, 'next_legs') and trip.next_legs is not None else None
             logger.debug("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, current_leg: {}, "
-                        "previous_legs: {}, next_legs: {}, assigned_vehicle_id: {}".
-                        format(trip.req_id, trip.status, trip.origin, trip.destination, trip.release_time,
-                               trip.ready_time,
-                               trip.due_time, current_leg, previous_legs, next_legs, assigned_vehicle_id))
+                         "previous_legs: {}, next_legs: {}, assigned_vehicle_id: {}".
+                         format(trip.req_id, trip.status, trip.origin, trip.destination, trip.release_time,
+                                trip.ready_time,
+                                trip.due_time, current_leg, previous_legs, next_legs, assigned_vehicle_id))
             logger.debug("***************\n")
