@@ -3,17 +3,18 @@ import ast
 from datetime import datetime, timedelta
 
 from multimodalsim.simulator.network import Node
-from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation
+from multimodalsim.simulator.request import Trip
+from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, Vehicle
 
 
 class DataReader(object):
     def __init__(self):
         pass
 
-    def get_vehicle_data(self):
+    def get_vehicles(self):
         raise NotImplementedError('get_vehicle_data not implemented')
 
-    def get_request_data(self):
+    def get_trips(self):
         raise NotImplementedError('get_request_data not implemented')
 
 
@@ -23,33 +24,28 @@ class ShuttleDataReader(DataReader):
         self.__vehicles_file_path = vehicles_file_path
         self.__nodes_file_path = nodes_file_path
 
-    def get_request_data(self):
+    def get_trips(self):
         """ read trip from a file
                    format:
                    requestId, origin, destination, nb_passengers, ready_date, due_date, release_date
             """
-        request_data_list = []
+        trips = []
         with open(self.__requests_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
             next(reader, None)
             nb_requests = 1
             for row in reader:
-                request_data_dict = {
-                    'nb_requests': nb_requests,
-                    'origin': GPSLocation(Node(None, (ast.literal_eval(row[0]),ast.literal_eval(row[1])))),
-                    'destination': GPSLocation(Node(None, (ast.literal_eval(row[2]),ast.literal_eval(row[3])))),
-                    'nb_passengers': int(row[4]),
-                    'ready_time': int(row[5]),
-                    'due_time': int(row[6]),
-                    'release_time': int(row[7])
-                }
-                request_data_list.append(request_data_dict)
+                trip = Trip(nb_requests, GPSLocation(Node(None, (ast.literal_eval(row[0]), ast.literal_eval(row[1])))),
+                            GPSLocation(Node(None, (ast.literal_eval(row[2]), ast.literal_eval(row[3])))), int(row[4]),
+                            int(row[5]), int(row[6]), int(row[7]))
+
+                trips.append(trip)
                 nb_requests += 1
 
-        return request_data_list
+        return trips
 
-    def get_vehicle_data(self):
-        vehicle_data_list = []
+    def get_vehicles(self):
+        vehicles = []
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
             next(reader, None)
@@ -57,27 +53,22 @@ class ShuttleDataReader(DataReader):
             for row in reader:
                 vehicle_id = int(row[0])
                 start_time = int(row[1])
-                start_stop_location = GPSLocation(Node(None, (ast.literal_eval(row[2]),ast.literal_eval(row[3]))))
+                start_stop_location = GPSLocation(Node(None, (ast.literal_eval(row[2]), ast.literal_eval(row[3]))))
                 capacity = int(row[4])
 
-                # Patrick: I am not sure if the departure time and the arrival time should be the same for start_stop. Here,
-                # I supposed that departure_time = arrival_time + 1 (I made this assumption in the optimization as well.)
+                # Patrick: I am not sure if the departure time and the arrival time should be the same for
+                # start_stop. Here, I supposed that departure_time = arrival_time + 1 (I made this assumption in the
+                # optimization as well.)
                 start_stop = Stop(None, start_time, start_time + 1, start_stop_location)
 
-                # For shuttles, release time is the same as start time.
-                vehicle_data_dict = {
-                    'vehicle_id': vehicle_id,
-                    'start_time': start_time,
-                    'start_stop': start_stop,
-                    'capacity': capacity,
-                    'next_stops': [],
-                    'release_time': start_time
-                }
-                vehicle_data_list.append(vehicle_data_dict)
+                # Patrick: For shuttles, release time is the same as start time, but it could be changed.
+                vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity, start_time)
 
-        return vehicle_data_list
+                vehicles.append(vehicle)
 
-    def get_node_data(self):
+        return vehicles
+
+    def get_nodes(self):
         nodes = []
         with open(self.__nodes_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
@@ -90,35 +81,31 @@ class ShuttleDataReader(DataReader):
 
 class BusDataReader(DataReader):
     def __init__(self, requests_file_path, vehicles_file_path):
+        self.__next_stops_by_vehicle_id_dict = None
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
 
-    def get_request_data(self):
-        request_data_list = []
+    def get_trips(self):
+        trips_list = []
         with open(self.__requests_file_path, 'r') as file:
             reader = csv.reader(file, delimiter=';')
             next(reader, None)
             nb_requests = 1
             for row in reader:
-                request_data_dict = {
-                    'nb_requests': nb_requests,
-                    'origin': LabelLocation(str(row[0])),
-                    'destination': LabelLocation(str(row[1])),
-                    'nb_passengers': int(row[2]),
-                    'ready_time': int(row[3]),
-                    'due_time': int(row[4]),
-                    'release_time': int(row[5])
-                }
-                request_data_list.append(request_data_dict)
+                trip = Trip(nb_requests, LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
+                            int(row[3]), int(row[4]), int(row[5]))
+
+                trips_list.append(trip)
                 nb_requests += 1
 
-        return request_data_list
+        return trips_list
 
-    def get_vehicle_data(self):
+    def get_vehicles(self):
         BOARDING_TIME = 1
         TRAVEL_TIME = 2
 
-        vehicle_data_list = []
+        vehicles = []
+        self.__next_stops_by_vehicle_id_dict = {}
 
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
@@ -148,23 +135,21 @@ class BusDataReader(DataReader):
 
                 capacity = int(row[3])
 
-                vehicle_data_dict = {
-                    'vehicle_id': vehicle_id,
-                    'start_time': start_time,
-                    'start_stop': start_stop,
-                    'capacity': capacity,
-                    'next_stops': next_stops,
-                    'release_time': release_time
-                }
+                vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity, release_time)
 
-                vehicle_data_list.append(vehicle_data_dict)
+                vehicles.append(vehicle)
+                self.__next_stops_by_vehicle_id_dict[vehicle.id] = next_stops
 
-        return vehicle_data_list
+        return vehicles
+
+    def get_next_stops_by_vehicle_id_dict(self):
+        return self.__next_stops_by_vehicle_id_dict
 
 
 class GTFSReader(DataReader):
     def __init__(self, data_folder, requests_file_path, stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt", trips_file_name="trips.txt"):
+        self.__next_stops_by_vehicle_id_dict = None
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
         self.__stop_times_path = data_folder + stop_times_file_name
@@ -173,8 +158,8 @@ class GTFSReader(DataReader):
 
         self.__CAPACITY = 10
 
-    def get_request_data(self):
-        request_data_list = []
+    def get_trips(self):
+        trips = []
         with open(self.__requests_file_path, 'r') as requests_file:
             requests_reader = csv.reader(requests_file, delimiter=';')
             next(requests_reader, None)
@@ -189,36 +174,36 @@ class GTFSReader(DataReader):
                 release_date_string, release_time_string = row[5].split(" ")
                 release_time = self.__get_timestamp_from_date_and_time_strings(release_date_string, release_time_string)
 
-                request_data_dict = {
-                    'nb_requests': nb_requests,
-                    'origin': LabelLocation(str(row[0])),
-                    'destination': LabelLocation(str(row[1])),
-                    'nb_passengers': int(row[2]),
-                    'ready_time': ready_time,
-                    'due_time': due_time,
-                    'release_time': release_time
-                }
-                request_data_list.append(request_data_dict)
+                trip = Trip(nb_requests, LabelLocation(str(row[0])), LabelLocation(str(row[1])), int(row[2]),
+                            ready_time, due_time, release_time)
+
+                trips.append(trip)
                 nb_requests += 1
 
-        return request_data_list
+        return trips
 
-    def get_vehicle_data(self):
+    def get_vehicles(self):
         self.__read_stop_times()
         self.__read_calendar_dates()
         self.__read_trips()
 
-        vehicle_data_list = []
+        vehicles = []
+        self.__next_stops_by_vehicle_id_dict = {}
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict.items():
             service_id = self.__trip_service_dict[trip_id]
             dates_list = self.__service_dates_dict[service_id]
             for date in dates_list:
-                vehicle_data_dict = self.__get_vehicle_data_dict(trip_id, stop_time_list, date)
-                vehicle_data_list.append(vehicle_data_dict)
-        return vehicle_data_list
+                vehicle, next_stops = self.__get_vehicle_and_next_stops(trip_id, stop_time_list, date)
+                vehicles.append(vehicle)
+                self.__next_stops_by_vehicle_id_dict[vehicle.id] = next_stops
 
-    def __get_vehicle_data_dict(self, trip_id, stop_time_list, date_string):
+        return vehicles
+
+    def get_next_stops_by_vehicle_id_dict(self):
+        return self.__next_stops_by_vehicle_id_dict
+
+    def __get_vehicle_and_next_stops(self, trip_id, stop_time_list, date_string):
 
         vehicle_id = trip_id
 
@@ -235,16 +220,9 @@ class GTFSReader(DataReader):
 
         next_stops = self.__get_next_stops(stop_time_list, date_string)
 
-        vehicle_data_dict = {
-            'vehicle_id': vehicle_id,
-            'start_time': start_stop_arrival_time,
-            'start_stop': start_stop,
-            'capacity': self.__CAPACITY,
-            'next_stops': next_stops,
-            'release_time': release_time
-        }
+        vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop, self.__CAPACITY, release_time)
 
-        return vehicle_data_dict
+        return vehicle, next_stops
 
     def __get_next_stops(self, stop_time_list, date_string):
         next_stops = []

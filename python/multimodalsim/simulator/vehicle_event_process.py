@@ -9,19 +9,18 @@ logger = logging.getLogger(__name__)
 
 
 class VehicleReady(Event):
-    def __init__(self, vehicle_data_dict, queue):
-        super().__init__('VehicleReady', queue, vehicle_data_dict['release_time'])
-        self.vehicle_data_dict = vehicle_data_dict
+    def __init__(self, vehicle, next_stops, queue):
+        super().__init__('VehicleReady', queue, vehicle.release_time)
+        self.__vehicle = vehicle
+        self.__next_stops = next_stops
 
     def process(self, env):
-        vehicle = env.add_vehicle(self.vehicle_data_dict['vehicle_id'], self.vehicle_data_dict['start_time'],
-                                  self.vehicle_data_dict['start_stop'], self.vehicle_data_dict['capacity'])
+        env.add_vehicle(self.__vehicle)
 
-        # Patrick: self.vehicle_data_dict['next_stops'] may be empty (in the case of shuttles, for example).
-        vehicle.route = Route(vehicle, self.vehicle_data_dict['next_stops'])
+        self.__vehicle.route = Route(self.__vehicle, self.__next_stops)
 
         Optimize(env.current_time, self.queue).add_to_queue()
-        VehicleBoarding(vehicle.route, self.queue).add_to_queue()
+        VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
 
         return 'Vehicle Ready process is implemented'
 

@@ -9,23 +9,17 @@ logger = logging.getLogger(__name__)
 
 
 class PassengerRelease(Event):
-    def __init__(self, request_data_dict, queue):
-        super().__init__('PassengerRelease', queue, request_data_dict['release_time'])
-        self.request_data_dict = request_data_dict
+    def __init__(self, trip, queue):
+        super().__init__('PassengerRelease', queue, trip.release_time)
+        self.__trip = trip
 
     def process(self, env):
-        trip = env.add_trip(self.request_data_dict['nb_requests'], self.request_data_dict['origin'],
-                            self.request_data_dict['destination'], self.request_data_dict['nb_passengers'],
-                            self.request_data_dict['ready_time'], self.request_data_dict['due_time'],
-                            self.request_data_dict['release_time'])
+        env.add_trip(self.__trip)
 
-        legs = env.optimization.split(trip, env)
-        trip.assign_legs(legs)
+        legs = env.optimization.split(self.__trip, env)
+        self.__trip.assign_legs(legs)
 
-        logger.debug("legs={}".format(legs))
-        logger.debug("trip={}".format(trip))
-
-        trip.update_status(PassengersStatus.RELEASE)
+        self.__trip.update_status(PassengersStatus.RELEASE)
 
         Optimize(env.current_time, self.queue).add_to_queue()
 

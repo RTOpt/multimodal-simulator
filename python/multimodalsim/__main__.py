@@ -2,14 +2,13 @@ import argparse
 import logging
 
 from logger.formatter import ColoredFormatter
+from multimodalsim.visualizer.visualizer import ConsoleVisualizer
 from optimization.dispatcher import ShuttleGreedyDispatcher, FixedLineDispatcher
-from optimization.optimization import FixedLineOptimization, ShuttleGreedyOptimization
+from optimization.optimization import Optimization
 from optimization.splitter import OneLegSplitter, MultimodalSplitter
 from reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
-from simulator.environment import Environment
-from simulator.event_queue import EventQueue
 from simulator.network import create_graph
-from simulator.simulation import simulate
+from simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +39,11 @@ def check_arguments(args):
         raise ValueError("The argument --log-level is invalid: {}".format(args.log_level))
 
 
-def configure_logger(log_level=logging.DEBUG, log_filename=None):
+def configure_logger(log_level=logging.INFO, log_filename=None):
+    logger.info("log_level={}".format(log_level))
     logging.basicConfig(filename=log_filename, level=log_level)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
 
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
@@ -74,19 +76,18 @@ def main():
     g = None
 
     if args.type == "shuttle":
-        # Parameters example: shuttle -r ../../../data/test0_shuttle/requests.csv
-        # -v ../../../data/test0_shuttle/vehicles.csv -n ../../../data/test0_shuttle/nodes.csv
+        # Parameters example: shuttle -r ../../data/test0_shuttle/requests.csv -v ../../data/test0_shuttle/vehicles.csv
+        # -n ../../data/test0_shuttle/nodes.csv
         logger.info("Shuttle")
-
-        splitter = OneLegSplitter()
-        dispatcher = ShuttleGreedyDispatcher()
-        opt = ShuttleGreedyOptimization(splitter, dispatcher)
 
         nodes_file_path = args.nodes
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
-        nodes = data_reader.get_node_data()
+        nodes = data_reader.get_nodes()
         g = create_graph(nodes)
+
+        splitter = OneLegSplitter()
+        dispatcher = ShuttleGreedyDispatcher(g)
 
     elif args.type == "fixed":
         logger.info("FixedLine")
@@ -96,27 +97,29 @@ def main():
         else:
             splitter = OneLegSplitter()
         dispatcher = FixedLineDispatcher()
-        opt = FixedLineOptimization(splitter, dispatcher)
 
         if args.gtfs:
-            # Parameters example: fixed --gtfs --gtfs-folder ../../../data/bus_test/gtfs_test/
-            # -r ../../../data/bus_test/gtfs_test/requests_gtfs.csv
+            # Parameters example: fixed --gtfs --gtfs-folder ../../data/bus_test/gtfs_test/
+            # -r ../../data/bus_test/gtfs_test/requests_gtfs.csv
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
         else:
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
     else:
         raise ValueError("The type of optimization must be either 'shuttle' or 'fixed'!")
 
-    if g is not None:
-        env = Environment(opt, g)
-    else:
-        env = Environment(opt)
+    opt = Optimization(dispatcher, splitter)
 
-    vehicle_data_list = data_reader.get_vehicle_data()
-    request_data_list = data_reader.get_request_data()
+    vehicles = data_reader.get_vehicles()
+    trips = data_reader.get_trips()
 
-    eq = EventQueue(env)
-    simulate(env, eq, request_data_list, vehicle_data_list)
+    next_stops_by_vehicle_id = None
+    if args.type == "fixed":
+        next_stops_by_vehicle_id = data_reader.get_next_stops_by_vehicle_id_dict()
+
+    visualizer = ConsoleVisualizer()
+
+    simulation = Simulation(opt, trips, vehicles, next_stops_by_vehicle_id, g, visualizer)
+    simulation.simulate()
 
 
 if __name__ == '__main__':

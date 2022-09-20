@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class Event(object):
     """An event with event_number occurs at a specific time ``event_time`` and involves a specific
         event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """
@@ -11,8 +16,9 @@ class Event(object):
             self.time = queue.env.current_time
         elif event_time < queue.env.current_time:
             self.time = queue.env.current_time
-            print("WARNING: {}: event_time ({}) is smaller than current_time ({})".format(event_name, event_time,
-                                                                                      queue.env.current_time))
+            logger.warning(
+                "WARNING: {}: event_time ({}) is smaller than current_time ({})".format(event_name, event_time,
+                                                                                        queue.env.current_time))
 
     def process(self, env):
         raise NotImplementedError('Process not implemented')
@@ -36,5 +42,3 @@ class Event(object):
     def get_time(self):
         """ returns event time"""
         return self.time
-
-

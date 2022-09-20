@@ -1,5 +1,6 @@
 import logging
 
+from multimodalsim.optimization.splitter import OneLegSplitter
 from multimodalsim.simulator.status import OptimizationStatus
 
 logger = logging.getLogger(__name__)
@@ -7,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 class Optimization(object):
 
-    def __init__(self, splitter, dispatcher):
+    def __init__(self, dispatcher, splitter=None):
         self.status = OptimizationStatus.IDLE
-        self.splitter = splitter
+        self.splitter = OneLegSplitter() if splitter is None else splitter
         self.dispatcher = dispatcher
 
     def split(self, request, state):
@@ -20,18 +21,6 @@ class Optimization(object):
 
     def update_status(self, status):
         self.status = status
-
-
-class ShuttleGreedyOptimization(Optimization):
-
-    def __init__(self, splitter, dispatcher):
-        super().__init__(splitter, dispatcher)
-
-
-class FixedLineOptimization(Optimization):
-
-    def __init__(self, splitter, dispatcher):
-        super().__init__(splitter, dispatcher)
 
 
 class OptimizationResult(object):

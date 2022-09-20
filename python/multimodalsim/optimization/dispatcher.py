@@ -20,12 +20,12 @@ class Dispatcher(object):
 
 class ShuttleGreedyDispatcher(Dispatcher):
 
-    def __init__(self):
+    def __init__(self, g):
         super().__init__()
 
     def dispatch(self, state):
-        logger.info("\n******************\nOPTIMIZE (ShuttleGreedyDispatcher):\n")
-        logger.info("current_time={}".format(state.current_time))
+        logger.debug("\n******************\nOPTIMIZE (ShuttleGreedyDispatcher):\n")
+        logger.debug("current_time={}".format(state.current_time))
 
         BOARDING_TIME = 1  # Time between arrival_time and departure_time
 
@@ -114,7 +114,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
                 elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates():
                     stop.passengers_to_alight.append(req)
 
-        logger.info("END OPTIMIZE\n*******************")
+        logger.debug("END OPTIMIZE\n*******************")
 
         return OptimizationResult(state, modified_requests, modified_vehicles)
 
@@ -146,8 +146,8 @@ class FixedLineDispatcher(Dispatcher):
 
     def dispatch(self, state):
 
-        logger.info("\n******************\nOPTIMIZE (FixedLineDispatcher):\n")
-        logger.info("current_time={}".format(state.current_time))
+        logger.debug("\n******************\nOPTIMIZE (FixedLineDispatcher):\n")
+        logger.debug("current_time={}".format(state.current_time))
 
         self.__state = state
         self.__non_assigned_released_requests_list = state.get_non_assigned_trips()
@@ -167,7 +167,7 @@ class FixedLineDispatcher(Dispatcher):
                 self.__assign_trip_to_vehicle(trip, optimal_vehicle)
                 self.__assign_trip_to_stops(trip, optimal_vehicle)
 
-        logger.info("END OPTIMIZE\n*******************")
+        logger.debug("END OPTIMIZE\n*******************")
 
         return OptimizationResult(state, self.__modified_trips, self.__modified_vehicles)
 
