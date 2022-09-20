@@ -1,7 +1,7 @@
 import logging
 
 from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.network import get_manhattan_distance
+from multimodalsim.simulator.network import get_manhattan_distance, Node
 from multimodalsim.simulator.status import PassengersStatus
 from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
@@ -85,14 +85,14 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
                 assigned_vehicle.route.next_stops.extend(next_stops)
                 req.current_leg.assign_vehicle(assigned_vehicle)
-                assigned_vehicle.route.assign(req)
+                assigned_vehicle.route.assign_leg(req.current_leg)
                 req.update_status(PassengersStatus.ASSIGNED)
 
                 logger.debug(assigned_vehicle)
 
                 logger.debug("assigned_vehicle={}".format(req.current_leg.assigned_vehicle.id))
-                logger.debug("assigned_trips={}".format(list(req.req_id for req in
-                                                             assigned_vehicle.route.assigned_trips)))
+                logger.debug("assigned_legs={}".format(list(req.req_id for req in
+                                                             assigned_vehicle.route.assigned_legs)))
 
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
                 modified_requests.append(req)
@@ -105,7 +105,11 @@ class ShuttleGreedyDispatcher(Dispatcher):
         for req, veh in request_vehicle_pairs_list:
             # MODIFIED (Patrick): The request should be added to the passengers_to_board of the current stop if and only
             # if the request is the origin of the request is the current stop.
-            if req.origin.gps_coordinates.get_coordinates() == veh.route.current_stop.location.gps_coordinates:
+            if isinstance(veh.route.current_stop.location, Node):
+                gps_coord = veh.route.current_stop.location.get_coordinates()
+            else:
+                gps_coord = veh.route.current_stop.location.gps_coordinates
+            if req.origin.gps_coordinates.get_coordinates() == gps_coord:
                 veh.route.current_stop.passengers_to_board.append(req)
 
             for stop in veh.route.next_stops:
@@ -206,7 +210,7 @@ class FixedLineDispatcher(Dispatcher):
         trip.current_leg.assign_vehicle(vehicle)
         trip.update_status(PassengersStatus.ASSIGNED)
 
-        vehicle.route.assign(trip)
+        vehicle.route.assign_leg(trip.current_leg)
 
         self.__modified_vehicles.append(vehicle)
         self.__modified_trips.append(trip)

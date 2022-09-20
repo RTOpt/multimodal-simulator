@@ -48,8 +48,6 @@ class EnvironmentUpdate(Event):
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from multimodalsim.simulator.passenger_event_process import PassengerAssignment
         for trip in self.optimization_result.modified_requests:
-            # next_vehicles_ids = [veh.id for veh in trip.next_vehicles] if trip.next_legs is not None else None
-            # logger.debug("trip.next_legs={}".format(trip.next_legs))
             current_leg = trip.current_leg
             next_legs = trip.next_legs
 
@@ -63,7 +61,6 @@ class EnvironmentUpdate(Event):
             if veh.route.current_stop is not None:
                 current_stop_modified_passengers_to_board = [trip for trip in veh.route.current_stop.passengers_to_board
                                                              if trip in self.optimization_result.modified_requests]
-                logger.debug("modified passengers: {}".format([trip.req_id for trip in current_stop_modified_passengers_to_board]))
                 current_stop_departure_time = veh.route.current_stop.departure_time
             else:
                 current_stop_modified_passengers_to_board = None
@@ -75,7 +72,7 @@ class EnvironmentUpdate(Event):
                                        current_stop_modified_passengers_to_board,
                                        next_stops=next_stops,
                                        current_stop_departure_time=current_stop_departure_time,
-                                       assigned_trips=veh.route.assigned_trips)
+                                       assigned_legs=veh.route.assigned_legs)
             VehicleNotification(route_update, self.queue).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
