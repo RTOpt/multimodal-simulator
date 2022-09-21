@@ -69,9 +69,10 @@ class PassengerUpdate(object):
 
 class Leg(Request):
 
-    def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
+    def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time, trip):
         super().__init__(req_id, origin, destination, nb_passengers, ready_time, due_time, release_time)
         self.assigned_vehicle = None  # None au moment du split
+        self.trip = trip
 
     def assign_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
@@ -84,6 +85,15 @@ class Leg(Request):
                                                                                           self.assigned_vehicle.id))
         self.assigned_vehicle = vehicle
         return self.assigned_vehicle
+
+    def __str__(self):
+        class_string = str(self.__class__) + ": {"
+        for attribute, value in self.__dict__.items():
+            # To prevent recursion error.
+            if attribute != "trip":
+                class_string += str(attribute) + ": " + str(value) + ",\n"
+        class_string += "}"
+        return class_string
 
 
 class Trip(Request):
@@ -116,10 +126,8 @@ class Trip(Request):
     def assign_legs(self, legs):
 
         if legs is not None and len(legs) > 1:
-            logger.debug("if legs is not None and len(legs) > 1:")
             self.current_leg = legs[0]
             self.next_legs = legs[1:]
-            logger.debug("self.current_leg={} | self.next_legs={}".format(self.current_leg, self.next_legs))
         elif legs is not None and len(legs) > 0:
             self.current_leg = legs[0]
             self.next_legs = None

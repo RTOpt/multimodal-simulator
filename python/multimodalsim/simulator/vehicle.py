@@ -1,4 +1,5 @@
 import logging
+import copy
 
 from multimodalsim.simulator.status import VehicleStatus
 
@@ -33,6 +34,15 @@ class Vehicle(object):
         self.start_stop = start_stop
         self.capacity = capacity
         self.release_time = release_time
+
+    def __deepcopy__(self, memo_dict={}):
+
+        cls = self.__class__
+        new_cls = cls.__new__(cls)
+        memo_dict[id(self)] = new_cls
+        for attribute, value in self.__dict__.items():
+            setattr(new_cls, attribute, copy.deepcopy(value, memo_dict))
+        return new_cls
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -245,9 +255,9 @@ class LabelLocation(Location):
 
 class RouteUpdate(object):
     def __init__(self, vehicle_id, current_stop_modified_passengers_to_board=None, next_stops=None,
-                 current_stop_departure_time=None, assigned_legs=None):
+                 current_stop_departure_time=None, modified_assigned_legs=None):
         self.vehicle_id = vehicle_id
         self.current_stop_modified_passengers_to_board = current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-        self.assigned_legs = assigned_legs
+        self.modified_assigned_legs = modified_assigned_legs

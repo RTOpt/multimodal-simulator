@@ -111,8 +111,8 @@ class VehicleNotification(Event):
             vehicle.route.next_stops = self.route_update.next_stops
 
         if self.route_update.current_stop_modified_passengers_to_board is not None:
-            # Add passengers to board that were modified by optimization
-            # and that are not already present in vehicle.route.current_stop.passengers_to_board
+            # Add passengers to board that were modified by optimization and that are not already present in
+            # vehicle.route.current_stop.passengers_to_board
             actual_modified_passengers_to_board = \
                 self.__replace_copy_trips_with_actual_trips(self.route_update.
                                                             current_stop_modified_passengers_to_board)
@@ -125,9 +125,14 @@ class VehicleNotification(Event):
             # already left the current stop. In this case vehicle.route.current_stop is None, and we do not modify it.
             vehicle.route.current_stop.departure_time = self.route_update.current_stop_departure_time
 
-        if self.route_update.assigned_legs is not None:
-            vehicle.route.assigned_legs = \
-                self.__replace_copy_legs_with_actual_legs(self.route_update.assigned_legs)
+        if self.route_update.modified_assigned_legs is not None:
+            # Add the assigned legs that were modified by optimization and that are not already present in
+            # vehicle.route.assigned_legs.
+            actual_modified_assigned_legs = self.__replace_copy_legs_with_actual_legs(self.route_update.
+                                                                                      modified_assigned_legs)
+            for leg in actual_modified_assigned_legs:
+                if leg not in vehicle.route.assigned_legs:
+                    vehicle.route.assigned_legs.append(leg)
 
         return 'Notify Vehicle process is implemented'
 
