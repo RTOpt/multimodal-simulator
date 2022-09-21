@@ -45,8 +45,24 @@ class ConsoleVisualizer(Visualizer):
                 "onboard_legs: {}, alighted_legs: {}".format(veh.id, veh.route.status, veh.start_time,
                                                              assigned_legs_id, onboard_legs_id, alighted_legs_id))
             logger.debug("  --previous_stops:")
+            import copy
+            memo_dict = {}
+            copied_previous_stops = copy.deepcopy(veh.route.previous_stops, memo_dict)
+            # for key, value in memo_dict.items():
+            #     logger.warning("{} : {}".format(key, value))
             for stop in veh.route.previous_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
+            # for stop in veh.route.previous_stops:
+            #     for trip in stop.boarded_passengers:
+            #         logger.warning("boarded_passengers -> {}: {}".format(id(trip), trip))
+            #     for trip in stop.alighted_passengers:
+            #         logger.warning("alighted_passengers -> {}: {}".format(id(trip), trip))
+            # for stop in copied_previous_stops:
+            #     for trip in stop.boarded_passengers:
+            #         logger.error("boarded_passengers -> {}: {}".format(id(trip), trip))
+            #     for trip in stop.alighted_passengers:
+            #         logger.error("alighted_passengers -> {}: {}".format(id(trip), trip))
+
             logger.debug("  --current_stop:")
             if veh.route.current_stop is not None:
                 logger.debug("   --{}: {}".format(veh.route.current_stop.location, veh.route.current_stop))

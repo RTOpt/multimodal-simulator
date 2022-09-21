@@ -27,8 +27,15 @@ class Optimize(Event):
         # optimization.
 
         # TODO: Define State
-        # state = State(env)
-        state = copy.deepcopy(env)
+        state = State(env)
+        logger.warning("STATE")
+        for key, value in state.__dict__.items():
+            logger.warning("{}: {}".format(key, value))
+
+        memo_dict = {}
+
+        state = copy.deepcopy(env, memo_dict)
+
         optimization_result = env.optimization.dispatch(state)
 
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
@@ -58,6 +65,7 @@ class EnvironmentUpdate(Event):
         # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
         from multimodalsim.simulator.vehicle_event_process import VehicleNotification
         for veh in self.optimization_result.modified_vehicles:
+            # Add the passengers_to_board of current_stop that were modified during optimization.
             if veh.route.current_stop is not None:
                 current_stop_modified_passengers_to_board = [trip for trip in veh.route.current_stop.passengers_to_board
                                                              if trip in self.optimization_result.modified_requests]
@@ -66,13 +74,17 @@ class EnvironmentUpdate(Event):
                 current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
 
+            # Add the assigned_legs of route that were modified during optimization.
+            modified_trips_ids = [modified_trip.req_id for modified_trip in self.optimization_result.modified_requests]
+            modified_assigned_legs = [leg for leg in veh.route.assigned_legs if leg.trip.req_id in modified_trips_ids]
+
             next_stops = veh.route.next_stops
             route_update = RouteUpdate(veh.id,
                                        current_stop_modified_passengers_to_board=
                                        current_stop_modified_passengers_to_board,
                                        next_stops=next_stops,
                                        current_stop_departure_time=current_stop_departure_time,
-                                       assigned_legs=veh.route.assigned_legs)
+                                       modified_assigned_legs=modified_assigned_legs)
             VehicleNotification(route_update, self.queue).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
