@@ -2,7 +2,7 @@ import logging
 
 from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.simulator.network import get_manhattan_distance, Node
-from multimodalsim.simulator.status import PassengersStatus
+from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
 from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
@@ -20,17 +20,26 @@ class Dispatcher(object):
 
 class ShuttleGreedyDispatcher(Dispatcher):
 
-    def __init__(self, g):
+    def __init__(self, network):
         super().__init__()
+        self.__network = network
+
+        # The time difference between the arrival and the departure time (10 seconds).
+        self.__boarding_time = 10
+
+        # For a trip to be assigned to a vehicle, the departure time of the vehicle at the current stop must be at least
+        # 5 seconds larger than the current time.
+        self.__min_departure_time_difference = 5
 
     def dispatch(self, state):
         logger.debug("\n******************\nOPTIMIZE (ShuttleGreedyDispatcher):\n")
         logger.debug("current_time={}".format(state.current_time))
 
-        BOARDING_TIME = 1  # Time between arrival_time and departure_time
-
-        non_assigned_requests = state.get_non_assigned_trips()
-        non_assigned_vehicles = state.get_non_assigned_vehicles()
+        non_assigned_requests = state.non_assigned_trips
+        # non_assigned_vehicles = state.non_assigned_vehicles
+        non_assigned_vehicles = state.vehicles
+        # non_assigned_vehicles = [veh for veh in state.vehicles if veh.route.status == VehicleStatus.RELEASE or
+        #                          veh.route.status == VehicleStatus.BOARDING]
 
         logger.debug("non_assigned_trips={}".format(list(req.req_id for req in non_assigned_requests)))
         logger.debug("non_assigned_vehicles={}".format(list(veh.id for veh in non_assigned_vehicles)))
@@ -41,9 +50,12 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
         non_assigned_vehicles_sorted_by_departure_time = sorted(non_assigned_vehicles,
                                                                 key=lambda x: x.route.current_stop.departure_time)
+
+        next_stops_by_request = {}
         for req in non_assigned_requests:
             potential_non_assigned_vehicles = list(x for x in non_assigned_vehicles_sorted_by_departure_time
-                                                   if x.route.current_stop.departure_time >= req.ready_time)
+                                                   if x.route.current_stop.departure_time > req.ready_time
+                                                   + self.__min_departure_time_difference)
             # The passenger must be ready before the departure time.
             logger.debug(
                 "potential_non_assigned_vehicles={}".format(list(veh.id for veh in potential_non_assigned_vehicles)))
@@ -55,15 +67,12 @@ class ShuttleGreedyDispatcher(Dispatcher):
                                                                   non_assigned_vehicles_sorted_by_departure_time
                                                                   if not assigned_vehicle.id == x.id]
 
-                path = self.__get_path(state.network, req.origin.gps_coordinates.get_coordinates(),
+                path = self.__get_path(self.__network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
 
                 req.assign_route(path)
-                logger.debug("req.path={}".format(list("(" + str(node.get_coordinates()[0]) + "," +
-                                                       str(node.get_coordinates()[1]) + ")" for node in req.path)))
 
                 departure_time = assigned_vehicle.route.current_stop.departure_time
-                # previous_node = path[0]
 
                 # Asma : temporary solution - the code should be rearranged to
                 if hasattr(assigned_vehicle.route.current_stop.location, 'gps_coordinates'):
@@ -72,18 +81,29 @@ class ShuttleGreedyDispatcher(Dispatcher):
                     previous_node = assigned_vehicle.route.current_stop.location
 
                 next_stops = []
-                # OLD CODE : for node in path[1:]:
                 for node in path:
-                    # First node is excluded because it is the current_stop. Asma not necessarily
                     distance = get_manhattan_distance(previous_node.get_coordinates(), node.get_coordinates())
-                    arrival_time = departure_time + distance
-                    departure_time = arrival_time + BOARDING_TIME
-                    location = node
-                    stop = Stop(None, arrival_time, departure_time, location)
-                    next_stops.append(stop)
-                    previous_node = node
+                    if distance > 0:
+                        # MODIFIED (Patrick): If distance == 0, then the node corresponds to the same node as
+                        # previous_node (i.e., the node of current_stop), so we do not have to create a new Stop object.
+                        # We can reuse
+                        # assigned_vehicle.route.current_stop.
+                        arrival_time = departure_time + distance
+                        departure_time = arrival_time + self.__boarding_time
+                        location = node
+                        stop = Stop(None, arrival_time, departure_time, location)
+                        next_stops.append(stop)
+                        previous_node = node
 
-                assigned_vehicle.route.next_stops.extend(next_stops)
+                next_stops_by_request[req.req_id] = next_stops
+
+                if len(assigned_vehicle.route.next_stops) != 0 and len(next_stops) != 0 \
+                        and assigned_vehicle.route.next_stops[-1].location.get_coordinates() == next_stops[
+                    0].location.get_coordinates():
+                    assigned_vehicle.route.next_stops.extend(next_stops[1:])
+                else:
+                    assigned_vehicle.route.next_stops.extend(next_stops)
+
                 req.current_leg.assign_vehicle(assigned_vehicle)
                 assigned_vehicle.route.assign_leg(req.current_leg)
                 req.update_status(PassengersStatus.ASSIGNED)
@@ -92,7 +112,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
                 logger.debug("assigned_vehicle={}".format(req.current_leg.assigned_vehicle.id))
                 logger.debug("assigned_legs={}".format(list(req.req_id for req in
-                                                             assigned_vehicle.route.assigned_legs)))
+                                                            assigned_vehicle.route.assigned_legs)))
 
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
                 modified_requests.append(req)
@@ -103,20 +123,29 @@ class ShuttleGreedyDispatcher(Dispatcher):
             logger.debug("---(req_id={},veh_id={})".format(req.req_id, veh.id))
 
         for req, veh in request_vehicle_pairs_list:
+            boarding_stop_found = False
+            alighting_stop_found = False
+
             # MODIFIED (Patrick): The request should be added to the passengers_to_board of the current stop if and only
             # if the request is the origin of the request is the current stop.
             if isinstance(veh.route.current_stop.location, Node):
                 gps_coord = veh.route.current_stop.location.get_coordinates()
             else:
-                gps_coord = veh.route.current_stop.location.gps_coordinates
+                gps_coord = veh.route.current_stop.location.gps_coordinates.get_coordinates()
+
             if req.origin.gps_coordinates.get_coordinates() == gps_coord:
                 veh.route.current_stop.passengers_to_board.append(req)
+                boarding_stop_found = True
 
             for stop in veh.route.next_stops:
-                if req.origin.gps_coordinates.get_coordinates() == stop.location.get_coordinates():
+                if req.origin.gps_coordinates.get_coordinates() == stop.location.get_coordinates() \
+                        and not boarding_stop_found:
                     stop.passengers_to_board.append(req)
-                elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates():
+                    boarding_stop_found = True
+                elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates() \
+                        and boarding_stop_found and not alighting_stop_found:
                     stop.passengers_to_alight.append(req)
+                    alighting_stop_found = True
 
         logger.debug("END OPTIMIZE\n*******************")
 
@@ -148,13 +177,17 @@ class FixedLineDispatcher(Dispatcher):
         self.__modified_trips = []
         self.__modified_vehicles = []
 
+        # For a trip to be assigned to a vehicle, the departure time of the vehicle at the current stop must be at least
+        # 5 seconds larger than the current time.
+        self.__min_departure_time_difference = 5
+
     def dispatch(self, state):
 
         logger.debug("\n******************\nOPTIMIZE (FixedLineDispatcher):\n")
         logger.debug("current_time={}".format(state.current_time))
 
         self.__state = state
-        self.__non_assigned_released_requests_list = state.get_non_assigned_trips()
+        self.__non_assigned_released_requests_list = state.non_assigned_trips
 
         # Reinitialize modified_requests and modified_vehicles of Dispatcher.
         self.__modified_trips = []
@@ -166,6 +199,7 @@ class FixedLineDispatcher(Dispatcher):
             logger.debug("non_assigned trip: {}".format(trip.req_id))
 
             optimal_vehicle = self.__find_optimal_vehicle_for_leg(trip.current_leg)
+            logger.debug("optimal_vehicle={}".format(optimal_vehicle.id if optimal_vehicle is not None else None))
 
             if optimal_vehicle is not None:
                 self.__assign_trip_to_vehicle(trip, optimal_vehicle)
@@ -183,23 +217,32 @@ class FixedLineDispatcher(Dispatcher):
         optimal_vehicle = None
         earliest_arrival_time = None
         for vehicle in self.__state.vehicles:
-            arrival_time = self.__get_destination_arrival_time(vehicle, origin_stop_id, destination_stop_id)
-            if arrival_time is not None and (earliest_arrival_time is None or arrival_time < earliest_arrival_time):
-                earliest_arrival_time = arrival_time
+            origin_departure_time, destination_arrival_time = \
+                self.__get_origin_departure_time_and_destination_arrival_time(vehicle, origin_stop_id,
+                                                                              destination_stop_id)
+
+            if origin_departure_time is not None \
+                    and origin_departure_time - self.__state.current_time > self.__min_departure_time_difference \
+                    and destination_arrival_time is not None and (earliest_arrival_time is None
+                                                                  or destination_arrival_time < earliest_arrival_time):
+                earliest_arrival_time = destination_arrival_time
                 optimal_vehicle = vehicle
 
         return optimal_vehicle
 
-    def __get_destination_arrival_time(self, vehicle, origin_stop_id, destination_stop_id):
+    def __get_origin_departure_time_and_destination_arrival_time(self, vehicle, origin_stop_id, destination_stop_id):
         origin_stop = self.__get_stop_by_stop_id(origin_stop_id, vehicle)
         destination_stop = self.__get_stop_by_stop_id(destination_stop_id, vehicle)
 
+        origin_departure_time = None
         destination_arrival_time = None
         if origin_stop is not None and destination_stop is not None \
                 and origin_stop.departure_time < destination_stop.arrival_time:
+            origin_departure_time = origin_stop.departure_time
             destination_arrival_time = destination_stop.arrival_time
 
-        return destination_arrival_time
+
+        return origin_departure_time, destination_arrival_time
 
     def __assign_trip_to_vehicle(self, trip, vehicle):
 

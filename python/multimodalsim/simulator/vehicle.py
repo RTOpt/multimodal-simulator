@@ -88,7 +88,7 @@ class Route(object):
         self.assigned_legs = []
         self.alighted_legs = []
 
-        self.load = 0  # Patrick: Is the load different from len(self.onboard_legs)?
+        self.load = 0
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -226,11 +226,12 @@ class Stop(object):
         self.passengers_to_alight.remove(request)
         self.alighted_passengers.append(request)
 
-    # def deep_copy(self):
-
 
 class Location(object):
     def __init__(self):
+        pass
+
+    def __eq__(self, other):
         pass
 
 
@@ -243,6 +244,11 @@ class GPSLocation(Location):
     def __str__(self):
         return "({},{})".format(self.gps_coordinates.get_coordinates()[0], self.gps_coordinates.get_coordinates()[1])
 
+    def __eq__(self, other):
+        if isinstance(other, GPSLocation):
+            return self.gps_coordinates == other.gps_coordinates
+        return False
+
 
 class LabelLocation(Location):
     def __init__(self, label):
@@ -251,6 +257,11 @@ class LabelLocation(Location):
 
     def __str__(self):
         return self.label
+
+    def __eq__(self, other):
+        if isinstance(other, LabelLocation):
+            return self.label == other.label
+        return False
 
 
 class RouteUpdate(object):

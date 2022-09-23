@@ -34,6 +34,13 @@ class ConsoleVisualizer(Visualizer):
         logger.debug("\n***************\nENVIRONMENT STATUS")
         logger.debug("env.current_time={}".format(env.current_time))
         logger.debug("OptimizationStatus: {}".format(env.optimization.status))
+        logger.debug("Environment:")
+        logger.debug("--trips={}".format([trip.req_id for trip in env.trips]))
+        logger.debug("--assigned_trips={}".format([trip.req_id for trip in env.assigned_trips]))
+        logger.debug("--non_assigned_trips={}".format([trip.req_id for trip in env.non_assigned_trips]))
+        logger.debug("--vehicles={}".format([veh.id for veh in env.vehicles]))
+        logger.debug("--assigned_vehicles={}".format([veh.id for veh in env.assigned_vehicles]))
+        logger.debug("--non_assigned_vehicles={}".format([veh.id for veh in env.non_assigned_vehicles]))
         logger.debug("Vehicles:")
         for veh in env.get_vehicles():
             assigned_legs_id = [leg.req_id for leg in veh.route.assigned_legs]
@@ -45,24 +52,8 @@ class ConsoleVisualizer(Visualizer):
                 "onboard_legs: {}, alighted_legs: {}".format(veh.id, veh.route.status, veh.start_time,
                                                              assigned_legs_id, onboard_legs_id, alighted_legs_id))
             logger.debug("  --previous_stops:")
-            import copy
-            memo_dict = {}
-            copied_previous_stops = copy.deepcopy(veh.route.previous_stops, memo_dict)
-            # for key, value in memo_dict.items():
-            #     logger.warning("{} : {}".format(key, value))
             for stop in veh.route.previous_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
-            # for stop in veh.route.previous_stops:
-            #     for trip in stop.boarded_passengers:
-            #         logger.warning("boarded_passengers -> {}: {}".format(id(trip), trip))
-            #     for trip in stop.alighted_passengers:
-            #         logger.warning("alighted_passengers -> {}: {}".format(id(trip), trip))
-            # for stop in copied_previous_stops:
-            #     for trip in stop.boarded_passengers:
-            #         logger.error("boarded_passengers -> {}: {}".format(id(trip), trip))
-            #     for trip in stop.alighted_passengers:
-            #         logger.error("alighted_passengers -> {}: {}".format(id(trip), trip))
-
             logger.debug("  --current_stop:")
             if veh.route.current_stop is not None:
                 logger.debug("   --{}: {}".format(veh.route.current_stop.location, veh.route.current_stop))

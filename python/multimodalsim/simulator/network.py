@@ -8,7 +8,7 @@ class Position(object):
 
 
 def get_manhattan_distance(node1, node2):
-    dist = abs(int(node1[0]) - int(node2[0])) + abs(int(node2[0]) - int(node2[0]))
+    dist = abs(int(node1[0]) - int(node2[0])) + abs(int(node1[1]) - int(node2[1]))
     return dist
 
 

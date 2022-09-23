@@ -24,6 +24,9 @@ class ShuttleDataReader(DataReader):
         self.__vehicles_file_path = vehicles_file_path
         self.__nodes_file_path = nodes_file_path
 
+        # The time difference between the arrival and the departure time.
+        self.__boarding_time = 30
+
     def get_trips(self):
         """ read trip from a file
                    format:
@@ -56,10 +59,7 @@ class ShuttleDataReader(DataReader):
                 start_stop_location = GPSLocation(Node(None, (ast.literal_eval(row[2]), ast.literal_eval(row[3]))))
                 capacity = int(row[4])
 
-                # Patrick: I am not sure if the departure time and the arrival time should be the same for
-                # start_stop. Here, I supposed that departure_time = arrival_time + 1 (I made this assumption in the
-                # optimization as well.)
-                start_stop = Stop(None, start_time, start_time + 1, start_stop_location)
+                start_stop = Stop(None, start_time, start_time + self.__boarding_time, start_stop_location)
 
                 # Patrick: For shuttles, release time is the same as start time, but it could be changed.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity, start_time)
