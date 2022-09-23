@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip
-from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, Vehicle
+from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, Vehicle, Route
 
 
 class DataReader(object):
@@ -20,6 +20,7 @@ class DataReader(object):
 
 class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path):
+        super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
         self.__nodes_file_path = nodes_file_path
@@ -81,9 +82,14 @@ class ShuttleDataReader(DataReader):
 
 class BusDataReader(DataReader):
     def __init__(self, requests_file_path, vehicles_file_path):
-        self.__next_stops_by_vehicle_id_dict = None
+        super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
+
+        # The time difference between the arrival and the departure time.
+        self.__boarding_time = 100
+        # The time required to travel from one stop to the next stop.
+        self.__travel_time = 200
 
     def get_trips(self):
         trips_list = []
@@ -101,11 +107,8 @@ class BusDataReader(DataReader):
         return trips_list
 
     def get_vehicles(self):
-        BOARDING_TIME = 1
-        TRAVEL_TIME = 2
 
         vehicles = []
-        self.__next_stops_by_vehicle_id_dict = {}
 
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
@@ -122,14 +125,14 @@ class BusDataReader(DataReader):
                 start_stop_location = LabelLocation(stop_ids_list[0])
 
                 stop_arrival_time = start_time
-                stop_departure_time = stop_arrival_time + BOARDING_TIME
+                stop_departure_time = stop_arrival_time + self.__boarding_time
                 start_stop = Stop(None, start_time, stop_departure_time, start_stop_location)
 
                 next_stops = []
                 for next_stop_id in stop_ids_list[1:]:
                     next_stop_location = LabelLocation(next_stop_id)
-                    stop_arrival_time = stop_departure_time + TRAVEL_TIME
-                    stop_departure_time = stop_arrival_time + BOARDING_TIME
+                    stop_arrival_time = stop_departure_time + self.__travel_time
+                    stop_departure_time = stop_arrival_time + self.__boarding_time
                     next_stop = Stop(None, stop_arrival_time, stop_departure_time, next_stop_location)
                     next_stops.append(next_stop)
 
@@ -137,19 +140,17 @@ class BusDataReader(DataReader):
 
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity, release_time)
 
+                vehicle.route = Route(vehicle, next_stops)
+
                 vehicles.append(vehicle)
-                self.__next_stops_by_vehicle_id_dict[vehicle.id] = next_stops
 
         return vehicles
-
-    def get_next_stops_by_vehicle_id_dict(self):
-        return self.__next_stops_by_vehicle_id_dict
 
 
 class GTFSReader(DataReader):
     def __init__(self, data_folder, requests_file_path, stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt", trips_file_name="trips.txt"):
-        self.__next_stops_by_vehicle_id_dict = None
+        super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
         self.__stop_times_path = data_folder + stop_times_file_name
@@ -188,20 +189,18 @@ class GTFSReader(DataReader):
         self.__read_trips()
 
         vehicles = []
-        self.__next_stops_by_vehicle_id_dict = {}
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict.items():
             service_id = self.__trip_service_dict[trip_id]
             dates_list = self.__service_dates_dict[service_id]
             for date in dates_list:
                 vehicle, next_stops = self.__get_vehicle_and_next_stops(trip_id, stop_time_list, date)
+
+                vehicle.route = Route(vehicle, next_stops)
+
                 vehicles.append(vehicle)
-                self.__next_stops_by_vehicle_id_dict[vehicle.id] = next_stops
 
         return vehicles
-
-    def get_next_stops_by_vehicle_id_dict(self):
-        return self.__next_stops_by_vehicle_id_dict
 
     def __get_vehicle_and_next_stops(self, trip_id, stop_time_list, date_string):
 

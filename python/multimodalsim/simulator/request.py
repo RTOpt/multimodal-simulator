@@ -10,18 +10,12 @@ class Request(object):
        information about the trip
        Attributes:
        ----------
-       requestId: int
-            unique id for each trip
-       status: category
-            Request status : {PENDING:1, PICKING:2, ONBOARD:3, COMPLET:4}
-       origin: tuple of floats (x,y)
-            GPS coordinates of the origin point of the trip.
-       destination:  tuple of floats (x,y)
-            GPS coordinates of the destination point of the trip.
-       travel_duration: float
-            Travel time between the origin and destination
-       travel_distance: float
-            Travel distance between the origin and destination
+       req_id: int
+            unique id for each request
+       origin: Location
+            location of the origin
+       destination:  Location
+            location of the destination
        nb_passengers: int
             Number of passengers of the trip.
        ready_time: float
@@ -59,15 +53,16 @@ class Request(object):
         self.path = path
 
 
-class PassengerUpdate(object):
-    def __init__(self, vehicle_id, request_id, current_leg, next_legs=None):
-        self.assigned_vehicle_id = vehicle_id
-        self.request_id = request_id
-        self.current_leg = current_leg
-        self.next_legs = next_legs
-
-
 class Leg(Request):
+    """The ``Leg`` class serves as a structure for storing basic
+        information about the legs. This class inherits from Request class
+        Properties
+        ----------
+        assigned_vehicle: Vehicle
+            the vehicle assigned to the leg.
+        trip: Trip
+            the trip to which belongs the leg.
+    """
 
     def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time, trip):
         super().__init__(req_id, origin, destination, nb_passengers, ready_time, due_time, release_time)
@@ -101,15 +96,15 @@ class Trip(Request):
         information about the trips. This class inherits from Request class
         Properties
         ----------
-        affected_vehicle:int
-            Id of affected vehicle to run the trip.
-        origin_affected_request: tuple of floats (x,y)
-            GPS coordinates of the origin point of the affected trip.
-        destination_affected_request: tuple of floats (x,y)
-            GPS coordinates of the destination point of the affected trip.
+        status: int
+            Represents the different status of the passenger associated with the trip (PassengersStatus(Enum)).
+        previous_legs: list of Leg objects
+            the previous legs of the trip.
+        previous_legs: Leg
+            the current leg of the trip.
+        next_legs: Leg
+            the next legs of the trip.
     """
-
-    # succession de legs
 
     def __init__(self, req_id, origin, destination, nb_passengers, ready_time, due_time, release_time):
         super().__init__(req_id, origin, destination, nb_passengers, ready_time, due_time, release_time)
@@ -134,3 +129,11 @@ class Trip(Request):
         else:
             self.current_leg = None
             self.next_legs = None
+
+
+class PassengerUpdate(object):
+    def __init__(self, vehicle_id, request_id, current_leg, next_legs=None):
+        self.assigned_vehicle_id = vehicle_id
+        self.request_id = request_id
+        self.current_leg = current_leg
+        self.next_legs = next_legs

@@ -77,8 +77,8 @@ def main():
     g = None
 
     if args.type == "shuttle":
-        # Parameters example: shuttle -r ../../data/test0_shuttle/requests.csv -v ../../data/test0_shuttle/vehicles.csv
-        # -n ../../data/test0_shuttle/nodes.csv
+        # Parameters example: shuttle -r ../../data/shuttle/test0_shuttle/requests.csv
+        # -v ../../data/shuttle/test0_shuttle/vehicles.csv -n ../../data/shuttle/test0_shuttle/nodes.csv
         logger.info("Shuttle")
 
         nodes_file_path = args.nodes
@@ -100,10 +100,12 @@ def main():
         dispatcher = FixedLineDispatcher()
 
         if args.gtfs:
-            # Parameters example: fixed --gtfs --gtfs-folder ../../data/bus_test/gtfs_test/
-            # -r ../../data/bus_test/gtfs_test/requests_gtfs.csv
+            # Parameters example: fixed --gtfs --gtfs-folder ../../data/fixed_line/gtfs/gtfs/
+            # -r ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal --log-level DEBUG
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
         else:
+            # Parameters example: fixed -r ../../data/fixed_line/requests_v1.csv
+            # -v ../../data/fixed_line/vehicles_v1.csv --multimodal --log-level DEBUG
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
     else:
         raise ValueError("The type of optimization must be either 'shuttle' or 'fixed'!")
@@ -113,13 +115,9 @@ def main():
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
-    next_stops_by_vehicle_id = None
-    if args.type == "fixed":
-        next_stops_by_vehicle_id = data_reader.get_next_stops_by_vehicle_id_dict()
-
     visualizer = ConsoleVisualizer()
 
-    simulation = Simulation(opt, trips, vehicles, next_stops_by_vehicle_id, g, visualizer)
+    simulation = Simulation(opt, trips, vehicles, network=g, visualizer=visualizer)
     simulation.simulate()
 
 
