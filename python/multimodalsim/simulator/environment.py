@@ -2,9 +2,30 @@ import copy
 
 
 class Environment(object):
+    """The ``Environment`` class mostly serves as a structure for storing basic information about the environment
+        Attributes:
+        ----------
+        current_time: int
+            The date and time of the current event.
+        trips: list of Trip objects
+            All the trips that were added to the environment.
+        assigned_trips: list of Trip objects
+            the trips that are assigned to a route.
+        non_assigned_trips: list of Trip objects
+            the trips that are not assigned to a route yet.
+        vehicles: list of Vehicle objects
+            All the vehicles that were added to the environment.
+        assigned_vehicles: list of Vehicle objects
+            the vehicles that are assigned at least one trip.
+        non_assigned_vehicles: list of Vehicle objects
+            the vehicles that are not assigned any trip yet.
+        network: graph
+            graph corresponding to the network.
+        optimization: Optimization
+            the optimization algorithm used by the simulation.
+        """
 
     def __init__(self, optimization, network=None):
-        # Patrick: Added optimization, status
         self.current_time = 0
         self.trips = []
         self.assigned_trips = []

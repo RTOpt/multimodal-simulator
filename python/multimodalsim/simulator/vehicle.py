@@ -11,21 +11,17 @@ class Vehicle(object):
         information about the vehicles.
         Properties
         ----------
-        vehicle_id: int
+        id: int
             unique id
-        vehicle_status: int
-            If the vehicle is in circulation between the two terminals it is active.
-            If the vehicle did not start its run or reached the last terminal and
-            emptied all its passengers, it is inactive.
-        vehicle start_time: int
-            time when the vehicle is ready to start
-        start_stop: tuple of floats (x,y)
-            GPS coordinates of the start position of the vehicle
+        start_time: int
+            time at which the vehicle is ready to start
+        start_stop: Stop
+            Stop at which the vehicle starts.
         capacity: int
-            Maximum number of passengers that can fit the vehicle
+            Maximum number of passengers that can fit in the vehicle
+        release_time: int
+            time at which the vehicle is added to the environment.
     """
-
-    # Mettre __ + decorators
 
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
         self.route = None
@@ -60,21 +56,27 @@ class Vehicle(object):
 
 class Route(object):
     """The ``Route`` class serves as a structure for storing basic
-    information about the routes. This class inherits from Vehicle class.
+    information about the routes.
        Properties
        ----------
-        onboard_legs: list
-            Ids of requests currently on board.
-        current_stops: list of tuples of floats (x,y)
-           each element of the list corresponds to the GPS coordinates of a current stop of the vehicle.
-        next_stops: list of tuples of floats (x,y)
-           each element of the list corresponds to the GPS coordinates of a next stop to reach by the vehicle.
-        previous_stops: list of tuples of floats (x,y)
-           ach element of the list corresponds to the GPS coordinates of a previous stop visited by the vehicle.
+       vehicle: Vehicle
+            vehicle associated with the route.
+       status: int
+            represents the different status of route (VehicleStatus(Enum)).
+        current_stop: Stop
+           current stop of the associated vehicle.
+        next_stops: list of Stop objects
+           the next stops to be visited by the vehicle.
+        previous_stops: list of Stop objects
+           the stops previously visited by the vehicle.
+        onboard_legs: list of Leg objects
+            legs associated with the passengers currently on board.
+        assigned_legs: list of Leg objects
+            legs associated with the passengers assigned to the associated vehicle.
+        alighted_legs: list of Leg objects
+            legs associated with the passengers that alighted from the corresponding vehicle.
         load: int
             Number of passengers on board
-        picking_requests: list
-            Ids of requests currently waiting for this vehicle to pick
     """
 
     def __init__(self, vehicle, next_stops=[]):
@@ -152,34 +154,31 @@ class Route(object):
         """Updates the list of requests to pick up by the vehicle"""
         return self.current_stop.passengers_to_board
 
-    # def deep_copy(self, vehicle, etc.):
 
 class Stop(object):
     """A stop is located somewhere along the network.  New requests
     arrive at the stop.
     ----------
-    StopType
     arrival_time: int
         Date and time at which the vehicle arrives the stop
     departure_time: int
         Date and time at which the vehicle leaves the stop
-    passengers_to_board: list
+    passengers_to_board: list of Trip objects
         list of passengers who need to board
-    boarding_passengers: list
+    boarding_passengers: list of Trip objects
         list of passengers who are boarding
-    boarded_passengers: list
+    boarded_passengers: list of Trip objects
         list of passengers who are already boarded
-    passengers_to_alight: list
+    passengers_to_alight: list of Trip objects
         list of passengers to alight
         OLD: list of passengers who are alighted
-    alighted_passengers: list
+    alighted_passengers: list of Trip objects
         list of passengers who are alighted
     location: Location
         Object of type Location referring to the location of the stop (e.g., GPS coordinates)
     """
 
     def __init__(self, stop_type, arrival_time, departure_time, location):
-        self.stop_type = stop_type  # Patrick: What is this used for?
         self.arrival_time = arrival_time
         self.departure_time = departure_time
         self.passengers_to_board = []
@@ -228,6 +227,8 @@ class Stop(object):
 
 
 class Location(object):
+    """The ``Location`` class is a base class that mostly serves as a structure for storing basic information about the
+    location of a vehicle or a passenger (i.e., Request)."""
     def __init__(self):
         pass
 

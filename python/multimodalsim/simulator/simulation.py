@@ -11,17 +11,14 @@ logger = logging.getLogger(__name__)
 
 class Simulation(object):
 
-    def __init__(self, opt, trips, vehicles, next_stops_by_vehicle_id=None, g=None, visualizer=None):
+    def __init__(self, opt, trips, vehicles, network=None, visualizer=None):
 
-        self.__env = Environment(opt, g)
+        self.__env = Environment(opt, network)
         self.__queue = EventQueue(self.__env)
         self.__visualizer = visualizer
 
         for vehicle in vehicles:
-            if next_stops_by_vehicle_id is not None:
-                VehicleReady(vehicle, next_stops_by_vehicle_id[vehicle.id], self.__queue).add_to_queue()
-            else:
-                VehicleReady(vehicle, [], self.__queue).add_to_queue()
+            VehicleReady(vehicle, self.__queue).add_to_queue()
 
         for trip in trips:
             PassengerRelease(trip, self.__queue).add_to_queue()

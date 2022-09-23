@@ -17,4 +17,3 @@ for h in root_logger.handlers:
 
 # Add custom handler
 root_logger.addHandler(console_stream_handler)
-root_logger.info("log_level={}".format(logging.INFO))
