@@ -5,10 +5,9 @@ class PassengersStatus(Enum):
     """Represents the different status of Requests"""
     RELEASE = 1
     ASSIGNED = 2
-    NONASSIGNED = 3
-    READY = 4
-    ONBOARD = 5
-    COMPLETE = 6
+    READY = 3
+    ONBOARD = 4
+    COMPLETE = 5
 
 
 class VehicleStatus(Enum):
@@ -17,7 +16,6 @@ class VehicleStatus(Enum):
     BOARDING = 2
     ENROUTE = 3
     ALIGHTING = 4
-    # Patrick: Should we add COMPLETE (or END)?
     COMPLETE = 5
 
 class OptimizationStatus(Enum):

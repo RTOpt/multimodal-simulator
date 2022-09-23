@@ -15,6 +15,7 @@ class PassengerRelease(Event):
 
     def process(self, env):
         env.add_trip(self.__trip)
+        env.add_non_assigned_trip(self.__trip)
 
         legs = env.optimization.split(self.__trip, env)
         self.__trip.assign_legs(legs)
@@ -52,6 +53,9 @@ class PassengerAssignment(Event):
 
         trip.update_status(PassengersStatus.ASSIGNED)
 
+        env.remove_non_assigned_trip(trip.req_id)
+        env.add_assigned_trip(trip)
+
         PassengerReady(trip, self.queue).add_to_queue()
 
         return 'Passenger Assignment process is implemented'
@@ -83,23 +87,26 @@ class PassengerToBoard(Event):
 class PassengerAlighting(Event):
     def __init__(self, trip, queue):
         super().__init__('PassengerAlighting', queue)
-        self.trip = trip
+        self.__trip = trip
 
     def process(self, env):
 
-        if hasattr(self.trip, 'next_legs') is False or self.trip.next_legs is None or len(
-                self.trip.next_legs) == 0:
+        if hasattr(self.__trip, 'next_legs') is False or self.__trip.next_legs is None or len(
+                self.__trip.next_legs) == 0:
             # No connection
             logger.debug("No connection")
-            self.trip.update_status(PassengersStatus.COMPLETE)
+            self.__trip.update_status(PassengersStatus.COMPLETE)
         else:
             # Connection
             logger.debug("Connection")
-            self.trip.previous_legs.append(self.trip.current_leg)
-            self.trip.current_leg = self.trip.next_legs.pop(0)
-            logger.debug("self.trip.current_leg.assigned_vehicle={}".format(self.trip.current_leg.assigned_vehicle))
-            self.trip.assigned_vehicle = self.trip.current_leg.assigned_vehicle
-            logger.debug("self.trip.assigned_vehicle={}".format(self.trip.assigned_vehicle))
-            self.trip.update_status(PassengersStatus.RELEASE)
+            self.__trip.previous_legs.append(self.__trip.current_leg)
+            self.__trip.current_leg = self.__trip.next_legs.pop(0)
+            self.__trip.assigned_vehicle = self.__trip.current_leg.assigned_vehicle
+            self.__trip.update_status(PassengersStatus.RELEASE)
+
+            # The trip is considered as non-assigned again
+            env.remove_assigned_trip(self.__trip.req_id)
+            env.add_non_assigned_trip(self.__trip)
+
             Optimize(env.current_time, self.queue).add_to_queue()
         return 'Passenger Alighting process is implemented'

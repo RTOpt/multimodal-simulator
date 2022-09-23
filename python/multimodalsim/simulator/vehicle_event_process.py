@@ -16,6 +16,7 @@ class VehicleReady(Event):
 
     def process(self, env):
         env.add_vehicle(self.__vehicle)
+        env.add_non_assigned_vehicle(self.__vehicle)
 
         self.__vehicle.route = Route(self.__vehicle, self.__next_stops)
 
@@ -134,7 +135,15 @@ class VehicleNotification(Event):
                 if leg not in vehicle.route.assigned_legs:
                     vehicle.route.assigned_legs.append(leg)
 
+        self.__update_env_assigned_vehicles(vehicle)
+
         return 'Notify Vehicle process is implemented'
+
+    def __modify_route_update_current_stop_if_actual_current_stop_changed(self, actual_vehicle):
+        if actual_vehicle.route.current_stop.location == self.route_update.next_stops[0].location:
+            # Vehicle was ENROUTE at the time of optimization, but has now arrived at the next stop.
+            new_current_stop = self.route_update.next_stops.pop(0)
+            self.route_update.current_stop_modified_passengers_to_board = new_current_stop.passengers_to_board
 
     def __update_stop_with_actual_trips(self, stop):
 
@@ -151,6 +160,12 @@ class VehicleNotification(Event):
 
         return list(self.__env.get_leg_by_id(leg.req_id) for leg in legs_list)
 
+    def __update_env_assigned_vehicles(self, vehicle):
+        """Update the assigned vehicles of Environment if necessary"""
+        if vehicle in self.__env.get_non_assigned_vehicles() and (len(vehicle.route.assigned_legs) != 0
+                                                                  or len(vehicle.route.onboard_legs) != 0):
+            self.__env.remove_non_assigned_vehicle(vehicle.id)
+            self.__env.add_assigned_vehicle(vehicle)
 
 
 class VehicleBoarded(Event):
