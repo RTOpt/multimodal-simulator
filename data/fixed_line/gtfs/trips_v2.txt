@@ -1,0 +1,6 @@
+route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id,block_id,shape_id,wheelchair_accessible
+1,1,1,"trip1",,0,,1,2
+2,1,2,"trip2",,1,,2,2
+3,2,3,"trip3",,0,,3,2
+4,2,4,"trip4",,1,,4,2
+5,2,5,"trip5",,0,,5,2

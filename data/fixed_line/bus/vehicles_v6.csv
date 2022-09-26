@@ -1,0 +1,2 @@
+vehicle_id;start_time;route;capacity
+0;500;[0, 1, 2, 3, 4, 5, 6, 7];3
