@@ -24,21 +24,12 @@ class Vehicle(object):
     """
 
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
-        self.route = None
-        self.id = veh_id
-        self.start_time = start_time
-        self.start_stop = start_stop
-        self.capacity = capacity
-        self.release_time = release_time
-
-    def __deepcopy__(self, memo_dict={}):
-
-        cls = self.__class__
-        new_cls = cls.__new__(cls)
-        memo_dict[id(self)] = new_cls
-        for attribute, value in self.__dict__.items():
-            setattr(new_cls, attribute, copy.deepcopy(value, memo_dict))
-        return new_cls
+        self.__route = None
+        self.__id = veh_id
+        self.__start_time = start_time
+        self.__start_stop = start_stop
+        self.__capacity = capacity
+        self.__release_time = release_time
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -47,11 +38,35 @@ class Vehicle(object):
         class_string += "}"
         return class_string
 
-    def new_route(self):
-        if self.route is not None:
-            raise ValueError("Vehicle (%d) has already route." % self.id)
-        self.route = Route(self)
-        return self.route
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def start_time(self):
+        return self.__start_time
+
+    @property
+    def start_stop(self):
+        return self.__start_stop
+
+    @property
+    def capacity(self):
+        return self.__capacity
+
+    @property
+    def release_time(self):
+        return self.__release_time
+
+    @property
+    def route(self):
+        return self.__route
+
+    @route.setter
+    def route(self, route):
+        if self.__route is not None:
+            raise ValueError("Vehicle (%d) has already a route." % self.id)
+        self.__route = route
 
 
 class Route(object):
@@ -80,29 +95,29 @@ class Route(object):
     """
 
     def __init__(self, vehicle, next_stops=[]):
-        self.vehicle = vehicle
-        self.status = VehicleStatus.RELEASE
-        self.current_stop = vehicle.start_stop
-        self.next_stops = next_stops
-        self.previous_stops = []
+        self.__vehicle = vehicle
+        self.__status = VehicleStatus.RELEASE
+        self.__current_stop = vehicle.start_stop
+        self.__next_stops = next_stops
+        self.__previous_stops = []
 
-        self.onboard_legs = []
-        self.assigned_legs = []
-        self.alighted_legs = []
+        self.__onboard_legs = []
+        self.__assigned_legs = []
+        self.__alighted_legs = []
 
-        self.load = 0
+        self.__load = 0
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
-            if attribute == "vehicle":
+            if "__vehicle" in attribute:
                 class_string += str(attribute) + ": " + str(value.id) + ", "
-            elif attribute == "next_stops":
+            elif "__next_stops" in attribute:
                 class_string += str(attribute) + ": ["
                 for stop in value:
                     class_string += str(stop) + ", "
                 class_string += "], "
-            elif attribute == "previous_stops":
+            elif "__previous_stops" in attribute:
                 class_string += str(attribute) + ": ["
                 for stop in value:
                     class_string += str(stop) + ", "
@@ -112,47 +127,95 @@ class Route(object):
         class_string += "}"
         return class_string
 
-    def update_vehicle_status(self, status):
-        self.status = status
+    @property
+    def vehicle(self):
+        return self.__vehicle
+
+    @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, status):
+        if isinstance(status, VehicleStatus):
+            self.__status = status
+        else:
+            raise TypeError("status must be an Enum of type VehicleStatus.")
+
+    @property
+    def current_stop(self):
+        return self.__current_stop
+
+    @current_stop.setter
+    def current_stop(self, current_stop):
+        self.__current_stop = current_stop
+
+    @property
+    def next_stops(self):
+        return self.__next_stops
+
+    @next_stops.setter
+    def next_stops(self, next_stops):
+        self.__next_stops = next_stops
+
+    @property
+    def previous_stops(self):
+        return self.__previous_stops
+
+    @property
+    def onboard_legs(self):
+        return self.__onboard_legs
+
+    @property
+    def assigned_legs(self):
+        return self.__assigned_legs
+
+    @property
+    def alighted_legs(self):
+        return self.__alighted_legs
+
+    @property
+    def load(self):
+        return self.__load
 
     def board(self, trip):
         """Boards passengers who are ready to pick up"""
         if trip is not None:
-            self.assigned_legs.remove(trip.current_leg)
-            self.onboard_legs.append(trip.current_leg)
+            self.__assigned_legs.remove(trip.current_leg)
+            self.__onboard_legs.append(trip.current_leg)
             self.current_stop.board(trip)
             # Patrick: Should we increase self.load?
-            self.load += 1
+            self.__load += 1
 
     def depart(self):
         """Departs the vehicle"""
-        if self.current_stop is not None:
-            self.previous_stops.append(self.current_stop)
-        self.current_stop = None
+        if self.__current_stop is not None:
+            self.__previous_stops.append(self.current_stop)
+        self.__current_stop = None
 
     def arrive(self):
         """Arrives the vehicle"""
-        self.current_stop = self.next_stops.pop(0)
+        self.__current_stop = self.__next_stops.pop(0)
 
     def alight(self, trip):
         """Alights passengers who reached their destination from the vehicle"""
-        self.onboard_legs.remove(trip.current_leg)
-        self.alighted_legs.append(trip.current_leg)
-        self.current_stop.alight(trip)
+        self.__onboard_legs.remove(trip.current_leg)
+        self.__alighted_legs.append(trip.current_leg)
+        self.__current_stop.alight(trip)
         # Patrick: Should we decrease self.load?
-        self.load -= 1
+        self.__load -= 1
 
     def nb_free_places(self):
         """Returns the number of places remaining in the vehicle"""
-        return self.capacity - self.load
+        return self.__capacity - self.__load
 
     def assign_leg(self, leg):
         """Assigns a new leg to the route"""
-        self.assigned_legs.append(leg)
+        self.__assigned_legs.append(leg)
 
     def requests_to_pickup(self):
         """Updates the list of requests to pick up by the vehicle"""
-        return self.current_stop.passengers_to_board
+        return self.__current_stop.passengers_to_board
 
 
 class Stop(object):
@@ -178,34 +241,86 @@ class Stop(object):
         Object of type Location referring to the location of the stop (e.g., GPS coordinates)
     """
 
-    def __init__(self, stop_type, arrival_time, departure_time, location):
-        self.arrival_time = arrival_time
-        self.departure_time = departure_time
-        self.passengers_to_board = []
-        self.boarding_passengers = []
-        self.boarded_passengers = []
-        self.passengers_to_alight = []
-        self.alighted_passengers = []
-        self.location = location
+    def __init__(self, arrival_time, departure_time, location):
+        self.__arrival_time = arrival_time
+        self.__departure_time = departure_time
+        self.__passengers_to_board = []
+        self.__boarding_passengers = []
+        self.__boarded_passengers = []
+        self.__passengers_to_alight = []
+        self.__alighted_passengers = []
+        self.__location = location
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
-            if attribute == "passengers_to_board":
-                class_string += str(attribute) + ": " + str(list(str(x.req_id) for x in value)) + ", "
-            elif attribute == "boarding_passengers":
-                class_string += str(attribute) + ": " + str(list(str(x.req_id) for x in value)) + ", "
-            elif attribute == "boarded_passengers":
-                class_string += str(attribute) + ": " + str(list(str(x.req_id) for x in value)) + ", "
-            elif attribute == "passengers_to_alight":
-                class_string += str(attribute) + ": " + str(list(str(x.req_id) for x in value)) + ", "
-            elif attribute == "alighted_passengers":
-                class_string += str(attribute) + ": " + str(list(str(x.req_id) for x in value)) + ", "
+            if "__passengers_to_board" in attribute:
+                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+            elif "__boarding_passengers" in attribute:
+                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+            elif "__boarded_passengers" in attribute:
+                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+            elif "__passengers_to_alight" in attribute:
+                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+            elif "alighted_passengers" in attribute:
+                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
             else:
                 class_string += str(attribute) + ": " + str(value) + ", "
 
         class_string += "}"
         return class_string
+
+    @property
+    def arrival_time(self):
+        return self.__arrival_time
+
+    @property
+    def departure_time(self):
+        return self.__departure_time
+
+    @departure_time.setter
+    def departure_time(self, departure_time):
+        self.__departure_time = departure_time
+
+    @property
+    def passengers_to_board(self):
+        return self.__passengers_to_board
+
+    @passengers_to_board.setter
+    def passengers_to_board(self, passengers_to_board):
+        self.__passengers_to_board = passengers_to_board
+
+    @property
+    def boarding_passengers(self):
+        return self.__boarding_passengers
+
+    @boarding_passengers.setter
+    def boarding_passengers(self, boarding_passengers):
+        self.__boarding_passengers = boarding_passengers
+
+    @property
+    def boarded_passengers(self):
+        return self.__boarded_passengers
+
+    @boarded_passengers.setter
+    def boarded_passengers(self, boarded_passengers):
+        self.__boarded_passengers = boarded_passengers
+
+    @property
+    def passengers_to_alight(self):
+        return self.__passengers_to_alight
+
+    @passengers_to_alight.setter
+    def passengers_to_alight(self, passengers_to_alight):
+        self.__passengers_to_alight = passengers_to_alight
+
+    @property
+    def alighted_passengers(self):
+        return self.__alighted_passengers
+
+    @property
+    def location(self):
+        return self.__location
 
     def initiate_boarding(self, request):
         """Passengers who are ready to pick up in the stop get in the vehicle"""

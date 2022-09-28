@@ -41,7 +41,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
         # non_assigned_vehicles = [veh for veh in state.vehicles if veh.route.status == VehicleStatus.RELEASE or
         #                          veh.route.status == VehicleStatus.BOARDING]
 
-        logger.debug("non_assigned_trips={}".format(list(req.req_id for req in non_assigned_requests)))
+        logger.debug("non_assigned_trips={}".format(list(req.id for req in non_assigned_requests)))
         logger.debug("non_assigned_vehicles={}".format(list(veh.id for veh in non_assigned_vehicles)))
 
         request_vehicle_pairs_list = []
@@ -51,7 +51,6 @@ class ShuttleGreedyDispatcher(Dispatcher):
         non_assigned_vehicles_sorted_by_departure_time = sorted(non_assigned_vehicles,
                                                                 key=lambda x: x.route.current_stop.departure_time)
 
-        next_stops_by_request = {}
         for req in non_assigned_requests:
             potential_non_assigned_vehicles = list(x for x in non_assigned_vehicles_sorted_by_departure_time
                                                    if x.route.current_stop.departure_time > req.ready_time
@@ -70,7 +69,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
                 path = self.__get_path(self.__network, req.origin.gps_coordinates.get_coordinates(),
                                        req.destination.gps_coordinates.get_coordinates())
 
-                req.assign_route(path)
+                # req.assign_route(path)
 
                 departure_time = assigned_vehicle.route.current_stop.departure_time
 
@@ -91,11 +90,9 @@ class ShuttleGreedyDispatcher(Dispatcher):
                         arrival_time = departure_time + distance
                         departure_time = arrival_time + self.__boarding_time
                         location = node
-                        stop = Stop(None, arrival_time, departure_time, location)
+                        stop = Stop(arrival_time, departure_time, location)
                         next_stops.append(stop)
                         previous_node = node
-
-                next_stops_by_request[req.req_id] = next_stops
 
                 if len(assigned_vehicle.route.next_stops) != 0 and len(next_stops) != 0 \
                         and assigned_vehicle.route.next_stops[-1].location.get_coordinates() == next_stops[
@@ -104,14 +101,14 @@ class ShuttleGreedyDispatcher(Dispatcher):
                 else:
                     assigned_vehicle.route.next_stops.extend(next_stops)
 
-                req.current_leg.assign_vehicle(assigned_vehicle)
+                req.current_leg.assigned_vehicle = assigned_vehicle
                 assigned_vehicle.route.assign_leg(req.current_leg)
-                req.update_status(PassengersStatus.ASSIGNED)
+                req.status = PassengersStatus.ASSIGNED
 
                 logger.debug(assigned_vehicle)
 
                 logger.debug("assigned_vehicle={}".format(req.current_leg.assigned_vehicle.id))
-                logger.debug("assigned_legs={}".format(list(req.req_id for req in
+                logger.debug("assigned_legs={}".format(list(req.id for req in
                                                             assigned_vehicle.route.assigned_legs)))
 
                 request_vehicle_pairs_list.append((req, assigned_vehicle))
@@ -120,7 +117,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
         logger.debug("request_vehicle_pairs_list:")
         for req, veh in request_vehicle_pairs_list:
-            logger.debug("---(req_id={},veh_id={})".format(req.req_id, veh.id))
+            logger.debug("---(id={},veh_id={})".format(req.id, veh.id))
 
         for req, veh in request_vehicle_pairs_list:
             boarding_stop_found = False
@@ -196,7 +193,7 @@ class FixedLineDispatcher(Dispatcher):
         logger.debug("self.__non_assigned_released_requests_list={}".format(self.__non_assigned_released_requests_list))
 
         for trip in self.__non_assigned_released_requests_list:
-            logger.debug("non_assigned trip: {}".format(trip.req_id))
+            logger.debug("non_assigned trip: {}".format(trip.id))
 
             optimal_vehicle = self.__find_optimal_vehicle_for_leg(trip.current_leg)
             logger.debug("optimal_vehicle={}".format(optimal_vehicle.id if optimal_vehicle is not None else None))
@@ -241,7 +238,6 @@ class FixedLineDispatcher(Dispatcher):
             origin_departure_time = origin_stop.departure_time
             destination_arrival_time = destination_stop.arrival_time
 
-
         return origin_departure_time, destination_arrival_time
 
     def __assign_trip_to_vehicle(self, trip, vehicle):
@@ -250,8 +246,8 @@ class FixedLineDispatcher(Dispatcher):
         logger.debug("trip.next_legs={}".format(trip.next_legs))
         logger.debug("vehicle={}".format(vehicle))
 
-        trip.current_leg.assign_vehicle(vehicle)
-        trip.update_status(PassengersStatus.ASSIGNED)
+        trip.current_leg.assigned_vehicle = vehicle
+        trip.status = PassengersStatus.ASSIGNED
 
         vehicle.route.assign_leg(trip.current_leg)
 
