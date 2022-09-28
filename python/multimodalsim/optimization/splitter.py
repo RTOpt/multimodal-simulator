@@ -23,7 +23,7 @@ class OneLegSplitter(Splitter):
         super().__init__()
 
     def split(self, trip, state):
-        leg = Leg(trip.req_id, trip.origin, trip.destination, trip.nb_passengers, trip.ready_time, trip.due_time,
+        leg = Leg(trip.id, trip.origin, trip.destination, trip.nb_passengers, trip.ready_time, trip.due_time,
                   trip.release_time, trip)
 
         return [leg]
@@ -53,7 +53,7 @@ class MultimodalSplitter(Splitter):
         logger.debug("potential_target_nodes={}".format(potential_target_nodes))
 
         if len(potential_source_nodes) != 0 and len(potential_target_nodes) != 0:
-            logger.debug("req.req_id={}".format(trip.req_id))
+            logger.debug("req.id={}".format(trip.id))
             feasible_paths = self.__find_feasible_paths(potential_source_nodes, potential_target_nodes)
             if len(feasible_paths) > 0:
                 optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
@@ -130,7 +130,7 @@ class MultimodalSplitter(Splitter):
             if node[1] != leg_vehicle_id:
                 leg_second_stop_id = node[0]
 
-                leg_id = self.__trip.req_id + "_" + str(leg_number)
+                leg_id = self.__trip.id + "_" + str(leg_number)
                 leg = Leg(leg_id, LabelLocation(leg_first_stop_id), LabelLocation(leg_second_stop_id),
                           self.__trip.nb_passengers, self.__trip.ready_time, self.__trip.due_time,
                           self.__trip.release_time, self.__trip)
@@ -143,7 +143,7 @@ class MultimodalSplitter(Splitter):
 
         # Last leg
         last_leg_second_stop = path[-1][0]
-        leg_id = self.__trip.req_id + "_" + str(leg_number)
+        leg_id = self.__trip.id + "_" + str(leg_number)
         last_leg = Leg(leg_id, LabelLocation(leg_first_stop_id), LabelLocation(last_leg_second_stop),
                        self.__trip.nb_passengers, self.__trip.ready_time, self.__trip.due_time,
                        self.__trip.release_time, self.__trip)

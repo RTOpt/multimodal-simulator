@@ -60,7 +60,7 @@ class ShuttleDataReader(DataReader):
                 start_stop_location = GPSLocation(Node(None, (ast.literal_eval(row[2]), ast.literal_eval(row[3]))))
                 capacity = int(row[4])
 
-                start_stop = Stop(None, start_time, start_time + self.__boarding_time, start_stop_location)
+                start_stop = Stop(start_time, start_time + self.__boarding_time, start_stop_location)
 
                 # Patrick: For shuttles, release time is the same as start time, but it could be changed.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity, start_time)
@@ -126,14 +126,14 @@ class BusDataReader(DataReader):
 
                 stop_arrival_time = start_time
                 stop_departure_time = stop_arrival_time + self.__boarding_time
-                start_stop = Stop(None, start_time, stop_departure_time, start_stop_location)
+                start_stop = Stop(start_time, stop_departure_time, start_stop_location)
 
                 next_stops = []
                 for next_stop_id in stop_ids_list[1:]:
                     next_stop_location = LabelLocation(next_stop_id)
                     stop_arrival_time = stop_departure_time + self.__travel_time
                     stop_departure_time = stop_arrival_time + self.__boarding_time
-                    next_stop = Stop(None, stop_arrival_time, stop_departure_time, next_stop_location)
+                    next_stop = Stop(stop_arrival_time, stop_departure_time, next_stop_location)
                     next_stops.append(next_stop)
 
                 capacity = int(row[3])
@@ -215,7 +215,7 @@ class GTFSReader(DataReader):
         start_stop_departure_time = self.__get_timestamp_from_date_and_time_strings(date_string,
                                                                                     start_stop_time.departure_time)
         start_stop_location = LabelLocation(start_stop_time.stop_id)
-        start_stop = Stop(None, start_stop_arrival_time, start_stop_departure_time, start_stop_location)
+        start_stop = Stop(start_stop_arrival_time, start_stop_departure_time, start_stop_location)
 
         next_stops = self.__get_next_stops(stop_time_list, date_string)
 
@@ -229,7 +229,7 @@ class GTFSReader(DataReader):
             arrival_time = self.__get_timestamp_from_date_and_time_strings(date_string, stop_time.arrival_time)
             departure_time = self.__get_timestamp_from_date_and_time_strings(date_string, stop_time.departure_time)
 
-            next_stop = Stop(None, arrival_time, departure_time, LabelLocation(stop_time.stop_id))
+            next_stop = Stop(arrival_time, departure_time, LabelLocation(stop_time.stop_id))
             next_stops.append(next_stop)
 
         return next_stops

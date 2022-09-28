@@ -9,18 +9,26 @@ logger = logging.getLogger(__name__)
 class Optimization(object):
 
     def __init__(self, dispatcher, splitter=None):
-        self.status = OptimizationStatus.IDLE
-        self.splitter = OneLegSplitter() if splitter is None else splitter
-        self.dispatcher = dispatcher
+        self.__status = OptimizationStatus.IDLE
+        self.__splitter = OneLegSplitter() if splitter is None else splitter
+        self.__dispatcher = dispatcher
+
+    @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, status):
+        if isinstance(status, OptimizationStatus):
+            self.__status = status
+        else:
+            raise TypeError("status must be an Enum of type OptimizationStatus.")
 
     def split(self, request, state):
-        return self.splitter.split(request, state)
+        return self.__splitter.split(request, state)
 
     def dispatch(self, state):
-        return self.dispatcher.dispatch(state)
-
-    def update_status(self, status):
-        self.status = status
+        return self.__dispatcher.dispatch(state)
 
 
 class OptimizationResult(object):

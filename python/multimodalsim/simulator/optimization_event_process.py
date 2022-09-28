@@ -1,4 +1,3 @@
-import copy
 import logging
 
 from multimodalsim.optimization.state import State
@@ -7,6 +6,9 @@ from multimodalsim.simulator.request import PassengerUpdate
 from multimodalsim.simulator.status import OptimizationStatus
 from multimodalsim.simulator.vehicle import RouteUpdate
 
+import multimodalsim.simulator.passenger_event_process as passenger_event_process
+import multimodalsim.simulator.vehicle_event_process as vehicle_event_process
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +16,6 @@ class Optimize(Event):
     def __init__(self, time, queue):
         super().__init__('Optimize', queue, time)
         self.__env = None
-        self.queue = queue
 
     def process(self, env):
         self.__env = env
@@ -24,7 +25,7 @@ class Optimize(Event):
             self.add_to_queue()
             return 'Optimize event has been put back in the queue'
 
-        self.__env.optimization.update_status(OptimizationStatus.OPTIMIZING)
+        self.__env.optimization.status = OptimizationStatus.OPTIMIZING
 
         state_copy = self.__env.get_state_copy()
         state = State(state_copy)
@@ -61,20 +62,16 @@ class EnvironmentUpdate(Event):
 
     def process(self, env):
 
-        env.optimization.update_status(OptimizationStatus.UPDATEENVIRONMENT)
+        env.optimization.status = OptimizationStatus.UPDATEENVIRONMENT
 
-        # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from multimodalsim.simulator.passenger_event_process import PassengerAssignment
         for trip in self.optimization_result.modified_requests:
             current_leg = trip.current_leg
             next_legs = trip.next_legs
 
-            passenger_update = PassengerUpdate(trip.current_leg.assigned_vehicle.id, trip.req_id, current_leg,
+            passenger_update = PassengerUpdate(trip.current_leg.assigned_vehicle.id, trip.id, current_leg,
                                                next_legs)
-            PassengerAssignment(passenger_update, self.queue).add_to_queue()
+            passenger_event_process.PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
-        # Patrick: Temporary solution to prevent circular import. Maybe the code should be rearranged.
-        from multimodalsim.simulator.vehicle_event_process import VehicleNotification
         for veh in self.optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
                 # Add the passengers_to_board of current_stop that were modified during optimization.
@@ -86,8 +83,8 @@ class EnvironmentUpdate(Event):
                 current_stop_departure_time = None
 
             # Add the assigned_legs of route that were modified during optimization.
-            modified_trips_ids = [modified_trip.req_id for modified_trip in self.optimization_result.modified_requests]
-            modified_assigned_legs = [leg for leg in veh.route.assigned_legs if leg.trip.req_id in modified_trips_ids]
+            modified_trips_ids = [modified_trip.id for modified_trip in self.optimization_result.modified_requests]
+            modified_assigned_legs = [leg for leg in veh.route.assigned_legs if leg.trip.id in modified_trips_ids]
 
             next_stops = veh.route.next_stops
             route_update = RouteUpdate(veh.id,
@@ -96,7 +93,7 @@ class EnvironmentUpdate(Event):
                                        next_stops=next_stops,
                                        current_stop_departure_time=current_stop_departure_time,
                                        modified_assigned_legs=modified_assigned_legs)
-            VehicleNotification(route_update, self.queue).add_to_queue()
+            vehicle_event_process.VehicleNotification(route_update, self.queue).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
 
@@ -108,6 +105,6 @@ class EnvironmentIdle(Event):
         super().__init__('EnvironmentIdle', queue)
 
     def process(self, env):
-        env.optimization.update_status(OptimizationStatus.IDLE)
+        env.optimization.status = OptimizationStatus.IDLE
 
         return 'Environment Idle process is implemented'

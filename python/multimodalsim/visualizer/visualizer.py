@@ -35,17 +35,17 @@ class ConsoleVisualizer(Visualizer):
         logger.debug("env.current_time={}".format(env.current_time))
         logger.debug("OptimizationStatus: {}".format(env.optimization.status))
         logger.debug("Environment:")
-        logger.debug("--trips={}".format([trip.req_id for trip in env.trips]))
-        logger.debug("--assigned_trips={}".format([trip.req_id for trip in env.assigned_trips]))
-        logger.debug("--non_assigned_trips={}".format([trip.req_id for trip in env.non_assigned_trips]))
+        logger.debug("--trips={}".format([trip.id for trip in env.trips]))
+        logger.debug("--assigned_trips={}".format([trip.id for trip in env.assigned_trips]))
+        logger.debug("--non_assigned_trips={}".format([trip.id for trip in env.non_assigned_trips]))
         logger.debug("--vehicles={}".format([veh.id for veh in env.vehicles]))
         logger.debug("--assigned_vehicles={}".format([veh.id for veh in env.assigned_vehicles]))
         logger.debug("--non_assigned_vehicles={}".format([veh.id for veh in env.non_assigned_vehicles]))
         logger.debug("Vehicles:")
-        for veh in env.get_vehicles():
-            assigned_legs_id = [leg.req_id for leg in veh.route.assigned_legs]
-            onboard_legs_id = [leg.req_id for leg in veh.route.onboard_legs]
-            alighted_legs_id = [leg.req_id for leg in veh.route.alighted_legs]
+        for veh in env.vehicles:
+            assigned_legs_id = [leg.id for leg in veh.route.assigned_legs]
+            onboard_legs_id = [leg.id for leg in veh.route.onboard_legs]
+            alighted_legs_id = [leg.id for leg in veh.route.alighted_legs]
 
             logger.debug(
                 "{}: status: {}, start_time: {}, assigned_legs: {}, "
@@ -63,7 +63,7 @@ class ConsoleVisualizer(Visualizer):
             for stop in veh.route.next_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
         logger.debug("Requests:")
-        for trip in env.get_trips():
+        for trip in env.trips:
             assigned_vehicle_id = trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle is not None \
                 else None
             current_leg = {"O": trip.current_leg.origin.__str__(), "D": trip.current_leg.destination.__str__(),
@@ -78,7 +78,7 @@ class ConsoleVisualizer(Visualizer):
                 if hasattr(trip, 'next_legs') and trip.next_legs is not None else None
             logger.debug("{}: status: {}, OD: ({},{}), release: {}, ready: {}, due: {}, current_leg: {}, "
                          "previous_legs: {}, next_legs: {}, assigned_vehicle_id: {}".
-                         format(trip.req_id, trip.status, trip.origin, trip.destination, trip.release_time,
+                         format(trip.id, trip.status, trip.origin, trip.destination, trip.release_time,
                                 trip.ready_time,
                                 trip.due_time, current_leg, previous_legs, next_legs, assigned_vehicle_id))
             logger.debug("***************\n")
