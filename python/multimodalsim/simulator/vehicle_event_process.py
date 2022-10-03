@@ -22,7 +22,9 @@ class VehicleReady(Event):
         if self.__vehicle.route is None:
             self.__vehicle.route = Route(self.__vehicle)
 
-        optimization_event_process.Optimize(env.current_time, self.queue).add_to_queue()
+        if not self.queue.is_event_type_in_queue(optimization_event_process.Optimize, env.current_time):
+            optimization_event_process.Optimize(env.current_time, self.queue).add_to_queue()
+
         VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
 
         return 'Vehicle Ready process is implemented'
@@ -120,7 +122,9 @@ class VehicleNotification(Event):
 
         if self.__route_update.current_stop_departure_time is not None and vehicle.route.current_stop is not None:
             # If vehicle.route.current_stop.departure_time is equal to env.current_time, then the vehicle may have
-            # already left the current stop. In this case vehicle.route.current_stop is None, and we do not modify it.
+            # already left the current stop. In this case vehicle.route.current_stop should be None (because
+            # optimization should not modify current stops when departure time is close to current time), and we do not
+            # modify it.
             vehicle.route.current_stop.departure_time = self.__route_update.current_stop_departure_time
 
         if self.__route_update.modified_assigned_legs is not None:

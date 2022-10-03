@@ -87,9 +87,9 @@ class MultimodalSplitter(Splitter):
             for node2 in self.__bus_network_graph.nodes:
                 if node1[0] == node2[0] and node1[1] != node2[1]:
                     # Nodes correspond to same stop but different vehicles
-                    if node2[3] > node1[2]:
-                        # Departure time of the second node is greater than the arrival time of the first node.
-                        # A connection is possible
+                    if node2[3] >= node1[2]:
+                        # Departure time of the second node is greater than or equal to the arrival time of the first
+                        # node. A connection is possible.
                         self.__bus_network_graph.add_edge(node1, node2, weight=node2[3] - node1[2])
 
     def __find_potential_source_nodes(self, trip):

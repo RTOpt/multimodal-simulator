@@ -94,11 +94,11 @@ class Route(object):
             Number of passengers on board
     """
 
-    def __init__(self, vehicle, next_stops=[]):
+    def __init__(self, vehicle, next_stops=None):
         self.__vehicle = vehicle
         self.__status = VehicleStatus.RELEASE
         self.__current_stop = vehicle.start_stop
-        self.__next_stops = next_stops
+        self.__next_stops = next_stops if next_stops is not None else []
         self.__previous_stops = []
 
         self.__onboard_legs = []

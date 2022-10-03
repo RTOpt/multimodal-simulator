@@ -1,7 +1,8 @@
 import logging
 
+from multimodalsim.optimization.state import State
 from multimodalsim.simulator.event import Event
-from multimodalsim.simulator.optimization_event_process import Optimize
+import multimodalsim.simulator.optimization_event_process as optimization_event_process
 from multimodalsim.simulator.status import PassengersStatus
 from multimodalsim.simulator.vehicle_event_process import VehicleBoarded
 
@@ -18,11 +19,13 @@ class PassengerRelease(Event):
         env.add_non_assigned_trip(self.__trip)
 
         legs = env.optimization.split(self.__trip, env)
+
         self.__trip.assign_legs(legs)
 
         self.__trip.status = PassengersStatus.RELEASE
 
-        Optimize(env.current_time, self.queue).add_to_queue()
+        if not self.queue.is_event_type_in_queue(optimization_event_process.Optimize, env.current_time):
+            optimization_event_process.Optimize(env.current_time, self.queue).add_to_queue()
 
         return 'Passenger Release process is implemented'
 
@@ -100,5 +103,7 @@ class PassengerAlighting(Event):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
 
-            Optimize(env.current_time, self.queue).add_to_queue()
+            if not self.queue.is_event_type_in_queue(optimization_event_process.Optimize, env.current_time):
+                optimization_event_process.Optimize(env.current_time, self.queue).add_to_queue()
+
         return 'Passenger Alighting process is implemented'
