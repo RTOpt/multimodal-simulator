@@ -30,41 +30,27 @@ class Optimize(Event):
         state_copy = self.__env.get_state_copy()
         state = State(state_copy)
 
-        self.__set_current_stops_in_state_to_next_stop_if_none(state)
+        state.fix_routes_for_time_interval(self.__env.optimization.fixed_time_interval)
 
         optimization_result = self.__env.optimization.dispatch(state)
 
-        self.__reinitialize_current_stops_in_state()
+        state.unfix_routes_for_time_interval(self.__env.optimization.fixed_time_interval)
 
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
-    def __set_current_stops_in_state_to_next_stop_if_none(self, state):
-
-        self.__state_vehicles_with_modified_current_stops = []
-
-        for vehicle in state.vehicles:
-            if vehicle.route.current_stop is None:
-                vehicle.route.current_stop = vehicle.route.next_stops.pop(0)
-                self.__state_vehicles_with_modified_current_stops.append(vehicle)
-
-    def __reinitialize_current_stops_in_state(self):
-        for vehicle in self.__state_vehicles_with_modified_current_stops:
-            vehicle.route.next_stops.insert(0, vehicle.route.current_stop)
-            vehicle.route.current_stop = None
-
 
 class EnvironmentUpdate(Event):
     def __init__(self, optimization_result, queue):
         super().__init__('EnvironmentUpdate', queue)
-        self.optimization_result = optimization_result
+        self.__optimization_result = optimization_result
 
     def process(self, env):
 
         env.optimization.status = OptimizationStatus.UPDATEENVIRONMENT
 
-        for trip in self.optimization_result.modified_requests:
+        for trip in self.__optimization_result.modified_requests:
             current_leg = trip.current_leg
             next_legs = trip.next_legs
 
@@ -72,18 +58,18 @@ class EnvironmentUpdate(Event):
                                                next_legs)
             passenger_event_process.PassengerAssignment(passenger_update, self.queue).add_to_queue()
 
-        for veh in self.optimization_result.modified_vehicles:
+        for veh in self.__optimization_result.modified_vehicles:
             if veh.route.current_stop is not None:
                 # Add the passengers_to_board of current_stop that were modified during optimization.
                 current_stop_modified_passengers_to_board = [trip for trip in veh.route.current_stop.passengers_to_board
-                                                             if trip in self.optimization_result.modified_requests]
+                                                             if trip in self.__optimization_result.modified_requests]
                 current_stop_departure_time = veh.route.current_stop.departure_time
             else:
                 current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
 
             # Add the assigned_legs of route that were modified during optimization.
-            modified_trips_ids = [modified_trip.id for modified_trip in self.optimization_result.modified_requests]
+            modified_trips_ids = [modified_trip.id for modified_trip in self.__optimization_result.modified_requests]
             modified_assigned_legs = [leg for leg in veh.route.assigned_legs if leg.trip.id in modified_trips_ids]
 
             next_stops = veh.route.next_stops

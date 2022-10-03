@@ -59,6 +59,11 @@ def configure_logger(log_level=logging.INFO, log_filename=None):
 
     # Add custom handler
     root_logger.addHandler(console_stream_handler)
+
+    # Add file handler
+    if log_filename is not None:
+        root_logger.addHandler(logging.FileHandler(log_filename, mode='w'))
+
     root_logger.info("log_level={}".format(log_level))
 
 
@@ -69,7 +74,9 @@ def main():
 
     check_arguments(args)
 
-    configure_logger(log_level=args.log_level)
+    # log_filename = "log.txt"
+    log_filename = None
+    configure_logger(log_level=args.log_level, log_filename=log_filename)
 
     requests_file_path = args.requests
     vehicles_file_path = args.vehicles
@@ -104,8 +111,8 @@ def main():
             # -r ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal --log-level DEBUG
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
         else:
-            # Parameters example: fixed -r ../../data/fixed_line/requests_v1.csv
-            # -v ../../data/fixed_line/vehicles_v1.csv --multimodal --log-level DEBUG
+            # Parameters example: fixed -r ../../data/fixed_line/bus/requests_v1.csv
+            # -v ../../data/fixed_line/bus/vehicles_v1.csv --multimodal --log-level DEBUG
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
     else:
         raise ValueError("The type of optimization must be either 'shuttle' or 'fixed'!")

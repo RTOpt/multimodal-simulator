@@ -8,7 +8,7 @@ class Visualizer(object):
     def __init__(self):
         pass
 
-    def visualize_environment(self, env, event_time, event_index, current_event):
+    def visualize_environment(self, env, event_time, event_index, current_event, event_priority):
         pass
 
 
@@ -18,7 +18,7 @@ class ConsoleVisualizer(Visualizer):
         super().__init__()
         self.__last_time = None
 
-    def visualize_environment(self, env, event_time, event_index, current_event):
+    def visualize_environment(self, env, event_time, event_index, current_event, event_priority):
 
         if self.__last_time is None or env.current_time != self.__last_time:
             logger.info("current_time={}".format(env.current_time))
@@ -27,10 +27,8 @@ class ConsoleVisualizer(Visualizer):
         logger.debug("visualize_environment")
 
         logger.debug(
-            "current_time={} | event_time={} | event_index={} | current_event={}".format(env.current_time,
-                                                                                         event_time,
-                                                                                         event_index,
-                                                                                         current_event))
+            "current_time={} | event_time={} | event_index={} | current_event={} | event_priority={}".format(
+                env.current_time, event_time, event_index, current_event, event_priority))
         logger.debug("\n***************\nENVIRONMENT STATUS")
         logger.debug("env.current_time={}".format(env.current_time))
         logger.debug("OptimizationStatus: {}".format(env.optimization.status))
@@ -64,12 +62,15 @@ class ConsoleVisualizer(Visualizer):
                 logger.debug("   --{}: {}".format(stop.location, stop))
         logger.debug("Requests:")
         for trip in env.trips:
-            assigned_vehicle_id = trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle is not None \
-                else None
-            current_leg = {"O": trip.current_leg.origin.__str__(), "D": trip.current_leg.destination.__str__(),
-                           "veh_id": trip.current_leg.assigned_vehicle.id} \
-                if trip.current_leg.assigned_vehicle is not None \
-                else {"O": trip.current_leg.origin.__str__(), "D": trip.current_leg.destination.__str__()}
+            if trip.current_leg is not None:
+                assigned_vehicle_id = trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle is not None \
+                    else None
+                current_leg = {"O": trip.current_leg.origin.__str__(), "D": trip.current_leg.destination.__str__(),
+                               "veh_id": trip.current_leg.assigned_vehicle.id} \
+                    if trip.current_leg.assigned_vehicle is not None \
+                    else {"O": trip.current_leg.origin.__str__(), "D": trip.current_leg.destination.__str__()}
+            else:
+                current_leg = None
             previous_legs = [
                 {"O": leg.origin.__str__(), "D": leg.destination.__str__(), "vehicle": leg.assigned_vehicle.id}
                 for leg in trip.previous_legs] \
