@@ -2,7 +2,7 @@ import logging
 
 from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.simulator.network import get_manhattan_distance, Node
-from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
+# from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
 from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
@@ -108,7 +108,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
             req.current_leg.assigned_vehicle = assigned_vehicle
             assigned_vehicle.route.assign_leg(req.current_leg)
-            req.status = PassengersStatus.ASSIGNED
+            # req.status = PassengersStatus.ASSIGNED
 
             logger.debug(assigned_vehicle)
 
@@ -251,7 +251,7 @@ class FixedLineDispatcher(Dispatcher):
         logger.debug("vehicle={}".format(vehicle))
 
         trip.current_leg.assigned_vehicle = vehicle
-        trip.status = PassengersStatus.ASSIGNED
+        # trip.status = PassengersStatus.ASSIGNED
 
         vehicle.route.assign_leg(trip.current_leg)
 

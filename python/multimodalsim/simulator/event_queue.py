@@ -9,7 +9,11 @@ class EventQueue(object):
 
         self.__index = 0
 
-        self.env = env
+        self.__env = env
+
+    @property
+    def env(self):
+        return self.__env
 
     def is_empty(self):
         """check if the queue is empty"""

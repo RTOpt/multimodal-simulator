@@ -1,11 +1,11 @@
 import logging
 
 from multimodalsim.simulator.event import Event
-from multimodalsim.simulator.status import VehicleStatus
 from multimodalsim.simulator.vehicle import Route
 
 import multimodalsim.simulator.optimization_event_process as optimization_event_process
 import multimodalsim.simulator.passenger_event_process as passenger_event_process
+from multimodalsim.state_machine.decorator import next_state
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ class VehicleReady(Event):
         self.__vehicle = vehicle
 
     def process(self, env):
+
         env.add_vehicle(self.__vehicle)
         env.add_non_assigned_vehicle(self.__vehicle)
 
@@ -32,14 +33,11 @@ class VehicleReady(Event):
 
 class VehicleBoarding(Event):
     def __init__(self, route, queue):
-
-        # Patrick: Is the time current_stop.arrival_time or current_stop.departure_time?
-        super().__init__('VehicleBoarding', queue, route.current_stop.departure_time)
+        super().__init__('VehicleBoarding', queue, route.current_stop.departure_time, state_machine=route.state_machine)
         self.__route = route
 
+    @next_state
     def process(self, env):
-
-        self.__route.status = VehicleStatus.BOARDING
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -50,20 +48,20 @@ class VehicleBoarding(Event):
         elif len(self.__route.next_stops) > 0:
             # No passengers to board
             VehicleDeparture(self.__route, self.queue).add_to_queue()
-        else:
-            # End of route
-            self.__route.status = VehicleStatus.COMPLETE
+
+        # Else: No next stop. COMPLETE
 
         return 'Vehicle Boarding process is implemented'
 
 
 class VehicleDeparture(Event):
     def __init__(self, route, queue):
-        super().__init__('Vehicle Departure', queue, route.current_stop.departure_time)
+        super().__init__('Vehicle Departure', queue, route.current_stop.departure_time,
+                         state_machine=route.state_machine)
         self.__route = route
 
+    @next_state
     def process(self, env):
-        self.__route.status = VehicleStatus.ENROUTE
 
         self.__route.depart()
 
@@ -74,11 +72,11 @@ class VehicleDeparture(Event):
 
 class VehicleArrival(Event):
     def __init__(self, route, queue):
-        super().__init__('VehicleArrival', queue, route.next_stops[0].arrival_time)
+        super().__init__('VehicleArrival', queue, route.next_stops[0].arrival_time, state_machine=route.state_machine)
         self.__route = route
 
+    @next_state
     def process(self, env):
-        self.__route.status = VehicleStatus.ALIGHTING
 
         self.__route.arrive()
 
@@ -95,20 +93,20 @@ class VehicleArrival(Event):
 
 class VehicleNotification(Event):
     def __init__(self, route_update, queue):
-        super().__init__('VehicleNotification', queue)
         self.__env = None
         self.__route_update = route_update
+        self.__vehicle = queue.env.get_vehicle_by_id(self.__route_update.vehicle_id)
+        super().__init__('VehicleNotification', queue, state_machine=self.__vehicle.route.state_machine)
 
+    @next_state
     def process(self, env):
 
         self.__env = env
 
-        vehicle = self.__env.get_vehicle_by_id(self.__route_update.vehicle_id)
-
         if self.__route_update.next_stops is not None:
             for stop in self.__route_update.next_stops:
                 self.__update_stop_with_actual_trips(stop)
-            vehicle.route.next_stops = self.__route_update.next_stops
+            self.__vehicle.route.next_stops = self.__route_update.next_stops
 
         if self.__route_update.current_stop_modified_passengers_to_board is not None:
             # Add passengers to board that were modified by optimization and that are not already present in
@@ -117,15 +115,15 @@ class VehicleNotification(Event):
                 self.__replace_copy_trips_with_actual_trips(self.__route_update.
                                                             current_stop_modified_passengers_to_board)
             for trip in actual_modified_passengers_to_board:
-                if trip not in vehicle.route.current_stop.passengers_to_board:
-                    vehicle.route.current_stop.passengers_to_board.append(trip)
+                if trip not in self.__vehicle.route.current_stop.passengers_to_board:
+                    self.__vehicle.route.current_stop.passengers_to_board.append(trip)
 
-        if self.__route_update.current_stop_departure_time is not None and vehicle.route.current_stop is not None:
+        if self.__route_update.current_stop_departure_time is not None and self.__vehicle.route.current_stop is not None:
             # If vehicle.route.current_stop.departure_time is equal to env.current_time, then the vehicle may have
             # already left the current stop. In this case vehicle.route.current_stop should be None (because
             # optimization should not modify current stops when departure time is close to current time), and we do not
             # modify it.
-            vehicle.route.current_stop.departure_time = self.__route_update.current_stop_departure_time
+            self.__vehicle.route.current_stop.departure_time = self.__route_update.current_stop_departure_time
 
         if self.__route_update.modified_assigned_legs is not None:
             # Add the assigned legs that were modified by optimization and that are not already present in
@@ -133,18 +131,18 @@ class VehicleNotification(Event):
             actual_modified_assigned_legs = self.__replace_copy_legs_with_actual_legs(self.__route_update.
                                                                                       modified_assigned_legs)
             for leg in actual_modified_assigned_legs:
-                if leg not in vehicle.route.assigned_legs:
-                    vehicle.route.assigned_legs.append(leg)
+                if leg not in self.__vehicle.route.assigned_legs:
+                    self.__vehicle.route.assigned_legs.append(leg)
 
-        self.__update_env_assigned_vehicles(vehicle)
+        self.__update_env_assigned_vehicles()
 
         return 'Notify Vehicle process is implemented'
 
-    def __modify_route_update_current_stop_if_actual_current_stop_changed(self, actual_vehicle):
-        if actual_vehicle.route.current_stop.location == self.__route_update.next_stops[0].location:
-            # Vehicle was ENROUTE at the time of optimization, but has now arrived at the next stop.
-            new_current_stop = self.__route_update.next_stops.pop(0)
-            self.__route_update.current_stop_modified_passengers_to_board = new_current_stop.passengers_to_board
+    # def __modify_route_update_current_stop_if_actual_current_stop_changed(self, actual_vehicle):
+    #     if actual_vehicle.route.current_stop.location == self.__route_update.next_stops[0].location:
+    #         # Vehicle was ENROUTE at the time of optimization, but has now arrived at the next stop.
+    #         new_current_stop = self.__route_update.next_stops.pop(0)
+    #         self.__route_update.current_stop_modified_passengers_to_board = new_current_stop.passengers_to_board
 
     def __update_stop_with_actual_trips(self, stop):
 
@@ -161,26 +159,28 @@ class VehicleNotification(Event):
 
         return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
 
-    def __update_env_assigned_vehicles(self, vehicle):
+    def __update_env_assigned_vehicles(self):
         """Update the assigned vehicles of Environment if necessary"""
-        if vehicle in self.__env.non_assigned_vehicles and (len(vehicle.route.assigned_legs) != 0
-                                                                  or len(vehicle.route.onboard_legs) != 0):
-            self.__env.remove_non_assigned_vehicle(vehicle.id)
-            self.__env.add_assigned_vehicle(vehicle)
+        if self.__vehicle in self.__env.non_assigned_vehicles and (len(self.__vehicle.route.assigned_legs) != 0
+                                                                  or len(self.__vehicle.route.onboard_legs) != 0):
+            self.__env.remove_non_assigned_vehicle(self.__vehicle.id)
+            self.__env.add_assigned_vehicle(self.__vehicle)
 
 
 class VehicleBoarded(Event):
     def __init__(self, trip, queue):
-        super().__init__('VehicleBoarded', queue)
         self.__trip = trip
+        self.__route = self.__trip.current_leg.assigned_vehicle.route
+        super().__init__('VehicleBoarded', queue, state_machine=self.__route.state_machine)
 
+    @next_state
     def process(self, env):
-        route = self.__trip.current_leg.assigned_vehicle.route
-        route.board(self.__trip)
 
-        if len(route.current_stop.boarding_passengers) == 0:
+        self.__route.board(self.__trip)
+
+        if len(self.__route.current_stop.boarding_passengers) == 0:
             # All passengers are on board
-            VehicleDeparture(route, self.queue).add_to_queue()
+            VehicleDeparture(self.__route, self.queue).add_to_queue()
             # Else we wait until all the boarding passengers are on board before creating the event VehicleDeparture.
 
         return 'Vehicle Boarded process is implemented'

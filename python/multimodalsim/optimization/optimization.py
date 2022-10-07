@@ -1,7 +1,7 @@
 import logging
 
 from multimodalsim.optimization.splitter import OneLegSplitter
-from multimodalsim.simulator.status import OptimizationStatus
+from multimodalsim.state_machine.state_machine import OptimizationStateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -9,21 +9,18 @@ logger = logging.getLogger(__name__)
 class Optimization(object):
 
     def __init__(self, dispatcher, splitter=None, fixed_time_interval=5):
-        self.__status = OptimizationStatus.IDLE
-        self.__splitter = OneLegSplitter() if splitter is None else splitter
         self.__dispatcher = dispatcher
+        self.__splitter = OneLegSplitter() if splitter is None else splitter
         self.__fixed_time_interval = fixed_time_interval
+        self.__state_machine = OptimizationStateMachine()
 
     @property
     def status(self):
-        return self.__status
+        return self.__state_machine.current_state
 
-    @status.setter
-    def status(self, status):
-        if isinstance(status, OptimizationStatus):
-            self.__status = status
-        else:
-            raise TypeError("status must be an Enum of type OptimizationStatus.")
+    @property
+    def state_machine(self):
+        return self.__state_machine
 
     @property
     def fixed_time_interval(self):

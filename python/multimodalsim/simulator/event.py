@@ -7,7 +7,7 @@ class Event(object):
     """An event with event_number occurs at a specific time ``event_time`` and involves a specific
         event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """
 
-    def __init__(self, event_name, queue, event_time=None):
+    def __init__(self, event_name, queue, event_time=None, state_machine=None):
         self.__name = event_name
         self.__queue = queue
 
@@ -20,6 +20,8 @@ class Event(object):
                                                                                         self.queue.env.current_time))
         else:
             self.__time = event_time
+
+        self.__state_machine = state_machine
 
     @property
     def name(self):
@@ -36,6 +38,10 @@ class Event(object):
     @time.setter
     def time(self, time):
         self.__time = time
+
+    @property
+    def state_machine(self):
+        return self.__state_machine
 
     def process(self, env):
         raise NotImplementedError('Process not implemented')
