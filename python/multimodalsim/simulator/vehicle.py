@@ -1,7 +1,6 @@
 import logging
-import copy
 
-from multimodalsim.simulator.status import VehicleStatus
+import multimodalsim.state_machine.state_machine as state_machine
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +95,9 @@ class Route(object):
 
     def __init__(self, vehicle, next_stops=None):
         self.__vehicle = vehicle
-        self.__status = VehicleStatus.RELEASE
+
+        self.__state_machine = state_machine.VehicleStateMachine(self)
+
         self.__current_stop = vehicle.start_stop
         self.__next_stops = next_stops if next_stops is not None else []
         self.__previous_stops = []
@@ -133,14 +134,11 @@ class Route(object):
 
     @property
     def status(self):
-        return self.__status
+        return self.__state_machine.current_state
 
-    @status.setter
-    def status(self, status):
-        if isinstance(status, VehicleStatus):
-            self.__status = status
-        else:
-            raise TypeError("status must be an Enum of type VehicleStatus.")
+    @property
+    def state_machine(self):
+        return self.__state_machine
 
     @property
     def current_stop(self):

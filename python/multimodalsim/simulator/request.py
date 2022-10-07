@@ -1,6 +1,6 @@
 import logging
 
-from multimodalsim.simulator.status import PassengersStatus
+from multimodalsim.state_machine.state_machine import PassengerStateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -139,25 +139,19 @@ class Trip(Request):
     def __init__(self, id, origin, destination, nb_passengers, ready_time, due_time, release_time):
         super().__init__(id, origin, destination, nb_passengers, ready_time, due_time, release_time)
 
-        self.__status = PassengersStatus.RELEASE
-
         self.__previous_legs = []
         self.__current_leg = None
         self.__next_legs = None
 
+        self.__state_machine = PassengerStateMachine(self)
+
     @property
     def status(self):
-        return self.__status
+        return self.__state_machine.current_state
 
-    @status.setter
-    def status(self, status):
-        if isinstance(status, PassengersStatus):
-            self.__status = status
-        else:
-            raise TypeError("status must be an Enum of type PassengersStatus.")
-
-    # def update_status(self, status):
-    #     self.__status = status
+    @property
+    def state_machine(self):
+        return self.__state_machine
 
     @property
     def previous_legs(self):
