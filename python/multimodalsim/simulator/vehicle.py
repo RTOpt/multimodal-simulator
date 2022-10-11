@@ -86,9 +86,11 @@ class Route(object):
         onboard_legs: list of Leg objects
             legs associated with the passengers currently on board.
         assigned_legs: list of Leg objects
-            legs associated with the passengers assigned to the associated vehicle.
+            legs associated with the passengers assigned to the associated
+            vehicle.
         alighted_legs: list of Leg objects
-            legs associated with the passengers that alighted from the corresponding vehicle.
+            legs associated with the passengers that alighted from the
+            corresponding vehicle.
         load: int
             Number of passengers on board
     """
@@ -236,7 +238,8 @@ class Stop(object):
     alighted_passengers: list of Trip objects
         list of passengers who are alighted
     location: Location
-        Object of type Location referring to the location of the stop (e.g., GPS coordinates)
+        Object of type Location referring to the location of the stop
+        (e.g., GPS coordinates)
     """
 
     def __init__(self, arrival_time, departure_time, location):
@@ -253,15 +256,20 @@ class Stop(object):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
             if "__passengers_to_board" in attribute:
-                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
             elif "__boarding_passengers" in attribute:
-                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
             elif "__boarded_passengers" in attribute:
-                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
             elif "__passengers_to_alight" in attribute:
-                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
             elif "alighted_passengers" in attribute:
-                class_string += str(attribute) + ": " + str(list(str(x.id) for x in value)) + ", "
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
             else:
                 class_string += str(attribute) + ": " + str(value) + ", "
 
@@ -321,7 +329,8 @@ class Stop(object):
         return self.__location
 
     def initiate_boarding(self, request):
-        """Passengers who are ready to pick up in the stop get in the vehicle"""
+        """Passengers who are ready to pick up in the stop get in the
+        vehicle """
 
         self.passengers_to_board.remove(request)
         self.boarding_passengers.append(request)
@@ -340,8 +349,9 @@ class Stop(object):
 
 
 class Location(object):
-    """The ``Location`` class is a base class that mostly serves as a structure for storing basic information about the
-    location of a vehicle or a passenger (i.e., Request)."""
+    """The ``Location`` class is a base class that mostly serves as a
+    structure for storing basic information about the location of a vehicle
+    or a passenger (i.e., Request). """
     def __init__(self):
         pass
 
@@ -356,7 +366,8 @@ class GPSLocation(Location):
         self.gps_coordinates = gps_coordinates
 
     def __str__(self):
-        return "({},{})".format(self.gps_coordinates.get_coordinates()[0], self.gps_coordinates.get_coordinates()[1])
+        return "({},{})".format(self.gps_coordinates.get_coordinates()[0],
+                                self.gps_coordinates.get_coordinates()[1])
 
     def __eq__(self, other):
         if isinstance(other, GPSLocation):
@@ -379,10 +390,13 @@ class LabelLocation(Location):
 
 
 class RouteUpdate(object):
-    def __init__(self, vehicle_id, current_stop_modified_passengers_to_board=None, next_stops=None,
-                 current_stop_departure_time=None, modified_assigned_legs=None):
+    def __init__(self, vehicle_id,
+                 current_stop_modified_passengers_to_board=None,
+                 next_stops=None, current_stop_departure_time=None,
+                 modified_assigned_legs=None):
         self.vehicle_id = vehicle_id
-        self.current_stop_modified_passengers_to_board = current_stop_modified_passengers_to_board
+        self.current_stop_modified_passengers_to_board = \
+            current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
         self.modified_assigned_legs = modified_assigned_legs

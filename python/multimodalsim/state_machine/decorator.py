@@ -13,4 +13,3 @@ def next_state(func):
         return returned_value
 
     return wrapper
-

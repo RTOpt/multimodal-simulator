@@ -4,8 +4,9 @@ logger = logging.getLogger(__name__)
 
 
 class Event(object):
-    """An event with event_number occurs at a specific time ``event_time`` and involves a specific
-        event type ``event_type``. Comparing two events amounts to figuring out which event occurs first """
+    """An event with event_number occurs at a specific time ``event_time``
+    and involves a specific event type ``event_type``. Comparing two events
+    amounts to figuring out which event occurs first """
 
     def __init__(self, event_name, queue, event_time=None, state_machine=None):
         self.__name = event_name
@@ -16,8 +17,10 @@ class Event(object):
         elif event_time < self.queue.env.current_time:
             self.__time = self.queue.env.current_time
             logger.warning(
-                "WARNING: {}: event_time ({}) is smaller than current_time ({})".format(self.name, event_time,
-                                                                                        self.queue.env.current_time))
+                "WARNING: {}: event_time ({}) is smaller than current_time ("
+                "{})".format(self.name, event_time,
+                             self.queue.env.current_time))
+
         else:
             self.__time = event_time
 

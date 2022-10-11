@@ -2,7 +2,6 @@ import logging
 
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event_queue import EventQueue
-from multimodalsim.simulator.optimization_event_process import Optimize
 
 from multimodalsim.simulator.passenger_event_process import PassengerRelease
 from multimodalsim.simulator.vehicle_event_process import VehicleReady
@@ -30,7 +29,8 @@ class Simulation(object):
             event_priority, event_index, current_event = self.__queue.pop()
             event_time = current_event.time
 
-            self.__visualize_environment(event_time, event_index, current_event, event_priority)
+            self.__visualize_environment(event_time, event_index,
+                                         current_event, event_priority)
 
             self.__env.current_time = event_time
 
@@ -40,6 +40,9 @@ class Simulation(object):
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
 
-    def __visualize_environment(self, event_time=None, event_index=None, current_event=None, event_priority=None):
+    def __visualize_environment(self, event_time=None, event_index=None,
+                                current_event=None, event_priority=None):
         if self.__visualizer is not None:
-            self.__visualizer.visualize_environment(self.__env, event_time, event_index, current_event, event_priority)
+            self.__visualizer.visualize_environment(self.__env, event_time,
+                                                    event_index, current_event,
+                                                    event_priority)

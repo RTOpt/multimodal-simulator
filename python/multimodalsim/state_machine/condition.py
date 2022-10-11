@@ -42,7 +42,8 @@ class PassengerConnectionCondition(Condition):
 
     def check(self):
         condition_satisfied = False
-        if self.__trip.next_legs is not None and len(self.__trip.next_legs) > 0:
+        if self.__trip.next_legs is not None and len(
+                self.__trip.next_legs) > 0:
             condition_satisfied = True
 
         return condition_satisfied

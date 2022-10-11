@@ -2,7 +2,8 @@ import copy
 
 
 class Environment(object):
-    """The ``Environment`` class mostly serves as a structure for storing basic information about the environment
+    """The ``Environment`` class mostly serves as a structure for storing basic
+    information about the environment
         Attributes:
         ----------
         current_time: int
@@ -84,7 +85,8 @@ class Environment(object):
 
     def remove_assigned_trip(self, trip_id):
         """ Removes a trip from the list of assigned trips based on its id"""
-        self.__assigned_trips = [trip for trip in self.__assigned_trips if trip.id != trip_id]
+        self.__assigned_trips = [trip for trip in self.__assigned_trips
+                                 if trip.id != trip_id]
 
     @property
     def non_assigned_trips(self):
@@ -95,8 +97,10 @@ class Environment(object):
         self.__non_assigned_trips.append(trip)
 
     def remove_non_assigned_trip(self, trip_id):
-        """ Removes a trip from the list of non-assigned trips based on its id"""
-        self.__non_assigned_trips = [trip for trip in self.__non_assigned_trips if trip.id != trip_id]
+        """ Removes a trip from the list of non-assigned trips based on its
+        id """
+        self.__non_assigned_trips = [trip for trip in self.__non_assigned_trips
+                                     if trip.id != trip_id]
 
     @property
     def vehicles(self):
@@ -113,7 +117,8 @@ class Environment(object):
 
     def remove_vehicle(self, vehicle_id):
         """ Removes a vehicle from the vehicles list based on its id"""
-        self.__vehicles = [item for item in self.__vehicles if item.attribute != vehicle_id]
+        self.__vehicles = [item for item in self.__vehicles
+                           if item.attribute != vehicle_id]
 
     @property
     def assigned_vehicles(self):
@@ -124,8 +129,10 @@ class Environment(object):
         self.__assigned_vehicles.append(vehicle)
 
     def remove_assigned_vehicle(self, vehicle_id):
-        """ Removes a vehicle from the list of assigned vehicles based on its id"""
-        self.__assigned_vehicles = [veh for veh in self.__assigned_vehicles if veh.id != vehicle_id]
+        """ Removes a vehicle from the list of assigned vehicles based on
+        its id """
+        self.__assigned_vehicles = [veh for veh in self.__assigned_vehicles
+                                    if veh.id != vehicle_id]
 
     @property
     def non_assigned_vehicles(self):
@@ -136,8 +143,11 @@ class Environment(object):
         self.__non_assigned_vehicles.append(vehicle)
 
     def remove_non_assigned_vehicle(self, vehicle_id):
-        """ Removes a vehicle from the list of non-assigned vehicles based on its id"""
-        self.__non_assigned_vehicles = [veh for veh in self.__non_assigned_vehicles if veh.id != vehicle_id]
+        """ Removes a vehicle from the list of non-assigned vehicles based
+        on its id """
+        self.__non_assigned_vehicles = [veh for veh
+                                        in self.__non_assigned_vehicles
+                                        if veh.id != vehicle_id]
 
     def get_state_copy(self):
         state_copy = copy.copy(self)
