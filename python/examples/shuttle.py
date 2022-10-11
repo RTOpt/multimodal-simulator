@@ -1,4 +1,4 @@
-import logging # Required to modify the log level
+import logging  # Required to modify the log level
 
 from multimodalsim.optimization.dispatcher import ShuttleGreedyDispatcher
 from multimodalsim.optimization.optimization import Optimization
@@ -17,7 +17,8 @@ if __name__ == '__main__':
     vehicles_file_path = "../../data/shuttle/test0_shuttle/vehicles.csv"
     nodes_file_path = "../../data/shuttle/test0_shuttle/nodes.csv"
 
-    data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
+    data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
+                                    nodes_file_path)
 
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
@@ -35,8 +36,8 @@ if __name__ == '__main__':
     visualizer = ConsoleVisualizer()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles, network=g, visualizer=visualizer)
+    simulation = Simulation(opt, trips, vehicles, network=g,
+                            visualizer=visualizer)
 
     # Execute the simulation.
     simulation.simulate()
-

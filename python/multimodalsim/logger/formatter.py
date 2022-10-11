@@ -9,7 +9,8 @@ class ColoredFormatter(logging.Formatter):
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
 
-    def __init__(self, fmt="%(asctime)s: %(name)s | %(levelname)s | %(message)s | (%(filename)s:%(lineno)d)"):
+    def __init__(self, fmt="%(asctime)s: %(name)s | %(levelname)s | %("
+                           "message)s | (%(filename)s:%(lineno)d)"):
 
         self.FORMATS = {
             logging.DEBUG: self.grey + fmt + self.reset,

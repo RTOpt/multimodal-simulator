@@ -1,6 +1,7 @@
 from queue import PriorityQueue
 
-import multimodalsim.simulator.optimization_event_process as optimization_event_process
+import multimodalsim.simulator.optimization_event_process \
+        as optimization_event_process
 
 
 class EventQueue(object):
@@ -51,4 +52,3 @@ class EventQueue(object):
             event_type_priority = 0.5
 
         return event_type_priority
-

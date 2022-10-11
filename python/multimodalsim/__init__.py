@@ -7,7 +7,8 @@ logging.basicConfig(level=logging.INFO)
 # Replace default handler with custom handler
 console_stream_handler = logging.StreamHandler()
 console_stream_handler.setFormatter(ColoredFormatter())
-# Add fmt="%(message)s" as argument if you only want to see the output (without time and line numbers).
+# Add fmt="%(message)s" as argument if you only want to see the output (
+# without time and line numbers).
 
 root_logger = logging.getLogger()
 

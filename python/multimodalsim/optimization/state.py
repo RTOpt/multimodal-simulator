@@ -37,7 +37,8 @@ class State(object):
 
     def __move_current_stop_backward(self, vehicle):
 
-        if vehicle.route.current_stop is not None and vehicle.route.current_stop.departure_time <= self.current_time:
+        if vehicle.route.current_stop is not None and \
+                vehicle.route.current_stop.departure_time <= self.current_time:
             vehicle.route.previous_stops.append(vehicle.route.current_stop)
             vehicle.route.current_stop = None
 
@@ -63,9 +64,11 @@ class State(object):
 
     def __move_current_stop_forward(self, vehicle):
 
-        if vehicle.route.current_stop is not None and vehicle.route.current_stop != vehicle.start_stop \
-                and vehicle.route.current_stop.arrival_time > self.current_time:
-            # The first stop of a route (i.e., vehicle.start_stop) can have an arrival time greater than current time.
+        if vehicle.route.current_stop is not None \
+                and vehicle.route.current_stop != vehicle.start_stop and \
+                vehicle.route.current_stop.arrival_time > self.current_time:
+            # The first stop of a route (i.e., vehicle.start_stop) can have an
+            # arrival time greater than current time.
             vehicle.route.next_stops.insert(0, vehicle.route.current_stop)
             vehicle.route.current_stop = None
 
@@ -75,9 +78,11 @@ class State(object):
 
         stops_to_be_removed = []
         for stop in vehicle.route.previous_stops:
-            if stop.departure_time > self.current_time and (stop == vehicle.start_stop
-                                                            or stop.arrival_time <= self.current_time):
-                # stop is either the start stop of the vehicle (in which cast, arrival time does not matter) or the
+            if stop.departure_time > self.current_time \
+                    and (stop == vehicle.start_stop
+                         or stop.arrival_time <= self.current_time):
+                # stop is either the start stop of the vehicle (in which cast,
+                # arrival time does not matter) or the
                 # current stop.
                 vehicle.route.current_stop = stop
                 stops_to_be_removed.append(stop)

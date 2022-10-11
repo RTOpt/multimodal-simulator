@@ -1,4 +1,4 @@
-import logging # Required to modify the log level
+import logging  # Required to modify the log level
 
 from multimodalsim.optimization.dispatcher import FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
@@ -8,12 +8,11 @@ from multimodalsim.simulator.simulation import Simulation
 from multimodalsim.visualizer.visualizer import ConsoleVisualizer
 
 if __name__ == '__main__':
-
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging.DEBUG)
 
-    # Read input data from files with a DataReader. The DataReader returns a list of Vehicle objects and a list of Trip
-    # objects.
+    # Read input data from files with a DataReader. The DataReader returns a
+    # list of Vehicle objects and a list of Trip objects.
     gtfs_folder_path = "../../data/fixed_line/gtfs/gtfs/"
     requests_file_path = "../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
 

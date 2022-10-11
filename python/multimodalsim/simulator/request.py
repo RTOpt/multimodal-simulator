@@ -26,7 +26,8 @@ class Request(object):
             time and Time at which the trip is appeared in the system.
        """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time, due_time, release_time):
+    def __init__(self, id, origin, destination, nb_passengers, ready_time,
+                 due_time, release_time):
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -63,10 +64,6 @@ class Request(object):
         return self.__ready_time
 
     @property
-    def ready_time(self):
-        return self.__ready_time
-
-    @property
     def due_time(self):
         return self.__due_time
 
@@ -86,8 +83,10 @@ class Leg(Request):
             the trip to which belongs the leg.
     """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time, due_time, release_time, trip):
-        super().__init__(id, origin, destination, nb_passengers, ready_time, due_time, release_time)
+    def __init__(self, id, origin, destination, nb_passengers, ready_time,
+                 due_time, release_time, trip):
+        super().__init__(id, origin, destination, nb_passengers, ready_time,
+                         due_time, release_time)
         self.__assigned_vehicle = None
         self.__trip = trip
 
@@ -98,13 +97,17 @@ class Leg(Request):
     @assigned_vehicle.setter
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
-        # Patrick: I added the condition self.assigned_vehicle != vehicle for the case where two Optimize(Event) take
-        # place at the same time (same event_time). In this case, the environment is not updated between the two
-        # Optimize(Event). Therefore, the optimization results of the two Optimize(Event) should be the same and, as a
-        # consequence, the same vehicle will be reassigned to the trip.
-        if self.__assigned_vehicle is not None and self.__assigned_vehicle.id != vehicle.id:
-            raise ValueError("Request ({}) is already assigned to a vehicle ({}).".format(self.id,
-                                                                                          self.__assigned_vehicle.id))
+        # Patrick: I added the condition self.assigned_vehicle != vehicle
+        # for the case where two Optimize(Event) take place at the same time
+        # (same event_time). In this case, the environment is not updated
+        # between the two Optimize(Event). Therefore, the optimization
+        # results of the two Optimize(Event) should be the same and,
+        # as a consequence, the same vehicle will be reassigned to the trip.
+        if self.__assigned_vehicle is not None \
+                and self.__assigned_vehicle.id != vehicle.id:
+            raise ValueError(
+                "Request ({}) is already assigned to a vehicle ({}).".format(
+                    self.id, self.__assigned_vehicle.id))
         self.__assigned_vehicle = vehicle
 
     @property
@@ -127,7 +130,8 @@ class Trip(Request):
         Properties
         ----------
         status: int
-            Represents the different status of the passenger associated with the trip (PassengersStatus(Enum)).
+            Represents the different status of the passenger associated with
+            the trip (PassengersStatus(Enum)).
         previous_legs: list of Leg objects
             the previous legs of the trip.
         previous_legs: Leg
@@ -136,8 +140,10 @@ class Trip(Request):
             the next legs of the trip.
     """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time, due_time, release_time):
-        super().__init__(id, origin, destination, nb_passengers, ready_time, due_time, release_time)
+    def __init__(self, id, origin, destination, nb_passengers, ready_time,
+                 due_time, release_time):
+        super().__init__(id, origin, destination, nb_passengers, ready_time,
+                         due_time, release_time)
 
         self.__previous_legs = []
         self.__current_leg = None
