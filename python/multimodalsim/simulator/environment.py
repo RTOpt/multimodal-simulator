@@ -27,7 +27,7 @@ class Environment(object):
         """
 
     def __init__(self, optimization, network=None):
-        self.current_time = 0
+        self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
         self.__non_assigned_trips = []
@@ -36,6 +36,17 @@ class Environment(object):
         self.__non_assigned_vehicles = []
         self.__network = network
         self.__optimization = optimization
+
+    @property
+    def current_time(self):
+        return self.__current_time
+
+    @current_time.setter
+    def current_time(self, current_time):
+        if current_time < self.__current_time:
+            raise ValueError("The attribute current_time of Environment "
+                             "cannot decrease.")
+        self.__current_time = current_time
 
     @property
     def trips(self):

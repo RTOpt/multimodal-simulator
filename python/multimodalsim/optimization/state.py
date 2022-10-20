@@ -74,8 +74,6 @@ class State(object):
 
     def __move_previous_stops_forward(self, vehicle):
 
-        # TODO: DEAL WITH vehicle.start_stop here as well!!!
-
         stops_to_be_removed = []
         for stop in vehicle.route.previous_stops:
             if stop.departure_time > self.current_time \

@@ -155,6 +155,16 @@ def main():
                             visualizer=visualizer)
     simulation.simulate()
 
+    logger.debug("DataContainer:")
+    data_container = simulation.data_collector.data_container
+
+    data_container.save_observations_to_csv("vehicles",
+                                            "vehicles_observations_df.csv")
+    data_container.save_observations_to_csv("trips",
+                                            "trips_observations_df.csv")
+    data_container.save_observations_to_csv("events",
+                                            "events_observations_df.csv")
+
 
 if __name__ == '__main__':
     logger.info("MAIN")

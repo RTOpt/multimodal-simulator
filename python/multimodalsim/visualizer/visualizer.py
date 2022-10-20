@@ -8,8 +8,7 @@ class Visualizer(object):
     def __init__(self):
         pass
 
-    def visualize_environment(self, env, event_time, event_index,
-                              current_event, event_priority):
+    def visualize_environment(self, env):
         pass
 
 
@@ -19,8 +18,8 @@ class ConsoleVisualizer(Visualizer):
         super().__init__()
         self.__last_time = None
 
-    def visualize_environment(self, env, event_time, event_index,
-                              current_event, event_priority):
+    def visualize_environment(self, env, current_event=None, event_index=None,
+                              event_priority=None):
 
         if self.__last_time is None or env.current_time != self.__last_time:
             logger.info("current_time={}".format(env.current_time))
@@ -28,11 +27,18 @@ class ConsoleVisualizer(Visualizer):
 
         logger.debug("visualize_environment")
 
-        logger.debug(
-            "current_time={} | event_time={} | event_index={} | "
-            "current_event={} | event_priority={}".format(
-                env.current_time, event_time, event_index, current_event,
-                event_priority))
+        if current_event is not None:
+            logger.debug(
+                "current_time={} | event_time={} | event_index={} | "
+                "current_event={} | event_priority={}".format(
+                    env.current_time, current_event.time, event_index, current_event,
+                    event_priority))
+        else:
+            logger.debug(
+                "event_time={} | event_index={} | current_event={} | "
+                "event_priority={}".format(
+                    env.current_time, event_index, current_event,
+                    event_priority))
         logger.debug("\n***************\nENVIRONMENT STATUS")
         logger.debug("env.current_time={}".format(env.current_time))
         logger.debug("OptimizationStatus: {}".format(env.optimization.status))
@@ -100,13 +106,12 @@ class ConsoleVisualizer(Visualizer):
                          for leg in trip.next_legs] \
                 if hasattr(trip, 'next_legs') and trip.next_legs is not None \
                 else None
-            logger.debug("{}: status: {}, OD: ({},{}), release: {}, ready: {"
-                         "}, due: {}, current_leg: {}, "
-                         "previous_legs: {}, next_legs: {}, "
-                         "assigned_vehicle_id: {}".
+            logger.debug("{}: status: {}, OD: ({},{}), release: {}, ready: {},"
+                         " due: {}, current_leg: {}, "
+                         "previous_legs: {}, next_legs: {}".
                          format(trip.id, trip.status, trip.origin,
                                 trip.destination, trip.release_time,
                                 trip.ready_time,
                                 trip.due_time, current_leg, previous_legs,
-                                next_legs, assigned_vehicle_id))
+                                next_legs))
             logger.debug("***************\n")
