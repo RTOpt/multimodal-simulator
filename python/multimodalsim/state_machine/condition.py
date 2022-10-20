@@ -23,7 +23,7 @@ class TrivialCondition(Condition):
 class PassengerNoConnectionCondition(Condition):
 
     def __init__(self, trip):
-        super().__init__("PassengerConnection")
+        super().__init__("PassengerNoConnection")
         self.__trip = trip
 
     def check(self):
@@ -37,7 +37,7 @@ class PassengerNoConnectionCondition(Condition):
 class PassengerConnectionCondition(Condition):
 
     def __init__(self, trip):
-        super().__init__("PassengerNoConnection")
+        super().__init__("PassengerConnection")
         self.__trip = trip
 
     def check(self):
@@ -49,10 +49,10 @@ class PassengerConnectionCondition(Condition):
         return condition_satisfied
 
 
-class VehicleConnectionCondition(Condition):
+class VehicleNextStopCondition(Condition):
 
     def __init__(self, route):
-        super().__init__("VehicleConnection")
+        super().__init__("VehicleNextStop")
         self.__route = route
 
     def check(self):
@@ -63,10 +63,10 @@ class VehicleConnectionCondition(Condition):
         return condition_satisfied
 
 
-class VehicleNoConnectionCondition(Condition):
+class VehicleNoNextStopCondition(Condition):
 
     def __init__(self, route):
-        super().__init__("VehicleNoConnection")
+        super().__init__("VehicleNoNextStop")
         self.__route = route
 
     def check(self):

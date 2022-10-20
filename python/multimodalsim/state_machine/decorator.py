@@ -1,10 +1,9 @@
-import logging
-
-logger = logging.getLogger(__name__)
+from functools import wraps
 
 
 # Decorator
 def next_state(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         args[0].state_machine.next_state(args[0].__class__)
 

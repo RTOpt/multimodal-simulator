@@ -136,7 +136,7 @@ class Route(object):
 
     @property
     def status(self):
-        return self.__state_machine.current_state
+        return self.__state_machine.current_state.name
 
     @property
     def state_machine(self):

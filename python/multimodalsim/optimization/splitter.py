@@ -14,7 +14,7 @@ class Splitter(object):
         pass
 
     def split(self, trip, state):
-        raise NotImplementedError('split not implemented')
+        raise NotImplementedError('Splitter.split not implemented')
 
 
 class OneLegSplitter(Splitter):
