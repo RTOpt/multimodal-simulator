@@ -147,7 +147,7 @@ class Trip(Request):
 
         self.__previous_legs = []
         self.__current_leg = None
-        self.__next_legs = None
+        self.__next_legs = []
 
         self.__state_machine = PassengerStateMachine(self)
 
@@ -193,10 +193,10 @@ class Trip(Request):
             self.__next_legs = legs[1:]
         elif legs is not None and len(legs) > 0:
             self.__current_leg = legs[0]
-            self.__next_legs = None
+            self.__next_legs = []
         else:
             self.__current_leg = None
-            self.__next_legs = None
+            self.__next_legs = []
 
 
 class PassengerUpdate(object):

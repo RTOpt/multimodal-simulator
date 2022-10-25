@@ -2,6 +2,7 @@ import argparse
 import logging
 
 from logger.formatter import ColoredFormatter
+from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from multimodalsim.visualizer.visualizer import ConsoleVisualizer
 from optimization.dispatcher import ShuttleGreedyDispatcher, \
     FixedLineDispatcher
@@ -86,6 +87,29 @@ def configure_logger(log_level=logging.INFO, log_filename=None):
     root_logger.info("log_level={}".format(log_level))
 
 
+def print_statistics(data_container):
+
+    events_table_name = "events"
+    data_analyzer = FixedLineDataAnalyzer(data_container)
+    description_df = data_analyzer.get_description(events_table_name)
+    logger.debug(description_df)
+
+    logger.debug("nb_events: {}".format(data_analyzer.nb_events))
+    logger.debug("nb_event_types: {}".format(data_analyzer.nb_event_types))
+    logger.debug("nb_events_by_type: \n{}".format(data_analyzer.
+                                                nb_events_by_type))
+    logger.debug("nb_trips: {}".format(data_analyzer.nb_trips))
+    logger.debug("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
+
+    logger.debug(data_analyzer.get_vehicle_status_duration_statistics())
+    logger.debug(data_analyzer.get_trip_status_duration_statistics())
+    logger.debug(data_analyzer.get_boardings_alightings_stats())
+    logger.debug(data_analyzer.get_nb_legs_by_trip_stats())
+    logger.debug(data_analyzer.get_trip_duration_stats())
+    logger.debug(data_analyzer.get_route_duration_stats())
+    logger.debug(data_analyzer.get_max_load_by_vehicle())
+
+
 def main():
     parser = argparse.ArgumentParser()
     add_arguments(parser)
@@ -164,6 +188,8 @@ def main():
                                             "trips_observations_df.csv")
     data_container.save_observations_to_csv("events",
                                             "events_observations_df.csv")
+
+    print_statistics(data_container)
 
 
 if __name__ == '__main__':

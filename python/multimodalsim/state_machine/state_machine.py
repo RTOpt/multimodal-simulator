@@ -207,4 +207,3 @@ class VehicleStateMachine(StateMachine):
                             VehicleNoNextStopCondition(route))
 
         self.current_state = "RELEASE"
-

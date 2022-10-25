@@ -31,8 +31,8 @@ class ConsoleVisualizer(Visualizer):
             logger.debug(
                 "current_time={} | event_time={} | event_index={} | "
                 "current_event={} | event_priority={}".format(
-                    env.current_time, current_event.time, event_index, current_event,
-                    event_priority))
+                    env.current_time, current_event.time, event_index,
+                    current_event, event_priority))
         else:
             logger.debug(
                 "event_time={} | event_index={} | current_event={} | "
@@ -83,9 +83,6 @@ class ConsoleVisualizer(Visualizer):
         logger.debug("Requests:")
         for trip in env.trips:
             if trip.current_leg is not None:
-                assigned_vehicle_id = trip.current_leg.assigned_vehicle.id \
-                    if trip.current_leg.assigned_vehicle is not None \
-                    else None
                 current_leg = {"O": trip.current_leg.origin.__str__(),
                                "D": trip.current_leg.destination.__str__(),
                                "veh_id":

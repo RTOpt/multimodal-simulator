@@ -1,6 +1,7 @@
 import csv
 import ast
 from datetime import datetime, timedelta
+from functools import reduce
 
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip
@@ -182,6 +183,8 @@ class GTFSReader(DataReader):
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
 
+        self.__vehicles_release_time = None
+
         self.__CAPACITY = 10
 
     def get_trips(self):
@@ -216,6 +219,7 @@ class GTFSReader(DataReader):
         self.__read_stop_times()
         self.__read_calendar_dates()
         self.__read_trips()
+        self.__calculate_vehicles_release_time()
 
         vehicles = []
 
@@ -238,9 +242,8 @@ class GTFSReader(DataReader):
 
         vehicle_id = trip_id
 
-        # For buses, the bus schedule is known at the beginning of the
-        # simulation.
-        release_time = 0
+        # The release time is considered to midnight of the first service date.
+        release_time = self.__vehicles_release_time
 
         start_stop_time = stop_time_list[0]  # Initial stop
         start_stop_arrival_time = \
@@ -312,6 +315,14 @@ class GTFSReader(DataReader):
                     self.__service_dates_dict[service_id].append(date)
                 else:
                     self.__service_dates_dict[service_id] = [date]
+
+    def __calculate_vehicles_release_time(self):
+
+        service_dates = list(reduce(lambda x, y: x + y, list(
+            self.__service_dates_dict.values())))
+        service_dates_timestamps = list(map(lambda x: datetime.strptime(
+            x, "%Y%m%d").timestamp(), service_dates))
+        self.__vehicles_release_time = min(service_dates_timestamps)
 
     def __read_trips(self):
         self.__trip_service_dict = {}
