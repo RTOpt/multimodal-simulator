@@ -1,0 +1,27 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Code Analysis
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  flake8:
+    runs-on: ubuntu-latest
+    name: flake8
+    steps:
+      # To use this repository's private action, you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: flake8 install
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install flake8
+      - name: flake8
+        run: python3 -m flake8 ./python/
