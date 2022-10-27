@@ -51,10 +51,10 @@ class VehicleBoarding(Event):
         elif len(self.route.next_stops) > 0:
             # No passengers to board
             VehicleDeparture(self.route, self.queue).add_to_queue()
-        else:
-            # End of route
-            # Patrick: Should we set the status to COMPLETE if there are no next stops?
-            self.route.update_vehicle_status(VehicleStatus.COMPLETE)
+        # else:
+        #     # End of route
+        #     # Patrick: Should we set the status to COMPLETE if there are no next stops?
+        #     self.route.update_vehicle_status(VehicleStatus.COMPLETE)
 
         return 'Vehicle Boarding process is implemented'
 
@@ -138,6 +138,7 @@ class VehicleNotification(Event):
                     vehicle.route.assigned_legs.append(leg)
 
         self.__update_env_assigned_vehicles(vehicle)
+        VehicleBoarding(vehicle.route, self.queue).add_to_queue()
 
         return 'Notify Vehicle process is implemented'
 

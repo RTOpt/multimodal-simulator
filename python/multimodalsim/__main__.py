@@ -1,6 +1,12 @@
 import argparse
 import logging
 
+import os
+import sys
+
+DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, DIR)
+
 from logger.formatter import ColoredFormatter
 from multimodalsim.visualizer.visualizer import ConsoleVisualizer
 from optimization.dispatcher import ShuttleGreedyDispatcher, FixedLineDispatcher
@@ -82,6 +88,7 @@ def main():
         logger.info("Shuttle")
 
         nodes_file_path = args.nodes
+        #graph_json_file_path = args.graph
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
         nodes = data_reader.get_nodes()
