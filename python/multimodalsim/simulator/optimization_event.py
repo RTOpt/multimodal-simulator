@@ -1,49 +1,53 @@
 import logging
 
 from multimodalsim.optimization.state import State
-from multimodalsim.simulator.event import Event
+from multimodalsim.simulator.event import ActionEvent
 from multimodalsim.simulator.vehicle import RouteUpdate
 
 import multimodalsim.simulator.request as request
 import \
-    multimodalsim.simulator.passenger_event_process as passenger_event_process
-import multimodalsim.simulator.vehicle_event_process as vehicle_event_process
-from multimodalsim.state_machine.decorator import next_state
+    multimodalsim.simulator.passenger_event as passenger_event_process
+import multimodalsim.simulator.vehicle_event as vehicle_event_process
 
 logger = logging.getLogger(__name__)
 
 
-class Optimize(Event):
-    def __init__(self, time, queue):
-        super().__init__('Optimize', queue, time,
+class Optimize(ActionEvent):
+    def __init__(self, time, queue, multiple_optimize_events=False):
+        super().__init__('Optimize', queue, time, event_priority=10,
                          state_machine=queue.env.optimization.state_machine)
+        self.__multiple_optimize_events = multiple_optimize_events
 
-    @next_state
-    def process(self, env):
+    def _process(self, env):
         state_copy = env.get_state_copy()
         state = State(state_copy)
 
-        state.fix_routes_for_time_interval(
-            env.optimization.fixed_time_interval)
+        state.freeze_routes_for_time_interval(
+            env.optimization.freeze_interval)
 
         optimization_result = env.optimization.dispatch(state)
 
-        state.unfix_routes_for_time_interval(
-            env.optimization.fixed_time_interval)
+        state.unfreeze_routes_for_time_interval(
+            env.optimization.freeze_interval)
 
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
+    def add_to_queue(self):
 
-class EnvironmentUpdate(Event):
+        if self.__multiple_optimize_events or not \
+                self.queue.is_event_type_in_queue(self.__class__, self.time):
+            self.queue.put(self)
+
+
+class EnvironmentUpdate(ActionEvent):
     def __init__(self, optimization_result, queue):
         super().__init__('EnvironmentUpdate', queue,
                          state_machine=queue.env.optimization.state_machine)
         self.__optimization_result = optimization_result
 
-    @next_state
-    def process(self, env):
+    def _process(self, env):
 
         for trip in self.__optimization_result.modified_requests:
             current_leg = trip.current_leg
@@ -88,11 +92,10 @@ class EnvironmentUpdate(Event):
         return 'Environment Update process is implemented'
 
 
-class EnvironmentIdle(Event):
+class EnvironmentIdle(ActionEvent):
     def __init__(self, queue):
         super().__init__('EnvironmentIdle', queue,
                          state_machine=queue.env.optimization.state_machine)
 
-    @next_state
-    def process(self, env):
+    def _process(self, env):
         return 'Environment Idle process is implemented'

@@ -1,8 +1,5 @@
 from queue import PriorityQueue
 
-import multimodalsim.simulator.optimization_event_process \
-        as optimization_event_process
-
 
 class EventQueue(object):
     def __init__(self, env):
@@ -22,14 +19,8 @@ class EventQueue(object):
 
     def put(self, event):
         """add an element in the queue"""
-        # self.__queue.put((-event.time, event))
-
-        time_priority = event.time
-        event_type_priority = self.__get_event_type_priority(event)
-
-        priority = time_priority + event_type_priority
-
-        self.__queue.put((priority, self.__index, event))
+        event.index = self.__index
+        self.__queue.put(event)
         self.__index += 1
 
     def pop(self):
@@ -38,17 +29,9 @@ class EventQueue(object):
 
     def is_event_type_in_queue(self, event_type, time):
         is_in_queue = False
-        for _, _, event in self.__queue.queue:
+        for event in self.__queue.queue:
             if event.time == time and isinstance(event, event_type):
                 is_in_queue = True
                 break
 
         return is_in_queue
-
-    def __get_event_type_priority(self, event):
-
-        event_type_priority = 0
-        if isinstance(event, optimization_event_process.Optimize):
-            event_type_priority = 0.5
-
-        return event_type_priority

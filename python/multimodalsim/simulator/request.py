@@ -153,7 +153,7 @@ class Trip(Request):
 
     @property
     def status(self):
-        return self.__state_machine.current_state.name
+        return self.__state_machine.current_state.status
 
     @property
     def state_machine(self):
