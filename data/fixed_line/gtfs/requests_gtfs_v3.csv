@@ -1,2 +1,2 @@
-origin;destination;nb_passengers;ready_time;due_time;release_time
-1;6;1;20220801 16:00:00;20220801 17:25:00;20220801 15:55:00
+origin;destination;nb_passengers;release_time;ready_time;due_time
+1;6;1;20220801 15:55:00;20220801 16:00:00;20220801 17:25:00
