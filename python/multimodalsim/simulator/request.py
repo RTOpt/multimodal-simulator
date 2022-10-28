@@ -18,16 +18,17 @@ class Request(object):
             location of the destination
        nb_passengers: int
             Number of passengers of the trip.
+       release_time float
+            time and Time at which the trip is appeared in the system.
        ready_time: float
             time at which the trip has to be picked up.
        due_time float
             time at which the trip has to be dropped off.
-       release_time float
-            time and Time at which the trip is appeared in the system.
+
        """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time,
-                 due_time, release_time):
+    def __init__(self, id, origin, destination, nb_passengers, release_time,
+                 ready_time, due_time):
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -83,10 +84,10 @@ class Leg(Request):
             the trip to which belongs the leg.
     """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time,
-                 due_time, release_time, trip):
-        super().__init__(id, origin, destination, nb_passengers, ready_time,
-                         due_time, release_time)
+    def __init__(self, id, origin, destination, nb_passengers, release_time,
+                 ready_time, due_time,  trip):
+        super().__init__(id, origin, destination, nb_passengers, release_time,
+                         ready_time, due_time)
         self.__assigned_vehicle = None
         self.__trip = trip
 
@@ -140,10 +141,10 @@ class Trip(Request):
             the next legs of the trip.
     """
 
-    def __init__(self, id, origin, destination, nb_passengers, ready_time,
-                 due_time, release_time):
-        super().__init__(id, origin, destination, nb_passengers, ready_time,
-                         due_time, release_time)
+    def __init__(self, id, origin, destination, nb_passengers, release_time,
+                 ready_time, due_time):
+        super().__init__(id, origin, destination, nb_passengers, release_time,
+                         ready_time, due_time)
 
         self.__previous_legs = []
         self.__current_leg = None

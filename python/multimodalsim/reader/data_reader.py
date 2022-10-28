@@ -197,21 +197,21 @@ class GTFSReader(DataReader):
             next(requests_reader, None)
             nb_requests = 1
             for row in requests_reader:
-                ready_date_string, ready_time_string = row[3].split(" ")
-                ready_time = self.__get_timestamp_from_date_and_time_strings(
-                    ready_date_string, ready_time_string)
-
-                due_date_string, due_time_string = row[4].split(" ")
-                due_time = self.__get_timestamp_from_date_and_time_strings(
-                    due_date_string, due_time_string)
-
-                release_date_string, release_time_string = row[5].split(" ")
+                release_date_string, release_time_string = row[3].split(" ")
                 release_time = self.__get_timestamp_from_date_and_time_strings(
                     release_date_string, release_time_string)
 
+                ready_date_string, ready_time_string = row[4].split(" ")
+                ready_time = self.__get_timestamp_from_date_and_time_strings(
+                    ready_date_string, ready_time_string)
+
+                due_date_string, due_time_string = row[5].split(" ")
+                due_time = self.__get_timestamp_from_date_and_time_strings(
+                    due_date_string, due_time_string)
+
                 trip = Trip(str(nb_requests), LabelLocation(str(row[0])),
                             LabelLocation(str(row[1])), int(row[2]),
-                            ready_time, due_time, release_time)
+                            release_time, ready_time, due_time)
 
                 trips.append(trip)
                 nb_requests += 1

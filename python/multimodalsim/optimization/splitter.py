@@ -24,7 +24,7 @@ class OneLegSplitter(Splitter):
 
     def split(self, trip, state):
         leg = Leg(trip.id, trip.origin, trip.destination, trip.nb_passengers,
-                  trip.ready_time, trip.due_time, trip.release_time, trip)
+                  trip.release_time, trip.ready_time, trip.due_time, trip)
 
         return [leg]
 
@@ -146,8 +146,8 @@ class MultimodalSplitter(Splitter):
                 leg_id = self.__trip.id + "_" + str(leg_number)
                 leg = Leg(leg_id, LabelLocation(leg_first_stop_id),
                           LabelLocation(leg_second_stop_id),
-                          self.__trip.nb_passengers, self.__trip.ready_time,
-                          self.__trip.due_time, self.__trip.release_time,
+                          self.__trip.nb_passengers, self.__trip.release_time,
+                          self.__trip.ready_time, self.__trip.due_time,
                           self.__trip)
                 legs.append(leg)
 
@@ -161,8 +161,8 @@ class MultimodalSplitter(Splitter):
         leg_id = self.__trip.id + "_" + str(leg_number)
         last_leg = Leg(leg_id, LabelLocation(leg_first_stop_id),
                        LabelLocation(last_leg_second_stop),
-                       self.__trip.nb_passengers, self.__trip.ready_time,
-                       self.__trip.due_time, self.__trip.release_time,
+                       self.__trip.nb_passengers, self.__trip.release_time,
+                       self.__trip.ready_time, self.__trip.due_time,
                        self.__trip)
         legs.append(last_leg)
 
