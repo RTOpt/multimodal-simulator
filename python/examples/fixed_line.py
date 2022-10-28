@@ -1,11 +1,13 @@
 import logging  # Required to modify the log level
 
+from multimodalsim.observer.environment_observer import \
+    StandardEnvironmentObserver
 from multimodalsim.optimization.dispatcher import FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import BusDataReader
 from multimodalsim.simulator.simulation import Simulation
-from multimodalsim.visualizer.visualizer import ConsoleVisualizer
+
 
 if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
@@ -26,11 +28,12 @@ if __name__ == '__main__':
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter)
 
-    # Initialize the visualizer.
-    visualizer = ConsoleVisualizer()
+    # Initialize the observer.
+    environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles, visualizer=visualizer)
+    simulation = Simulation(opt, trips, vehicles,
+                            environment_observer=environment_observer)
 
     # Execute the simulation.
     simulation.simulate()

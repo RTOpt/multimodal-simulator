@@ -2,8 +2,9 @@ import argparse
 import logging
 
 from logger.formatter import ColoredFormatter
+from multimodalsim.observer.environment_observer import \
+    StandardEnvironmentObserver
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
-from multimodalsim.visualizer.visualizer import ConsoleVisualizer
 from optimization.dispatcher import ShuttleGreedyDispatcher, \
     FixedLineDispatcher
 from optimization.optimization import Optimization
@@ -173,14 +174,14 @@ def main():
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
-    visualizer = ConsoleVisualizer()
+    environment_observer = StandardEnvironmentObserver()
 
     simulation = Simulation(opt, trips, vehicles, network=g,
-                            visualizer=visualizer)
+                            environment_observer=environment_observer)
     simulation.simulate()
 
     logger.debug("DataContainer:")
-    data_container = simulation.data_collector.data_container
+    data_container = simulation.data_collectors[0].data_container
 
     data_container.save_observations_to_csv("vehicles",
                                             "vehicles_observations_df.csv")

@@ -1,5 +1,7 @@
 import pandas as pd
 
+from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
+
 
 class DataAnalyzer:
 
@@ -66,7 +68,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def get_boardings_alightings_stats(self):
 
         trips_complete_series = self.__trips_df[self.__trips_df["status"]
-                                                == "COMPLETE"]
+                                                == PassengersStatus.COMPLETE]
 
         trips_legs_complete_series = trips_complete_series.apply(
             lambda x: x["previous_legs"] + [x["current_leg"]], axis=1)
@@ -103,19 +105,20 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def get_nb_legs_by_trip_stats(self):
 
         trips_complete_series = self.__trips_df[self.__trips_df["status"]
-                                                == "COMPLETE"]
+                                                == VehicleStatus.COMPLETE]
         trips_legs_complete_series = trips_complete_series.apply(
             lambda x: x["previous_legs"] + [x["current_leg"]], axis=1)
 
-        nb_legs_by_trip_df = self.__trips_df[self.__trips_df["status"]
-                                             == "COMPLETE"][["id"]].copy()
+        nb_legs_by_trip_df = self.__trips_df[
+            self.__trips_df["status"] == VehicleStatus.COMPLETE][["id"]].copy()
         nb_legs_by_trip_df["Nb. Legs"] = trips_legs_complete_series.map(len)
 
         return nb_legs_by_trip_df
 
     def get_trip_duration_stats(self):
         trips_ready_complete_df = self.__trips_df[
-            self.__trips_df["status"].isin(["READY", "COMPLETE"])]
+            self.__trips_df["status"].isin([PassengersStatus.READY,
+                                            PassengersStatus.COMPLETE])]
         trip_durations_df = trips_ready_complete_df.groupby("id").agg(
             {"time": lambda x: max(x) - min(x)})
 
@@ -123,7 +126,8 @@ class FixedLineDataAnalyzer(DataAnalyzer):
 
     def get_route_duration_stats(self):
         vehicles_boarding_complete_df = self.__vehicles_df[
-            self.__vehicles_df["status"].isin(["BOARDING", "COMPLETE"])]
+            self.__vehicles_df["status"].isin([VehicleStatus.BOARDING,
+                                               VehicleStatus.COMPLETE])]
         route_durations_df = vehicles_boarding_complete_df.groupby("id").agg(
             {"time": lambda x: max(x) - min(x)})
 
@@ -134,7 +138,8 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         observations_df["duration"] = observations_grouped_by_id["time"]. \
             transform(lambda s: s.shift(-1) - s)
 
-        return observations_df.groupby("status")["duration"].describe()
+        return observations_df.groupby("status", sort=False)["duration"].\
+            describe()
 
     def __get_nb_boardings_by_stop(self, trip_legs, nb_boardings_by_stop):
         for leg_pair in trip_legs:

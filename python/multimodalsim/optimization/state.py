@@ -17,13 +17,13 @@ class State(object):
         self.assigned_vehicles = env_deep_copy.assigned_vehicles
         self.non_assigned_vehicles = env_deep_copy.non_assigned_vehicles
 
-    def fix_routes_for_time_interval(self, time_interval):
+    def freeze_routes_for_time_interval(self, time_interval):
 
         self.current_time = self.current_time + time_interval
 
         self.__move_stops_backward()
 
-    def unfix_routes_for_time_interval(self, time_interval):
+    def unfreeze_routes_for_time_interval(self, time_interval):
 
         self.current_time = self.current_time - time_interval
 
@@ -79,7 +79,7 @@ class State(object):
             if stop.departure_time > self.current_time \
                     and (stop == vehicle.start_stop
                          or stop.arrival_time <= self.current_time):
-                # stop is either the start stop of the vehicle (in which cast,
+                # stop is either the start stop of the vehicle (in which case,
                 # arrival time does not matter) or the
                 # current stop.
                 vehicle.route.current_stop = stop

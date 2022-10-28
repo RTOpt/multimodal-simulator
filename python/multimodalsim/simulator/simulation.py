@@ -3,22 +3,21 @@ import logging
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event_queue import EventQueue
 
-from multimodalsim.simulator.passenger_event_process import PassengerRelease
-from multimodalsim.simulator.vehicle_event_process import VehicleReady
-from multimodalsim.statistics.data_collector import StandardDataCollector
+from multimodalsim.simulator.passenger_event import PassengerRelease
+from multimodalsim.simulator.vehicle_event import VehicleReady
+from multimodalsim.observer.data_collector import StandardDataCollector
 
 logger = logging.getLogger(__name__)
 
 
 class Simulation(object):
 
-    def __init__(self, opt, trips, vehicles, network=None, visualizer=None,
-                 data_collector=StandardDataCollector()):
+    def __init__(self, opt, trips, vehicles, network=None,
+                 environment_observer=None):
 
         self.__env = Environment(opt, network)
         self.__queue = EventQueue(self.__env)
-        self.__visualizer = visualizer
-        self.__data_collector = data_collector
+        self.__environment_observer = environment_observer
 
         for vehicle in vehicles:
             VehicleReady(vehicle, self.__queue).add_to_queue()
@@ -27,36 +26,46 @@ class Simulation(object):
             PassengerRelease(trip, self.__queue).add_to_queue()
 
     @property
-    def data_collector(self):
-        return self.__data_collector
+    def data_collectors(self):
+        return self.__environment_observer.data_collectors
 
     def simulate(self):
         # main loop of the simulation
         while not self.__queue.is_empty():
-            event_priority, event_index, current_event = self.__queue.pop()
-            event_time = current_event.time
+            current_event = self.__queue.pop()
 
-            self.__visualize_environment(current_event, event_index,
-                                         event_priority)
+            self.__visualize_environment(current_event, current_event.index,
+                                         current_event.priority)
 
-            self.__env.current_time = event_time
+            self.__env.current_time = current_event.time
 
             process_event = current_event.process(self.__env)
             logger.debug("process_event: {}".format(process_event))
-            self.__collect_data(current_event, event_index, event_priority)
+            self.__collect_data(current_event, current_event.index,
+                                current_event.priority)
+
+            # if "vehicles" in self.data_collector.data_container.observations_tables:
+            #     self.data_collector.data_container.save_observations_to_csv("vehicles",
+            #                                         "vehicles_observations_df.csv")
+            # if "trips" in self.data_collector.data_container.observations_tables:
+            #     self.data_collector.data_container.save_observations_to_csv("trips",
+            #                                         "trips_observations_df.csv")
+            #
+            # self.data_collector.data_container.save_observations_to_csv("events",
+            #                                         "events_observations_df.csv")
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
 
     def __visualize_environment(self, current_event=None, event_index=None,
                                 event_priority=None):
-        if self.__visualizer is not None:
-            self.__visualizer.visualize_environment(self.__env, current_event,
-                                                    event_index,
-                                                    event_priority)
+        for visualizer in self.__environment_observer.visualizers:
+            visualizer.visualize_environment(self.__env, current_event,
+                                             event_index,
+                                             event_priority)
 
     def __collect_data(self, current_event=None, event_index=None,
                        event_priority=None):
-        if self.__data_collector is not None:
-            self.__data_collector.collect(self.__env, current_event,
-                                          event_index, event_priority)
+        for data_collector in self.__environment_observer.data_collectors:
+            data_collector.collect(self.__env, current_event,
+                                   event_index, event_priority)

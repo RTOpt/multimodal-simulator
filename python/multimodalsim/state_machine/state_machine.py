@@ -1,11 +1,14 @@
 import logging
+from enum import Enum
 
-import multimodalsim.simulator.optimization_event_process \
+import multimodalsim.simulator.optimization_event \
     as optimization_event_process
-from multimodalsim.simulator.passenger_event_process \
+from multimodalsim.simulator.passenger_event \
     import PassengerAssignment, PassengerReady, PassengerToBoard, \
     PassengerAlighting
-from multimodalsim.simulator.vehicle_event_process import VehicleBoarding, \
+from multimodalsim.simulator.status import OptimizationStatus, \
+    PassengersStatus, VehicleStatus
+from multimodalsim.simulator.vehicle_event import VehicleBoarding, \
     VehicleDeparture, VehicleArrival
 from multimodalsim.state_machine.condition import TrivialCondition, \
     PassengerNoConnectionCondition, PassengerConnectionCondition, \
@@ -16,15 +19,15 @@ logger = logging.getLogger(__name__)
 
 class State:
 
-    def __init__(self, name):
-        self.__name = name
+    def __init__(self, status):
+        self.__status = status
 
     @property
-    def name(self):
-        return self.__name
+    def status(self):
+        return self.__status
 
     def __str__(self):
-        return self.name
+        return str(self.status)
 
 
 class Transition:
@@ -71,21 +74,27 @@ class StateMachine:
     def current_state(self):
         return self.__current_state
 
+    @property
+    def transitions(self):
+        return self.__transitions
+
     @current_state.setter
     def current_state(self, current_state):
         if self.__current_state is not None:
             raise ValueError("You cannot modify the current state.")
-        if isinstance(current_state, str):
-            # current_state is the name of the state.
+        if isinstance(current_state, Enum):
+            # Here, current_state is the status of the state.
             current_state = self.__get_state(current_state)
 
         self.__current_state = current_state
 
-    def add_transition(self, source_name, target_name, triggering_event,
-                       condition):
+    def add_transition(self, source_status, target_status, triggering_event,
+                       condition=None):
+        if condition is None:
+            condition = TrivialCondition()
 
-        source_state = self.__get_state(source_name)
-        target_state = self.__get_state(target_name)
+        source_state = self.__get_state(source_status)
+        target_state = self.__get_state(target_status)
         transition = Transition(source_state, target_state, triggering_event,
                                 condition)
         self.__add_transition_to_transitions(transition)
@@ -98,11 +107,11 @@ class StateMachine:
         logger.debug("current state: {}".format(self.__current_state))
         logger.debug("self.__transitions={}".format(self.__transitions))
 
+        transition_possible = False
         if event.__name__ in self.__transitions:
-            transition_possible = False
             for transition in self.__transitions[event.__name__]:
                 logger.debug("STATE: {} -> {} | check: {}".format(
-                    transition.current_state, transition.next_state,
+                    str(transition.current_state), str(transition.next_state),
                     transition.condition.check()))
                 if transition.current_state == self.__current_state \
                         and transition.condition.check():
@@ -111,10 +120,10 @@ class StateMachine:
                     logger.debug("TRANSITION FOUND!")
                     break
 
-            if not transition_possible:
-                raise ValueError(
-                    "Event {} is not possible from status {}!".format(
-                        event, self.__current_state))
+        if not transition_possible:
+            raise ValueError(
+                "Event {} is not possible from status {}!".format(
+                    event, self.__current_state))
 
         logger.debug("next state: {}".format(self.__current_state))
 
@@ -129,23 +138,23 @@ class StateMachine:
             self.__transitions[
                 transition.triggering_event.__name__] = [transition]
 
-    def __get_state(self, state_name):
-        """Return the State with name state_name. Construct it if it does not
+    def __get_state(self, state_status):
+        """Return the State with status state_status. Construct it if it does not
         already exist."""
-        state = self.__find_state_by_name(state_name)
+        state = self.__find_state_by_status(state_status)
         if state is None:
-            state = State(state_name)
+            state = State(state_status)
             self.__states.append(state)
 
         return state
 
-    def __find_state_by_name(self, state_name):
-        """Return the State with name state_name if it exists else return
+    def __find_state_by_status(self, state_status):
+        """Return the State with status state_status if it exists else return
         None."""
 
         found_state = None
         for state in self.__states:
-            if state.name == state_name:
+            if state.status == state_status:
                 found_state = state
 
         return found_state
@@ -155,18 +164,17 @@ class OptimizationStateMachine(StateMachine):
 
     def __init__(self):
         super().__init__()
+        self.add_transition(OptimizationStatus.IDLE,
+                            OptimizationStatus.OPTIMIZING,
+                            optimization_event_process.Optimize)
+        self.add_transition(OptimizationStatus.OPTIMIZING,
+                            OptimizationStatus.UPDATEENVIRONMENT,
+                            optimization_event_process.EnvironmentUpdate)
+        self.add_transition(OptimizationStatus.UPDATEENVIRONMENT,
+                            OptimizationStatus.IDLE,
+                            optimization_event_process.EnvironmentIdle)
 
-        self.add_transition("IDLE", "OPTIMIZING",
-                            optimization_event_process.Optimize,
-                            TrivialCondition())
-        self.add_transition("OPTIMIZING", "UPDATEENVIRONMENT",
-                            optimization_event_process.EnvironmentUpdate,
-                            TrivialCondition())
-        self.add_transition("UPDATEENVIRONMENT", "IDLE",
-                            optimization_event_process.EnvironmentIdle,
-                            TrivialCondition())
-
-        self.current_state = "IDLE"
+        self.current_state = OptimizationStatus.IDLE
 
 
 class PassengerStateMachine(StateMachine):
@@ -174,18 +182,20 @@ class PassengerStateMachine(StateMachine):
     def __init__(self, trip):
         super().__init__()
 
-        self.add_transition("RELEASE", "ASSIGNED", PassengerAssignment,
-                            TrivialCondition())
-        self.add_transition("ASSIGNED", "READY", PassengerReady,
-                            TrivialCondition())
-        self.add_transition("READY", "ONBOARD", PassengerToBoard,
-                            TrivialCondition())
-        self.add_transition("ONBOARD", "COMPLETE", PassengerAlighting,
+        self.add_transition(PassengersStatus.RELEASE,
+                            PassengersStatus.ASSIGNED, PassengerAssignment)
+        self.add_transition(PassengersStatus.ASSIGNED, PassengersStatus.READY,
+                            PassengerReady)
+        self.add_transition(PassengersStatus.READY, PassengersStatus.ONBOARD,
+                            PassengerToBoard)
+        self.add_transition(PassengersStatus.ONBOARD,
+                            PassengersStatus.COMPLETE, PassengerAlighting,
                             PassengerNoConnectionCondition(trip))
-        self.add_transition("ONBOARD", "RELEASE", PassengerAlighting,
+        self.add_transition(PassengersStatus.ONBOARD, PassengersStatus.RELEASE,
+                            PassengerAlighting,
                             PassengerConnectionCondition(trip))
 
-        self.current_state = "RELEASE"
+        self.current_state = PassengersStatus.RELEASE
 
 
 class VehicleStateMachine(StateMachine):
@@ -193,17 +203,17 @@ class VehicleStateMachine(StateMachine):
     def __init__(self, route):
         super().__init__()
 
-        self.add_transition("RELEASE", "BOARDING", VehicleBoarding,
-                            VehicleNextStopCondition(route))
-        self.add_transition("RELEASE", "COMPLETE", VehicleBoarding,
-                            VehicleNoNextStopCondition(route))
-        self.add_transition("BOARDING", "ENROUTE", VehicleDeparture,
-                            TrivialCondition())
-        self.add_transition("ENROUTE", "ALIGHTING", VehicleArrival,
-                            TrivialCondition())
-        self.add_transition("ALIGHTING", "BOARDING", VehicleBoarding,
-                            VehicleNextStopCondition(route))
-        self.add_transition("ALIGHTING", "COMPLETE", VehicleBoarding,
-                            VehicleNoNextStopCondition(route))
+        self.add_transition(VehicleStatus.RELEASE, VehicleStatus.BOARDING,
+                            VehicleBoarding, VehicleNextStopCondition(route))
+        self.add_transition(VehicleStatus.RELEASE, VehicleStatus.COMPLETE,
+                            VehicleBoarding, VehicleNoNextStopCondition(route))
+        self.add_transition(VehicleStatus.BOARDING, VehicleStatus.ENROUTE,
+                            VehicleDeparture)
+        self.add_transition(VehicleStatus.ENROUTE, VehicleStatus.ALIGHTING,
+                            VehicleArrival)
+        self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.BOARDING,
+                            VehicleBoarding, VehicleNextStopCondition(route))
+        self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.COMPLETE,
+                            VehicleBoarding, VehicleNoNextStopCondition(route))
 
-        self.current_state = "RELEASE"
+        self.current_state = VehicleStatus.RELEASE

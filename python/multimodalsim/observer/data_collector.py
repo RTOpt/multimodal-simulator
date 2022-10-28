@@ -3,6 +3,8 @@ import pandas as pd
 
 from datetime import datetime
 
+from multimodalsim.simulator.status import PassengersStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,11 +114,13 @@ class StandardDataCollector(DataCollector):
     def __get_current_location(self, trip):
 
         current_location = None
-        if trip.current_leg is not None and trip.status in ["RELEASE",
-                                                            "ASSIGNED",
-                                                            "READY"]:
+        if trip.current_leg is not None \
+                and trip.status in [PassengersStatus.RELEASE,
+                                    PassengersStatus.ASSIGNED,
+                                    PassengersStatus.READY]:
             current_location = trip.current_leg.origin
-        elif trip.current_leg is not None and trip.status == "COMPLETE":
+        elif trip.current_leg is not None \
+                and trip.status == PassengersStatus.COMPLETE:
             current_location = trip.current_leg.destination
 
         return current_location

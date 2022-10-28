@@ -1,5 +1,6 @@
 import csv
 import ast
+import logging
 from datetime import datetime, timedelta
 from functools import reduce
 
@@ -7,6 +8,8 @@ from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
     Vehicle, Route
+
+logger = logging.getLogger(__name__)
 
 
 class DataReader(object):

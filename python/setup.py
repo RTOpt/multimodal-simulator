@@ -5,7 +5,7 @@ setup(
     version='0.0.1',
     packages=['multimodalsim', 'multimodalsim.logger', 'multimodalsim'
               '.optimization', 'multimodalsim.reader',
-              'multimodalsim.simulator', 'multimodalsim.visualizer'],
+              'multimodalsim.simulator', 'multimodalsim.observer'],
     package_dir={'multimodalsim': 'multimodalsim'},
     url='',
     license='',
