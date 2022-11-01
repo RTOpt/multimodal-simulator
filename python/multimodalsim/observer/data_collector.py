@@ -19,7 +19,8 @@ class DataCollector:
 
 class StandardDataCollector(DataCollector):
 
-    def __init__(self, data_container=None):
+    def __init__(self, data_container=None, vehicles_columns=None,
+                 trips_columns=None, events_columns=None):
         super().__init__()
 
         if data_container is not None:
@@ -31,6 +32,10 @@ class StandardDataCollector(DataCollector):
         self.__event_index = None
         self.__event_priority = None
         self.__current_event = None
+
+        self.__set_vehicles_columns(vehicles_columns)
+        self.__set_trips_columns(trips_columns)
+        self.__set_events_columns(events_columns)
 
     @property
     def data_container(self):
@@ -47,7 +52,47 @@ class StandardDataCollector(DataCollector):
         self.__collect_trips_data()
         self.__collect_events_data()
 
+    def __set_vehicles_columns(self, vehicles_columns):
+
+        if vehicles_columns is None:
+            vehicles_columns = {"id": "id",
+                                "time": "time",
+                                "status": "status",
+                                "previous_stops": "previous_stops",
+                                "current_stop": "current_stop",
+                                "next_stops": "next_stops",
+                                "assigned_legs": "assigned_legs",
+                                "onboard_legs": "onboard_legs",
+                                "alighted_legs": "alighted_legs"}
+
+        self.__data_container.set_columns("vehicles", vehicles_columns)
+
+    def __set_trips_columns(self, trips_columns):
+
+        if trips_columns is None:
+            trips_columns = {"id": "id",
+                             "time": "time",
+                             "status": "status",
+                             "assigned_vehicle": "assigned_vehicle",
+                             "current_location": "current_location",
+                             "previous_legs": "previous_legs",
+                             "current_leg": "current_leg",
+                             "next_legs": "next_legs"}
+
+        self.__data_container.set_columns("trips", trips_columns)
+
+    def __set_events_columns(self, events_columns):
+
+        if events_columns is None:
+            events_columns = {"name": "name",
+                              "time": "time",
+                              "priority": "priority",
+                              "index": "index"}
+
+        self.__data_container.set_columns("events", events_columns)
+
     def __collect_vehicles_data(self):
+
         for vehicle in self.__env.vehicles:
             previous_stops = [str(stop.location) for stop
                               in vehicle.route.previous_stops]
@@ -72,7 +117,8 @@ class StandardDataCollector(DataCollector):
                         "alighted_legs": alighted_legs}
 
             self.__data_container.add_observation(
-                "vehicles", obs_dict, "id", no_rep_on_keys=["id", "time"])
+                "vehicles", obs_dict, "id",
+                no_rep_on_keys=["id", "time"])
 
     def __collect_trips_data(self):
         for trip in self.__env.trips:
@@ -142,6 +188,7 @@ class DataContainer:
     def __init__(self):
         self.__observations_tables = {}
         self.__observations_tables_dfs = {}
+        self.__dfs_columns = {}
 
     @property
     def observations_tables(self):
@@ -149,6 +196,12 @@ class DataContainer:
 
     def get_observations_table_df(self, table_name):
         return self.__observations_tables_dfs[table_name]
+
+    def get_columns(self, table_name):
+        return self.__dfs_columns[table_name]
+
+    def set_columns(self, table_name, columns):
+        self.__dfs_columns[table_name] = columns
 
     def add_observation(self, table_name, obs_dict, obs_id_key,
                         no_rep_on_keys=None):
@@ -199,7 +252,15 @@ class DataContainer:
         if table_name not in self.__observations_tables_dfs:
             self.__observations_tables_dfs[table_name] = pd.DataFrame()
 
-        df_row = pd.DataFrame([row_dict], index=[0])
+        row_df = self.__convert_row_dict_to_df(table_name, row_dict)
+
         self.__observations_tables_dfs[table_name] = pd.concat(
-            [self.__observations_tables_dfs[table_name], df_row],
+            [self.__observations_tables_dfs[table_name], row_df],
             ignore_index=True)
+
+    def __convert_row_dict_to_df(self, table_name, row_dict):
+
+        df_columns = [self.__dfs_columns[table_name][x]
+                      for x in row_dict.keys()]
+
+        return pd.DataFrame([row_dict.values()], columns=df_columns)
