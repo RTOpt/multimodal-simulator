@@ -23,12 +23,12 @@ class DataReader(object):
 
 
 class ShuttleDataReader(DataReader):
-    def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path, graph_json_file_path=None):
+    def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path, graph_from_json_file_path=None):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
         self.__nodes_file_path = nodes_file_path
-        self.__graph_json_file_path = graph_json_file_path
+        self.__graph_from_json_file_path = graph_from_json_file_path
 
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
@@ -92,10 +92,17 @@ class ShuttleDataReader(DataReader):
         return nodes
 
     def get_json_graph(self):
-        with open(self.__graph_json_file_path) as f:
+        with open(self.__graph_from_json_file_path) as f:
             js_graph = json.load(f)
 
-        return json_graph.node_link_graph(js_graph)
+            G = json_graph.node_link_graph(js_graph)
+            for node in G.nodes(data=True):
+                coord = (node[1]['pos'][0], node[1]['pos'][1])
+                node[1]['pos'] = coord
+                node[1]['Node'] = Node(node[1]['Node']['id'], coord)
+                #node[1]['Node']['coordinates'] = coord
+
+        return G
 
 
 class BusDataReader(DataReader):
