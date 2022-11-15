@@ -138,6 +138,8 @@ class VehicleNotification(Event):
                     vehicle.route.assigned_legs.append(leg)
 
         self.__update_env_assigned_vehicles(vehicle)
+
+        # TODO : check if necessary to add event every time
         VehicleBoarding(vehicle.route, self.queue).add_to_queue()
 
         return 'Notify Vehicle process is implemented'

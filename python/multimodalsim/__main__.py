@@ -23,6 +23,7 @@ def add_arguments(parser):
     parser.add_argument("-r", "--requests", help="path to the file containing the requests")
     parser.add_argument("-v", "--vehicles", help="path to the file containing the vehicles")
     parser.add_argument("-n", "--nodes", help="path to the file containing the nodes (with 'shuttle' only)")
+    parser.add_argument("-g", "--graph", help="path to the file containing the graph (with 'shuttle' only)")
     parser.add_argument("type", help="type of optimization ('shuttle' or 'fixed')")
     parser.add_argument("--log-level", help="the log level (by default: DEBUG)", default="DEBUG")
     parser.add_argument("--gtfs", help="input files are in the GTFS format", action="store_true")
@@ -85,14 +86,18 @@ def main():
     if args.type == "shuttle":
         # Parameters example: shuttle -r ../../data/shuttle/test0_shuttle/requests.csv
         # -v ../../data/shuttle/test0_shuttle/vehicles.csv -n ../../data/shuttle/test0_shuttle/nodes.csv
+        # -g ../../data/shuttle/test0_shuttle/graph.json
         logger.info("Shuttle")
 
         nodes_file_path = args.nodes
-        #graph_json_file_path = args.graph
+        graph_from_json_file_path = args.graph
 
-        data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path)
+        data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path, nodes_file_path, graph_from_json_file_path)
         nodes = data_reader.get_nodes()
-        g = create_graph(nodes)
+        if graph_from_json_file_path:
+            g = data_reader.get_json_graph()
+        else:
+            g = create_graph(nodes)
 
         splitter = OneLegSplitter()
         dispatcher = ShuttleGreedyDispatcher(g)
