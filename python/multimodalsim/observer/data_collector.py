@@ -3,6 +3,11 @@ import pandas as pd
 
 from datetime import datetime
 
+import multimodalsim.simulator.request
+import multimodalsim.simulator.vehicle
+import multimodalsim.simulator.passenger_event
+import multimodalsim.simulator.vehicle_event
+from multimodalsim.simulator.event import ActionEvent
 from multimodalsim.simulator.status import PassengersStatus
 
 logger = logging.getLogger(__name__)
@@ -32,10 +37,14 @@ class StandardDataCollector(DataCollector):
         self.__event_index = None
         self.__event_priority = None
         self.__current_event = None
+        self.__time = None
 
         self.__set_vehicles_columns(vehicles_columns)
         self.__set_trips_columns(trips_columns)
         self.__set_events_columns(events_columns)
+
+        self.__modified_trips = []
+        self.__modified_vehicles = []
 
     @property
     def data_container(self):
@@ -47,10 +56,29 @@ class StandardDataCollector(DataCollector):
         self.__current_event = current_event
         self.__event_priority = event_priority
         self.__event_index = event_index
+        self.__time = datetime.fromtimestamp(self.__current_event.time) \
+            if self.__current_event is not None \
+            else datetime.fromtimestamp(self.__env.current_time)
 
-        self.__collect_vehicles_data()
-        self.__collect_trips_data()
+        if (isinstance(current_event, ActionEvent)
+                and isinstance(current_event.state_machine.owner,
+                               multimodalsim.simulator.request.Trip)):
+            self.__collect_trips_data(current_event.state_machine.owner)
+        elif hasattr(current_event, "trip"):
+            self.__collect_trips_data(current_event.trip)
+        elif isinstance(current_event, ActionEvent) \
+                and isinstance(current_event.state_machine.owner,
+                               multimodalsim.simulator.vehicle.Route):
+            self.__collect_vehicles_data(current_event.state_machine.owner)
+        elif hasattr(current_event, "vehicle"):
+            self.__collect_vehicles_data(current_event.vehicle.route)
+
         self.__collect_events_data()
+
+        if self.__modified_trips is not None:
+            self.__modified_trips = []
+        if self.__modified_vehicles is not None:
+            self.__modified_vehicles = []
 
     def __set_vehicles_columns(self, vehicles_columns):
 
@@ -91,62 +119,72 @@ class StandardDataCollector(DataCollector):
 
         self.__data_container.set_columns("events", events_columns)
 
-    def __collect_vehicles_data(self):
+    def __collect_vehicles_data(self, route):
 
-        for vehicle in self.__env.vehicles:
-            previous_stops = [str(stop.location) for stop
-                              in vehicle.route.previous_stops]
-            current_stop = vehicle.route.current_stop.location \
-                if vehicle.route.current_stop is not None else None
-            next_stops = [str(stop.location) for stop
-                          in vehicle.route.next_stops]
+        # self.__modified_vehicles = None
+        #
+        # vehicles = self.__modified_vehicles \
+        #     if self.__modified_vehicles is not None \
+        #     else self.__env.vehicles
 
-            assigned_legs = [leg.id for leg in vehicle.route.assigned_legs]
-            onboard_legs = [leg.id for leg in vehicle.route.onboard_legs]
-            alighted_legs = [leg.id for leg in vehicle.route.alighted_legs]
+        # for vehicle in vehicles:
 
-            time = datetime.fromtimestamp(self.__current_event.time)
-            obs_dict = {"id": vehicle.id,
-                        "time": time,
-                        "status": vehicle.route.status,
-                        "previous_stops": previous_stops,
-                        "current_stop": str(current_stop),
-                        "next_stops": next_stops,
-                        "assigned_legs": assigned_legs,
-                        "onboard_legs": onboard_legs,
-                        "alighted_legs": alighted_legs}
+        previous_stops = [str(stop.location) for stop
+                          in route.previous_stops]
+        current_stop = route.current_stop.location \
+            if route.current_stop is not None else None
+        next_stops = [str(stop.location) for stop
+                      in route.next_stops]
 
-            self.__data_container.add_observation(
-                "vehicles", obs_dict, "id",
-                no_rep_on_keys=["id", "time"])
+        assigned_legs = [leg.id for leg in route.assigned_legs]
+        onboard_legs = [leg.id for leg in route.onboard_legs]
+        alighted_legs = [leg.id for leg in route.alighted_legs]
 
-    def __collect_trips_data(self):
-        for trip in self.__env.trips:
-            assigned_vehicle_id = self.__get_assigned_vehicle_id(trip)
-            current_location = self.__get_current_location(trip)
+        obs_dict = {"id": route.vehicle.id,
+                    "time": self.__time,
+                    "status": route.status,
+                    "previous_stops": previous_stops,
+                    "current_stop": str(current_stop),
+                    "next_stops": next_stops,
+                    "assigned_legs": assigned_legs,
+                    "onboard_legs": onboard_legs,
+                    "alighted_legs": alighted_legs}
 
-            previous_legs = [(str(leg.origin), str(leg.destination)) for leg
-                             in trip.previous_legs] \
-                if trip.previous_legs is not None else None
-            current_leg = (str(trip.current_leg.origin),
-                           str(trip.current_leg.destination))
+        self.__data_container.add_observation(
+            "vehicles", obs_dict, "id",
+            no_rep_on_keys=["id", "time"])
 
-            next_legs = [(str(leg.origin), str(leg.destination)) for leg
-                         in trip.next_legs] \
-                if trip.next_legs is not None else None
+    def __collect_trips_data(self, trip):
+        # for trip in self.__env.trips:
+        # self.__modified_trips = None
+        # trips = self.__modified_trips if self.__modified_trips is not None \
+        #     else self.__env.trips
+        # for trip in trips:
+        assigned_vehicle_id = self.__get_assigned_vehicle_id(trip)
+        current_location = self.__get_current_location(trip)
 
-            time = datetime.fromtimestamp(self.__current_event.time)
-            obs_dict = {"id": trip.id,
-                        "time": time,
-                        "status": trip.status,
-                        "assigned_vehicle": str(assigned_vehicle_id),
-                        "current_location": str(current_location),
-                        "previous_legs": previous_legs,
-                        "current_leg": current_leg,
-                        "next_legs": next_legs}
-            self.__data_container.add_observation("trips", obs_dict, "id",
-                                                  no_rep_on_keys=["id",
-                                                                  "time"])
+        previous_legs = [(str(leg.origin), str(leg.destination)) for leg
+                         in trip.previous_legs] \
+            if trip.previous_legs is not None else None
+        current_leg = (str(trip.current_leg.origin),
+                       str(trip.current_leg.destination)) \
+            if trip.current_leg is not None else None
+
+        next_legs = [(str(leg.origin), str(leg.destination)) for leg
+                     in trip.next_legs] \
+            if trip.next_legs is not None else None
+
+        obs_dict = {"id": trip.id,
+                    "time": self.__time,
+                    "status": trip.status,
+                    "assigned_vehicle": str(assigned_vehicle_id),
+                    "current_location": str(current_location),
+                    "previous_legs": previous_legs,
+                    "current_leg": current_leg,
+                    "next_legs": next_legs}
+        self.__data_container.add_observation("trips", obs_dict, "id",
+                                              no_rep_on_keys=["id",
+                                                              "time"])
 
     def __get_assigned_vehicle_id(self, trip):
         if trip.current_leg is not None \
@@ -173,11 +211,11 @@ class StandardDataCollector(DataCollector):
 
     def __collect_events_data(self):
 
-        event_name = self.__current_event.name
-        event_time = datetime.fromtimestamp(self.__current_event.time)
+        event_name = self.__current_event.name \
+            if self.__current_event is not None else None
 
         obs_dict = {"name": event_name,
-                    "time": event_time,
+                    "time": self.__time,
                     "priority": self.__event_priority,
                     "index": self.__event_index}
         self.__data_container.add_observation("events", obs_dict, "index")
@@ -190,11 +228,17 @@ class DataContainer:
         self.__observations_tables_dfs = {}
         self.__dfs_columns = {}
 
+        self.__updated_dfs = {}
+
     @property
     def observations_tables(self):
         return self.__observations_tables
 
     def get_observations_table_df(self, table_name):
+
+        if not self.__updated_dfs[table_name]:
+            self.__convert_obs_table_to_df(table_name)
+
         return self.__observations_tables_dfs[table_name]
 
     def get_columns(self, table_name):
@@ -205,20 +249,18 @@ class DataContainer:
 
     def add_observation(self, table_name, obs_dict, obs_id_key,
                         no_rep_on_keys=None):
-        logger.debug("table_name={}, row_dict={}, obs_id_key={}, "
-                     "no_rep_on_keys={}".format(table_name, obs_dict,
-                                                obs_id_key, no_rep_on_keys))
 
-        if no_rep_on_keys is None \
-                or self.__can_add_obs_to_table(table_name, obs_dict,
-                                               obs_id_key, no_rep_on_keys):
-            self.__add_obs_to_dict(table_name, obs_dict, obs_id_key)
-            self.__add_obs_to_df(table_name, obs_dict)
+        # if no_rep_on_keys is None \
+        #         or self.__can_add_obs_to_table(table_name, obs_dict,
+        #                                        obs_id_key, no_rep_on_keys):
+        self.__add_obs_to_dict(table_name, obs_dict, obs_id_key)
+        self.__updated_dfs[table_name] = False
+        # self.__add_obs_to_df(table_name, obs_dict)
 
     def save_observations_to_csv(self, table_name, file_name):
 
-        self.__observations_tables_dfs[table_name].to_csv(file_name,
-                                                          index=False)
+        self.get_observations_table_df(table_name).to_csv(file_name,
+                                                                index=False)
 
     def __can_add_obs_to_table(self, table_name, obs_dict, obs_id_key,
                                no_rep_on_keys):
@@ -239,14 +281,19 @@ class DataContainer:
         return can_add_obs
 
     def __add_obs_to_dict(self, table_name, row_dict, obs_id_key):
+
         if table_name not in self.__observations_tables:
-            self.__observations_tables[table_name] = {}
+            self.__observations_tables[table_name] = []
+        self.__observations_tables[table_name].append(row_dict)
 
-        obs_id = row_dict[obs_id_key]
-        if obs_id not in self.__observations_tables[table_name]:
-            self.__observations_tables[table_name][obs_id] = []
-
-        self.__observations_tables[table_name][obs_id].append(row_dict)
+        # if table_name not in self.__observations_tables:
+        #     self.__observations_tables[table_name] = {}
+        #
+        # obs_id = row_dict[obs_id_key]
+        # if obs_id not in self.__observations_tables[table_name]:
+        #     self.__observations_tables[table_name][obs_id] = []
+        #
+        # self.__observations_tables[table_name][obs_id].append(row_dict)
 
     def __add_obs_to_df(self, table_name, row_dict):
         if table_name not in self.__observations_tables_dfs:
@@ -257,6 +304,16 @@ class DataContainer:
         self.__observations_tables_dfs[table_name] = pd.concat(
             [self.__observations_tables_dfs[table_name], row_df],
             ignore_index=True)
+
+    def __convert_obs_table_to_df(self, table_name):
+
+        self.__observations_tables_dfs[table_name] = \
+            pd.DataFrame(self.__observations_tables[table_name])
+        self.__observations_tables_dfs[table_name].columns = \
+            [x.replace(x, self.__dfs_columns[table_name][x])
+             for x in self.__observations_tables_dfs[table_name].columns]
+
+        self.__updated_dfs[table_name] = True
 
     def __convert_row_dict_to_df(self, table_name, row_dict):
 

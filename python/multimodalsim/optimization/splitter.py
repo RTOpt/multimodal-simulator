@@ -1,6 +1,7 @@
 import logging
 
 import networkx as nx
+import pickle
 
 from multimodalsim.simulator.request import Leg
 from multimodalsim.simulator.vehicle import LabelLocation
@@ -20,29 +21,76 @@ class Splitter(object):
 class OneLegSplitter(Splitter):
 
     def __init__(self):
+        self.__state = None
+        self.__accessibility_matrix = None
         super().__init__()
 
     def split(self, trip, state):
-        leg = Leg(trip.id, trip.origin, trip.destination, trip.nb_passengers,
-                  trip.release_time, trip.ready_time, trip.due_time, trip)
+        self.__state = state
+        if self.__accessibility_matrix is None:
+            self.__create_accessibility_matrix()
+
+        if str(trip.origin) in self.__accessibility_matrix \
+                and str(trip.destination) \
+                in self.__accessibility_matrix[str(trip.origin)]:
+            leg = Leg(trip.id, trip.origin, trip.destination,
+                      trip.nb_passengers, trip.release_time, trip.ready_time,
+                      trip.due_time, trip)
+        else:
+            leg = None
 
         return [leg]
+
+    def __create_accessibility_matrix(self):
+        logger.debug("__create_graph_from_state")
+
+        self.__accessibility_matrix = {}
+
+        for vehicle in self.__state.vehicles:
+
+            all_stops = []
+            if vehicle.route.current_stop is not None:
+                all_stops.append(vehicle.route.current_stop)
+
+            for stop in vehicle.route.next_stops:
+                all_stops.append(stop)
+
+            if len(all_stops) > 1:
+                for i in range(0, len(all_stops) - 1):
+                    for j in range(i + 1, len(all_stops)):
+                        origin_location = all_stops[i].location
+                        destination_location = all_stops[j].location
+                        if str(origin_location) in self.__accessibility_matrix:
+                            self.__accessibility_matrix[str(origin_location)][
+                                str(destination_location)] = True
+                        else:
+                            self.__accessibility_matrix[
+                                str(origin_location)] = {
+                                str(destination_location): True}
 
 
 class MultimodalSplitter(Splitter):
 
-    def __init__(self):
+    def __init__(self, graph_file_path=None, available_connections=None,
+                 freeze_interval=5):
         super().__init__()
+        self.__available_connections = available_connections
+        self.__freeze_interval = freeze_interval
         self.__trip = None
         self.__state = None
-        self.__bus_network_graph = None
+
+        if graph_file_path is not None:
+            self.__load_graph_from_file(graph_file_path)
+        else:
+            self.__bus_network_graph = None
 
     def split(self, trip, state):
 
         self.__state = state
         self.__trip = trip
 
-        self.__create_graph_from_state()
+        if self.__bus_network_graph is None:
+            self.__create_graph_from_state()
 
         optimal_legs = []
 
@@ -56,18 +104,17 @@ class MultimodalSplitter(Splitter):
 
         if len(potential_source_nodes) != 0 \
                 and len(potential_target_nodes) != 0:
-            logger.debug("req.id={}".format(trip.id))
             feasible_paths = self.__find_feasible_paths(potential_source_nodes,
                                                         potential_target_nodes)
             if len(feasible_paths) > 0:
                 optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
-                logger.debug("optimal_path={}".format(optimal_path))
                 optimal_legs = self.__get_legs_from_path(optimal_path)
-                logger.debug("optimal_legs={}".format(optimal_legs))
 
         return optimal_legs
 
     def __create_graph_from_state(self):
+
+        logger.debug("__create_graph_from_state")
 
         self.__bus_network_graph = nx.DiGraph()
 
@@ -94,14 +141,22 @@ class MultimodalSplitter(Splitter):
 
         for node1 in self.__bus_network_graph.nodes:
             for node2 in self.__bus_network_graph.nodes:
-                if node1[0] == node2[0] and node1[1] != node2[1]:
+                if node1[0] in self.__available_connections \
+                        and node2[0] in self.__available_connections[node1[0]]\
+                        and node1[1] != node2[1]:
                     # Nodes correspond to same stop but different vehicles
-                    if node2[3] >= node1[2]:
+                    if (node2[3] - node1[2]) >= self.__freeze_interval:
                         # Departure time of the second node is greater than or
                         # equal to the arrival time of the first
                         # node. A connection is possible.
                         self.__bus_network_graph.add_edge(
                             node1, node2, weight=node2[3] - node1[2])
+
+    def __load_graph_from_file(self, file_path):
+        self.__bus_network_graph = pickle.load(open(file_path, 'rb'))
+
+    def save_graph_to_file(self, file_path):
+        pickle.dump(self.__bus_network_graph, open(file_path, 'wb'))
 
     def __find_potential_source_nodes(self, trip):
         potential_source_nodes = []
@@ -121,28 +176,41 @@ class MultimodalSplitter(Splitter):
 
     def __find_feasible_paths(self, potential_source_nodes,
                               potential_target_nodes):
+
+        logger.debug("__find_feasible_paths")
+
         distance_dict, path_dict = nx.multi_source_dijkstra(
             self.__bus_network_graph, set(potential_source_nodes))
         feasible_paths = []
         for node, distance in distance_dict.items():
-            logger.debug("{}: {}".format(node, distance))
-            logger.debug(path_dict[node])
-            if node in potential_target_nodes:
+            if node in potential_target_nodes and self.__check_path_feasibility(path_dict[node]):
                 feasible_paths.append(path_dict[node])
 
         return feasible_paths
 
+    def __check_path_feasibility(self, path):
+        path_feasible = True
+
+        min_arrival_time = 0
+        for node in path:
+            if node[3] - min_arrival_time < self.__freeze_interval:
+                path_feasible = False
+            if node[2] > min_arrival_time:
+                min_arrival_time = node[2]
+
+        return path_feasible
+
     def __get_legs_from_path(self, path):
+
         legs = []
 
         leg_vehicle_id = path[0][1]
         leg_first_stop_id = path[0][0]
 
+        leg_second_stop_id = None
         leg_number = 1
         for node in path:
             if node[1] != leg_vehicle_id:
-                leg_second_stop_id = node[0]
-
                 leg_id = self.__trip.id + "_" + str(leg_number)
                 leg = Leg(leg_id, LabelLocation(leg_first_stop_id),
                           LabelLocation(leg_second_stop_id),
@@ -156,6 +224,8 @@ class MultimodalSplitter(Splitter):
 
                 leg_number += 1
 
+            leg_second_stop_id = node[0]
+
         # Last leg
         last_leg_second_stop = path[-1][0]
         leg_id = self.__trip.id + "_" + str(leg_number)
@@ -166,4 +236,18 @@ class MultimodalSplitter(Splitter):
                        self.__trip)
         legs.append(last_leg)
 
-        return legs
+        filtered_legs = self.__filter_legs(legs)
+
+        return filtered_legs
+
+    def __filter_legs(self, legs):
+
+        filtered_legs = []
+        for leg in legs:
+            if str(leg.origin) != str(leg.destination) and \
+                    (str(leg.origin) not in self.__available_connections
+                     or (str(leg.destination) not in
+                         self.__available_connections[str(leg.origin)])):
+                filtered_legs.append(leg)
+
+        return filtered_legs

@@ -23,7 +23,7 @@ class DataAnalyzer:
         observations_df = self.data_container \
             .get_observations_table_df(table_name)
 
-        return observations_df.describe()
+        return observations_df.describe(datetime_is_numeric=True)
 
 
 class FixedLineDataAnalyzer(DataAnalyzer):

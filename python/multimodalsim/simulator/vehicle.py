@@ -1,4 +1,5 @@
 import logging
+import copy
 
 import multimodalsim.state_machine.state_machine as state_machine
 
@@ -63,8 +64,8 @@ class Vehicle(object):
 
     @route.setter
     def route(self, route):
-        if self.__route is not None:
-            raise ValueError("Vehicle (%d) has already a route." % self.id)
+        # if self.__route is not None:
+        #     raise ValueError("Vehicle {} has already a route.".format(self.id))
         self.__route = route
 
 
@@ -96,6 +97,7 @@ class Route(object):
     """
 
     def __init__(self, vehicle, next_stops=None):
+
         self.__vehicle = vehicle
 
         self.__state_machine = state_machine.VehicleStateMachine(self)
@@ -178,8 +180,12 @@ class Route(object):
     def load(self):
         return self.__load
 
+    def initiate_boarding(self, trip):
+        """Initiate boarding of the passengers who are ready to be picked up"""
+        self.current_stop.initiate_boarding(trip)
+
     def board(self, trip):
-        """Boards passengers who are ready to pick up"""
+        """Boards passengers who are ready to be picked up"""
         if trip is not None:
             self.__assigned_legs.remove(trip.current_leg)
             self.__onboard_legs.append(trip.current_leg)
@@ -217,6 +223,17 @@ class Route(object):
         """Updates the list of requests to pick up by the vehicle"""
         return self.__current_stop.passengers_to_board
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_Route__previous_stops":
+                setattr(result, k, [])
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        return result
+
 
 class Stop(object):
     """A stop is located somewhere along the network.  New requests
@@ -243,6 +260,8 @@ class Stop(object):
     """
 
     def __init__(self, arrival_time, departure_time, location):
+        super().__init__()
+
         self.__arrival_time = arrival_time
         self.__departure_time = departure_time
         self.__passengers_to_board = []
@@ -274,6 +293,7 @@ class Stop(object):
                 class_string += str(attribute) + ": " + str(value) + ", "
 
         class_string += "}"
+
         return class_string
 
     @property
@@ -328,30 +348,28 @@ class Stop(object):
     def location(self):
         return self.__location
 
-    def initiate_boarding(self, request):
-        """Passengers who are ready to pick up in the stop get in the
+    def initiate_boarding(self, trip):
+        """Passengers who are ready to be picked up in the stop get in the
         vehicle """
+        self.passengers_to_board.remove(trip)
+        self.boarding_passengers.append(trip)
 
-        self.passengers_to_board.remove(request)
-        self.boarding_passengers.append(request)
-
-    def board(self, request):
+    def board(self, trip):
         """Passenger who is boarding becomes boarded"""
+        self.boarding_passengers.remove(trip)
+        self.boarded_passengers.append(trip)
 
-        self.boarding_passengers.remove(request)
-        self.boarded_passengers.append(request)
-
-    def alight(self, request):
+    def alight(self, trip):
         """Passengers who reached their stop leave the vehicle"""
-
-        self.passengers_to_alight.remove(request)
-        self.alighted_passengers.append(request)
+        self.passengers_to_alight.remove(trip)
+        self.alighted_passengers.append(trip)
 
 
 class Location(object):
     """The ``Location`` class is a base class that mostly serves as a
     structure for storing basic information about the location of a vehicle
     or a passenger (i.e., Request). """
+
     def __init__(self):
         pass
 

@@ -2,7 +2,6 @@ import logging
 
 from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.simulator.network import get_manhattan_distance, Node
-# from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
 from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
@@ -93,7 +92,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
             # Asma : temporary solution - the code should be rearranged to
             if hasattr(assigned_vehicle.route.current_stop.location,
                        'gps_coordinates'):
-                previous_node = assigned_vehicle.route.current_stop.location\
+                previous_node = assigned_vehicle.route.current_stop.location \
                     .gps_coordinates
             else:
                 previous_node = assigned_vehicle.route.current_stop.location
@@ -121,7 +120,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
             if len(assigned_vehicle.route.next_stops) != 0 \
                     and len(next_stops) != 0 \
-                    and assigned_vehicle.route.next_stops[-1].location\
+                    and assigned_vehicle.route.next_stops[-1].location \
                     .get_coordinates() == \
                     next_stops[0].location.get_coordinates():
                 assigned_vehicle.route.next_stops.extend(next_stops[1:])
@@ -157,7 +156,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
             if isinstance(veh.route.current_stop.location, Node):
                 gps_coord = veh.route.current_stop.location.get_coordinates()
             else:
-                gps_coord = veh.route.current_stop.location.gps_coordinates\
+                gps_coord = veh.route.current_stop.location.gps_coordinates \
                     .get_coordinates()
 
             if req.origin.gps_coordinates.get_coordinates() == gps_coord:
@@ -218,20 +217,18 @@ class FixedLineDispatcher(Dispatcher):
         self.__modified_trips = []
         self.__modified_vehicles = []
 
-        logger.debug("self.__non_assigned_released_requests_list={}".format(
-            self.__non_assigned_released_requests_list))
+        # logger.debug("self.__non_assigned_released_requests_list={}".format(
+        #     self.__non_assigned_released_requests_list))
+
+        logger.debug("state.non_assigned_trips: {}".format(
+            [trip.id for trip in state.non_assigned_trips]))
 
         for trip in self.__non_assigned_released_requests_list:
-            logger.debug("non_assigned trip: {}".format(trip.id))
-
             if trip.current_leg is not None:
                 optimal_vehicle = self.__find_optimal_vehicle_for_leg(
                     trip.current_leg)
             else:
                 optimal_vehicle = None
-
-            logger.debug("optimal_vehicle={}".format(
-                optimal_vehicle.id if optimal_vehicle is not None else None))
 
             if optimal_vehicle is not None:
                 self.__assign_trip_to_vehicle(trip, optimal_vehicle)
@@ -258,6 +255,7 @@ class FixedLineDispatcher(Dispatcher):
                     and origin_departure_time > self.__state.current_time \
                     and origin_departure_time >= leg.trip.ready_time \
                     and destination_arrival_time is not None \
+                    and destination_arrival_time <= leg.trip.due_time \
                     and (earliest_arrival_time is None
                          or destination_arrival_time < earliest_arrival_time):
                 earliest_arrival_time = destination_arrival_time
@@ -282,12 +280,11 @@ class FixedLineDispatcher(Dispatcher):
 
     def __assign_trip_to_vehicle(self, trip, vehicle):
 
-        logger.debug("trip.current_leg={}".format(trip.current_leg))
-        logger.debug("trip.next_legs={}".format(trip.next_legs))
-        logger.debug("vehicle={}".format(vehicle))
+        # logger.debug("trip.current_leg={}".format(trip.current_leg))
+        # logger.debug("trip.next_legs={}".format(trip.next_legs))
+        # logger.debug("vehicle={}".format(vehicle))
 
         trip.current_leg.assigned_vehicle = vehicle
-        # trip.status = PassengersStatus.ASSIGNED
 
         vehicle.route.assign_leg(trip.current_leg)
 
@@ -296,18 +293,14 @@ class FixedLineDispatcher(Dispatcher):
 
     def __assign_trip_to_stops(self, trip, vehicle):
 
-        logger.debug("vehicle={}".format(vehicle))
-
         origin_stop = self.__get_stop_by_stop_id(trip.current_leg.origin.label,
                                                  vehicle)
         destination_stop = self.__get_stop_by_stop_id(
             trip.current_leg.destination.label, vehicle)
 
         origin_stop.passengers_to_board.append(trip)
-        logger.debug("origin_stop: {}".format(origin_stop))
 
         destination_stop.passengers_to_alight.append(trip)
-        logger.debug("destination_stop: {}".format(destination_stop))
 
     def __get_stop_by_stop_id(self, stop_id, vehicle):
         found_stop = None

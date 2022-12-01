@@ -94,6 +94,10 @@ class ActionEvent(Event):
 
         self.__state_machine = state_machine
 
+    @property
+    def state_machine(self):
+        return self.__state_machine
+
     def process(self, env):
 
         if self.__state_machine is not None:
@@ -101,5 +105,5 @@ class ActionEvent(Event):
 
         return self._process(env)
 
-    def _process(self, env):
-        return super()._process()
+    # def _process(self, env):
+    #     return super()._process()

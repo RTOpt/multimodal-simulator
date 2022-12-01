@@ -25,6 +25,11 @@ class ConsoleVisualizer(Visualizer):
             logger.info("current_time={}".format(env.current_time))
             self.__last_time = env.current_time
 
+        if logger.parent.level == logging.DEBUG:
+            self.__print_debug(env, current_event, event_index, event_priority)
+
+    def __print_debug(self, env, current_event, event_index, event_priority):
+
         logger.debug("visualize_environment")
 
         if current_event is not None:

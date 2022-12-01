@@ -1,9 +1,11 @@
 import csv
 import ast
 import logging
+import json
 from datetime import datetime, timedelta
 from functools import reduce
 
+from multimodalsim.config.config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
@@ -178,13 +180,17 @@ class GTFSReader(DataReader):
     def __init__(self, data_folder, requests_file_path,
                  stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt",
-                 trips_file_name="trips.txt"):
+                 trips_file_name="trips.txt",
+                 config_file="config/gtfs_data_reader.ini"):
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
         self.__stop_times_path = data_folder + stop_times_file_name
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
+
+        config = DataReaderConfig(config_file)
+        self.__trips_columns = config.get_trips_columns()
 
         self.__vehicles_release_time = None
 
@@ -197,20 +203,28 @@ class GTFSReader(DataReader):
             next(requests_reader, None)
             nb_requests = 1
             for row in requests_reader:
-                release_date_string, release_time_string = row[3].split(" ")
-                release_time = self.__get_timestamp_from_date_and_time_strings(
-                    release_date_string, release_time_string)
+                # release_date_string, release_time_string = row[3].split(" ")
+                # release_time = self.__get_timestamp_from_date_and_time_strings(
+                #     release_date_string, release_time_string)
+                #
+                # ready_date_string, ready_time_string = row[4].split(" ")
+                # ready_time = self.__get_timestamp_from_date_and_time_strings(
+                #     ready_date_string, ready_time_string)
+                #
+                # due_date_string, due_time_string = row[5].split(" ")
+                # due_time = self.__get_timestamp_from_date_and_time_strings(
+                #     due_date_string, due_time_string)
 
-                ready_date_string, ready_time_string = row[4].split(" ")
-                ready_time = self.__get_timestamp_from_date_and_time_strings(
-                    ready_date_string, ready_time_string)
+                release_time = int(row[self.__trips_columns["release_time"]])
+                ready_time = int(row[self.__trips_columns["ready_time"]])
+                due_time = int(row[self.__trips_columns["due_time"]])
 
-                due_date_string, due_time_string = row[5].split(" ")
-                due_time = self.__get_timestamp_from_date_and_time_strings(
-                    due_date_string, due_time_string)
-
-                trip = Trip(str(nb_requests), LabelLocation(str(row[0])),
-                            LabelLocation(str(row[1])), int(row[2]),
+                trip = Trip(str(row[self.__trips_columns["id"]]),
+                            LabelLocation(str(
+                                row[self.__trips_columns["origin"]])),
+                            LabelLocation(str(
+                                row[self.__trips_columns["destination"]])),
+                            int(row[self.__trips_columns["nb_passengers"]]),
                             release_time, ready_time, due_time)
 
                 trips.append(trip)
@@ -240,6 +254,20 @@ class GTFSReader(DataReader):
 
         return vehicles
 
+    def get_available_connections(self, locations_connected_comp_file_path):
+
+        available_connections = {}
+
+        with open(locations_connected_comp_file_path) as f:
+            locations_connected_comp_list = json.load(f)
+
+            for locations_cc in locations_connected_comp_list:
+                locations_cc_set = set(locations_cc)
+                for location in locations_cc:
+                    available_connections[location] = locations_cc_set
+
+        return available_connections
+
     def __get_vehicle_and_next_stops(self, trip_id, stop_time_list,
                                      date_string):
 
@@ -249,12 +277,16 @@ class GTFSReader(DataReader):
         release_time = self.__vehicles_release_time
 
         start_stop_time = stop_time_list[0]  # Initial stop
-        start_stop_arrival_time = \
-            self.__get_timestamp_from_date_and_time_strings(
-                date_string, start_stop_time.arrival_time)
-        start_stop_departure_time = \
-            self.__get_timestamp_from_date_and_time_strings(
-                date_string, start_stop_time.departure_time)
+        # start_stop_arrival_time = \
+        #     self.__get_timestamp_from_date_and_time_strings(
+        #         date_string, start_stop_time.arrival_time)
+        # start_stop_departure_time = \
+        #     self.__get_timestamp_from_date_and_time_strings(
+        #         date_string, start_stop_time.departure_time)
+
+        start_stop_arrival_time = int(start_stop_time.arrival_time)
+        start_stop_departure_time = int(start_stop_time.departure_time)
+
         start_stop_location = LabelLocation(start_stop_time.stop_id)
         start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
                           start_stop_location)
@@ -269,10 +301,13 @@ class GTFSReader(DataReader):
     def __get_next_stops(self, stop_time_list, date_string):
         next_stops = []
         for stop_time in stop_time_list[1:]:
-            arrival_time = self.__get_timestamp_from_date_and_time_strings(
-                date_string, stop_time.arrival_time)
-            departure_time = self.__get_timestamp_from_date_and_time_strings(
-                date_string, stop_time.departure_time)
+            # arrival_time = self.__get_timestamp_from_date_and_time_strings(
+            #     date_string, stop_time.arrival_time)
+            # departure_time = self.__get_timestamp_from_date_and_time_strings(
+            #     date_string, stop_time.departure_time)
+
+            arrival_time = int(stop_time.arrival_time)
+            departure_time = int(stop_time.departure_time)
 
             next_stop = Stop(arrival_time, departure_time, LabelLocation(
                 stop_time.stop_id))
@@ -325,7 +360,8 @@ class GTFSReader(DataReader):
             self.__service_dates_dict.values())))
         service_dates_timestamps = list(map(lambda x: datetime.strptime(
             x, "%Y%m%d").timestamp(), service_dates))
-        self.__vehicles_release_time = min(service_dates_timestamps)
+        # self.__vehicles_release_time = min(service_dates_timestamps)
+        self.__vehicles_release_time = 0
 
     def __read_trips(self):
         self.__trip_service_dict = {}
