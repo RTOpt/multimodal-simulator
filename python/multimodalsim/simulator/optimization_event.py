@@ -19,15 +19,16 @@ class Optimize(ActionEvent):
         self.__multiple_optimize_events = multiple_optimize_events
 
     def _process(self, env):
-        state_copy = env.get_state_copy()
-        state = State(state_copy)
 
-        state.freeze_routes_for_time_interval(
+        state_copy = env.get_state_copy()
+        env.optimization.state = State(state_copy)
+
+        env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        optimization_result = env.optimization.dispatch(state)
+        optimization_result = env.optimization.dispatch(env.optimization.state)
 
-        state.unfreeze_routes_for_time_interval(
+        env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
         EnvironmentUpdate(optimization_result, self.queue).add_to_queue()

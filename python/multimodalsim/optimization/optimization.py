@@ -12,7 +12,9 @@ class Optimization(object):
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
         self.__freeze_interval = freeze_interval
-        self.__state_machine = OptimizationStateMachine()
+        self.__state_machine = OptimizationStateMachine(self)
+
+        self.__state = None
 
     @property
     def status(self):
@@ -25,6 +27,14 @@ class Optimization(object):
     @property
     def freeze_interval(self):
         return self.__freeze_interval
+
+    @property
+    def state(self):
+        return self.__state
+
+    @state.setter
+    def state(self, state):
+        self.__state = state
 
     def split(self, request, state):
         return self.__splitter.split(request, state)

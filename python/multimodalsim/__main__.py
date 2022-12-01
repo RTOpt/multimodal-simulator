@@ -1,9 +1,12 @@
 import argparse
 import logging
+import cProfile
+import pstats
 
 from logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
-    StandardEnvironmentObserver
+    StandardEnvironmentObserver, EnvironmentObserver
+from multimodalsim.observer.visualizer import ConsoleVisualizer
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from optimization.dispatcher import ShuttleGreedyDispatcher, \
     FixedLineDispatcher
@@ -36,6 +39,11 @@ def add_arguments(parser):
                                               "GTFS format")
     parser.add_argument("--multimodal", help="fixed line optimization is "
                                              "multimodal", action="store_true")
+    parser.add_argument("-c", "--connections", help="path to the file "
+                                                    "containing the available "
+                                                    "connections")
+    parser.add_argument("-g", "--graph", help="path to the file containing the"
+                                              " network graph object.")
 
 
 def check_arguments(args):
@@ -68,7 +76,7 @@ def configure_logger(log_level=logging.INFO, log_filename=None):
 
     # Replace default handler with custom handler
     console_stream_handler = logging.StreamHandler()
-    console_stream_handler.setFormatter(ColoredFormatter(fmt="%(message)s"))
+    console_stream_handler.setFormatter(ColoredFormatter())
     # Add fmt="%(message)s" as argument of ColoredFormatter if you only want
     # to see the output (without time and line numbers).
 
@@ -89,7 +97,6 @@ def configure_logger(log_level=logging.INFO, log_filename=None):
 
 
 def print_statistics(data_container):
-
     events_table_name = "events"
     data_analyzer = FixedLineDataAnalyzer(data_container)
     description_df = data_analyzer.get_description(events_table_name)
@@ -98,7 +105,7 @@ def print_statistics(data_container):
     logger.debug("nb_events: {}".format(data_analyzer.nb_events))
     logger.debug("nb_event_types: {}".format(data_analyzer.nb_event_types))
     logger.debug("nb_events_by_type: \n{}".format(data_analyzer.
-                                                nb_events_by_type))
+                                                  nb_events_by_type))
     logger.debug("nb_trips: {}".format(data_analyzer.nb_trips))
     logger.debug("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
 
@@ -147,24 +154,39 @@ def main():
     elif args.type == "fixed":
         logger.info("FixedLine")
 
-        if args.multimodal:
-            splitter = MultimodalSplitter()
-        else:
-            splitter = OneLegSplitter()
-        dispatcher = FixedLineDispatcher()
-
+        available_connections = None
         if args.gtfs:
             # Parameters example: fixed --gtfs --gtfs-folder
             # ../../data/fixed_line/gtfs/gtfs/ -r
             # ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal
             # --log-level DEBUG
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
+            # RTC: fixed --gtfs --gtfs-folder ../../data/fixed_line/gtfs_rtc/ -r ../../data/fixed_line/requests_gtfs_rtc/small_requests.csv --log-level INFO
+            # STL: fixed --gtfs --gtfs-folder ../../data/fixed_line/stl/gtfs/generated/2019-11-01/ -r ../../data/fixed_line/stl/gtfs/generated/2019-11-01/day_requests.csv --log-level INFO
         else:
             # Parameters example: fixed -r
             # ../../data/fixed_line/bus/requests_v1.csv -v
             # ../../data/fixed_line/bus/vehicles_v1.csv --multimodal
             # --log-level DEBUG
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
+
+        if args.multimodal:
+            # -c ../../data/fixed_line/stl/available_connections/available_connections_0p25.json
+            # -g ../../data/fixed_line/stl/network_graph/bus_network_graph.txt
+            if args.connections is not None:
+                available_connections = data_reader.get_available_connections(
+                    args.connections)
+            else:
+                # Connections between different stops is impossible.
+                logger.info("No available connections file!")
+                available_connections = []
+
+            splitter = MultimodalSplitter(
+                graph_file_path=args.graph,
+                available_connections=available_connections)
+        else:
+            splitter = OneLegSplitter()
+        dispatcher = FixedLineDispatcher()
     else:
         raise ValueError("The type of optimization must be either 'shuttle' "
                          "or 'fixed'!")
@@ -175,24 +197,40 @@ def main():
     trips = data_reader.get_trips()
 
     environment_observer = StandardEnvironmentObserver()
+    # environment_observer = \
+    #     EnvironmentObserver(visualizers=ConsoleVisualizer())
 
     simulation = Simulation(opt, trips, vehicles, network=g,
                             environment_observer=environment_observer)
     simulation.simulate()
 
-    logger.debug("DataContainer:")
-    data_container = simulation.data_collectors[0].data_container
+    if len(simulation.data_collectors) > 0:
+        logger.debug("DataContainer:")
+        data_container = simulation.data_collectors[0].data_container
 
-    data_container.save_observations_to_csv("vehicles",
-                                            "vehicles_observations_df.csv")
-    data_container.save_observations_to_csv("trips",
-                                            "trips_observations_df.csv")
-    data_container.save_observations_to_csv("events",
-                                            "events_observations_df.csv")
+        data_container.save_observations_to_csv("vehicles",
+                                                "vehicles_observations_df.csv")
+        data_container.save_observations_to_csv("trips",
+                                                "trips_observations_df.csv")
+        data_container.save_observations_to_csv("events",
+                                                "events_observations_df.csv")
 
-    print_statistics(data_container)
+        # print_statistics(data_container)
+
+
+def test():
+    print("test()")
+    return "END"
 
 
 if __name__ == '__main__':
     logger.info("MAIN")
-    main()
+
+    pr = cProfile.Profile()
+
+    pr.run("main()")
+
+    pr.dump_stats('stats')
+    p = pstats.Stats('stats')
+
+    p.sort_stats('time').print_stats()

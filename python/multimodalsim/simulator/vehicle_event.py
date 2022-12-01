@@ -1,4 +1,5 @@
 import logging
+import copy
 
 from multimodalsim.simulator.event import Event, ActionEvent
 from multimodalsim.simulator.vehicle import Route
@@ -16,15 +17,18 @@ class VehicleReady(Event):
         super().__init__('VehicleReady', queue, vehicle.release_time)
         self.__vehicle = vehicle
 
-    def _process(self, env):
+    @property
+    def vehicle(self):
+        return self.__vehicle
 
+    def _process(self, env):
         env.add_vehicle(self.__vehicle)
         env.add_non_assigned_vehicle(self.__vehicle)
 
         if self.__vehicle.route is None:
             self.__vehicle.route = Route(self.__vehicle)
 
-        optimization_event_process.Optimize(env.current_time, self.queue).\
+        optimization_event_process.Optimize(env.current_time, self.queue). \
             add_to_queue()
 
         VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
@@ -44,10 +48,12 @@ class VehicleBoarding(ActionEvent):
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
-            passengers_to_board_copy = self.__route.current_stop.\
+            passengers_to_board_copy = self.__route.current_stop. \
                 passengers_to_board.copy()
             for req in passengers_to_board_copy:
-                self.__route.current_stop.initiate_boarding(req)
+                # logger.warning("self.__route.vehicle.id={}".format(
+                #     self.__route.vehicle.id))
+                self.__route.initiate_boarding(req)
                 passenger_event_process.PassengerToBoard(
                     req, self.queue).add_to_queue()
         elif len(self.__route.next_stops) > 0:
@@ -85,7 +91,7 @@ class VehicleArrival(ActionEvent):
 
         self.__route.arrive()
 
-        passengers_to_alight_copy = self.__route.current_stop.\
+        passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
         for trip in passengers_to_alight_copy:
             if trip.current_leg in self.__route.onboard_legs:
@@ -111,9 +117,10 @@ class VehicleNotification(Event):
         self.__env = env
 
         if self.__route_update.next_stops is not None:
-            for stop in self.__route_update.next_stops:
+            self.__vehicle.route.next_stops = \
+                copy.deepcopy(self.__route_update.next_stops)
+            for stop in self.__vehicle.route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
-            self.__vehicle.route.next_stops = self.__route_update.next_stops
 
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
@@ -127,7 +134,7 @@ class VehicleNotification(Event):
             for trip in actual_modified_passengers_to_board:
                 if trip not in \
                         self.__vehicle.route.current_stop.passengers_to_board:
-                    self.__vehicle.route.current_stop.passengers_to_board\
+                    self.__vehicle.route.current_stop.passengers_to_board \
                         .append(trip)
 
         if self.__route_update.current_stop_departure_time is not None \

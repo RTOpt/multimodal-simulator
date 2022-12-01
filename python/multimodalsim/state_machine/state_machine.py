@@ -58,7 +58,9 @@ class Transition:
 
 class StateMachine:
 
-    def __init__(self, states=None, initial_state=None, transitions=[]):
+    def __init__(self, states=None, initial_state=None, transitions=[],
+                 owner=None):
+
         if states is None:
             self.__states = []
         else:
@@ -69,6 +71,12 @@ class StateMachine:
         self.__transitions = {}
         for transition in transitions:
             self.__add_transition_to_transitions(transition)
+
+        self.__owner = owner
+
+    @property
+    def owner(self):
+        return self.__owner
 
     @property
     def current_state(self):
@@ -103,21 +111,21 @@ class StateMachine:
 
     def next_state(self, event):
 
-        logger.debug("EVENT: {}".format(event.__name__))
-        logger.debug("current state: {}".format(self.__current_state))
-        logger.debug("self.__transitions={}".format(self.__transitions))
+        # logger.debug("EVENT: {}".format(event.__name__))
+        # logger.debug("current state: {}".format(self.__current_state))
+        # logger.debug("self.__transitions={}".format(self.__transitions))
 
         transition_possible = False
         if event.__name__ in self.__transitions:
             for transition in self.__transitions[event.__name__]:
-                logger.debug("STATE: {} -> {} | check: {}".format(
-                    str(transition.current_state), str(transition.next_state),
-                    transition.condition.check()))
+                # logger.debug("STATE: {} -> {} | check: {}".format( str(
+                # transition.current_state), str(transition.next_state),
+                # transition.condition.check()))
                 if transition.current_state == self.__current_state \
                         and transition.condition.check():
                     self.__current_state = transition.next_state
                     transition_possible = True
-                    logger.debug("TRANSITION FOUND!")
+                    # logger.debug("TRANSITION FOUND!")
                     break
 
         if not transition_possible:
@@ -125,7 +133,7 @@ class StateMachine:
                 "Event {} is not possible from status {}!".format(
                     event, self.__current_state))
 
-        logger.debug("next state: {}".format(self.__current_state))
+        # logger.debug("next state: {}".format(self.__current_state))
 
         return self.__current_state
 
@@ -162,8 +170,8 @@ class StateMachine:
 
 class OptimizationStateMachine(StateMachine):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, optimization):
+        super().__init__(owner=optimization)
         self.add_transition(OptimizationStatus.IDLE,
                             OptimizationStatus.OPTIMIZING,
                             optimization_event_process.Optimize)
@@ -180,7 +188,7 @@ class OptimizationStateMachine(StateMachine):
 class PassengerStateMachine(StateMachine):
 
     def __init__(self, trip):
-        super().__init__()
+        super().__init__(owner=trip)
 
         self.add_transition(PassengersStatus.RELEASE,
                             PassengersStatus.ASSIGNED, PassengerAssignment)
@@ -201,7 +209,7 @@ class PassengerStateMachine(StateMachine):
 class VehicleStateMachine(StateMachine):
 
     def __init__(self, route):
-        super().__init__()
+        super().__init__(owner=route)
 
         self.add_transition(VehicleStatus.RELEASE, VehicleStatus.BOARDING,
                             VehicleBoarding, VehicleNextStopCondition(route))

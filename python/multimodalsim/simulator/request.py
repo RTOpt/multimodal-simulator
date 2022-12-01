@@ -85,7 +85,7 @@ class Leg(Request):
     """
 
     def __init__(self, id, origin, destination, nb_passengers, release_time,
-                 ready_time, due_time,  trip):
+                 ready_time, due_time, trip):
         super().__init__(id, origin, destination, nb_passengers, release_time,
                          ready_time, due_time)
         self.__assigned_vehicle = None
@@ -198,6 +198,10 @@ class Trip(Request):
         else:
             self.__current_leg = None
             self.__next_legs = []
+
+    def change_leg(self):
+        self.__previous_legs.append(self.current_leg)
+        self.current_leg = self.next_legs.pop(0)
 
 
 class PassengerUpdate(object):

@@ -13,6 +13,10 @@ class PassengerRelease(Event):
         super().__init__('PassengerRelease', queue, trip.release_time)
         self.__trip = trip
 
+    @property
+    def trip(self):
+        return self.__trip
+
     def _process(self, env):
         env.add_trip(self.__trip)
         env.add_non_assigned_trip(self.__trip)
@@ -101,14 +105,11 @@ class PassengerAlighting(ActionEvent):
 
         if self.__trip.next_legs is None or len(self.__trip.next_legs) == 0:
             # No connection
-            logger.debug("No connection")
+            logger.debug("No connection: {}".format(self.__trip.id))
         else:
             # Connection
-            logger.debug("Connection")
-            self.__trip.previous_legs.append(self.__trip.current_leg)
-            self.__trip.current_leg = self.__trip.next_legs.pop(0)
-            self.__trip.assigned_vehicle = \
-                self.__trip.current_leg.assigned_vehicle
+            logger.debug("Connection: {}".format(self.__trip.id))
+            self.__trip.change_leg()
 
             # The trip is considered as non-assigned again
             env.remove_assigned_trip(self.__trip.id)

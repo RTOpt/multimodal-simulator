@@ -18,7 +18,6 @@ class DataContainerConfig(Config):
         super().__init__(config_file)
 
     def get_vehicles_columns(self):
-
         vehicles_columns = {
             "id": self._config_parser["vehicles"]["id"],
             "time": self._config_parser["vehicles"]["time"],
@@ -35,7 +34,6 @@ class DataContainerConfig(Config):
         return vehicles_columns
 
     def get_trips_columns(self):
-
         trips_columns = {
             "id": self._config_parser["trips"]["id"],
             "time": self._config_parser["trips"]["time"],
@@ -52,7 +50,6 @@ class DataContainerConfig(Config):
         return trips_columns
 
     def get_events_columns(self):
-
         events_columns = {
             "name": self._config_parser["events"]["name"],
             "time": self._config_parser["events"]["time"],
@@ -61,3 +58,43 @@ class DataContainerConfig(Config):
         }
 
         return events_columns
+
+
+class DataReaderConfig(Config):
+    def __init__(self, config_file):
+        super().__init__(config_file)
+
+    def get_trips_columns(self):
+        trips_columns = {
+            "id": int(self._config_parser["trips"]["id"]),
+            "origin": int(self._config_parser["trips"]["origin"]),
+            "destination": int(self._config_parser["trips"]["destination"]),
+            "nb_passengers": int(
+                self._config_parser["trips"]["nb_passengers"]),
+            "release_time": int(self._config_parser["trips"]["release_time"]),
+            "ready_time": int(self._config_parser["trips"]["ready_time"]),
+            "due_time": int(self._config_parser["trips"]["due_time"])
+        }
+
+        return trips_columns
+
+
+class RequestsGeneratorConfig(Config):
+    def __init__(self, config_file):
+        super().__init__(config_file)
+
+    @property
+    def max_connection_time(self):
+        return int(self._config_parser["connections"]["max_connection_time"])
+
+    @property
+    def release_time_delta(self):
+        return int(self._config_parser["requests"]["release_time_delta"])
+
+    @property
+    def ready_time_delta(self):
+        return int(self._config_parser["requests"]["ready_time_delta"])
+
+    @property
+    def due_time_delta(self):
+        return int(self._config_parser["requests"]["due_time_delta"])

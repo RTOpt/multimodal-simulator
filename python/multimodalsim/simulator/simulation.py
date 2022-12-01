@@ -13,11 +13,12 @@ logger = logging.getLogger(__name__)
 class Simulation(object):
 
     def __init__(self, opt, trips, vehicles, network=None,
-                 environment_observer=None):
+                 environment_observer=None, available_connections=None):
 
         self.__env = Environment(opt, network)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
+        self.__available_connections = available_connections
 
         for vehicle in vehicles:
             VehicleReady(vehicle, self.__queue).add_to_queue()
@@ -43,16 +44,6 @@ class Simulation(object):
             logger.debug("process_event: {}".format(process_event))
             self.__collect_data(current_event, current_event.index,
                                 current_event.priority)
-
-            # if "vehicles" in self.data_collector.data_container.observations_tables:
-            #     self.data_collector.data_container.save_observations_to_csv("vehicles",
-            #                                         "vehicles_observations_df.csv")
-            # if "trips" in self.data_collector.data_container.observations_tables:
-            #     self.data_collector.data_container.save_observations_to_csv("trips",
-            #                                         "trips_observations_df.csv")
-            #
-            # self.data_collector.data_container.save_observations_to_csv("events",
-            #                                         "events_observations_df.csv")
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()

@@ -4,10 +4,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class State(object):
+class State:
 
-    def __init__(self, env):
-        env_deep_copy = copy.deepcopy(env)
+    def __init__(self, env_copy):
+
+        # for vehicle in env_copy.vehicles:
+        #     if vehicle.route is not None:
+        #         route_copy = copy.copy(vehicle.route)
+        #         route_copy.previous_stops = []
+        #         route_copy.alighted_legs = []
+        #
+        #         vehicle.route = route_copy
+
+        env_deep_copy = copy.deepcopy(env_copy)
 
         self.current_time = env_deep_copy.current_time
         self.trips = env_deep_copy.trips
