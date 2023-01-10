@@ -164,7 +164,7 @@ class CAPFormatter:
 
     def format_cap(self, max_connection_time):
         self.__preformat()
-        self.__filter()
+        # self.__filter()
         self.__add_boarding_type(max_connection_time)
 
         return self.__cap_df
@@ -210,8 +210,10 @@ class CAPFormatter:
         return self.__cap_df
 
     def __filter(self):
+
         stop_times_grouped_by_id = self.__stop_times_df.groupby("trip_id")
         stops_by_trip_series = stop_times_grouped_by_id["stop_id"].apply(list)
+
         cap_with_stops_list_df = self.__cap_df.merge(
             stops_by_trip_series, left_on="S_VEHJOBID_IDJOURNALIER",
             right_index=True)

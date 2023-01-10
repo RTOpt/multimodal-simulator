@@ -20,6 +20,7 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--connections", help="path to output file that "
                                                     "will contain the "
                                                     "available connections.")
+    # Example: -c ../../data/fixed_line/stl/available_connections/available_connections_0p5.json
     args = parser.parse_args()
 
     # CAPRequestsGenerator
@@ -46,4 +47,4 @@ if __name__ == '__main__':
             max_distance)
 
     # Save to file
-    available_connections_extractor.save_to_json(args.connections)
+    # available_connections_extractor.save_to_json(args.connections)

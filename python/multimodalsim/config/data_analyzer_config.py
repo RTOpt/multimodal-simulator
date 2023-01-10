@@ -1,8 +1,12 @@
 from multimodalsim.config.config import Config
 
+import os
+
 
 class DataAnalyzerConfig(Config):
-    def __init__(self, config_file="config/ini/data_analyzer.ini"):
+    def __init__(self,
+                 config_file=os.path.join(os.path.dirname(__file__),
+                                          "ini/data_analyzer.ini")):
         super().__init__(config_file)
 
     @property

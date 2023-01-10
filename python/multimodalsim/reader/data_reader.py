@@ -230,8 +230,11 @@ class GTFSReader(DataReader):
                 release_time = int(row[self.__trips_columns["release_time"]])
                 ready_time = int(row[self.__trips_columns["ready_time"]])
                 due_time = int(row[self.__trips_columns["due_time"]])
-                legs_stops_pairs_list = literal_eval(
-                    row[self.__trips_columns["legs"]])
+
+                legs_stops_pairs_list = None
+                if len(row) - 1 == self.__trips_columns["legs"]:
+                    legs_stops_pairs_list = literal_eval(
+                        row[self.__trips_columns["legs"]])
 
                 # logger.warning("{}: {}".format(type(legs_stops_pairs_list),
                 #                                legs_stops_pairs_list))
@@ -242,21 +245,21 @@ class GTFSReader(DataReader):
                             LabelLocation(origin), LabelLocation(destination),
                             nb_passengers, release_time, ready_time, due_time)
 
-                leg_number = 1
-                legs = []
-                for stops_pair in legs_stops_pairs_list:
-                    leg_id = trip_id + "_" + str(leg_number)
-                    first_stop_id = str(stops_pair[0])
-                    second_stop_id = str(stops_pair[1])
+                if legs_stops_pairs_list is not None:
+                    leg_number = 1
+                    legs = []
+                    for stops_pair in legs_stops_pairs_list:
+                        leg_id = trip_id + "_" + str(leg_number)
+                        first_stop_id = str(stops_pair[0])
+                        second_stop_id = str(stops_pair[1])
 
-                    leg = Leg(leg_id, LabelLocation(first_stop_id),
-                              LabelLocation(second_stop_id),
-                              nb_passengers, release_time,
-                              ready_time, due_time, trip)
-                    legs.append(leg)
-                    leg_number += 1
-
-                trip.assign_legs(legs)
+                        leg = Leg(leg_id, LabelLocation(first_stop_id),
+                                  LabelLocation(second_stop_id),
+                                  nb_passengers, release_time,
+                                  ready_time, due_time, trip)
+                        legs.append(leg)
+                        leg_number += 1
+                    trip.assign_legs(legs)
 
                 trips.append(trip)
                 nb_requests += 1
@@ -314,9 +317,8 @@ class GTFSReader(DataReader):
 
         for node1 in self.__network_graph.nodes:
             for node2 in self.__network_graph.nodes:
-                if node1[0] in available_connections \
-                        and node2[0] in available_connections[
-                    node1[0]] \
+                if (node1[0] == node2[0] or node1[0] in available_connections
+                    and node2[0] in available_connections[node1[0]]) \
                         and node1[1] != node2[1]:
                     # Nodes correspond to same stop but different vehicles
                     if (node2[3] - node1[2]) >= freeze_interval:

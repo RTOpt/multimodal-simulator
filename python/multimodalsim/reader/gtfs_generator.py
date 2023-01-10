@@ -91,7 +91,8 @@ class GTFSGenerator:
         stops_df.rename({self.__stop_id_col: "stop_id",
                          self.__stop_name_col: "stop_name",
                          self.__stop_lon_col: "stop_lon",
-                         self.__stop_lat_col: "stop_lat"})
+                         self.__stop_lat_col: "stop_lat"}, axis=1,
+                        inplace=True)
 
         if gtfs_folder is not None:
             self.__save_to_file(stops_df, "stops.txt",
@@ -148,6 +149,9 @@ class GTFSGenerator:
             stop_times_with_date_df["arrival_time"].astype(int)
         stop_times_with_date_df["departure_time"] = \
             stop_times_with_date_df["departure_time"].astype(int)
+
+        stop_times_with_date_df = \
+            self.__correct_stop_times_df(stop_times_with_date_df)
 
         if gtfs_folder is not None:
             self.__save_to_file(stop_times_with_date_df, "stop_times.txt",
@@ -343,3 +347,29 @@ class GTFSGenerator:
         stop_times_all_dates_df = full_stop_times_df[gtfs_columns]
 
         return stop_times_all_dates_df
+
+    def __correct_stop_times_df(self, stop_times_df):
+
+        # departure_time should always be greater than arrival_time
+        stop_times_df["departure_time"] = stop_times_df.apply(
+            lambda x: x["departure_time"] if x["departure_time"] >= x[
+                "arrival_time"] else x["arrival_time"], axis=1)
+
+        # arrival_time of next stop should always be greater than
+        # departure_time of current stop
+        stop_times_df["arrival_time_lead"] = stop_times_df.groupby(
+            [self.__date_col, "trip_id"])["arrival_time"].shift(-1)
+        stop_times_df["departure_time"] = stop_times_df.apply(
+            lambda x: x["departure_time"] if x["arrival_time_lead"] >= x[
+                "departure_time"] else x["arrival_time"], axis=1)
+
+        # Ignore remaining stops for which arrival_time of next stop is lower
+        # than departure_time of current stop. (May happen if arrival_time of
+        # current stop is greater than arrival time of next stop)
+        stop_times_df = stop_times_df[
+            stop_times_df["arrival_time_lead"] >= stop_times_df[
+                "departure_time"]]
+
+        stop_times_df = stop_times_df.drop("arrival_time_lead", axis=1)
+
+        return stop_times_df
