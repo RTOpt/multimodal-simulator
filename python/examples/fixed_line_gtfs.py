@@ -23,8 +23,11 @@ if __name__ == '__main__':
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
+    # Generate the network from GTFS files.
+    g = data_reader.get_network_graph()
+
     # Initialize the optimizer.
-    splitter = MultimodalSplitter()
+    splitter = MultimodalSplitter(g)
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter)
 

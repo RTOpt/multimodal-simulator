@@ -114,9 +114,6 @@ class ActionEvent(Event):
 
         return self._process(env)
 
-    # def _process(self, env):
-    #     return super()._process()
-
 
 class TimeSyncEvent(Event):
 

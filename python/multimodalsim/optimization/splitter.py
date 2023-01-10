@@ -75,7 +75,8 @@ class MultimodalSplitter(Splitter):
                  freeze_interval=5):
         super().__init__()
         self.__network_graph = network_graph
-        self.__available_connections = available_connections
+        self.__available_connections = available_connections \
+            if available_connections is not None else []
         self.__freeze_interval = freeze_interval
         self.__trip = None
         self.__state = None

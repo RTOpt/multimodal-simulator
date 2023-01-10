@@ -1,8 +1,12 @@
 from multimodalsim.config.config import Config
 
+import os
+
 
 class GTFSGeneratorConfig(Config):
-    def __init__(self, config_file="config/ini/gtfs_generator.ini"):
+    def __init__(self,
+                 config_file=os.path.join(os.path.dirname(__file__),
+                                          "ini/gtfs_generator.ini")):
         super().__init__(config_file)
 
     @property
