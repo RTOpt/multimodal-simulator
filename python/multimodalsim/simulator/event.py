@@ -1,5 +1,6 @@
 import functools
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -9,6 +10,8 @@ class Event(object):
     """An event with event_number occurs at a specific time ``event_time``
     and involves a specific event type ``event_type``. Comparing two events
     amounts to figuring out which event occurs first """
+
+    MAX_PRIORITY = 1000
 
     def __init__(self, event_name, queue, event_time=None, event_priority=5,
                  index=None):
@@ -29,6 +32,12 @@ class Event(object):
 
         if event_priority < 0:
             raise ValueError("The parameter event_priority must be positive!")
+
+        if event_priority > self.MAX_PRIORITY:
+            event_priority = self.MAX_PRIORITY
+            logger.warning(
+                "event_priority ({}) must be smaller than MAX_PRIORITY ({})"
+                .format(event_priority, self.MAX_PRIORITY))
 
         self.__priority = 1 - 1 / (1 + event_priority)
 
@@ -107,3 +116,50 @@ class ActionEvent(Event):
 
     # def _process(self, env):
     #     return super()._process()
+
+
+class TimeSyncEvent(Event):
+
+    def __init__(self, queue, event_time, speed, event_priority=None,
+                 event_name=None):
+        if event_priority is None:
+            event_priority = self.MAX_PRIORITY
+        if event_name is None:
+            event_name = "TimeSyncEvent"
+        super().__init__(event_name, queue, event_time, event_priority)
+
+        current_time = queue.env.current_time
+        self.__event_timestamp = time.time() \
+                                 + (event_time - current_time) / speed
+        self.__time_slept = None
+
+    def process(self, env):
+        current_timestamp = time.time()
+        self.__time_slept = self.__event_timestamp - current_timestamp
+        if self.__time_slept > 0:
+            time.sleep(self.__time_slept)
+        self._process(env)
+
+    def _process(self, env):
+        return str(self.__time_slept)
+
+
+class RecurrentTimeSyncEvent(TimeSyncEvent):
+    def __init__(self, queue, event_time, speed,
+                 time_step, event_priority=None):
+        super().__init__(queue, event_time, speed, event_priority,
+                         event_name="RecurrentTimeSyncEvent")
+
+        self.__event_time = event_time
+        self.__queue = queue
+        self.__speed = speed
+        self.__time_step = time_step
+        self.__event_priority = event_priority
+
+    def _process(self, env):
+        if not self.__queue.is_empty():
+            RecurrentTimeSyncEvent(
+                self.__queue, self.__event_time + self.__time_step, self.__speed,
+                self.__time_step, self.__event_priority).add_to_queue()
+
+        return super()._process(env)

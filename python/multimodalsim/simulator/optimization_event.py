@@ -20,8 +20,8 @@ class Optimize(ActionEvent):
 
     def _process(self, env):
 
-        state_copy = env.get_state_copy()
-        env.optimization.state = State(state_copy)
+        env_state_deepcopy = env.get_new_state()
+        env.optimization.state = State(env_state_deepcopy)
 
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)

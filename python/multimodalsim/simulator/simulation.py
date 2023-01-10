@@ -1,11 +1,12 @@
 import logging
 
+from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.simulator.environment import Environment
+from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
 
 from multimodalsim.simulator.passenger_event import PassengerRelease
 from multimodalsim.simulator.vehicle_event import VehicleReady
-from multimodalsim.observer.data_collector import StandardDataCollector
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +14,14 @@ logger = logging.getLogger(__name__)
 class Simulation(object):
 
     def __init__(self, opt, trips, vehicles, network=None,
-                 environment_observer=None, available_connections=None):
+                 environment_observer=None, config=None):
 
         self.__env = Environment(opt, network)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
-        self.__available_connections = available_connections
+
+        config = SimulationConfig() if config is None else config
+        self.__load_config(config)
 
         for vehicle in vehicles:
             VehicleReady(vehicle, self.__queue).add_to_queue()
@@ -26,19 +29,34 @@ class Simulation(object):
         for trip in trips:
             PassengerRelease(trip, self.__queue).add_to_queue()
 
+        first_vehicle_event_time = self.__find_smallest_release_time(vehicles)
+        first_event_time = self.__find_smallest_release_time(
+            trips, first_vehicle_event_time)
+
+        self.__env.current_time = first_event_time
+
+        RecurrentTimeSyncEvent(self.__queue, first_event_time,
+                               self.__speed,
+                               self.__time_step).add_to_queue()
+
     @property
     def data_collectors(self):
         return self.__environment_observer.data_collectors
 
-    def simulate(self):
+    def simulate(self, max_time=None):
+        max_time = self.__max_time if max_time is None else max_time
+
         # main loop of the simulation
         while not self.__queue.is_empty():
             current_event = self.__queue.pop()
 
+            self.__env.current_time = current_event.time
+
+            if max_time is not None and self.__env.current_time > max_time:
+                break
+
             self.__visualize_environment(current_event, current_event.index,
                                          current_event.priority)
-
-            self.__env.current_time = current_event.time
 
             process_event = current_event.process(self.__env)
             logger.debug("process_event: {}".format(process_event))
@@ -47,6 +65,23 @@ class Simulation(object):
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
+
+    def __load_config(self, config):
+        self.__max_time = config.max_time
+        self.__speed = config.speed
+        self.__time_step = config.time_step
+
+    def __find_smallest_release_time(self, objects_list,
+                                     smallest_release_time=None):
+        if smallest_release_time is None:
+            smallest_release_time = objects_list[0].release_time \
+                if len(objects_list) > 0 else None
+
+        for obj in objects_list:
+            if obj.release_time < smallest_release_time:
+                smallest_release_time = obj.release_time
+
+        return smallest_release_time
 
     def __visualize_environment(self, current_event=None, event_index=None,
                                 event_priority=None):

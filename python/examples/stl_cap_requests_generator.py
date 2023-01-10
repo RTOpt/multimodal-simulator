@@ -31,9 +31,9 @@ if __name__ == '__main__':
     # Save to file
     stl_cap_requests_generator.save_to_csv(args.requests)
     requests_sample_file_path = "../../data/fixed_line/stl/requests/" \
-                                "stl_requests_1000.csv"
+                                "stl_requests_100.csv"
     stl_cap_requests_generator.save_to_csv(requests_sample_file_path,
-                                           requests_df.sample(1000))
+                                           requests_df.sample(100))
 
     # AvailableConnectionsExtractor
     logger.info("AvailableConnectionsExtractor")

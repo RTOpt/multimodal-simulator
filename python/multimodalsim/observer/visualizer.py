@@ -14,8 +14,9 @@ class Visualizer(object):
 
 class ConsoleVisualizer(Visualizer):
 
-    def __init__(self):
+    def __init__(self, data_analyzer=None):
         super().__init__()
+        self.__data_analyzer = data_analyzer
         self.__last_time = None
 
     def visualize_environment(self, env, current_event=None, event_index=None,
@@ -27,6 +28,9 @@ class ConsoleVisualizer(Visualizer):
 
         if logger.parent.level == logging.DEBUG:
             self.__print_debug(env, current_event, event_index, event_priority)
+
+        # if self.__data_analyzer is not None:
+        #     self.__print_statistics()
 
     def __print_debug(self, env, current_event, event_index, event_priority):
 
@@ -117,3 +121,10 @@ class ConsoleVisualizer(Visualizer):
                                 trip.due_time, current_leg, previous_legs,
                                 next_legs))
             logger.debug("***************\n")
+
+    def __print_statistics(self):
+        logger.info("nb_trips: {}, nb_vehicles: {}, distance: {}, ghg-e: {}"
+                    .format(self.__data_analyzer.nb_trips,
+                            self.__data_analyzer.nb_vehicles,
+                            self.__data_analyzer.total_distance_travelled,
+                            self.__data_analyzer.total_ghg_e))

@@ -3,10 +3,11 @@ import logging
 import cProfile
 import pstats
 
+import networkx as nx
+
 from logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
-    StandardEnvironmentObserver, EnvironmentObserver
-from multimodalsim.observer.visualizer import ConsoleVisualizer
+    StandardEnvironmentObserver
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from optimization.dispatcher import ShuttleGreedyDispatcher, \
     FixedLineDispatcher
@@ -43,7 +44,10 @@ def add_arguments(parser):
                                                     "containing the available "
                                                     "connections")
     parser.add_argument("-g", "--graph", help="path to the file containing the"
-                                              " network graph object.")
+                                              " network graph object")
+    parser.add_argument("-o", "--output", help="path to the directory that "
+                                               "will contain simulation "
+                                               "results")
 
 
 def check_arguments(args):
@@ -100,22 +104,41 @@ def print_statistics(data_container):
     events_table_name = "events"
     data_analyzer = FixedLineDataAnalyzer(data_container)
     description_df = data_analyzer.get_description(events_table_name)
-    logger.debug(description_df)
+    logger.info(description_df)
 
-    logger.debug("nb_events: {}".format(data_analyzer.nb_events))
-    logger.debug("nb_event_types: {}".format(data_analyzer.nb_event_types))
-    logger.debug("nb_events_by_type: \n{}".format(data_analyzer.
+    logger.info("nb_events: {}".format(data_analyzer.nb_events))
+    logger.info("nb_event_types: {}".format(data_analyzer.nb_event_types))
+    logger.info("nb_events_by_type: \n{}".format(data_analyzer.
                                                   nb_events_by_type))
-    logger.debug("nb_trips: {}".format(data_analyzer.nb_trips))
-    logger.debug("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
+    logger.info("nb_trips: {}".format(data_analyzer.nb_trips))
+    logger.info("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
 
-    logger.debug(data_analyzer.get_vehicle_status_duration_statistics())
-    logger.debug(data_analyzer.get_trip_status_duration_statistics())
-    logger.debug(data_analyzer.get_boardings_alightings_stats())
-    logger.debug(data_analyzer.get_nb_legs_by_trip_stats())
-    logger.debug(data_analyzer.get_trip_duration_stats())
-    logger.debug(data_analyzer.get_route_duration_stats())
-    logger.debug(data_analyzer.get_max_load_by_vehicle())
+    logger.info(data_analyzer.get_vehicle_status_duration_statistics())
+    logger.info(data_analyzer.get_trip_status_duration_statistics())
+    logger.info(data_analyzer.get_boardings_alightings_stats())
+    logger.info(data_analyzer.get_nb_legs_by_trip_stats())
+    logger.info(data_analyzer.get_trip_duration_stats())
+    logger.info(data_analyzer.get_route_duration_stats())
+    logger.info(data_analyzer.get_max_load_by_vehicle())
+
+
+def extract_simulation_output(simulation, output_folder):
+    data_container = None
+    if len(simulation.data_collectors) > 0:
+        logger.debug("DataContainer:")
+        data_container = simulation.data_collectors[0].data_container
+        print_statistics(data_container)
+
+    if data_container is not None and output_folder is not None:
+        if "vehicles" in data_container.observations_tables:
+            data_container.save_observations_to_csv(
+                "vehicles", output_folder + "vehicles_observations_df.csv")
+        if "trips" in data_container.observations_tables:
+            data_container.save_observations_to_csv(
+                "trips", output_folder + "trips_observations_df.csv")
+        if "events" in data_container.observations_tables:
+            data_container.save_observations_to_csv(
+                "events", output_folder + "events_observations_df.csv")
 
 
 def main():
@@ -163,6 +186,7 @@ def main():
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
             # RTC: fixed --gtfs --gtfs-folder ../../data/fixed_line/gtfs_rtc/ -r ../../data/fixed_line/requests_gtfs_rtc/small_requests.csv --log-level INFO
             # STL: fixed --gtfs --gtfs-folder ../../data/fixed_line/stl/gtfs/generated/2019-11-01/ -r ../../data/fixed_line/stl/gtfs/generated/2019-11-01/day_requests.csv --log-level INFO
+
         else:
             # Parameters example: fixed -r
             # ../../data/fixed_line/bus/requests_v1.csv -v
@@ -181,9 +205,18 @@ def main():
                 logger.info("No available connections file!")
                 available_connections = []
 
+            if args.graph:
+                g = nx.read_gpickle(args.graph)
+            else:
+                logger.info("Generate network graph...")
+                g = data_reader.get_network_graph(
+                    available_connections=available_connections)
+                g_path = "../../data/fixed_line/stl/network_graph/" \
+                         "bus_network_graph.txt"
+                nx.write_gpickle(g, g_path)
+
             splitter = MultimodalSplitter(
-                graph_file_path=args.graph,
-                available_connections=available_connections)
+                network_graph=g, available_connections=available_connections)
         else:
             splitter = OneLegSplitter()
         dispatcher = FixedLineDispatcher()
@@ -204,23 +237,7 @@ def main():
                             environment_observer=environment_observer)
     simulation.simulate()
 
-    if len(simulation.data_collectors) > 0:
-        logger.debug("DataContainer:")
-        data_container = simulation.data_collectors[0].data_container
-
-        data_container.save_observations_to_csv("vehicles",
-                                                "vehicles_observations_df.csv")
-        data_container.save_observations_to_csv("trips",
-                                                "trips_observations_df.csv")
-        data_container.save_observations_to_csv("events",
-                                                "events_observations_df.csv")
-
-        # print_statistics(data_container)
-
-
-def test():
-    print("test()")
-    return "END"
+    extract_simulation_output(simulation, args.output)
 
 
 if __name__ == '__main__':
