@@ -2,12 +2,14 @@ import csv
 import ast
 import logging
 import json
+from ast import literal_eval
 from datetime import datetime, timedelta
-from functools import reduce
 
-from multimodalsim.config.config import DataReaderConfig
+import networkx as nx
+
+from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
-from multimodalsim.simulator.request import Trip
+from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
     Vehicle, Route
 
@@ -178,23 +180,29 @@ class BusDataReader(DataReader):
 
 class GTFSReader(DataReader):
     def __init__(self, data_folder, requests_file_path,
+                 stops_file_name="stops.txt",
                  stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt",
                  trips_file_name="trips.txt",
-                 config_file="config/gtfs_data_reader.ini"):
+                 config=None):
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
+        self.__stops_path = data_folder + stops_file_name
         self.__stop_times_path = data_folder + stop_times_file_name
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
 
-        config = DataReaderConfig(config_file)
+        config = DataReaderConfig() if config is None else config
         self.__trips_columns = config.get_trips_columns()
 
-        self.__vehicles_release_time = None
-
         self.__CAPACITY = 10
+
+        self.__stop_by_stop_id_dict = None
+        self.__stop_times_by_trip_id_dict = None
+        self.__service_dates_dict = None
+        self.__trip_service_dict = None
+        self.__network_graph = None
 
     def get_trips(self):
         trips = []
@@ -215,44 +223,110 @@ class GTFSReader(DataReader):
                 # due_time = self.__get_timestamp_from_date_and_time_strings(
                 #     due_date_string, due_time_string)
 
+                trip_id = str(row[self.__trips_columns["id"]])
+                origin = str(row[self.__trips_columns["origin"]])
+                destination = str(row[self.__trips_columns["destination"]])
+                nb_passengers = int(row[self.__trips_columns["nb_passengers"]])
                 release_time = int(row[self.__trips_columns["release_time"]])
                 ready_time = int(row[self.__trips_columns["ready_time"]])
                 due_time = int(row[self.__trips_columns["due_time"]])
+                legs_stops_pairs_list = literal_eval(
+                    row[self.__trips_columns["legs"]])
 
-                trip = Trip(str(row[self.__trips_columns["id"]]),
-                            LabelLocation(str(
-                                row[self.__trips_columns["origin"]])),
-                            LabelLocation(str(
-                                row[self.__trips_columns["destination"]])),
-                            int(row[self.__trips_columns["nb_passengers"]]),
-                            release_time, ready_time, due_time)
+                # logger.warning("{}: {}".format(type(legs_stops_pairs_list),
+                #                                legs_stops_pairs_list))
+                # logger.warning("{}: {}".format(type(legs_stops_pairs_list[0][0]),
+                #                                legs_stops_pairs_list[0][0]))
+
+                trip = Trip(trip_id,
+                            LabelLocation(origin), LabelLocation(destination),
+                            nb_passengers, release_time, ready_time, due_time)
+
+                leg_number = 1
+                legs = []
+                for stops_pair in legs_stops_pairs_list:
+                    leg_id = trip_id + "_" + str(leg_number)
+                    first_stop_id = str(stops_pair[0])
+                    second_stop_id = str(stops_pair[1])
+
+                    leg = Leg(leg_id, LabelLocation(first_stop_id),
+                              LabelLocation(second_stop_id),
+                              nb_passengers, release_time,
+                              ready_time, due_time, trip)
+                    legs.append(leg)
+                    leg_number += 1
+
+                trip.assign_legs(legs)
 
                 trips.append(trip)
                 nb_requests += 1
 
         return trips
 
-    def get_vehicles(self):
+    def get_vehicles(self, release_time_interval=900):
+        self.__read_stops()
         self.__read_stop_times()
         self.__read_calendar_dates()
         self.__read_trips()
-        self.__calculate_vehicles_release_time()
 
         vehicles = []
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict. \
                 items():
-            service_id = self.__trip_service_dict[trip_id]
-            dates_list = self.__service_dates_dict[service_id]
-            for date in dates_list:
-                vehicle, next_stops = self.__get_vehicle_and_next_stops(
-                    trip_id, stop_time_list, date)
+            vehicle, next_stops = self.__get_vehicle_and_next_stops(
+                trip_id, stop_time_list, release_time_interval)
 
-                vehicle.route = Route(vehicle, next_stops)
+            vehicle.route = Route(vehicle, next_stops)
 
-                vehicles.append(vehicle)
+            vehicles.append(vehicle)
 
         return vehicles
+
+    def get_network_graph(self, available_connections=None, freeze_interval=5):
+
+        available_connections = {} if available_connections is None \
+            else available_connections
+
+        if self.__stop_times_by_trip_id_dict is None:
+            self.__read_stop_times()
+
+        logger.debug("get_network_graph")
+
+        self.__network_graph = nx.DiGraph()
+
+        for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict. \
+                items():
+
+            first_stop_time = stop_time_list[0]
+            previous_node = (first_stop_time.stop_id, first_stop_time.trip_id,
+                             first_stop_time.arrival_time,
+                             first_stop_time.departure_time)
+
+            for stop_time in stop_time_list:
+
+                current_node = (stop_time.stop_id, stop_time.trip_id,
+                                stop_time.arrival_time,
+                                stop_time.departure_time)
+                self.__network_graph.add_edge(
+                    previous_node, current_node,
+                    weight=current_node[2] - previous_node[2])
+                previous_node = current_node
+
+        for node1 in self.__network_graph.nodes:
+            for node2 in self.__network_graph.nodes:
+                if node1[0] in available_connections \
+                        and node2[0] in available_connections[
+                    node1[0]] \
+                        and node1[1] != node2[1]:
+                    # Nodes correspond to same stop but different vehicles
+                    if (node2[3] - node1[2]) >= freeze_interval:
+                        # Departure time of the second node is greater than or
+                        # equal to the arrival time of the first
+                        # node. A connection is possible.
+                        self.__network_graph.add_edge(
+                            node1, node2, weight=node2[3] - node1[2])
+
+        return self.__network_graph
 
     def get_available_connections(self, locations_connected_comp_file_path):
 
@@ -269,48 +343,50 @@ class GTFSReader(DataReader):
         return available_connections
 
     def __get_vehicle_and_next_stops(self, trip_id, stop_time_list,
-                                     date_string):
+                                     release_time_interval):
 
         vehicle_id = trip_id
 
-        # The release time is considered to midnight of the first service date.
-        release_time = self.__vehicles_release_time
-
         start_stop_time = stop_time_list[0]  # Initial stop
-        # start_stop_arrival_time = \
-        #     self.__get_timestamp_from_date_and_time_strings(
-        #         date_string, start_stop_time.arrival_time)
-        # start_stop_departure_time = \
-        #     self.__get_timestamp_from_date_and_time_strings(
-        #         date_string, start_stop_time.departure_time)
 
         start_stop_arrival_time = int(start_stop_time.arrival_time)
         start_stop_departure_time = int(start_stop_time.departure_time)
 
-        start_stop_location = LabelLocation(start_stop_time.stop_id)
-        start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
-                          start_stop_location)
+        start_stop_gtfs = self.__stop_by_stop_id_dict[start_stop_time.stop_id]
+        start_stop_location = LabelLocation(start_stop_time.stop_id,
+                                            start_stop_gtfs.stop_lon,
+                                            start_stop_gtfs.stop_lat)
+        start_stop_shape_dist_traveled = \
+            float(start_stop_time.shape_dist_traveled) \
+            if start_stop_time.shape_dist_traveled is not None else None
 
-        next_stops = self.__get_next_stops(stop_time_list, date_string)
+        start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
+                          start_stop_location, start_stop_shape_dist_traveled)
+
+        next_stops = self.__get_next_stops(stop_time_list)
+
+        release_time = start_stop_arrival_time - release_time_interval
 
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
                           self.__CAPACITY, release_time)
 
         return vehicle, next_stops
 
-    def __get_next_stops(self, stop_time_list, date_string):
+    def __get_next_stops(self, stop_time_list):
         next_stops = []
         for stop_time in stop_time_list[1:]:
-            # arrival_time = self.__get_timestamp_from_date_and_time_strings(
-            #     date_string, stop_time.arrival_time)
-            # departure_time = self.__get_timestamp_from_date_and_time_strings(
-            #     date_string, stop_time.departure_time)
-
             arrival_time = int(stop_time.arrival_time)
             departure_time = int(stop_time.departure_time)
+            shape_dist_traveled = float(stop_time.shape_dist_traveled) \
+                if stop_time.shape_dist_traveled is not None else None
 
-            next_stop = Stop(arrival_time, departure_time, LabelLocation(
-                stop_time.stop_id))
+            stop_gtfs = self.__stop_by_stop_id_dict[
+                stop_time.stop_id]
+            next_stop = Stop(arrival_time, departure_time,
+                             LabelLocation(stop_time.stop_id,
+                                           stop_gtfs.stop_lon,
+                                           stop_gtfs.stop_lat),
+                             shape_dist_traveled)
             next_stops.append(next_stop)
 
         return next_stops
@@ -326,13 +402,22 @@ class GTFSReader(DataReader):
 
         return timestamp
 
+    def __read_stops(self):
+        self.__stop_by_stop_id_dict = {}
+        with open(self.__stops_path, 'r') as stops_file:
+            stops_reader = csv.reader(stops_file, delimiter=',')
+            next(stops_reader, None)
+            for stops_row in stops_reader:
+                stop = self.GTFSStop(*stops_row)
+                self.__stop_by_stop_id_dict[stop.stop_id] = stop
+
     def __read_stop_times(self):
         self.__stop_times_by_trip_id_dict = {}
         with open(self.__stop_times_path, 'r') as stop_times_file:
             stop_times_reader = csv.reader(stop_times_file, delimiter=',')
             next(stop_times_reader, None)
             for stop_times_row in stop_times_reader:
-                stop_time = self.StopTime(*stop_times_row)
+                stop_time = self.GTFSStopTime(*stop_times_row)
                 if stop_time.trip_id in self.__stop_times_by_trip_id_dict:
                     self.__stop_times_by_trip_id_dict[stop_time.trip_id] \
                         .append(stop_time)
@@ -354,15 +439,6 @@ class GTFSReader(DataReader):
                 else:
                     self.__service_dates_dict[service_id] = [date]
 
-    def __calculate_vehicles_release_time(self):
-
-        service_dates = list(reduce(lambda x, y: x + y, list(
-            self.__service_dates_dict.values())))
-        service_dates_timestamps = list(map(lambda x: datetime.strptime(
-            x, "%Y%m%d").timestamp(), service_dates))
-        # self.__vehicles_release_time = min(service_dates_timestamps)
-        self.__vehicles_release_time = 0
-
     def __read_trips(self):
         self.__trip_service_dict = {}
         with open(self.__trips_path, 'r') as trips_file:
@@ -373,13 +449,22 @@ class GTFSReader(DataReader):
                 trip_id = trips_row[2]
                 self.__trip_service_dict[trip_id] = service_id
 
-    class StopTime:
+    class GTFSStop:
+        def __init__(self, stop_id, stop_name, stop_lon, stop_lat):
+            self.stop_id = stop_id
+            self.stop_name = stop_name
+            self.stop_lon = float(stop_lon)
+            self.stop_lat = float(stop_lat)
+
+    class GTFSStopTime:
         def __init__(self, trip_id, arrival_time, departure_time, stop_id,
-                     stop_sequence, pickup_type, drop_off_type):
+                     stop_sequence, pickup_type, drop_off_type,
+                     shape_dist_traveled=None):
             self.trip_id = trip_id
-            self.arrival_time = arrival_time
-            self.departure_time = departure_time
+            self.arrival_time = int(arrival_time)
+            self.departure_time = int(departure_time)
             self.stop_id = stop_id
             self.stop_sequence = stop_sequence
             self.pickup_type = pickup_type
             self.drop_off_type = drop_off_type
+            self.shape_dist_traveled = shape_dist_traveled

@@ -1,6 +1,7 @@
-from multimodalsim.config.config import DataContainerConfig
-from multimodalsim.observer.data_collector import StandardDataCollector
+from multimodalsim.observer.data_collector import StandardDataCollector, \
+    DataContainer
 from multimodalsim.observer.visualizer import ConsoleVisualizer
+from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 
 
 class EnvironmentObserver:
@@ -33,22 +34,11 @@ class EnvironmentObserver:
 class StandardEnvironmentObserver(EnvironmentObserver):
 
     def __init__(self):
+        data_container = DataContainer()
 
-        data_collector = self.__get_standard_data_collector()
+        super().__init__(data_collectors=StandardDataCollector(data_container),
+                         visualizers=ConsoleVisualizer(
+                             data_analyzer=
+                             FixedLineDataAnalyzer(data_container)))
 
-        super().__init__(data_collectors=data_collector,
-                         visualizers=ConsoleVisualizer())
-
-    def __get_standard_data_collector(self):
-
-        config = DataContainerConfig()
-
-        data_collector = StandardDataCollector(vehicles_columns=config.
-                                               get_vehicles_columns(),
-                                               trips_columns=config.
-                                               get_trips_columns(),
-                                               events_columns=config.
-                                               get_events_columns())
-
-        return data_collector
 

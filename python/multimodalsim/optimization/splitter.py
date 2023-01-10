@@ -71,26 +71,19 @@ class OneLegSplitter(Splitter):
 
 class MultimodalSplitter(Splitter):
 
-    def __init__(self, graph_file_path=None, available_connections=None,
+    def __init__(self, network_graph, available_connections=None,
                  freeze_interval=5):
         super().__init__()
+        self.__network_graph = network_graph
         self.__available_connections = available_connections
         self.__freeze_interval = freeze_interval
         self.__trip = None
         self.__state = None
 
-        if graph_file_path is not None:
-            self.__load_graph_from_file(graph_file_path)
-        else:
-            self.__bus_network_graph = None
-
     def split(self, trip, state):
 
         self.__state = state
         self.__trip = trip
-
-        if self.__bus_network_graph is None:
-            self.__create_graph_from_state()
 
         optimal_legs = []
 
@@ -112,55 +105,9 @@ class MultimodalSplitter(Splitter):
 
         return optimal_legs
 
-    def __create_graph_from_state(self):
-
-        logger.debug("__create_graph_from_state")
-
-        self.__bus_network_graph = nx.DiGraph()
-
-        for vehicle in self.__state.vehicles:
-
-            if vehicle.route.current_stop is not None:
-                first_stop = vehicle.route.current_stop
-                remaining_stops = vehicle.route.next_stops
-            else:
-                first_stop = vehicle.route.next_stops[0]
-                remaining_stops = vehicle.route.next_stops[1:]
-
-            first_node = (first_stop.location.label, vehicle.id,
-                          first_stop.arrival_time, first_stop.departure_time)
-
-            for stop in remaining_stops:
-                second_node = (stop.location.label, vehicle.id,
-                               stop.arrival_time, stop.departure_time)
-                self.__bus_network_graph.add_edge(
-                    first_node, second_node,
-                    weight=second_node[2] - first_node[2])
-                first_node = (stop.location.label, vehicle.id,
-                              stop.arrival_time, stop.departure_time)
-
-        for node1 in self.__bus_network_graph.nodes:
-            for node2 in self.__bus_network_graph.nodes:
-                if node1[0] in self.__available_connections \
-                        and node2[0] in self.__available_connections[node1[0]]\
-                        and node1[1] != node2[1]:
-                    # Nodes correspond to same stop but different vehicles
-                    if (node2[3] - node1[2]) >= self.__freeze_interval:
-                        # Departure time of the second node is greater than or
-                        # equal to the arrival time of the first
-                        # node. A connection is possible.
-                        self.__bus_network_graph.add_edge(
-                            node1, node2, weight=node2[3] - node1[2])
-
-    def __load_graph_from_file(self, file_path):
-        self.__bus_network_graph = pickle.load(open(file_path, 'rb'))
-
-    def save_graph_to_file(self, file_path):
-        pickle.dump(self.__bus_network_graph, open(file_path, 'wb'))
-
     def __find_potential_source_nodes(self, trip):
         potential_source_nodes = []
-        for node in self.__bus_network_graph.nodes():
+        for node in self.__network_graph.nodes():
             if node[0] == trip.origin.label and node[3] >= trip.ready_time:
                 potential_source_nodes.append(node)
 
@@ -168,7 +115,7 @@ class MultimodalSplitter(Splitter):
 
     def __find_potential_target_nodes(self, trip):
         potential_target_nodes = []
-        for node in self.__bus_network_graph.nodes():
+        for node in self.__network_graph.nodes():
             if node[0] == trip.destination.label and node[2] <= trip.due_time:
                 potential_target_nodes.append(node)
 
@@ -180,7 +127,7 @@ class MultimodalSplitter(Splitter):
         logger.debug("__find_feasible_paths")
 
         distance_dict, path_dict = nx.multi_source_dijkstra(
-            self.__bus_network_graph, set(potential_source_nodes))
+            self.__network_graph, set(potential_source_nodes))
         feasible_paths = []
         for node, distance in distance_dict.items():
             if node in potential_target_nodes and self.__check_path_feasibility(path_dict[node]):

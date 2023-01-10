@@ -64,8 +64,8 @@ class Vehicle(object):
 
     @route.setter
     def route(self, route):
-        # if self.__route is not None:
-        #     raise ValueError("Vehicle {} has already a route.".format(self.id))
+        if self.__route is not None:
+            raise ValueError("Vehicle {} has already a route.".format(self.id))
         self.__route = route
 
 
@@ -213,7 +213,7 @@ class Route(object):
 
     def nb_free_places(self):
         """Returns the number of places remaining in the vehicle"""
-        return self.__capacity - self.__load
+        return self.__vehicle.capacity - self.__load
 
     def assign_leg(self, leg):
         """Assigns a new leg to the route"""
@@ -259,7 +259,8 @@ class Stop(object):
         (e.g., GPS coordinates)
     """
 
-    def __init__(self, arrival_time, departure_time, location):
+    def __init__(self, arrival_time, departure_time, location,
+                 cumulative_distance=None):
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -270,6 +271,7 @@ class Stop(object):
         self.__passengers_to_alight = []
         self.__alighted_passengers = []
         self.__location = location
+        self.__cumulative_distance = cumulative_distance
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -348,6 +350,10 @@ class Stop(object):
     def location(self):
         return self.__location
 
+    @property
+    def cumulative_distance(self):
+        return self.__cumulative_distance
+
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the
         vehicle """
@@ -394,9 +400,11 @@ class GPSLocation(Location):
 
 
 class LabelLocation(Location):
-    def __init__(self, label):
+    def __init__(self, label, lon=None, lat=None):
         super().__init__()
         self.label = label
+        self.lon = lon
+        self.lat = lat
 
     def __str__(self):
         return self.label

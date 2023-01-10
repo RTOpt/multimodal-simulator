@@ -21,9 +21,9 @@ class PassengerRelease(Event):
         env.add_trip(self.__trip)
         env.add_non_assigned_trip(self.__trip)
 
-        legs = env.optimization.split(self.__trip, env)
-
-        self.__trip.assign_legs(legs)
+        if self.__trip.current_leg is None:
+            legs = env.optimization.split(self.__trip, env)
+            self.__trip.assign_legs(legs)
 
         optimization_event_process.Optimize(
             env.current_time, self.queue).add_to_queue()

@@ -1,6 +1,8 @@
 import copy
 import logging
 
+from multimodalsim.simulator.status import VehicleStatus, PassengersStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,6 @@ class Environment(object):
         """
 
     def __init__(self, optimization, network=None):
-        self.__old_non_assigned_trips = set()
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -164,45 +165,37 @@ class Environment(object):
                                         in self.__non_assigned_vehicles
                                         if veh.id != vehicle_id]
 
-    def get_state_copy(self, max_time_interval=7200):
+    def get_new_state(self):
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
 
-        origins_set = set()
-        destinations_set = set()
-        for trip in state_copy.__non_assigned_trips:
-            if trip.current_leg is not None:
-                origins_set.add(str(trip.current_leg.origin))
-                destinations_set.add(str(trip.current_leg.destination))
+        state_copy.__vehicles = \
+            self.__get_non_complete_vehicles(state_copy.__vehicles)
+        state_copy.__assigned_vehicles = \
+            self.__get_non_complete_vehicles(state_copy.__assigned_vehicles)
 
-        vehicles_copy = []
-        for vehicle in state_copy.__vehicles:
-            next_stops_locations = {str(stop.location) for stop
-                                    in vehicle.route.next_stops}
+        state_copy.__trips = self.__get_non_complete_trips(state_copy.__trips)
+        state_copy.__assigned_trips = \
+            self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-            current_stop_location = str(vehicle.route.current_stop.location) \
-                if vehicle.route.current_stop is not None else None
+        state_deepcopy = copy.deepcopy(state_copy)
 
-            # Copy vehicle only if departure time is within max_time_interval
-            # and its current stop or one of its next stop corresponds to the
-            # origin or the destination of the leg of a non-assigned trip.
-            if vehicle.route.next_stops \
-                    and (vehicle.route.next_stops[0].departure_time
-                         - self.current_time) < max_time_interval \
-                    and (len(origins_set.intersection(next_stops_locations))
-                         > 0 or current_stop_location in origins_set) \
-                    and (len(destinations_set.intersection(next_stops_locations))
-                         > 0):
-                vehicles_copy.append(vehicle)
+        return state_deepcopy
 
-        state_copy.__assigned_vehicles = []
-        state_copy.__non_assigned_vehicles = []
-        state_copy.__vehicles = vehicles_copy
+    def __get_non_complete_vehicles(self, vehicles):
+        non_complete_vehicles = []
+        for vehicle in vehicles:
+            if vehicle.route.status != VehicleStatus.COMPLETE:
+                non_complete_vehicles.append(vehicle)
+        return non_complete_vehicles
 
-        self.__old_non_assigned_trips = copy.copy(self.__non_assigned_trips)
-
-        return state_copy
+    def __get_non_complete_trips(self, trips):
+        non_complete_trips = []
+        for trip in trips:
+            if trip.status != PassengersStatus.COMPLETE:
+                non_complete_trips.append(trip)
+        return non_complete_trips
 
     @property
     def network(self):

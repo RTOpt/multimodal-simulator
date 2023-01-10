@@ -7,6 +7,7 @@ import multimodalsim.simulator.request
 import multimodalsim.simulator.vehicle
 import multimodalsim.simulator.passenger_event
 import multimodalsim.simulator.vehicle_event
+from multimodalsim.config.data_collector_config import DataCollectorConfig
 from multimodalsim.simulator.event import ActionEvent
 from multimodalsim.simulator.status import PassengersStatus
 
@@ -24,14 +25,11 @@ class DataCollector:
 
 class StandardDataCollector(DataCollector):
 
-    def __init__(self, data_container=None, vehicles_columns=None,
-                 trips_columns=None, events_columns=None):
+    def __init__(self, data_container=None, config=None):
         super().__init__()
 
-        if data_container is not None:
-            self.__data_container = data_container
-        else:
-            self.__data_container = DataContainer()
+        self.__data_container = DataContainer() if data_container is None \
+            else data_container
 
         self.__env = None
         self.__event_index = None
@@ -39,12 +37,8 @@ class StandardDataCollector(DataCollector):
         self.__current_event = None
         self.__time = None
 
-        self.__set_vehicles_columns(vehicles_columns)
-        self.__set_trips_columns(trips_columns)
-        self.__set_events_columns(events_columns)
-
-        self.__modified_trips = []
-        self.__modified_vehicles = []
+        config = DataCollectorConfig() if config is None else config
+        self.__load_config(config)
 
     @property
     def data_container(self):
@@ -75,59 +69,15 @@ class StandardDataCollector(DataCollector):
 
         self.__collect_events_data()
 
-        if self.__modified_trips is not None:
-            self.__modified_trips = []
-        if self.__modified_vehicles is not None:
-            self.__modified_vehicles = []
-
-    def __set_vehicles_columns(self, vehicles_columns):
-
-        if vehicles_columns is None:
-            vehicles_columns = {"id": "id",
-                                "time": "time",
-                                "status": "status",
-                                "previous_stops": "previous_stops",
-                                "current_stop": "current_stop",
-                                "next_stops": "next_stops",
-                                "assigned_legs": "assigned_legs",
-                                "onboard_legs": "onboard_legs",
-                                "alighted_legs": "alighted_legs"}
-
-        self.__data_container.set_columns("vehicles", vehicles_columns)
-
-    def __set_trips_columns(self, trips_columns):
-
-        if trips_columns is None:
-            trips_columns = {"id": "id",
-                             "time": "time",
-                             "status": "status",
-                             "assigned_vehicle": "assigned_vehicle",
-                             "current_location": "current_location",
-                             "previous_legs": "previous_legs",
-                             "current_leg": "current_leg",
-                             "next_legs": "next_legs"}
-
-        self.__data_container.set_columns("trips", trips_columns)
-
-    def __set_events_columns(self, events_columns):
-
-        if events_columns is None:
-            events_columns = {"name": "name",
-                              "time": "time",
-                              "priority": "priority",
-                              "index": "index"}
-
-        self.__data_container.set_columns("events", events_columns)
+    def __load_config(self, config):
+        self.__data_container.set_columns("vehicles",
+                                          config.get_vehicles_columns())
+        self.__data_container.set_columns("trips",
+                                          config.get_trips_columns())
+        self.__data_container.set_columns("events",
+                                          config.get_events_columns())
 
     def __collect_vehicles_data(self, route):
-
-        # self.__modified_vehicles = None
-        #
-        # vehicles = self.__modified_vehicles \
-        #     if self.__modified_vehicles is not None \
-        #     else self.__env.vehicles
-
-        # for vehicle in vehicles:
 
         previous_stops = [str(stop.location) for stop
                           in route.previous_stops]
@@ -140,6 +90,12 @@ class StandardDataCollector(DataCollector):
         onboard_legs = [leg.id for leg in route.onboard_legs]
         alighted_legs = [leg.id for leg in route.alighted_legs]
 
+        cumulative_distance = route.current_stop.cumulative_distance \
+            if route.current_stop is not None else None
+
+        stop_lon = current_stop.lon if current_stop is not None else None
+        stop_lat = current_stop.lat if current_stop is not None else None
+
         obs_dict = {"id": route.vehicle.id,
                     "time": self.__time,
                     "status": route.status,
@@ -148,18 +104,17 @@ class StandardDataCollector(DataCollector):
                     "next_stops": next_stops,
                     "assigned_legs": assigned_legs,
                     "onboard_legs": onboard_legs,
-                    "alighted_legs": alighted_legs}
+                    "alighted_legs": alighted_legs,
+                    "cumulative_distance": cumulative_distance,
+                    "stop_lon": stop_lon,
+                    "stop_lat": stop_lat}
 
         self.__data_container.add_observation(
             "vehicles", obs_dict, "id",
             no_rep_on_keys=["id", "time"])
 
     def __collect_trips_data(self, trip):
-        # for trip in self.__env.trips:
-        # self.__modified_trips = None
-        # trips = self.__modified_trips if self.__modified_trips is not None \
-        #     else self.__env.trips
-        # for trip in trips:
+
         assigned_vehicle_id = self.__get_assigned_vehicle_id(trip)
         current_location = self.__get_current_location(trip)
 

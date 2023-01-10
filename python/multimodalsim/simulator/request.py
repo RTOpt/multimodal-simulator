@@ -85,7 +85,7 @@ class Leg(Request):
     """
 
     def __init__(self, id, origin, destination, nb_passengers, release_time,
-                 ready_time, due_time, trip):
+                 ready_time, due_time, trip=None):
         super().__init__(id, origin, destination, nb_passengers, release_time,
                          ready_time, due_time)
         self.__assigned_vehicle = None
@@ -110,6 +110,10 @@ class Leg(Request):
                 "Request ({}) is already assigned to a vehicle ({}).".format(
                     self.id, self.__assigned_vehicle.id))
         self.__assigned_vehicle = vehicle
+
+    @property
+    def trip(self):
+        return self.__trip
 
     @property
     def trip(self):
@@ -148,7 +152,7 @@ class Trip(Request):
 
         self.__previous_legs = []
         self.__current_leg = None
-        self.__next_legs = []
+        self.__next_legs = None
 
         self.__state_machine = PassengerStateMachine(self)
 
