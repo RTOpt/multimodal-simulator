@@ -8,7 +8,8 @@ class Visualizer(object):
     def __init__(self):
         pass
 
-    def visualize_environment(self, env):
+    def visualize_environment(self, env, current_event=None, event_index=None,
+                              event_priority=None):
         pass
 
 
