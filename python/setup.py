@@ -12,5 +12,5 @@ setup(
     author='',
     author_email='',
     description='',
-    install_requires=['pip', 'setuptools', 'networkx']
+    install_requires=['pip', 'setuptools', 'networkx', 'numpy', 'pandas']
 )
