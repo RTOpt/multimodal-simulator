@@ -17,6 +17,10 @@ class SimulationConfig(Config):
         return int(self._config_parser["time_sync_event"]["time_step"])
 
     @property
+    def update_position_time_step(self):
+        return int(self._config_parser["update_position_event"]["time_step"])
+
+    @property
     def max_time(self):
         if len(self._config_parser["general"]["max_time"]) == 0:
             max_time = None

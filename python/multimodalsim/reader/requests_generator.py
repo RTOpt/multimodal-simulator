@@ -86,6 +86,7 @@ class CAPRequestsGenerator(RequestsGenerator):
                     request_row = row[[self.__id_col,
                                        self.__origin_stop_id_col,
                                        self.__boarding_time_col]]
+                    first_row = False
 
                 request_legs.append(
                     (row[self.__origin_stop_id_col], row[self.__destination_stop_id_col],
@@ -108,7 +109,8 @@ class CAPRequestsGenerator(RequestsGenerator):
     def __format_requests(self, release_time_delta, ready_time_delta,
                           due_time_delta):
 
-        self.__requests_df["origin"] = self.__requests_df[self.__origin_stop_id_col]
+        self.__requests_df["origin"] = \
+            self.__requests_df[self.__origin_stop_id_col]
         self.__requests_df["destination"] = \
             self.__requests_df[self.__destination_stop_id_col]
         self.__requests_df["nb_passengers"] = 1
@@ -164,7 +166,7 @@ class CAPFormatter:
 
     def format_cap(self, max_connection_time):
         self.__preformat()
-        # self.__filter()
+        self.__filter()
         self.__add_boarding_type(max_connection_time)
 
         return self.__cap_df

@@ -11,7 +11,7 @@ from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
-    Vehicle, Route
+    Vehicle, Route, TimeCoordinatesLocation
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,7 @@ class GTFSReader(DataReader):
                  stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt",
                  trips_file_name="trips.txt",
+                 coordinates_file_path=None,
                  config=None):
         super().__init__()
         self.__data_folder = data_folder
@@ -192,6 +193,8 @@ class GTFSReader(DataReader):
         self.__stop_times_path = data_folder + stop_times_file_name
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
+        self.__coordinates_path = coordinates_file_path \
+            if coordinates_file_path is not None else None
 
         config = DataReaderConfig() if config is None else config
         self.__trips_columns = config.get_trips_columns()
@@ -236,11 +239,6 @@ class GTFSReader(DataReader):
                     legs_stops_pairs_list = literal_eval(
                         row[self.__trips_columns["legs"]])
 
-                # logger.warning("{}: {}".format(type(legs_stops_pairs_list),
-                #                                legs_stops_pairs_list))
-                # logger.warning("{}: {}".format(type(legs_stops_pairs_list[0][0]),
-                #                                legs_stops_pairs_list[0][0]))
-
                 trip = Trip(trip_id,
                             LabelLocation(origin), LabelLocation(destination),
                             nb_passengers, release_time, ready_time, due_time)
@@ -271,6 +269,9 @@ class GTFSReader(DataReader):
         self.__read_stop_times()
         self.__read_calendar_dates()
         self.__read_trips()
+
+        if self.__coordinates_path is not None:
+            self.__read_coordinates()
 
         vehicles = []
 
@@ -310,6 +311,12 @@ class GTFSReader(DataReader):
                 current_node = (stop_time.stop_id, stop_time.trip_id,
                                 stop_time.arrival_time,
                                 stop_time.departure_time)
+
+                if current_node[2] - previous_node[2] < 0:
+                    logger.warning("{}: previous_node: {} -> current_node: {}"
+                                   .format(current_node[2] - previous_node[2],
+                                           previous_node, current_node))
+
                 self.__network_graph.add_edge(
                     previous_node, current_node,
                     weight=current_node[2] - previous_node[2])
@@ -325,6 +332,10 @@ class GTFSReader(DataReader):
                         # Departure time of the second node is greater than or
                         # equal to the arrival time of the first
                         # node. A connection is possible.
+                        if node2[3] - node1[2] < 0:
+                            logger.warning(
+                                "{}: node2: {} -> node1: {}".format(
+                                    node2[3] - node1[2], node2, node1))
                         self.__network_graph.add_edge(
                             node1, node2, weight=node2[3] - node1[2])
 
@@ -369,8 +380,11 @@ class GTFSReader(DataReader):
 
         release_time = start_stop_arrival_time - release_time_interval
 
+        time_positions = self.__coordinates_by_trip_id_dict[trip_id] \
+            if self.__coordinates_path is not None else None
+
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
-                          self.__CAPACITY, release_time)
+                          self.__CAPACITY, release_time, time_positions)
 
         return vehicle, next_stops
 
@@ -450,6 +464,25 @@ class GTFSReader(DataReader):
                 service_id = trips_row[1]
                 trip_id = trips_row[2]
                 self.__trip_service_dict[trip_id] = service_id
+
+    def __read_coordinates(self):
+        self.__coordinates_by_trip_id_dict = {}
+        with open(self.__coordinates_path, 'r') as coordinates_file:
+            coordinates_reader = csv.reader(coordinates_file, delimiter=',')
+            next(coordinates_reader, None)
+            for coordinates_row in coordinates_reader:
+                trip_id = coordinates_row[0]
+                time = int(coordinates_row[1])
+                lon = float(coordinates_row[2])
+                lat = float(coordinates_row[3])
+                time_coordinates = TimeCoordinatesLocation(time, lon, lat)
+
+                if trip_id in self.__coordinates_by_trip_id_dict:
+                    self.__coordinates_by_trip_id_dict[trip_id].append(
+                        time_coordinates)
+                else:
+                    self.__coordinates_by_trip_id_dict[trip_id] = \
+                        [time_coordinates]
 
     class GTFSStop:
         def __init__(self, stop_id, stop_name, stop_lon, stop_lat):

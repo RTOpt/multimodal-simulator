@@ -160,3 +160,23 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
                 self.__time_step, self.__event_priority).add_to_queue()
 
         return super()._process(env)
+
+
+class PauseEvent(Event):
+    def __init__(self, queue, event_time, event_priority=None):
+        if event_priority is None:
+            event_priority = self.MAX_PRIORITY
+        super().__init__("PauseEvent", queue, event_time, event_priority)
+
+    def _process(self, env):
+        return "Simulation paused"
+
+
+class ResumeEvent(Event):
+    def __init__(self, queue, event_time, event_priority=None):
+        if event_priority is None:
+            event_priority = self.MAX_PRIORITY
+        super().__init__("ResumeEvent", queue, event_time, event_priority)
+
+    def _process(self, env):
+        return "Simulation resumed"
