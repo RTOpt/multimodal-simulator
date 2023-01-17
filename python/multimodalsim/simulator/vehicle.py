@@ -23,13 +23,16 @@ class Vehicle(object):
             time at which the vehicle is added to the environment.
     """
 
-    def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
+    def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
+                 time_positions=None):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
+        self.__time_positions = time_positions
+        self.__current_position = None
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -67,6 +70,29 @@ class Vehicle(object):
         if self.__route is not None:
             raise ValueError("Vehicle {} has already a route.".format(self.id))
         self.__route = route
+
+    @property
+    def position(self):
+        return self.__current_position
+
+    def update_position(self, current_time):
+        current_position = None
+        if self.__time_positions is not None:
+            for time_position in self.__time_positions:
+                if time_position.time > current_time:
+                    break
+                current_position = time_position
+        elif self.route is not None and self.route.current_stop is not None:
+            # If no time_positions are available, use location of current_stop.
+            current_position = self.route.current_stop.location
+        elif self.route is not None and len(self.route.previous_stops) > 0:
+            # If current_stop is None, use location of the most recent
+            # previous_stops.
+            current_position = self.route.previous_stops[-1].location
+
+        self.__current_position = current_position
+
+        return current_position
 
 
 class Route(object):
@@ -229,6 +255,8 @@ class Route(object):
         memo[id(self)] = result
         for k, v in self.__dict__.items():
             if k == "_Route__previous_stops":
+                setattr(result, k, [])
+            elif k == "_Route__alighted_legs":
                 setattr(result, k, [])
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
@@ -412,6 +440,23 @@ class LabelLocation(Location):
     def __eq__(self, other):
         if isinstance(other, LabelLocation):
             return self.label == other.label
+        return False
+
+
+class TimeCoordinatesLocation(Location):
+    def __init__(self, time, lon, lat):
+        super().__init__()
+        self.time = time
+        self.lon = lon
+        self.lat = lat
+
+    def __str__(self):
+        return "{}: ({},{})".format(self.time, self.lon, self.lat)
+
+    def __eq__(self, other):
+        if isinstance(other, TimeCoordinatesLocation):
+            return self.time == other.time and self.lon == other.lon \
+                   and self.lat == other.lat
         return False
 
 

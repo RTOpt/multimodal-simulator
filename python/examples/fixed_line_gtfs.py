@@ -18,7 +18,12 @@ if __name__ == '__main__':
     gtfs_folder_path = "../../data/fixed_line/gtfs/gtfs/"
     requests_file_path = "../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
 
-    data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
+    # Set to None if coordinates of the vehicles are not available.
+    coordinates_file_path = "../../data/fixed_line/gtfs/coordinates" \
+                            "/coordinates_30s.csv"
+
+    data_reader = GTFSReader(gtfs_folder_path, requests_file_path,
+                             coordinates_file_path=coordinates_file_path)
 
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()

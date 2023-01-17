@@ -264,8 +264,10 @@ class GTFSGenerator:
         return trip_id_set
 
     def __get_full_stop_times_df(self, stop_times_with_orig_time_filtered_df):
-        stop_times_orig_time_grouped_by_line_seq = stop_times_with_orig_time_filtered_df.groupby(
-            [self.__line_col, self.__direction_col, self.__stop_sequence_col])
+        stop_times_orig_time_grouped_by_line_seq = \
+            stop_times_with_orig_time_filtered_df.groupby(
+                [self.__line_col, self.__direction_col,
+                 self.__stop_sequence_col])
         bus_id_by_line_seq_series = stop_times_orig_time_grouped_by_line_seq[
             self.__stop_id_col].first()
         mean_shape_dist_traveled_by_line_seq_series = \
@@ -278,13 +280,14 @@ class GTFSGenerator:
             stop_times_orig_time_grouped_by_line_seq[
                 "dep_time_from_orig"].mean()
 
-        line_seq_df = pd.DataFrame({"stop_id": bus_id_by_line_seq_series,
-                                    "mean_shape_dist_traveled":
-                                        mean_shape_dist_traveled_by_line_seq_series,
-                                    "arr_time_from_orig":
-                                        arr_time_from_orig_by_line_seq_series,
-                                    "dep_time_from_orig":
-                                        dep_time_from_orig_by_line_seq_series})
+        line_seq_df = pd.DataFrame(
+            {"stop_id": bus_id_by_line_seq_series,
+             "mean_shape_dist_traveled":
+                 mean_shape_dist_traveled_by_line_seq_series,
+             "arr_time_from_orig":
+                 arr_time_from_orig_by_line_seq_series,
+             "dep_time_from_orig":
+                 dep_time_from_orig_by_line_seq_series})
         trip_id_by_line_series = \
             stop_times_with_orig_time_filtered_df.groupby(
                 [self.__line_col, self.__direction_col])[
@@ -312,9 +315,9 @@ class GTFSGenerator:
              self.__departure_time_col: "dep_orig"},
             axis=1)
 
-        full_stop_times_df = full_stop_times_df.merge(arr_dep_trip_id_df,
-                                                      left_on=self.__trip_id_col,
-                                                      right_on=self.__trip_id_col)
+        full_stop_times_df = full_stop_times_df.merge(
+            arr_dep_trip_id_df, left_on=self.__trip_id_col,
+            right_on=self.__trip_id_col)
 
         return full_stop_times_df
 
@@ -333,6 +336,39 @@ class GTFSGenerator:
             lambda x: x[self.__shape_dist_traveled_col] if not pd.isnull(
                 x[self.__shape_dist_traveled_col])
             else x["mean_shape_dist_traveled"], axis=1)
+
+        # Correct departure_time in case the "travel time" is negative.
+        full_stop_times_df["arrival_time_lead"] = \
+            full_stop_times_df.groupby(["trip_id"])["arrival_time"].shift(-1)
+        full_stop_times_df["travel_time"] = \
+            full_stop_times_df["arrival_time_lead"] \
+            - full_stop_times_df["departure_time"]
+        full_stop_times_df["departure_time"] = full_stop_times_df.apply(
+            lambda x: x["departure_time"] if x["travel_time"] >= 0
+            else x["arrival_time"], axis=1)
+
+        #
+        full_stop_times_grouped_by_voy_id = \
+            full_stop_times_df.groupby("trip_id")
+        full_stop_times_df["prev_arrival_times"] = \
+            full_stop_times_grouped_by_voy_id["arrival_time"].transform(
+                lambda x: [list(x.iloc[:e]) for e, i in enumerate(x)])
+        full_stop_times_df["prev_departure_times"] = \
+            full_stop_times_grouped_by_voy_id["departure_time"].transform(
+                lambda x: [list(x.iloc[:e]) for e, i in enumerate(x)])
+        full_stop_times_df["max_prev_arrival_times"] = full_stop_times_df[
+            "prev_arrival_times"].apply(
+            lambda x: max(x) if len(x) > 0 else None)
+        full_stop_times_df["max_prev_departure_times"] = full_stop_times_df[
+            "prev_departure_times"].apply(
+            lambda x: max(x) if len(x) > 0 else None)
+
+        full_stop_times_df = full_stop_times_df[
+            full_stop_times_df["arrival_time"] >= full_stop_times_df[
+                "max_prev_arrival_times"]]
+        full_stop_times_df = full_stop_times_df[
+            full_stop_times_df["departure_time"] >= full_stop_times_df[
+                "max_prev_departure_times"]]
 
         full_stop_times_df["stop_sequence"] = full_stop_times_df[
             self.__stop_sequence_col]

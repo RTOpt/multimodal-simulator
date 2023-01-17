@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class Optimize(ActionEvent):
-    def __init__(self, time, queue, multiple_optimize_events=False):
+    def __init__(self, time, queue, multiple_optimize_events=False,
+                 batch=None):
+        if batch is not None:
+            # Round to the smallest integer greater than or equal to time that
+            # is also a multiple of batch.
+            time = time + (batch - (time % batch)) % batch
         super().__init__('Optimize', queue, time, event_priority=10,
                          state_machine=queue.env.optimization.state_machine)
         self.__multiple_optimize_events = multiple_optimize_events
@@ -25,6 +30,8 @@ class Optimize(ActionEvent):
 
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
+
+        logger.warning("Optimize: {}".format(env.current_time))
 
         optimization_result = env.optimization.dispatch(env.optimization.state)
 

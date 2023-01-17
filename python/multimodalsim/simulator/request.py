@@ -1,4 +1,5 @@
 import logging
+import copy
 
 from multimodalsim.state_machine.state_machine import PassengerStateMachine
 
@@ -115,10 +116,6 @@ class Leg(Request):
     def trip(self):
         return self.__trip
 
-    @property
-    def trip(self):
-        return self.__trip
-
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
@@ -206,6 +203,17 @@ class Trip(Request):
     def change_leg(self):
         self.__previous_legs.append(self.current_leg)
         self.current_leg = self.next_legs.pop(0)
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_Route__previous_legs":
+                setattr(result, k, [])
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
 
 class PassengerUpdate(object):

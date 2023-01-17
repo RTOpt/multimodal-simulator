@@ -24,7 +24,8 @@ class Simulation(object):
         self.__load_config(config)
 
         for vehicle in vehicles:
-            VehicleReady(vehicle, self.__queue).add_to_queue()
+            VehicleReady(vehicle, self.__queue,
+                         self.__update_position_time_step).add_to_queue()
 
         for trip in trips:
             PassengerRelease(trip, self.__queue).add_to_queue()
@@ -70,6 +71,7 @@ class Simulation(object):
         self.__max_time = config.max_time
         self.__speed = config.speed
         self.__time_step = config.time_step
+        self.__update_position_time_step = config.update_position_time_step
 
     def __find_smallest_release_time(self, objects_list,
                                      smallest_release_time=None):

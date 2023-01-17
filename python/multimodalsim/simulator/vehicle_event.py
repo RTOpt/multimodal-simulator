@@ -2,6 +2,7 @@ import logging
 import copy
 
 from multimodalsim.simulator.event import Event, ActionEvent
+from multimodalsim.simulator.status import VehicleStatus
 from multimodalsim.simulator.vehicle import Route
 
 import multimodalsim.simulator.optimization_event \
@@ -13,9 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class VehicleReady(Event):
-    def __init__(self, vehicle, queue):
+    def __init__(self, vehicle, queue, update_position_time_step=None):
         super().__init__('VehicleReady', queue, vehicle.release_time)
         self.__vehicle = vehicle
+        self.__update_position_time_step = update_position_time_step
 
     @property
     def vehicle(self):
@@ -32,6 +34,12 @@ class VehicleReady(Event):
             add_to_queue()
 
         VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
+
+        if self.__update_position_time_step is not None:
+            VehicleUpdatePositionEvent(
+                self.__vehicle, self.queue,
+                self.time + self.__update_position_time_step,
+                self.__update_position_time_step).add_to_queue()
 
         return 'Vehicle Ready process is implemented'
 
@@ -206,3 +214,25 @@ class VehicleBoarded(Event):
             # before creating the event VehicleDeparture.
 
         return 'Vehicle Boarded process is implemented'
+
+
+class VehicleUpdatePositionEvent(Event):
+    def __init__(self, vehicle, queue, event_time, time_step):
+        super().__init__("VehicleUpdatePositionEvent", queue, event_time)
+
+        self.__vehicle = vehicle
+        self.__event_time = event_time
+        self.__queue = queue
+        self.__time_step = time_step
+
+    def _process(self, env):
+
+        self.__vehicle.update_position(self.__event_time)
+
+        if self.__vehicle.route.status != VehicleStatus.COMPLETE:
+            VehicleUpdatePositionEvent(
+                self.__vehicle, self.__queue,
+                self.__event_time + self.__time_step,
+                self.__time_step).add_to_queue()
+
+        return 'VehicleUpdatePositionEvent processed'

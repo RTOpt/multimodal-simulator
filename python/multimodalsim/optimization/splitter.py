@@ -1,7 +1,6 @@
 import logging
 
 import networkx as nx
-import pickle
 
 from multimodalsim.simulator.request import Leg
 from multimodalsim.simulator.vehicle import LabelLocation
@@ -91,11 +90,6 @@ class MultimodalSplitter(Splitter):
         potential_source_nodes = self.__find_potential_source_nodes(trip)
         potential_target_nodes = self.__find_potential_target_nodes(trip)
 
-        logger.debug(
-            "potential_source_nodes={}".format(potential_source_nodes))
-        logger.debug(
-            "potential_target_nodes={}".format(potential_target_nodes))
-
         if len(potential_source_nodes) != 0 \
                 and len(potential_target_nodes) != 0:
             feasible_paths = self.__find_feasible_paths(potential_source_nodes,
@@ -131,7 +125,8 @@ class MultimodalSplitter(Splitter):
             self.__network_graph, set(potential_source_nodes))
         feasible_paths = []
         for node, distance in distance_dict.items():
-            if node in potential_target_nodes and self.__check_path_feasibility(path_dict[node]):
+            if node in potential_target_nodes \
+                    and self.__check_path_feasibility(path_dict[node]):
                 feasible_paths.append(path_dict[node])
 
         return feasible_paths
