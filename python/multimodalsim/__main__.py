@@ -5,6 +5,12 @@ import pstats
 
 import networkx as nx
 
+import os
+import sys
+
+DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, DIR)
+
 from logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
@@ -160,17 +166,23 @@ def main():
 
     if args.type == "shuttle":
         # Parameters example: shuttle -r
-        # ../../data/shuttle/test0_shuttle/requests.csv -v
-        # ../../data/shuttle/test0_shuttle/vehicles.csv -n
-        # ../../data/shuttle/test0_shuttle/nodes.csv
+        # ../../data/shuttle/test0_shuttle/requests.csv
+        # -v ../../data/shuttle/test0_shuttle/vehicles.csv
+        # -n ../../data/shuttle/test0_shuttle/nodes.csv
+        # -g ../../data/shuttle/test0_shuttle/graph.json
         logger.info("Shuttle")
 
         nodes_file_path = args.nodes
+        graph_from_json_file_path = args.graph
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
-                                        nodes_file_path)
+                                        nodes_file_path,
+                                        graph_from_json_file_path)
         nodes = data_reader.get_nodes()
-        g = create_graph(nodes)
+        if graph_from_json_file_path:
+            g = data_reader.get_json_graph()
+        else:
+            g = create_graph(nodes)
 
         splitter = OneLegSplitter()
         dispatcher = ShuttleGreedyDispatcher(g)
