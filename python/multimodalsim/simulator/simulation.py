@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 class Simulation(object):
 
     def __init__(self, opt, trips, vehicles, network=None,
-                 environment_observer=None, config=None):
+                 environment_observer=None, coordinates=None, config=None):
 
-        self.__env = Environment(opt, network)
+        self.__env = Environment(opt, network=network, coordinates=coordinates)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
 

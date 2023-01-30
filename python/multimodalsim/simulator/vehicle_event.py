@@ -35,7 +35,8 @@ class VehicleReady(Event):
 
         VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
 
-        if self.__update_position_time_step is not None:
+        if env.coordinates is not None and self.__update_position_time_step \
+                is not None:
             VehicleUpdatePositionEvent(
                 self.__vehicle, self.queue,
                 self.time + self.__update_position_time_step,
@@ -227,7 +228,8 @@ class VehicleUpdatePositionEvent(Event):
 
     def _process(self, env):
 
-        self.__vehicle.update_position(self.__event_time)
+        self.__vehicle.position = \
+            env.coordinates.update_position(self.__vehicle, self.__event_time)
 
         if self.__vehicle.route.status != VehicleStatus.COMPLETE:
             VehicleUpdatePositionEvent(

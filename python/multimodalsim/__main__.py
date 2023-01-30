@@ -8,6 +8,7 @@ import networkx as nx
 from logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
+from multimodalsim.simulator.coordinates import CoordinatesOSRM
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from optimization.dispatcher import ShuttleGreedyDispatcher, \
     FixedLineDispatcher
@@ -194,28 +195,28 @@ def main():
             # --log-level DEBUG
             data_reader = BusDataReader(requests_file_path, vehicles_file_path)
 
+        # -c ../../data/fixed_line/stl/available_connections/available_connections_0p25.json
+        # -g ../../data/fixed_line/stl/network_graph/bus_network_graph_20191101.txt
+        logger.info("Available connections file: {}".format(
+            args.connections))
+        if args.connections is not None:
+            available_connections = data_reader.get_available_connections(
+                args.connections)
+        else:
+            # Connections between different stops is impossible.
+            available_connections = []
+
+        if args.graph:
+            g = nx.read_gpickle(args.graph)
+        else:
+            logger.info("Generate network graph...")
+            g = data_reader.get_network_graph(
+                available_connections=available_connections)
+            g_path = "../../data/fixed_line/stl/network_graph/" \
+                     "bus_network_graph_20191101.txt"
+            nx.write_gpickle(g, g_path)
+
         if args.multimodal:
-            # -c ../../data/fixed_line/stl/available_connections/available_connections_0p25.json
-            # -g ../../data/fixed_line/stl/network_graph/bus_network_graph_20191101.txt
-            logger.info("Available connections file: {}".format(
-                args.connections))
-            if args.connections is not None:
-                available_connections = data_reader.get_available_connections(
-                    args.connections)
-            else:
-                # Connections between different stops is impossible.
-                available_connections = []
-
-            if args.graph:
-                g = nx.read_gpickle(args.graph)
-            else:
-                logger.info("Generate network graph...")
-                g = data_reader.get_network_graph(
-                    available_connections=available_connections)
-                g_path = "../../data/fixed_line/stl/network_graph/" \
-                         "bus_network_graph_20191103.txt"
-                nx.write_gpickle(g, g_path)
-
             splitter = MultimodalSplitter(
                 network_graph=g, available_connections=available_connections)
         else:
@@ -234,8 +235,11 @@ def main():
     # environment_observer = \
     #     EnvironmentObserver(visualizers=ConsoleVisualizer())
 
+    coordinates = CoordinatesOSRM()
+
     simulation = Simulation(opt, trips, vehicles, network=g,
-                            environment_observer=environment_observer)
+                            environment_observer=environment_observer,
+                            coordinates=coordinates)
     simulation.simulate()
 
     extract_simulation_output(simulation, args.output)
