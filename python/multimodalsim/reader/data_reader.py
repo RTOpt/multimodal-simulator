@@ -4,6 +4,10 @@ import logging
 import json
 from ast import literal_eval
 from datetime import datetime, timedelta
+import json
+from json import JSONEncoder
+import networkx as nx
+from networkx.readwrite import json_graph
 
 import networkx as nx
 
@@ -28,12 +32,13 @@ class DataReader(object):
 
 
 class ShuttleDataReader(DataReader):
-    def __init__(self, requests_file_path, vehicles_file_path,
-                 nodes_file_path):
+    def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path,
+                 graph_from_json_file_path=None):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
         self.__nodes_file_path = nodes_file_path
+        self.__graph_from_json_file_path = graph_from_json_file_path
 
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
@@ -46,20 +51,20 @@ class ShuttleDataReader(DataReader):
             """
         trips = []
         with open(self.__requests_file_path, 'r') as rFile:
-            reader = csv.reader(rFile, delimiter=';')
-            next(reader, None)
+            csv_dict_reader = csv.DictReader(rFile, delimiter=';')
+            requests_mode_is_car = [row for row in csv_dict_reader if row['mode'] == 'car']
             nb_requests = 1
-            for row in reader:
-                trip = Trip(str(nb_requests),
-                            GPSLocation(Node(None,
-                                             (ast.literal_eval(row[0]),
-                                              ast.literal_eval(row[1])))),
-                            GPSLocation(Node(None,
-                                             (ast.literal_eval(row[2]),
-                                              ast.literal_eval(row[3])))),
-                            int(row[4]),
-                            int(row[5]), int(row[6]), int(row[7]))
-
+            nb_passengers = 1
+            for row in requests_mode_is_car:
+                trip = Trip(nb_requests,
+                            GPSLocation(Node(None, (ast.literal_eval(row['origin_x']),
+                                                                     ast.literal_eval(row['origin_y'])))),
+                            GPSLocation(Node(None, (ast.literal_eval(row['destination_x']), ast.literal_eval(row['destination_y'])))),
+                            nb_passengers,
+                            float(row['departure_time']),
+                            float(row['departure_time'])+60*60*2,
+                            float(row['departure_time'])
+                            )
                 trips.append(trip)
                 nb_requests += 1
 
@@ -73,9 +78,10 @@ class ShuttleDataReader(DataReader):
 
             for row in reader:
                 vehicle_id = int(row[0])
-                start_time = int(row[1])
-                start_stop_location = GPSLocation(Node(None, (ast.literal_eval(
-                    row[2]), ast.literal_eval(row[3]))))
+                start_time = float(row[1])
+                start_stop_location = GPSLocation(
+                    Node(None, (ast.literal_eval(row[2]),
+                                ast.literal_eval(row[3]))))
                 capacity = int(row[4])
 
                 start_stop = Stop(start_time,
@@ -97,10 +103,23 @@ class ShuttleDataReader(DataReader):
             reader = csv.reader(rFile, delimiter=';')
             next(reader, None)
             for row in reader:
-                nodes.append(Node(row[0], (ast.literal_eval(row[1]),
-                                           ast.literal_eval(row[2]))))
+                nodes.append(Node(int(row[0]), (ast.literal_eval(row[1]),
+                                                ast.literal_eval(row[2]))))
 
         return nodes
+
+    def get_json_graph(self):
+        with open(self.__graph_from_json_file_path) as f:
+            js_graph = json.load(f)
+
+            G = json_graph.node_link_graph(js_graph)
+            for node in G.nodes(data=True):
+                coord = (node[1]['pos'][0], node[1]['pos'][1])
+                node[1]['pos'] = coord
+                node[1]['Node'] = Node(node[1]['Node']['id'], coord)
+                #node[1]['Node']['coordinates'] = coord
+
+        return G
 
 
 class BusDataReader(DataReader):

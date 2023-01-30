@@ -1,9 +1,13 @@
 import logging
+from copy import deepcopy
 
 from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.network import get_manhattan_distance, Node
+from multimodalsim.simulator.network import get_euclidean_distance, \
+    get_manhattan_distance, Node
+from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
 from multimodalsim.simulator.vehicle import Stop
 from networkx.algorithms.shortest_paths.generic import shortest_path
+from multimodalsim.optimization.solution_construction import cvrp_pdp_tw_he_obj_cost
 
 logger = logging.getLogger(__name__)
 
@@ -48,99 +52,160 @@ class ShuttleGreedyDispatcher(Dispatcher):
         modified_requests = []
         modified_vehicles = []
 
-        non_assigned_vehicles_sorted_by_departure_time = sorted(
-            non_assigned_vehicles,
-            key=lambda x: x.route.current_stop.departure_time)
+# <<<<<<< HEAD
+#         non_assigned_vehicles_sorted_by_departure_time = sorted(
+#             non_assigned_vehicles,
+#             key=lambda x: x.route.current_stop.departure_time)
+#
+#         all_vehicles_sorted_by_departure_time = sorted(
+#             all_vehicles, key=lambda x: x.route.current_stop.departure_time)
+#
+#         vehicles_sorted_by_departure_time = \
+#             non_assigned_vehicles_sorted_by_departure_time
+#         for req in non_assigned_requests:
+#
+#             if len(vehicles_sorted_by_departure_time) == 0:
+#                 vehicles_sorted_by_departure_time = \
+#                     all_vehicles_sorted_by_departure_time.copy()
+#
+#             # The passenger must be ready before the departure time.
+#             potential_vehicles = list(
+#                 x for x in vehicles_sorted_by_departure_time
+#                 if x.route.current_stop.departure_time > req.ready_time)
+#
+#             logger.debug(
+#                 "potential_vehicles={}".format(list(
+#                     veh.id for veh in potential_vehicles)))
+#
+#             # Assign requests to non-assigned vehicles first.
+#             assigned_vehicle = potential_vehicles.pop(0)
+#             logger.debug("assigned_vehicle.id={}".format(assigned_vehicle.id))
+#             # Asma : The assigned vehicle must be removed from the
+#             # non_assigned_vehicles_sorted_by_departure_time
+#             vehicles_sorted_by_departure_time = [
+#                 x for x in vehicles_sorted_by_departure_time
+#                 if not assigned_vehicle.id == x.id]
+#
+#             path = self.__get_path(
+#                 self.__network, req.origin.gps_coordinates.get_coordinates(),
+#                 req.destination.gps_coordinates.get_coordinates())
+#
+#             # req.assign_route(path)
+#
+#             departure_time = assigned_vehicle.route.current_stop.departure_time
+#
+#             # Asma : temporary solution - the code should be rearranged to
+#             if hasattr(assigned_vehicle.route.current_stop.location,
+#                        'gps_coordinates'):
+#                 previous_node = assigned_vehicle.route.current_stop.location \
+#                     .gps_coordinates
+#             else:
+#                 previous_node = assigned_vehicle.route.current_stop.location
+#
+#             next_stops = []
+#             for node in path:
+#                 distance = get_manhattan_distance(
+#                     previous_node.get_coordinates(), node.get_coordinates())
+#                 if distance > 0:
+#                     # MODIFIED (Patrick): If distance == 0, then the node
+#                     # corresponds to the same node as previous_node (i.e.,
+#                     # the node of current_stop), so we do not have to create
+#                     # a new Stop object. We can reuse
+#                     # assigned_vehicle.route.current_stop.
+#                     arrival_time = departure_time + distance
+#                     departure_time = arrival_time + self.__boarding_time
+#                     location = node
+#                     stop = Stop(arrival_time, departure_time, location)
+#                     logger.debug(
+#                         "{}: id(stop)={} | {} {} {}"
+#                         .format(assigned_vehicle.id, id(stop), arrival_time,
+#                                 departure_time, location))
+#                     next_stops.append(stop)
+#                     previous_node = node
+#
+#             if len(assigned_vehicle.route.next_stops) != 0 \
+#                     and len(next_stops) != 0 \
+#                     and assigned_vehicle.route.next_stops[-1].location \
+#                     .get_coordinates() == \
+#                     next_stops[0].location.get_coordinates():
+#                 assigned_vehicle.route.next_stops.extend(next_stops[1:])
+#             else:
+#                 assigned_vehicle.route.next_stops.extend(next_stops)
+#
+#             req.current_leg.assigned_vehicle = assigned_vehicle
+#             assigned_vehicle.route.assign_leg(req.current_leg)
+#             # req.status = PassengersStatus.ASSIGNED
+#
+#             logger.debug(assigned_vehicle)
+#
+#             logger.debug("assigned_vehicle={}".format(
+#                 req.current_leg.assigned_vehicle.id))
+#             logger.debug("assigned_legs={}".format(
+#                 list(req.id for req in assigned_vehicle.route.assigned_legs)))
+#
+#             request_vehicle_pairs_list.append((req, assigned_vehicle))
+#             modified_requests.append(req)
+#             modified_vehicles.append(assigned_vehicle)
+# =======
+        # Asma : New code
+        if len(non_assigned_requests) > 0:
+            non_assigned_vehicles_sorted_by_departure_time = sorted(non_assigned_vehicles,
+                                                                    key=lambda x: x.route.current_stop.departure_time)
 
-        all_vehicles_sorted_by_departure_time = sorted(
-            all_vehicles, key=lambda x: x.route.current_stop.departure_time)
+            potential_non_assigned_requests = deepcopy(non_assigned_requests)
 
-        vehicles_sorted_by_departure_time = \
-            non_assigned_vehicles_sorted_by_departure_time
-        for req in non_assigned_requests:
+            routes, shuttle_dispatcher = cvrp_pdp_tw_he_obj_cost(self.__network, potential_non_assigned_requests, non_assigned_vehicles_sorted_by_departure_time)
 
-            if len(vehicles_sorted_by_departure_time) == 0:
-                vehicles_sorted_by_departure_time = \
-                    all_vehicles_sorted_by_departure_time.copy()
+            for dispatch in shuttle_dispatcher:
+                assigned_vehicle = deepcopy(dispatch['vehicle'])
+                for req in dispatch['assigned_requests']:
 
-            # The passenger must be ready before the departure time.
-            potential_vehicles = list(
-                x for x in vehicles_sorted_by_departure_time
-                if x.route.current_stop.departure_time > req.ready_time)
+                    path = self.__get_path(self.__network, req.origin.gps_coordinates.get_coordinates(),
+                                           req.destination.gps_coordinates.get_coordinates())
+                    req.assign_route(path)
 
-            logger.debug(
-                "potential_vehicles={}".format(list(
-                    veh.id for veh in potential_vehicles)))
+                    departure_time = assigned_vehicle.route.current_stop.departure_time
+                    if hasattr(assigned_vehicle.route.current_stop.location, 'gps_coordinates'):
+                        previous_node = assigned_vehicle.route.current_stop.location.gps_coordinates
+                    else:
+                        previous_node = assigned_vehicle.route.current_stop.location
+                    # previous_node = assigned_vehicle.start_stop.location.gps_coordinates
 
-            # Assign requests to non-assigned vehicles first.
-            assigned_vehicle = potential_vehicles.pop(0)
-            logger.debug("assigned_vehicle.id={}".format(assigned_vehicle.id))
-            # Asma : The assigned vehicle must be removed from the
-            # non_assigned_vehicles_sorted_by_departure_time
-            vehicles_sorted_by_departure_time = [
-                x for x in vehicles_sorted_by_departure_time
-                if not assigned_vehicle.id == x.id]
+                    next_stops = []
+                    # path = dispatch['route']
+                    for node in path:
+                        if previous_node.get_node_id() != node:
+                            distance = self.__network[previous_node.get_node_id()][node]['length']
+                            if distance > 0:
 
-            path = self.__get_path(
-                self.__network, req.origin.gps_coordinates.get_coordinates(),
-                req.destination.gps_coordinates.get_coordinates())
+                                arrival_time = departure_time + distance
+                                departure_time = arrival_time + self.__boarding_time
+                                location = self.__network.nodes[node]['Node']
+                                # self.__network.nodes[node]['pos']
+                                stop = Stop(None, arrival_time, departure_time, location)
+                                next_stops.append(stop)
+                                previous_node = self.__network.nodes[node]['Node']
 
-            # req.assign_route(path)
+                    if len(assigned_vehicle.route.next_stops) != 0 and len(next_stops) != 0 \
+                                    and assigned_vehicle.route.next_stops[-1].location == \
+                                    next_stops[0].location:
+                        assigned_vehicle.route.next_stops.extend(next_stops[1:])
+                    else:
+                        assigned_vehicle.route.next_stops.extend(next_stops)
 
-            departure_time = assigned_vehicle.route.current_stop.departure_time
+                    req.current_leg.assign_vehicle(assigned_vehicle)
+                    assigned_vehicle.route.assign_leg(req.current_leg)
+                    req.update_status(PassengersStatus.ASSIGNED)
 
-            # Asma : temporary solution - the code should be rearranged to
-            if hasattr(assigned_vehicle.route.current_stop.location,
-                       'gps_coordinates'):
-                previous_node = assigned_vehicle.route.current_stop.location \
-                    .gps_coordinates
-            else:
-                previous_node = assigned_vehicle.route.current_stop.location
+                    logger.debug(assigned_vehicle)
 
-            next_stops = []
-            for node in path:
-                distance = get_manhattan_distance(
-                    previous_node.get_coordinates(), node.get_coordinates())
-                if distance > 0:
-                    # MODIFIED (Patrick): If distance == 0, then the node
-                    # corresponds to the same node as previous_node (i.e.,
-                    # the node of current_stop), so we do not have to create
-                    # a new Stop object. We can reuse
-                    # assigned_vehicle.route.current_stop.
-                    arrival_time = departure_time + distance
-                    departure_time = arrival_time + self.__boarding_time
-                    location = node
-                    stop = Stop(arrival_time, departure_time, location)
-                    logger.debug(
-                        "{}: id(stop)={} | {} {} {}"
-                        .format(assigned_vehicle.id, id(stop), arrival_time,
-                                departure_time, location))
-                    next_stops.append(stop)
-                    previous_node = node
+                    logger.debug("assigned_vehicle={}".format(req.current_leg.assigned_vehicle.id))
+                    logger.debug("assigned_legs={}".format(list(req.req_id for req in
+                                                                assigned_vehicle.route.assigned_legs)))
 
-            if len(assigned_vehicle.route.next_stops) != 0 \
-                    and len(next_stops) != 0 \
-                    and assigned_vehicle.route.next_stops[-1].location \
-                    .get_coordinates() == \
-                    next_stops[0].location.get_coordinates():
-                assigned_vehicle.route.next_stops.extend(next_stops[1:])
-            else:
-                assigned_vehicle.route.next_stops.extend(next_stops)
-
-            req.current_leg.assigned_vehicle = assigned_vehicle
-            assigned_vehicle.route.assign_leg(req.current_leg)
-            # req.status = PassengersStatus.ASSIGNED
-
-            logger.debug(assigned_vehicle)
-
-            logger.debug("assigned_vehicle={}".format(
-                req.current_leg.assigned_vehicle.id))
-            logger.debug("assigned_legs={}".format(
-                list(req.id for req in assigned_vehicle.route.assigned_legs)))
-
-            request_vehicle_pairs_list.append((req, assigned_vehicle))
-            modified_requests.append(req)
-            modified_vehicles.append(assigned_vehicle)
+                    request_vehicle_pairs_list.append((req, assigned_vehicle))
+                    modified_requests.append(req)
+                    modified_vehicles.append(assigned_vehicle)
 
         logger.debug("request_vehicle_pairs_list:")
         for req, veh in request_vehicle_pairs_list:
@@ -169,8 +234,7 @@ class ShuttleGreedyDispatcher(Dispatcher):
                         and not boarding_stop_found:
                     stop.passengers_to_board.append(req)
                     boarding_stop_found = True
-                elif req.destination.gps_coordinates.get_coordinates() \
-                        == stop.location.get_coordinates() \
+                elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates()\
                         and boarding_stop_found and not alighting_stop_found:
                     stop.passengers_to_alight.append(req)
                     alighting_stop_found = True
@@ -186,11 +250,11 @@ class ShuttleGreedyDispatcher(Dispatcher):
         return path
 
     def __get_path(self, G, node1, node2):
-        for node in G.nodes:
-            if node.coordinates == node1:
-                origin = node
-            if node.coordinates == node2:
-                destination = node
+        for node in G.nodes(data=True):
+            if (node[1]['pos'][0],node[1]['pos'][1]) == node1:
+                origin = node[0]
+            if (node[1]['pos'][0],node[1]['pos'][1]) == node2:
+                destination = node[0]
         path = self.__find_shortest_path(G, origin, destination)
         # path_cost = get_manhattan_distance(node1, node2)
         return path

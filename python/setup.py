@@ -16,5 +16,6 @@ setup(
     author_email='',
     description='',
     install_requires=['pip', 'setuptools', 'networkx', 'numpy', 'pandas',
-                      'requests', 'polyline']
+                      'requests', 'polyline', 'pyproj']
 )
+
