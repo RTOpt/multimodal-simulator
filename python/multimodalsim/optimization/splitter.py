@@ -20,52 +20,15 @@ class Splitter(object):
 class OneLegSplitter(Splitter):
 
     def __init__(self):
-        self.__state = None
-        self.__accessibility_matrix = None
         super().__init__()
 
     def split(self, trip, state):
-        self.__state = state
-        if self.__accessibility_matrix is None:
-            self.__create_accessibility_matrix()
 
-        if str(trip.origin) in self.__accessibility_matrix \
-                and str(trip.destination) \
-                in self.__accessibility_matrix[str(trip.origin)]:
-            leg = Leg(trip.id, trip.origin, trip.destination,
-                      trip.nb_passengers, trip.release_time, trip.ready_time,
-                      trip.due_time, trip)
-        else:
-            leg = None
+        leg = Leg(trip.id, trip.origin, trip.destination,
+                  trip.nb_passengers, trip.release_time, trip.ready_time,
+                  trip.due_time, trip)
 
         return [leg]
-
-    def __create_accessibility_matrix(self):
-        logger.debug("__create_graph_from_state")
-
-        self.__accessibility_matrix = {}
-
-        for vehicle in self.__state.vehicles:
-
-            all_stops = []
-            if vehicle.route.current_stop is not None:
-                all_stops.append(vehicle.route.current_stop)
-
-            for stop in vehicle.route.next_stops:
-                all_stops.append(stop)
-
-            if len(all_stops) > 1:
-                for i in range(0, len(all_stops) - 1):
-                    for j in range(i + 1, len(all_stops)):
-                        origin_location = all_stops[i].location
-                        destination_location = all_stops[j].location
-                        if str(origin_location) in self.__accessibility_matrix:
-                            self.__accessibility_matrix[str(origin_location)][
-                                str(destination_location)] = True
-                        else:
-                            self.__accessibility_matrix[
-                                str(origin_location)] = {
-                                str(destination_location): True}
 
 
 class MultimodalSplitter(Splitter):

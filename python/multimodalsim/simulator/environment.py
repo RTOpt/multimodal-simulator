@@ -31,7 +31,7 @@ class Environment(object):
             the optimization algorithm used by the simulation.
         """
 
-    def __init__(self, optimization, network=None):
+    def __init__(self, optimization, network=None, coordinates=None):
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -41,6 +41,7 @@ class Environment(object):
         self.__non_assigned_vehicles = []
         self.__network = network
         self.__optimization = optimization
+        self.__coordinates = coordinates
 
     @property
     def current_time(self):
@@ -204,3 +205,7 @@ class Environment(object):
     @property
     def optimization(self):
         return self.__optimization
+
+    @property
+    def coordinates(self):
+        return self.__coordinates

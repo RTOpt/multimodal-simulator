@@ -23,16 +23,14 @@ class Vehicle(object):
             time at which the vehicle is added to the environment.
     """
 
-    def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
-                 time_positions=None):
+    def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
-        self.__time_positions = time_positions
-        self.__current_position = None
+        self.__position = None
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -73,26 +71,11 @@ class Vehicle(object):
 
     @property
     def position(self):
-        return self.__current_position
+        return self.__position
 
-    def update_position(self, current_time):
-        current_position = None
-        if self.__time_positions is not None:
-            for time_position in self.__time_positions:
-                if time_position.time > current_time:
-                    break
-                current_position = time_position
-        elif self.route is not None and self.route.current_stop is not None:
-            # If no time_positions are available, use location of current_stop.
-            current_position = self.route.current_stop.location
-        elif self.route is not None and len(self.route.previous_stops) > 0:
-            # If current_stop is None, use location of the most recent
-            # previous_stops.
-            current_position = self.route.previous_stops[-1].location
-
-        self.__current_position = current_position
-
-        return current_position
+    @position.setter
+    def position(self, position):
+        self.__position = position
 
 
 class Route(object):
@@ -416,6 +399,8 @@ class GPSLocation(Location):
         # gps_coordinates is an object of type Node
         super().__init__()
         self.gps_coordinates = gps_coordinates
+        self.lon = gps_coordinates.get_coordinates()[0]
+        self.lat = gps_coordinates.get_coordinates()[1]
 
     def __str__(self):
         return "({},{})".format(self.gps_coordinates.get_coordinates()[0],
