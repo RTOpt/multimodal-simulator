@@ -3,7 +3,8 @@ import logging
 from multimodalsim.simulator.event import Event, ActionEvent
 import multimodalsim.simulator.optimization_event \
     as optimization_event_process
-from multimodalsim.simulator.vehicle_event import VehicleBoarded
+from multimodalsim.simulator.vehicle_event import VehicleBoarded, \
+    VehicleAlighted
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,9 @@ class PassengerToBoard(ActionEvent):
         self.__trip = trip
 
     def _process(self, env):
+
+        self.__trip.current_leg.boarding_time = env.current_time
+
         VehicleBoarded(self.__trip, self.queue).add_to_queue()
 
         return 'Passenger To Board process is implemented'
@@ -102,6 +106,10 @@ class PassengerAlighting(ActionEvent):
         self.__trip = trip
 
     def _process(self, env):
+
+        self.__trip.current_leg.alighting_time = env.current_time
+
+        VehicleAlighted(self.__trip.current_leg, self.queue).add_to_queue()
 
         if self.__trip.next_legs is None or len(self.__trip.next_legs) == 0:
             # No connection

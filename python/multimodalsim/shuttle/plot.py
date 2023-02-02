@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import networkx as nx
 from matplotlib.backends.backend_pdf import PdfPages
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def plot_routes(f_routes, G, objective_function_value, R, P, D, distances):
 
@@ -28,12 +32,12 @@ def plot_routes(f_routes, G, objective_function_value, R, P, D, distances):
 
     #colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'Aqua']
     nb_colors = len(f_routes)
-    colors = cm.rainbow(np.linspace(0, 1, nb_colors))
+    colors = iter(cm.rainbow(np.linspace(0, 1, nb_colors)))
     paths = []
     # f_routes = get_routes_dict()
     for i in f_routes.keys():
         paths.append({'route': [(f_routes[i][j], f_routes[i][j + 1]) for j in range(len(f_routes[i]) - 1)],
-                      'color': colors[i]})
+                      'color': next(colors)})
 
     # pos = nx.spring_layout(G, seed=3)
     #pos = {i: j for i, j in zip(G.nodes, coordinates)}

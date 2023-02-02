@@ -13,10 +13,11 @@ class PassengersStatus(Enum):
 class VehicleStatus(Enum):
     """Represents the different status of Vehicles"""
     RELEASE = 1
-    BOARDING = 2
-    ENROUTE = 3
-    ALIGHTING = 4
-    COMPLETE = 5
+    IDLE = 2
+    BOARDING = 3
+    ENROUTE = 4
+    ALIGHTING = 5
+    COMPLETE = 6
 
 
 class OptimizationStatus(Enum):

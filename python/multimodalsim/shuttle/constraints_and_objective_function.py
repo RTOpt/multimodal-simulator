@@ -1,4 +1,6 @@
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 def variables_declaration(V, K, V_p):
@@ -7,21 +9,25 @@ def variables_declaration(V, K, V_p):
     # V_p : set of customers
     # binary represent if the arc i to j is traversed by the vehicle k
     # initialized with False
-    X = [[[False for j in range(len(V))] for i in range(len(V))] for k in range(len(K))]
+    # X = [[[False for j in range(len(V))] for i in range(len(V))] for k in range(len(K))]
+    X = {k.id: [[False for j in range(len(V))] for i in range(len(V))] for k in K}
 
     # binary represent if the vehicle k serve client at vertex i
     # initialized with False
-    Y = [[False for i in range(len(V))] for k in range(len(K))]
+    # Y = [[False for i in range(len(V))] for k in range(len(K))]
+    Y = {k.id: [False for i in range(len(V))] for k in K}
 
     # the moment the vehicle k arrive at vertex i
     # U[k][0] the arrival at the station for pickup
     # and U[k][n+1] arrival at the station for delivery
     # initialized with -1
-    U = [[-1 for i in range(len(V) + 1)] for k in range(len(K))]
+    # U = [[-1 for i in range(len(V) + 1)] for k in range(len(K))]
+    U = {k.id: [-1 for i in range(len(V) + 1)] for k in K}
 
     # the load of vehicle k in vertex i
     # initialized with 0
-    W = [[0 for i in range(len(V))] for k in range(len(K))]
+    # W = [[0 for i in range(len(V))] for k in range(len(K))]
+    W = {k.id: [0 for i in range(len(V))] for k in K}
 
     # travel time for customers at vertex i
     # initialized with 0

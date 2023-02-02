@@ -12,6 +12,7 @@ class Event(object):
     amounts to figuring out which event occurs first """
 
     MAX_PRIORITY = 1000
+    MAX_DELTA_TIME = 7 * 24 * 3600
 
     def __init__(self, event_name, queue, event_time=None, event_priority=5,
                  index=None):
@@ -27,6 +28,11 @@ class Event(object):
                 "WARNING: {}: event_time ({}) is smaller than current_time ("
                 "{})".format(self.name, event_time,
                              self.queue.env.current_time))
+        elif event_time > self.MAX_DELTA_TIME:
+            logger.warning(
+                "WARNING: {}: event_time ({}) is much larger than current_time "
+                "({})".format(self.name, event_time,
+                              self.queue.env.current_time))
         else:
             self.__time = event_time
 
@@ -79,12 +85,24 @@ class Event(object):
     def __lt__(self, other):
         """ Returns True if self.time + self.priority
         < other.time + other.priority"""
-        return self.time + self.priority < other.time + other.priority
+        # return self.time + self.priority < other.time + other.priority
+        result = False
+        if self.time < other.time:
+            result = True
+        elif self.time == other.time and self.priority < other.priority:
+            result = True
+
+        return result
 
     def __eq__(self, other):
         """ Returns True if self.time + self.priority
         == other.time + other.priority"""
-        return self.time + self.priority == other.time + other.priority
+        # return self.time + self.priority == other.time + other.priority
+        result = False
+        if self.time == other.time and self.priority == other.priority:
+            result = True
+
+        return result
 
     def add_to_queue(self):
         self.queue.put(self)
@@ -156,7 +174,8 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
     def _process(self, env):
         if not self.__queue.is_empty():
             RecurrentTimeSyncEvent(
-                self.__queue, self.__event_time + self.__time_step, self.__speed,
+                self.__queue, self.__event_time + self.__time_step,
+                self.__speed,
                 self.__time_step, self.__event_priority).add_to_queue()
 
         return super()._process(env)

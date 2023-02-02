@@ -96,7 +96,10 @@ class ConsoleVisualizer(Visualizer):
                 current_leg = {"O": trip.current_leg.origin.__str__(),
                                "D": trip.current_leg.destination.__str__(),
                                "veh_id":
-                                   trip.current_leg.assigned_vehicle.id} \
+                                   trip.current_leg.assigned_vehicle.id,
+                               "boarding_time": trip.current_leg.boarding_time,
+                               "alighting_time":
+                                   trip.current_leg.alighting_time} \
                     if trip.current_leg.assigned_vehicle is not None \
                     else {"O": trip.current_leg.origin.__str__(),
                           "D": trip.current_leg.destination.__str__()}
@@ -104,7 +107,9 @@ class ConsoleVisualizer(Visualizer):
                 current_leg = None
             previous_legs = [
                 {"O": leg.origin.__str__(), "D": leg.destination.__str__(),
-                 "vehicle": leg.assigned_vehicle.id}
+                 "veh_id": leg.assigned_vehicle.id,
+                 "boarding_time": leg.boarding_time,
+                 "alighting_time": leg.alighting_time}
                 for leg in trip.previous_legs] if hasattr(
                 trip, 'previous_legs') and trip.previous_legs is not None \
                 else None
@@ -122,6 +127,13 @@ class ConsoleVisualizer(Visualizer):
                                 trip.due_time, current_leg, previous_legs,
                                 next_legs))
             logger.debug("***************\n")
+
+        if current_event is not None:
+            logger.debug(
+                "current_time={} | event_time={} | event_index={} | "
+                "current_event={} | event_priority={}".format(
+                    env.current_time, current_event.time, event_index,
+                    current_event, event_priority))
 
     def __print_statistics(self):
         logger.info("nb_trips: {}, nb_vehicles: {}, distance: {}, ghg-e: {}"

@@ -1,14 +1,15 @@
 import logging
 import copy
+import math
 
 from multimodalsim.simulator.event import Event, ActionEvent
 from multimodalsim.simulator.status import VehicleStatus
 from multimodalsim.simulator.vehicle import Route
 
 import multimodalsim.simulator.optimization_event \
-    as optimization_event_process
+    as optimization_event
 import multimodalsim.simulator.passenger_event \
-    as passenger_event_process
+    as passenger_event
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,10 @@ class VehicleReady(Event):
         if self.__vehicle.route is None:
             self.__vehicle.route = Route(self.__vehicle)
 
-        optimization_event_process.Optimize(env.current_time, self.queue). \
+        optimization_event.Optimize(env.current_time, self.queue). \
             add_to_queue()
 
-        VehicleBoarding(self.__vehicle.route, self.queue).add_to_queue()
+        VehicleWaiting(self.__vehicle.route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
                 is not None:
@@ -45,11 +46,10 @@ class VehicleReady(Event):
         return 'Vehicle Ready process is implemented'
 
 
-class VehicleBoarding(ActionEvent):
-    def __init__(self, route, queue):
-        super().__init__('VehicleBoarding', queue,
-                         route.current_stop.departure_time,
-                         event_priority=6,
+class VehicleWaiting(ActionEvent):
+    def __init__(self, route, queue, time=None):
+        time = time if time is not None else queue.env.current_time
+        super().__init__('VehicleBoarding', queue, time,
                          state_machine=route.state_machine)
         self.__route = route
 
@@ -57,19 +57,33 @@ class VehicleBoarding(ActionEvent):
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
-            passengers_to_board_copy = self.__route.current_stop. \
-                passengers_to_board.copy()
-            for req in passengers_to_board_copy:
-                # logger.warning("self.__route.vehicle.id={}".format(
-                #     self.__route.vehicle.id))
-                self.__route.initiate_boarding(req)
-                passenger_event_process.PassengerToBoard(
-                    req, self.queue).add_to_queue()
+            VehicleBoarding(self.__route, self.queue).add_to_queue()
         elif len(self.__route.next_stops) > 0:
             # No passengers to board
-            VehicleDeparture(self.__route, self.queue).add_to_queue()
+            if self.__route.current_stop.departure_time > env.current_time:
+                VehicleWaiting(self.__route, self.queue,
+                               self.__route.current_stop.departure_time).add_to_queue()
+            else:
+                VehicleDeparture(self.__route, self.queue).add_to_queue()
 
-        # Else: No next stop. COMPLETE
+        return 'Vehicle Waiting process is implemented'
+
+
+class VehicleBoarding(ActionEvent):
+    def __init__(self, route, queue):
+        super().__init__('VehicleBoarding', queue,
+                         queue.env.current_time,
+                         state_machine=route.state_machine)
+        self.__route = route
+
+    def _process(self, env):
+
+        passengers_to_board_copy = self.__route.current_stop. \
+            passengers_to_board.copy()
+        for req in passengers_to_board_copy:
+            self.__route.initiate_boarding(req)
+            passenger_event.PassengerToBoard(
+                req, self.queue).add_to_queue()
 
         return 'Vehicle Boarding process is implemented'
 
@@ -104,13 +118,14 @@ class VehicleArrival(ActionEvent):
             passengers_to_alight.copy()
         for trip in passengers_to_alight_copy:
             if trip.current_leg in self.__route.onboard_legs:
-                self.__route.alight(trip)
-                passenger_event_process.PassengerAlighting(
+                self.__route.initiate_alighting(trip)
+                passenger_event.PassengerAlighting(
                     trip, self.queue).add_to_queue()
 
-        VehicleBoarding(self.__route, self.queue).add_to_queue()
+        if len(passengers_to_alight_copy) == 0:
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
 
-        return 'Vehicle Alighting process is implemented'
+        return 'Vehicle Arrival process is implemented'
 
 
 class VehicleNotification(Event):
@@ -154,8 +169,11 @@ class VehicleNotification(Event):
             # be None (because optimization should not modify current stops
             # when departure time is close to current time), and we do not
             # modify it.
-            self.__vehicle.route.current_stop.departure_time = \
-                self.__route_update.current_stop_departure_time
+            if self.__vehicle.route.current_stop.departure_time \
+                    != self.__route_update.current_stop_departure_time:
+                self.__vehicle.route.current_stop.departure_time \
+                    = self.__route_update.current_stop_departure_time
+                VehicleWaiting(self.__vehicle.route, self.queue).add_to_queue()
 
         if self.__route_update.modified_assigned_legs is not None:
             # Add the assigned legs that were modified by optimization and
@@ -210,11 +228,32 @@ class VehicleBoarded(Event):
 
         if len(self.__route.current_stop.boarding_passengers) == 0:
             # All passengers are on board
-            VehicleDeparture(self.__route, self.queue).add_to_queue()
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
             # Else we wait until all the boarding passengers are on board
-            # before creating the event VehicleDeparture.
+            # before creating the event VehicleWaiting.
+        elif len(self.__route.requests_to_pickup()) > 0:
+            # Passengers to board
+            VehicleBoarding(self.__route, self.queue).add_to_queue()
 
         return 'Vehicle Boarded process is implemented'
+
+
+class VehicleAlighted(Event):
+    def __init__(self, leg, queue):
+        self.__leg = leg
+        self.__route = leg.assigned_vehicle.route
+        super().__init__('VehicleAlighted', queue)
+
+    def _process(self, env):
+        self.__route.alight(self.__leg)
+
+        if len(self.__route.current_stop.alighting_passengers) == 0:
+            # All passengers are alighted
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
+            # Else we wait until all the passengers on board are alighted
+            # before creating the event VehicleWaiting.
+
+        return 'Vehicle Alighted process is implemented'
 
 
 class VehicleUpdatePositionEvent(Event):

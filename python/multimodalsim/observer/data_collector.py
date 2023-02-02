@@ -81,7 +81,7 @@ class StandardDataCollector(DataCollector):
 
         previous_stops = [str(stop.location) for stop
                           in route.previous_stops]
-        current_stop = route.current_stop.location \
+        current_stop_loc = route.current_stop.location \
             if route.current_stop is not None else None
         next_stops = [str(stop.location) for stop
                       in route.next_stops]
@@ -93,14 +93,16 @@ class StandardDataCollector(DataCollector):
         cumulative_distance = route.current_stop.cumulative_distance \
             if route.current_stop is not None else None
 
-        stop_lon = current_stop.lon if current_stop is not None else None
-        stop_lat = current_stop.lat if current_stop is not None else None
+        stop_lon = current_stop_loc.lon if current_stop_loc \
+                                           is not None else None
+        stop_lat = current_stop_loc.lat if current_stop_loc \
+                                           is not None else None
 
         obs_dict = {"id": route.vehicle.id,
                     "time": self.__time,
                     "status": route.status,
                     "previous_stops": previous_stops,
-                    "current_stop": str(current_stop),
+                    "current_stop": str(current_stop_loc),
                     "next_stops": next_stops,
                     "assigned_legs": assigned_legs,
                     "onboard_legs": onboard_legs,

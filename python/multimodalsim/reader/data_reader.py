@@ -1,3 +1,4 @@
+import math
 import csv
 import ast
 import logging
@@ -33,7 +34,7 @@ class DataReader(object):
 
 class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path,
-                 graph_from_json_file_path=None):
+                 graph_from_json_file_path=None, sim_end_time=None):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
@@ -42,6 +43,7 @@ class ShuttleDataReader(DataReader):
 
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
+        self.__sim_end_time = sim_end_time
 
     def get_trips(self):
         """ read trip from a file
@@ -62,8 +64,8 @@ class ShuttleDataReader(DataReader):
                             GPSLocation(Node(None, (ast.literal_eval(row['destination_x']), ast.literal_eval(row['destination_y'])))),
                             nb_passengers,
                             float(row['departure_time']),
-                            float(row['departure_time'])+60*60*2,
-                            float(row['departure_time'])
+                            float(row['departure_time']),
+                            float(row['departure_time']) + 60 * 60 * 2
                             )
                 trips.append(trip)
                 nb_requests += 1
@@ -85,13 +87,11 @@ class ShuttleDataReader(DataReader):
                 capacity = int(row[4])
 
                 start_stop = Stop(start_time,
-                                  start_time + self.__boarding_time,
+                                  math.inf,
                                   start_stop_location)
 
-                # Patrick: For shuttles, release time is the same as
-                # start time, but it could be changed.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
-                                  start_time)
+                                  start_time, self.__sim_end_time)
 
                 vehicles.append(vehicle)
 
@@ -393,8 +393,11 @@ class GTFSReader(DataReader):
 
         release_time = start_stop_arrival_time - release_time_interval
 
+        end_time = next_stops[-1].arrival_time if len(next_stops) > 0 \
+            else start_stop.arrival_time
+
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
-                          self.__CAPACITY, release_time)
+                          self.__CAPACITY, release_time, end_time)
 
         return vehicle, next_stops
 

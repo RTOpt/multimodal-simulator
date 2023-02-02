@@ -92,6 +92,9 @@ class Leg(Request):
         self.__assigned_vehicle = None
         self.__trip = trip
 
+        self.__boarding_time = None
+        self.__alighting_time = None
+
     @property
     def assigned_vehicle(self):
         return self.__assigned_vehicle
@@ -115,6 +118,22 @@ class Leg(Request):
     @property
     def trip(self):
         return self.__trip
+
+    @property
+    def boarding_time(self):
+        return self.__boarding_time
+
+    @boarding_time.setter
+    def boarding_time(self, boarding_time):
+        self.__boarding_time = boarding_time
+
+    @property
+    def alighting_time(self):
+        return self.__alighting_time
+
+    @alighting_time.setter
+    def alighting_time(self, alighting_time):
+        self.__alighting_time = alighting_time
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"

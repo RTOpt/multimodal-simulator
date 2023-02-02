@@ -1,10 +1,9 @@
 import itertools
 import csv
-import math
 from copy import deepcopy
 
-from multimodalsim.optimization.plot import plot_routes
-from multimodalsim.optimization.constraints_and_objective_function import *
+from multimodalsim.shuttle.constraints_and_objective_function import *
+from multimodalsim.shuttle.plot import plot_routes
 
 
 def get_distances(G):
@@ -21,10 +20,10 @@ def get_durations(G):
 
 
 def copy_solution(X, Y, U, W, R):
-    X_org = [list([list(j) for j in i]) for i in X]
-    Y_org = [list(i) for i in Y]
-    U_org = [list(i) for i in U]
-    W_org = [list(i) for i in W]
+    X_org = {key: list([list(j) for j in i]) for key, i in X.items()}
+    Y_org = {key: list(i) for key, i in Y.items()}
+    U_org = {key: list(i) for key, i in U.items()}
+    W_org = {key: list(i) for key, i in W.items()}
     R_org = list(R)
     return X_org, Y_org, U_org, W_org, R_org
 
@@ -170,22 +169,26 @@ def save_current_solution(X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org):
     """ save current solution """
 
     #X_org, Y_org, U_org, W_org, R_org = copy_solution(X, Y, U, W, R)
-    for s_k in range(len(X)):
-        for s_i in range(len(X[s_k])):
-            for s_j in range(len(X[s_k][s_i])):
-                X_org[s_k][s_i][s_j] = X[s_k][s_i][s_j]
+    # for s_k in range(len(X)):
+    #     for s_i in range(len(X[s_k])):
+    #         for s_j in range(len(X[s_k][s_i])):
+    #             X_org[s_k][s_i][s_j] = X[s_k][s_i][s_j]
+    X_org = X.copy()
 
-    for s_k in range(len(Y)):
-        for s_i in range(len(Y[s_k])):
-            Y_org[s_k][s_i] = Y[s_k][s_i]
+    # for s_k in range(len(Y)):
+    #     for s_i in range(len(Y[s_k])):
+    #         Y_org[s_k][s_i] = Y[s_k][s_i]
+    Y_org = Y.copy()
 
-    for s_k in range(len(U)):
-        for s_i in range(len(U[s_k])):
-            U_org[s_k][s_i] = U[s_k][s_i]
+    # for s_k in range(len(U)):
+    #     for s_i in range(len(U[s_k])):
+    #         U_org[s_k][s_i] = U[s_k][s_i]
+    U_org = U.copy()
 
-    for s_k in range(len(W)):
-        for s_i in range(len(W[s_k])):
-            W_org[s_k][s_i] = W[s_k][s_i]
+    # for s_k in range(len(W)):
+    #     for s_i in range(len(W[s_k])):
+    #         W_org[s_k][s_i] = W[s_k][s_i]
+    W_org = W.copy()
 
     for s_i in range(len(R)):
         R_org[s_i] = R[s_i]
@@ -196,23 +199,32 @@ def save_current_solution(X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org):
 def back_to_previous_solution(X, Y, U, W, R):
     """ Function: retrieve previous solution """
 
-    X_org, Y_org, U_org, W_org, R_org = copy_solution(X, Y,U, W, R)
-    for s_k in range(len(X)):
-        for s_i in range(len(X[s_k])):
-            for s_j in range(len(X[s_k][s_i])):
-                X[s_k][s_i][s_j] = X_org[s_k][s_i][s_j]
+    # X_list = list(X.values())
+    # Y_list = list(Y.values())
+    # U_list = list(U.values())
+    # W_list = list(W.values())
 
-    for s_k in range(len(Y)):
-        for s_i in range(len(Y[s_k])):
-            Y[s_k][s_i] = Y_org[s_k][s_i]
+    X_org, Y_org, U_org, W_org, R_org = copy_solution(X, Y, U, W, R)
+    # for s_k in range(len(X)):
+    #     for s_i in range(len(X[s_k])):
+    #         for s_j in range(len(X[s_k][s_i])):
+    #             X[s_k][s_i][s_j] = X_org[s_k][s_i][s_j]
+    X = X_org.copy()
 
-    for s_k in range(len(U)):
-        for s_i in range(len(U[s_k])):
-            U[s_k][s_i] = U_org[s_k][s_i]
+    # for s_k in range(len(Y)):
+    #     for s_i in range(len(Y[s_k])):
+    #         Y[s_k][s_i] = Y_org[s_k][s_i]
+    Y = Y_org.copy()
 
-    for s_k in range(len(W)):
-        for s_i in range(len(W[s_k])):
-            W[s_k][s_i] = W_org[s_k][s_i]
+    # for s_k in range(len(U)):
+    #     for s_i in range(len(U[s_k])):
+    #         U[s_k][s_i] = U_org[s_k][s_i]
+    U = U_org.copy()
+
+    # for s_k in range(len(W)):
+    #     for s_i in range(len(W[s_k])):
+    #         W[s_k][s_i] = W_org[s_k][s_i]
+    W = W_org.copy()
 
     for s_i in range(len(R)):
         R[s_i] = R_org[s_i]
@@ -353,12 +365,12 @@ def set_initial_solution(G, V_not_served, K, X, Y, U, W, R, distances, d, t, V_p
         X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org = save_current_solution(X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org)
         for e in nearest_k_vertices:
             for req in V_not_served:
-                if e['assigned_requests'][0].req_id == req.req_id:
+                if e['assigned_requests'][0].id == req.id:
                     V_not_served.remove(req)
                     break
 
         routes = get_routes_dict(X, G, K)
-        plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+        # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
         print("assign the k nearest vertices from the depot  : Constraints Valid !! Objective_Function==>",
               objective_function(G, K, X))
 
@@ -397,7 +409,7 @@ def set_initial_solution(G, V_not_served, K, X, Y, U, W, R, distances, d, t, V_p
                             break
 
                     X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org = save_current_solution(X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org)
-                    plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+                    # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
 
                     V_not_served.remove(nearest_v)
 
@@ -451,7 +463,7 @@ def improve_solution(G, V_not_served, K, X, Y, U, W, R, X_org, Y_org, U_org, W_o
                     e['route'] = routes[k]
                     break
 
-        plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+        # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
 
         print("after permutation : objective function ==> {obj}".format(obj=objective_function(G, K, X)))
 
