@@ -1,9 +1,12 @@
 import logging
 import copy
+import math
 
 import multimodalsim.state_machine.state_machine as state_machine
 
 logger = logging.getLogger(__name__)
+
+DEPARTURE_TIME_WHEN_WAITING = math.inf
 
 
 class Vehicle(object):
@@ -23,10 +26,12 @@ class Vehicle(object):
             time at which the vehicle is added to the environment.
     """
 
-    def __init__(self, veh_id, start_time, start_stop, capacity, release_time):
+    def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
+                 end_time=None):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
+        self.__end_time = end_time if end_time is not None else math.inf
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
@@ -46,6 +51,10 @@ class Vehicle(object):
     @property
     def start_time(self):
         return self.__start_time
+
+    @property
+    def end_time(self):
+        return self.__end_time
 
     @property
     def start_stop(self):
@@ -212,11 +221,15 @@ class Route(object):
         """Arrives the vehicle"""
         self.__current_stop = self.__next_stops.pop(0)
 
-    def alight(self, trip):
+    def initiate_alighting(self, trip):
+        """Initiate alighting of the passengers who are ready to alight"""
+        self.current_stop.initiate_alighting(trip)
+
+    def alight(self, leg):
         """Alights passengers who reached their destination from the vehicle"""
-        self.__onboard_legs.remove(trip.current_leg)
-        self.__alighted_legs.append(trip.current_leg)
-        self.__current_stop.alight(trip)
+        self.__onboard_legs.remove(leg)
+        self.__alighted_legs.append(leg)
+        self.__current_stop.alight(leg.trip)
         # Patrick: Should we decrease self.load?
         self.__load -= 1
 
@@ -280,6 +293,7 @@ class Stop(object):
         self.__boarding_passengers = []
         self.__boarded_passengers = []
         self.__passengers_to_alight = []
+        self.__alighting_passengers = []
         self.__alighted_passengers = []
         self.__location = location
         self.__cumulative_distance = cumulative_distance
@@ -297,6 +311,9 @@ class Stop(object):
                 class_string += str(attribute) + ": " \
                                 + str(list(str(x.id) for x in value)) + ", "
             elif "__passengers_to_alight" in attribute:
+                class_string += str(attribute) + ": " \
+                                + str(list(str(x.id) for x in value)) + ", "
+            elif "alighting_passengers" in attribute:
                 class_string += str(attribute) + ": " \
                                 + str(list(str(x.id) for x in value)) + ", "
             elif "alighted_passengers" in attribute:
@@ -354,6 +371,10 @@ class Stop(object):
         self.__passengers_to_alight = passengers_to_alight
 
     @property
+    def alighting_passengers(self):
+        return self.__alighting_passengers
+
+    @property
     def alighted_passengers(self):
         return self.__alighted_passengers
 
@@ -376,9 +397,14 @@ class Stop(object):
         self.boarding_passengers.remove(trip)
         self.boarded_passengers.append(trip)
 
-    def alight(self, trip):
+    def initiate_alighting(self, trip):
         """Passengers who reached their stop leave the vehicle"""
         self.passengers_to_alight.remove(trip)
+        self.alighting_passengers.append(trip)
+
+    def alight(self, trip):
+        """Passenger who is alighting becomes alighted"""
+        self.alighting_passengers.remove(trip)
         self.alighted_passengers.append(trip)
 
 

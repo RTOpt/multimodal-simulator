@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class Condition:
 
     def __init__(self, name):
@@ -72,6 +77,38 @@ class VehicleNoNextStopCondition(Condition):
     def check(self):
         condition_satisfied = False
         if len(self.__route.next_stops) == 0:
+            condition_satisfied = True
+
+        return condition_satisfied
+
+
+class VehicleEndTimeCondition(Condition):
+
+    def __init__(self, route):
+        super().__init__("VehicleEndTime")
+        self.__route = route
+
+    def check(self):
+        condition_satisfied = False
+        if self.__route.current_stop is not None \
+                and self.__route.current_stop.arrival_time \
+                >= self.__route.vehicle.end_time:
+            condition_satisfied = True
+
+        return condition_satisfied
+
+
+class VehicleNotEndTimeCondition(Condition):
+
+    def __init__(self, route):
+        super().__init__("VehicleEndTime")
+        self.__route = route
+
+    def check(self):
+        condition_satisfied = False
+        if self.__route.current_stop is None \
+                or self.__route.current_stop.arrival_time \
+                < self.__route.vehicle.end_time:
             condition_satisfied = True
 
         return condition_satisfied

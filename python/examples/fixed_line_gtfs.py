@@ -9,6 +9,9 @@ from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
+logger = logging.getLogger(__name__)
+
+
 if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging.DEBUG)

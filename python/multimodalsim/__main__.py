@@ -8,6 +8,9 @@ import networkx as nx
 import os
 import sys
 
+from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
+    ShuttleGreedyDispatcher
+
 DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, DIR)
 
@@ -16,8 +19,7 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.simulator.coordinates import CoordinatesOSRM
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
-from optimization.dispatcher import ShuttleGreedyDispatcher, \
-    FixedLineDispatcher
+from optimization.dispatcher import FixedLineDispatcher
 from optimization.optimization import Optimization
 from optimization.splitter import OneLegSplitter, MultimodalSplitter
 from reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
@@ -55,6 +57,8 @@ def add_arguments(parser):
     parser.add_argument("-o", "--output", help="path to the directory that "
                                                "will contain simulation "
                                                "results")
+    parser.add_argument("--osrm", help="retrieve vehicle coordinates from "
+                                       "OSRM", action="store_true")
 
 
 def check_arguments(args):
@@ -165,11 +169,13 @@ def main():
     g = None
 
     if args.type == "shuttle":
-        # Parameters example: shuttle -r
-        # ../../data/shuttle/test0_shuttle/requests.csv
-        # -v ../../data/shuttle/test0_shuttle/vehicles.csv
-        # -n ../../data/shuttle/test0_shuttle/nodes.csv
-        # -g ../../data/shuttle/test0_shuttle/graph.json
+        # Parameters example:
+        # shuttle
+        # -r ../../data/shuttle/test3_shuttle/requests_sncf_test0.csv
+        # -v ../../data/shuttle/test3_shuttle/vehicles.csv
+        # -n ../../data/shuttle/test3_shuttle/nodes.csv
+        # -g ../../data/shuttle/test3_shuttle/graph.json
+        # --log -level DEBUG
         logger.info("Shuttle")
 
         nodes_file_path = args.nodes
@@ -247,7 +253,7 @@ def main():
     # environment_observer = \
     #     EnvironmentObserver(visualizers=ConsoleVisualizer())
 
-    coordinates = CoordinatesOSRM()
+    coordinates = CoordinatesOSRM() if args.osrm else None
 
     simulation = Simulation(opt, trips, vehicles, network=g,
                             environment_observer=environment_observer,
@@ -264,7 +270,6 @@ if __name__ == '__main__':
 
     pr.run("main()")
 
-    pr.dump_stats('stats')
-    p = pstats.Stats('stats')
-
-    p.sort_stats('time').print_stats()
+    # pr.dump_stats('stats')
+    # p = pstats.Stats('stats')
+    # p.sort_stats('time').print_stats()

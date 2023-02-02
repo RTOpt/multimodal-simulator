@@ -9,10 +9,10 @@ from multimodalsim.simulator.passenger_event \
 from multimodalsim.simulator.status import OptimizationStatus, \
     PassengersStatus, VehicleStatus
 from multimodalsim.simulator.vehicle_event import VehicleBoarding, \
-    VehicleDeparture, VehicleArrival
+    VehicleDeparture, VehicleArrival, VehicleWaiting
 from multimodalsim.state_machine.condition import TrivialCondition, \
     PassengerNoConnectionCondition, PassengerConnectionCondition, \
-    VehicleNextStopCondition, VehicleNoNextStopCondition
+    VehicleNotEndTimeCondition, VehicleEndTimeCondition
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class StateMachine:
         transition_possible = False
         if event.__name__ in self.__transitions:
             for transition in self.__transitions[event.__name__]:
-                # logger.debug("STATE: {} -> {} | check: {}".format( str(
+                # logger.debug("STATE: {} -> {} | check: {}".format(str(
                 # transition.current_state), str(transition.next_state),
                 # transition.condition.check()))
                 if transition.current_state == self.__current_state \
@@ -211,17 +211,21 @@ class VehicleStateMachine(StateMachine):
     def __init__(self, route):
         super().__init__(owner=route)
 
-        self.add_transition(VehicleStatus.RELEASE, VehicleStatus.BOARDING,
-                            VehicleBoarding, VehicleNextStopCondition(route))
-        self.add_transition(VehicleStatus.RELEASE, VehicleStatus.COMPLETE,
-                            VehicleBoarding, VehicleNoNextStopCondition(route))
-        self.add_transition(VehicleStatus.BOARDING, VehicleStatus.ENROUTE,
+        self.add_transition(VehicleStatus.RELEASE, VehicleStatus.IDLE,
+                            VehicleWaiting)
+        self.add_transition(VehicleStatus.IDLE, VehicleStatus.IDLE,
+                            VehicleWaiting)
+        self.add_transition(VehicleStatus.IDLE, VehicleStatus.BOARDING,
+                            VehicleBoarding)
+        self.add_transition(VehicleStatus.IDLE, VehicleStatus.ENROUTE,
                             VehicleDeparture)
+        self.add_transition(VehicleStatus.BOARDING, VehicleStatus.IDLE,
+                            VehicleWaiting)
         self.add_transition(VehicleStatus.ENROUTE, VehicleStatus.ALIGHTING,
                             VehicleArrival)
-        self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.BOARDING,
-                            VehicleBoarding, VehicleNextStopCondition(route))
+        self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.IDLE,
+                            VehicleWaiting, VehicleNotEndTimeCondition(route))
         self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.COMPLETE,
-                            VehicleBoarding, VehicleNoNextStopCondition(route))
+                            VehicleWaiting, VehicleEndTimeCondition(route))
 
         self.current_state = VehicleStatus.RELEASE

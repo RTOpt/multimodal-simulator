@@ -15,9 +15,9 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
     # Read input data from files
-    requests_file_path = "../../data/shuttle/test0_shuttle/requests.csv"
-    vehicles_file_path = "../../data/shuttle/test0_shuttle/vehicles.csv"
-    nodes_file_path = "../../data/shuttle/test0_shuttle/nodes.csv"
+    requests_file_path = "../../data/shuttle/test3_shuttle/requests_sncf_test0.csv"
+    vehicles_file_path = "../../data/shuttle/test3_shuttle/vehicles.csv"
+    nodes_file_path = "../../data/shuttle/test3_shuttle/nodes.csv"
 
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                     nodes_file_path)

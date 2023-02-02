@@ -1,11 +1,9 @@
-import networkx as nx
 import math
 from networkx.readwrite import json_graph
 import json
-from json import JSONEncoder
 import networkx as nx
 
-from multimodalsim.optimization.get_paths_osrm import get_path
+from multimodalsim.shuttle.get_paths_osrm import get_path
 
 
 class Position(object):
