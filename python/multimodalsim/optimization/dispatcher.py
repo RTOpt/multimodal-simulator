@@ -1,12 +1,9 @@
 import logging
 import math
-from copy import deepcopy
 
 from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.vehicle import Stop, GPSLocation
 from networkx.algorithms.shortest_paths.generic import shortest_path
-from multimodalsim.shuttle.solution_construction import cvrp_pdp_tw_he_obj_cost
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +38,6 @@ class ShuttleDispatcher(Dispatcher):
 
         non_assigned_requests = state.non_assigned_trips
         non_assigned_vehicles = state.non_assigned_vehicles
-        all_vehicles = state.vehicles
-        # non_assigned_vehicles = state.vehicles non_assigned_vehicles = [
-        # veh for veh in state.vehicles if veh.route.status ==
-        # VehicleStatus.RELEASE]
 
         logger.debug("non_assigned_trips={}"
                      .format(list(req.id for req in non_assigned_requests)))
@@ -63,7 +56,6 @@ class ShuttleDispatcher(Dispatcher):
                 vehicles_with_current_stops,
                 key=lambda x: x.route.current_stop.departure_time)
 
-            # potential_non_assigned_requests = deepcopy(non_assigned_requests)
             potential_non_assigned_requests = non_assigned_requests
 
             routes, shuttle_dispatcher = self.optimize(
@@ -78,7 +70,6 @@ class ShuttleDispatcher(Dispatcher):
                         self.__network,
                         req.origin.gps_coordinates.get_coordinates(),
                         req.destination.gps_coordinates.get_coordinates())
-                    # req.assign_route(path)
 
                     # departure_time = \
                     #     assigned_vehicle.route.current_stop.departure_time
@@ -147,12 +138,6 @@ class ShuttleDispatcher(Dispatcher):
             boarding_stop_found = False
             alighting_stop_found = False
 
-            # MODIFIED (Patrick): The request should be added to the
-            # passengers_to_board of the current stop if and only if the
-            # request is the origin of the request is the current stop.
-            # if isinstance(veh.route.current_stop.location, Node):
-            #     gps_coord = veh.route.current_stop.location.get_coordinates()
-            # else:
             gps_coord = veh.route.current_stop.location.gps_coordinates \
                 .get_coordinates()
 
@@ -161,16 +146,11 @@ class ShuttleDispatcher(Dispatcher):
                 boarding_stop_found = True
 
             for stop in veh.route.next_stops:
-                # if req.origin.gps_coordinates.get_coordinates() \
-                #         == stop.location.get_coordinates() \
-                #         and not boarding_stop_found:
                 if req.origin.gps_coordinates.get_coordinates() \
                         == stop.location.gps_coordinates.get_coordinates() \
                         and not boarding_stop_found:
                     stop.passengers_to_board.append(req)
                     boarding_stop_found = True
-                # elif req.destination.gps_coordinates.get_coordinates() == stop.location.get_coordinates() \
-                #         and boarding_stop_found and not alighting_stop_found:
                 elif req.destination.gps_coordinates.get_coordinates() == \
                         stop.location.gps_coordinates.get_coordinates() \
                         and boarding_stop_found and not alighting_stop_found:

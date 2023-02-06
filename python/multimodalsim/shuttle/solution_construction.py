@@ -370,7 +370,7 @@ def set_initial_solution(G, V_not_served, K, X, Y, U, W, R, distances, d, t, V_p
                     break
 
         routes = get_routes_dict(X, G, K)
-        # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+        plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
         print("assign the k nearest vertices from the depot  : Constraints Valid !! Objective_Function==>",
               objective_function(G, K, X))
 
@@ -409,7 +409,7 @@ def set_initial_solution(G, V_not_served, K, X, Y, U, W, R, distances, d, t, V_p
                             break
 
                     X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org = save_current_solution(X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org)
-                    # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+                    plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
 
                     V_not_served.remove(nearest_v)
 
@@ -463,7 +463,7 @@ def improve_solution(G, V_not_served, K, X, Y, U, W, R, X_org, Y_org, U_org, W_o
                     e['route'] = routes[k]
                     break
 
-        # plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
+        plot_routes(routes, G, objective_function(G, K, X), R, P, D, distances)
 
         print("after permutation : objective function ==> {obj}".format(obj=objective_function(G, K, X)))
 

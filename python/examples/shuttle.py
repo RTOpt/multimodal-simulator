@@ -2,12 +2,12 @@ import logging  # Required to modify the log level
 
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
-from multimodalsim.optimization.dispatcher import ShuttleGreedyDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.reader.data_reader import ShuttleDataReader
+from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
+    ShuttleGreedyDispatcher
 from multimodalsim.simulator.network import create_graph
 from multimodalsim.simulator.simulation import Simulation
-from multimodalsim.observer.visualizer import ConsoleVisualizer
 
 if __name__ == '__main__':
 
@@ -18,15 +18,15 @@ if __name__ == '__main__':
     requests_file_path = "../../data/shuttle/test3_shuttle/requests_sncf_test0.csv"
     vehicles_file_path = "../../data/shuttle/test3_shuttle/vehicles.csv"
     nodes_file_path = "../../data/shuttle/test3_shuttle/nodes.csv"
+    graph_file_path = "../../data/shuttle/test3_shuttle/graph.json"
 
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
-                                    nodes_file_path)
+                                    nodes_file_path, graph_file_path)
 
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
-
     nodes = data_reader.get_nodes()
-    g = create_graph(nodes)
+    g = data_reader.get_json_graph()
 
     # Initialize the optimizer.
     dispatcher = ShuttleGreedyDispatcher(g)
