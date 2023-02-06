@@ -196,7 +196,6 @@ def main():
     elif args.type == "fixed":
         logger.info("FixedLine")
 
-        available_connections = None
         if args.gtfs:
             # Parameters example: fixed --gtfs --gtfs-folder
             # ../../data/fixed_line/gtfs/gtfs/ -r
