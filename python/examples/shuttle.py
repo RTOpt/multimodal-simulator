@@ -6,7 +6,6 @@ from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.reader.data_reader import ShuttleDataReader
 from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
     ShuttleGreedyDispatcher
-from multimodalsim.simulator.network import create_graph
 from multimodalsim.simulator.simulation import Simulation
 
 if __name__ == '__main__':
