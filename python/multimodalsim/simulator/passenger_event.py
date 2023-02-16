@@ -76,7 +76,8 @@ class PassengerReady(ActionEvent):
     def __init__(self, trip, queue):
         super().__init__('PassengerReady', queue,
                          max(trip.ready_time, queue.env.current_time),
-                         state_machine=trip.state_machine)
+                         state_machine=trip.state_machine,
+                         event_priority=Event.HIGH_PRIORITY)
         self.__trip = trip
 
     def _process(self, env):
