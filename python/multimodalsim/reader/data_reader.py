@@ -2,12 +2,9 @@ import math
 import csv
 import ast
 import logging
-import json
 from ast import literal_eval
 from datetime import datetime, timedelta
 import json
-from json import JSONEncoder
-import networkx as nx
 from networkx.readwrite import json_graph
 
 import networkx as nx
@@ -16,7 +13,7 @@ from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
-    Vehicle, Route
+    Vehicle, Route, MAX_TIME
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +84,7 @@ class ShuttleDataReader(DataReader):
                 capacity = int(row[4])
 
                 start_stop = Stop(start_time,
-                                  math.inf,
+                                  MAX_TIME,
                                   start_stop_location)
 
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,

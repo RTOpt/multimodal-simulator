@@ -12,6 +12,8 @@ class Event(object):
     amounts to figuring out which event occurs first """
 
     MAX_PRIORITY = 1000
+    STANDARD_PRIORITY = 5
+    HIGH_PRIORITY = 4
     MAX_DELTA_TIME = 7 * 24 * 3600
 
     def __init__(self, event_name, queue, event_time=None, event_priority=5,
@@ -110,8 +112,8 @@ class Event(object):
 
 class ActionEvent(Event):
 
-    def __init__(self, event_name, queue, event_time=None, event_priority=5,
-                 state_machine=None):
+    def __init__(self, event_name, queue, event_time=None,
+                 event_priority=Event.STANDARD_PRIORITY, state_machine=None):
         super().__init__(event_name, queue, event_time, event_priority)
 
         if state_machine is not None \

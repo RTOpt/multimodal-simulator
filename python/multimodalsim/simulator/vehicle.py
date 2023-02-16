@@ -6,7 +6,7 @@ import multimodalsim.state_machine.state_machine as state_machine
 
 logger = logging.getLogger(__name__)
 
-DEPARTURE_TIME_WHEN_WAITING = math.inf
+MAX_TIME = math.inf
 
 
 class Vehicle(object):
@@ -31,7 +31,7 @@ class Vehicle(object):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
-        self.__end_time = end_time if end_time is not None else math.inf
+        self.__end_time = end_time if end_time is not None else MAX_TIME
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
