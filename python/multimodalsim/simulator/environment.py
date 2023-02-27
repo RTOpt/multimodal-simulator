@@ -172,6 +172,7 @@ class Environment(object):
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
+        state_copy.__coordinates = None
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)

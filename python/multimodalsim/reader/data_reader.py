@@ -1,4 +1,3 @@
-import math
 import csv
 import ast
 import logging
@@ -322,7 +321,8 @@ class GTFSReader(DataReader):
                                 stop_time.arrival_time,
                                 stop_time.departure_time)
 
-                if current_node[2] - previous_node[2] < 0:
+                if current_node[2] - previous_node[2] <= 0 \
+                        and previous_node != current_node:
                     logger.warning("{}: previous_node: {} -> current_node: {}"
                                    .format(current_node[2] - previous_node[2],
                                            previous_node, current_node))

@@ -89,7 +89,8 @@ class CAPRequestsGenerator(RequestsGenerator):
                     first_row = False
 
                 request_legs.append(
-                    (row[self.__origin_stop_id_col], row[self.__destination_stop_id_col],
+                    (row[self.__origin_stop_id_col],
+                     row[self.__destination_stop_id_col],
                      row["S_VEHJOBID_IDJOURNALIER"]))
 
                 if row["boarding_type_lead"] == "1ère montée" or pd.isnull(

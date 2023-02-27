@@ -5,19 +5,14 @@ import pstats
 
 import networkx as nx
 
-import os
-import sys
-
 from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
     ShuttleGreedyDispatcher
-
-DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-sys.path.insert(0, DIR)
 
 from logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
-from multimodalsim.simulator.coordinates import CoordinatesOSRM
+from multimodalsim.simulator.coordinates import CoordinatesOSRM, \
+    CoordinatesFromFile
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from optimization.dispatcher import FixedLineDispatcher
 from optimization.optimization import Optimization
@@ -57,6 +52,8 @@ def add_arguments(parser):
     parser.add_argument("-o", "--output", help="path to the directory that "
                                                "will contain simulation "
                                                "results")
+    parser.add_argument("--coord", help="path to the file containing the"
+                                        " coordinates")
     parser.add_argument("--osrm", help="retrieve vehicle coordinates from "
                                        "OSRM", action="store_true")
 
@@ -120,7 +117,7 @@ def print_statistics(data_container):
     logger.info("nb_events: {}".format(data_analyzer.nb_events))
     logger.info("nb_event_types: {}".format(data_analyzer.nb_event_types))
     logger.info("nb_events_by_type: \n{}".format(data_analyzer.
-                                                  nb_events_by_type))
+                                                 nb_events_by_type))
     logger.info("nb_trips: {}".format(data_analyzer.nb_trips))
     logger.info("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
 
@@ -230,7 +227,7 @@ def main():
             g = data_reader.get_network_graph(
                 available_connections=available_connections)
             g_path = "../../data/fixed_line/stl/network_graph/" \
-                     "bus_network_graph_20191101.txt"
+                     "bus_network_graph_20191103.txt"
             nx.write_gpickle(g, g_path)
 
         if args.multimodal:
@@ -252,7 +249,15 @@ def main():
     # environment_observer = \
     #     EnvironmentObserver(visualizers=ConsoleVisualizer())
 
-    coordinates = CoordinatesOSRM() if args.osrm else None
+    if args.coord:
+        logger.info("Coordinates from {}".format(args.coord))
+        coordinates = CoordinatesFromFile(args.coord)
+    elif args.osrm:
+        logger.info("Coordinates from OSRM")
+        coordinates = CoordinatesOSRM()
+    else:
+        logger.info("No coordinates")
+        coordinates = None
 
     simulation = Simulation(opt, trips, vehicles, network=g,
                             environment_observer=environment_observer,
@@ -269,6 +274,6 @@ if __name__ == '__main__':
 
     pr.run("main()")
 
-    # pr.dump_stats('stats')
-    # p = pstats.Stats('stats')
-    # p.sort_stats('time').print_stats()
+    pr.dump_stats('stats')
+    p = pstats.Stats('stats')
+    p.sort_stats('time').print_stats()

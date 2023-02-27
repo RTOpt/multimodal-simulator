@@ -3,6 +3,7 @@ import csv
 import requests
 import polyline
 import numpy as np
+from ast import literal_eval
 
 from multimodalsim.config.coordinates_osrm_config import CoordinatesOSRMConfig
 from multimodalsim.simulator.vehicle import TimeCoordinatesLocation
@@ -58,18 +59,23 @@ class CoordinatesFromFile(Coordinates):
                                             delimiter=',')
             next(coordinates_reader, None)
             for coordinates_row in coordinates_reader:
-                trip_id = coordinates_row[0]
+
                 time = int(coordinates_row[1])
                 lon = float(coordinates_row[2])
                 lat = float(coordinates_row[3])
                 time_coordinates = TimeCoordinatesLocation(time, lon, lat)
 
-                if trip_id in self.__time_positions_by_vehicle_id:
-                    self.__time_positions_by_vehicle_id[trip_id].append(
-                        time_coordinates)
-                else:
-                    self.__time_positions_by_vehicle_id[trip_id] = \
-                        [time_coordinates]
+                vehicle_id_col = literal_eval(coordinates_row[0])
+                vehicle_id_list = vehicle_id_col \
+                    if type(vehicle_id_col) == list else [vehicle_id_col]
+
+                for vehicle_id in vehicle_id_list:
+                    if vehicle_id in self.__time_positions_by_vehicle_id:
+                        self.__time_positions_by_vehicle_id[vehicle_id].append(
+                            time_coordinates)
+                    else:
+                        self.__time_positions_by_vehicle_id[vehicle_id] = \
+                            [time_coordinates]
 
 
 class CoordinatesOSRM(Coordinates):
