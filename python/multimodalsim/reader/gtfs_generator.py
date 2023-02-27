@@ -1,8 +1,5 @@
-import numpy as np
 import pandas as pd
-from pathlib import Path
 import os
-from operator import itemgetter
 import logging
 
 from multimodalsim.config.gtfs_generator_config import GTFSGeneratorConfig
@@ -337,15 +334,23 @@ class GTFSGenerator:
                 x[self.__shape_dist_traveled_col])
             else x["mean_shape_dist_traveled"], axis=1)
 
-        # Correct departure_time in case the "travel time" is negative.
+        # Correct departure_time in case the "travel time" is nonpositive.
         full_stop_times_df["arrival_time_lead"] = \
             full_stop_times_df.groupby(["trip_id"])["arrival_time"].shift(-1)
         full_stop_times_df["travel_time"] = \
             full_stop_times_df["arrival_time_lead"] \
             - full_stop_times_df["departure_time"]
         full_stop_times_df["departure_time"] = full_stop_times_df.apply(
-            lambda x: x["departure_time"] if x["travel_time"] >= 0
+            lambda x: x["departure_time"] if x["travel_time"] > 0
             else x["arrival_time"], axis=1)
+
+        # Keep only stop_times for which travel time is positive.
+        full_stop_times_df["arrival_time_lead"] = \
+            full_stop_times_df.groupby(["trip_id"])["arrival_time"].shift(-1)
+        full_stop_times_df["travel_time"] = \
+            full_stop_times_df["arrival_time_lead"] \
+            - full_stop_times_df["departure_time"]
+        full_stop_times_df = full_stop_times_df[full_stop_times_df["travel_time"] > 0]
 
         #
         full_stop_times_grouped_by_voy_id = \

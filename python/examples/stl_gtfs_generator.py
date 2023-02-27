@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     passage_arret_folder = \
         "../../../../donnees_de_mobilite/data/stl/Donnees_STL_3_jours/"
-    gtfs_folder = "../../data/fixed_line/stl/gtfs_test/"
+    gtfs_folder = "../../data/fixed_line/stl/gtfs_2023_02_17/"
 
     passage_arret_folder = \
         passage_arret_folder \
