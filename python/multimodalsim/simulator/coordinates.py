@@ -124,8 +124,8 @@ class CoordinatesOSRM(Coordinates):
 
         response = requests.get(request_url)
         route_res = response.json()
-
-        coordinates = polyline.decode(route_res['routes'][0]['geometry'])
+        coordinates = polyline.decode(route_res['routes'][0]['geometry'],
+                                      geojson=True)
         durations = route_res['routes'][0]['legs'][0]['annotation']['duration']
         # We should always have that len(durations) == len(coordinates) - 1
 
