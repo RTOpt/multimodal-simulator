@@ -20,7 +20,8 @@ if __name__ == '__main__':
     graph_file_path = "../../data/shuttle/test3_shuttle/graph.json"
 
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
-                                    nodes_file_path, graph_file_path)
+                                    nodes_file_path, graph_file_path,
+                                    vehicles_end_time=100000)
 
     vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()

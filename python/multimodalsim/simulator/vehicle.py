@@ -1,12 +1,9 @@
 import logging
 import copy
-import math
 
 import multimodalsim.state_machine.state_machine as state_machine
 
 logger = logging.getLogger(__name__)
-
-MAX_TIME = math.inf
 
 
 class Vehicle(object):
@@ -26,16 +23,21 @@ class Vehicle(object):
             time at which the vehicle is added to the environment.
     """
 
+    # MAX_TIME = math.inf
+    MAX_TIME = 7*24*3600
+
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
                  end_time=None):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
-        self.__end_time = end_time if end_time is not None else MAX_TIME
+        self.__end_time = end_time if end_time is not None else self.MAX_TIME
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
         self.__position = None
+        self.__past_polyline = None
+        self.__future_polyline = None
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -85,6 +87,22 @@ class Vehicle(object):
     @position.setter
     def position(self, position):
         self.__position = position
+
+    @property
+    def past_polyline(self):
+        return self.__past_polyline
+
+    @past_polyline.setter
+    def past_polyline(self, past_polyline):
+        self.__past_polyline = past_polyline
+
+    @property
+    def future_polyline(self):
+        return self.__future_polyline
+
+    @future_polyline.setter
+    def future_polyline(self, future_polyline):
+        self.__future_polyline = future_polyline
 
 
 class Route(object):
@@ -267,6 +285,8 @@ class Stop(object):
         Date and time at which the vehicle arrives the stop
     departure_time: int
         Date and time at which the vehicle leaves the stop
+    min_departure_time: int
+        Minimum time at which the vehicle is allowed to leave the stop
     passengers_to_board: list of Trip objects
         list of passengers who need to board
     boarding_passengers: list of Trip objects
@@ -284,11 +304,12 @@ class Stop(object):
     """
 
     def __init__(self, arrival_time, departure_time, location,
-                 cumulative_distance=None):
+                 cumulative_distance=None, min_departure_time=None):
         super().__init__()
 
         self.__arrival_time = arrival_time
         self.__departure_time = departure_time
+        self.__min_departure_time = min_departure_time
         self.__passengers_to_board = []
         self.__boarding_passengers = []
         self.__boarded_passengers = []
@@ -330,13 +351,27 @@ class Stop(object):
     def arrival_time(self):
         return self.__arrival_time
 
+    @arrival_time.setter
+    def arrival_time(self, arrival_time):
+        self.__arrival_time = arrival_time
+
     @property
     def departure_time(self):
         return self.__departure_time
 
     @departure_time.setter
     def departure_time(self, departure_time):
+        if self.__min_departure_time is not None \
+                and departure_time < self.__min_departure_time:
+            raise ValueError(
+                "departure_time ({}) must be greater than or  equal to "
+                "min_departure_time ({}).".format(departure_time,
+                                                  self.__min_departure_time))
         self.__departure_time = departure_time
+
+    @property
+    def min_departure_time(self):
+        return self.__min_departure_time
 
     @property
     def passengers_to_board(self):

@@ -1,7 +1,7 @@
 import copy
 import logging
 
-from multimodalsim.simulator.status import VehicleStatus, PassengersStatus
+from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
 
 logger = logging.getLogger(__name__)
 
@@ -16,22 +16,27 @@ class Environment(object):
         trips: list of Trip objects
             All the trips that were added to the environment.
         assigned_trips: list of Trip objects
-            the trips that are assigned to a route.
+            The trips that are assigned to a route.
         non_assigned_trips: list of Trip objects
-            the trips that are not assigned to a route yet.
+            The trips that are not assigned to a route yet.
         vehicles: list of Vehicle objects
             All the vehicles that were added to the environment.
         assigned_vehicles: list of Vehicle objects
-            the vehicles that are assigned at least one trip.
+            The vehicles that are assigned at least one trip.
         non_assigned_vehicles: list of Vehicle objects
-            the vehicles that are not assigned any trip yet.
+            The vehicles that are not assigned any trip yet.
         network: graph
-            graph corresponding to the network.
+            Graph corresponding to the network.
         optimization: Optimization
-            the optimization algorithm used by the simulation.
+            The optimization algorithm used by the simulation.
+        coordinates: Coordinates
+            The coordinates of the vehicles.
+        travel_times: TravelTimes
+            The actual travel times of the vehicles.
         """
 
-    def __init__(self, optimization, network=None, coordinates=None):
+    def __init__(self, optimization, network=None, coordinates=None,
+                 travel_times=None):
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -42,6 +47,7 @@ class Environment(object):
         self.__network = network
         self.__optimization = optimization
         self.__coordinates = coordinates
+        self.__travel_times = travel_times
 
     @property
     def current_time(self):
@@ -173,6 +179,7 @@ class Environment(object):
         state_copy.__network = None
         state_copy.__optimization = None
         state_copy.__coordinates = None
+        state_copy.__travel_times = None
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)
@@ -212,3 +219,7 @@ class Environment(object):
     @property
     def coordinates(self):
         return self.__coordinates
+
+    @property
+    def travel_times(self):
+        return self.__travel_times
