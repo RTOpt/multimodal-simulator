@@ -1,7 +1,7 @@
 import pandas as pd
 
 from multimodalsim.config.data_analyzer_config import DataAnalyzerConfig
-from multimodalsim.simulator.status import PassengersStatus, VehicleStatus
+from multimodalsim.state_machine.status import PassengersStatus, VehicleStatus
 
 
 class DataAnalyzer:

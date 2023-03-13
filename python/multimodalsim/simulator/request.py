@@ -172,6 +172,10 @@ class Trip(Request):
 
         self.__state_machine = PassengerStateMachine(self)
 
+        self.__position = None
+        self.__past_polyline = None
+        self.__future_polyline = None
+
     @property
     def status(self):
         return self.__state_machine.current_state.status
@@ -207,6 +211,30 @@ class Trip(Request):
     @next_legs.deleter
     def next_legs(self):
         del self.__next_legs
+
+    @property
+    def position(self):
+        return self.__position
+
+    @position.setter
+    def position(self, position):
+        self.__position = position
+
+    @property
+    def past_polyline(self):
+        return self.__past_polyline
+
+    @past_polyline.setter
+    def past_polyline(self, past_polyline):
+        self.__past_polyline = past_polyline
+
+    @property
+    def future_polyline(self):
+        return self.__future_polyline
+
+    @future_polyline.setter
+    def future_polyline(self, future_polyline):
+        self.__future_polyline = future_polyline
 
     def assign_legs(self, legs):
         if legs is not None and len(legs) > 1:

@@ -71,13 +71,12 @@ class ConsoleVisualizer(Visualizer):
             alighted_legs_id = [leg.id for leg in veh.route.alighted_legs]
 
             logger.debug(
-                "{}: status: {}, start_time: {}, assigned_legs: {}, "
-                "onboard_legs: {}, alighted_legs: {}".format(veh.id,
-                                                             veh.route.status,
-                                                             veh.start_time,
-                                                             assigned_legs_id,
-                                                             onboard_legs_id,
-                                                             alighted_legs_id))
+                "{}: status: {}, start_time: {}, end_time: {}, "
+                "assigned_legs: {},  onboard_legs: {}, "
+                "alighted_legs: {}".format(veh.id, veh.route.status,
+                                           veh.start_time, veh.end_time,
+                                           assigned_legs_id, onboard_legs_id,
+                                           alighted_legs_id))
             logger.debug("  --previous_stops:")
             for stop in veh.route.previous_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))

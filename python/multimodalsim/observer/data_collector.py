@@ -1,15 +1,13 @@
 import logging
 import pandas as pd
 
-from datetime import datetime
-
 import multimodalsim.simulator.request
 import multimodalsim.simulator.vehicle
 import multimodalsim.simulator.passenger_event
 import multimodalsim.simulator.vehicle_event
 from multimodalsim.config.data_collector_config import DataCollectorConfig
 from multimodalsim.simulator.event import ActionEvent
-from multimodalsim.simulator.status import PassengersStatus
+from multimodalsim.state_machine.status import PassengersStatus
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +48,8 @@ class StandardDataCollector(DataCollector):
         self.__current_event = current_event
         self.__event_priority = event_priority
         self.__event_index = event_index
-        self.__time = datetime.fromtimestamp(self.__current_event.time) \
-            if self.__current_event is not None \
-            else datetime.fromtimestamp(self.__env.current_time)
+        self.__time = self.__current_event.time \
+            if self.__current_event is not None else self.__env.current_time
 
         if (isinstance(current_event, ActionEvent)
                 and isinstance(current_event.state_machine.owner,
@@ -93,10 +90,17 @@ class StandardDataCollector(DataCollector):
         cumulative_distance = route.current_stop.cumulative_distance \
             if route.current_stop is not None else None
 
-        stop_lon = current_stop_loc.lon if current_stop_loc \
-                                           is not None else None
-        stop_lat = current_stop_loc.lat if current_stop_loc \
-                                           is not None else None
+        stop_lon = current_stop_loc.lon \
+            if current_stop_loc is not None else None
+        stop_lat = current_stop_loc.lat \
+            if current_stop_loc is not None else None
+        lon = route.vehicle.position.lon \
+            if route.vehicle.position is not None else None
+        lat = route.vehicle.position.lat \
+            if route.vehicle.position is not None else None
+
+        past_polyline = route.vehicle.past_polyline
+        future_polyline = route.vehicle.future_polyline
 
         obs_dict = {"id": route.vehicle.id,
                     "time": self.__time,
@@ -109,7 +113,11 @@ class StandardDataCollector(DataCollector):
                     "alighted_legs": alighted_legs,
                     "cumulative_distance": cumulative_distance,
                     "stop_lon": stop_lon,
-                    "stop_lat": stop_lat}
+                    "stop_lat": stop_lat,
+                    "lon": lon,
+                    "lat": lat,
+                    "past_polyline": past_polyline,
+                    "future_polyline": future_polyline}
 
         self.__data_container.add_observation(
             "vehicles", obs_dict, "id",
@@ -131,6 +139,14 @@ class StandardDataCollector(DataCollector):
                      in trip.next_legs] \
             if trip.next_legs is not None else None
 
+        lon = trip.position.lon \
+            if trip.position is not None else None
+        lat = trip.position.lat \
+            if trip.position is not None else None
+
+        past_polyline = trip.past_polyline
+        future_polyline = trip.future_polyline
+
         obs_dict = {"id": trip.id,
                     "time": self.__time,
                     "status": trip.status,
@@ -138,7 +154,12 @@ class StandardDataCollector(DataCollector):
                     "current_location": str(current_location),
                     "previous_legs": previous_legs,
                     "current_leg": current_leg,
-                    "next_legs": next_legs}
+                    "next_legs": next_legs,
+                    "lon": lon,
+                    "lat": lat,
+                    "past_polyline": past_polyline,
+                    "future_polyline": future_polyline}
+
         self.__data_container.add_observation("trips", obs_dict, "id",
                                               no_rep_on_keys=["id",
                                                               "time"])
@@ -217,7 +238,7 @@ class DataContainer:
     def save_observations_to_csv(self, table_name, file_name):
 
         self.get_observations_table_df(table_name).to_csv(file_name,
-                                                                index=False)
+                                                          index=False)
 
     def __can_add_obs_to_table(self, table_name, obs_dict, obs_id_key,
                                no_rep_on_keys):

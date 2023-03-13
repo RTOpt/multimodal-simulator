@@ -12,6 +12,7 @@ class Event(object):
     amounts to figuring out which event occurs first """
 
     MAX_PRIORITY = 1000
+    LOW_PRIORITY = 6
     STANDARD_PRIORITY = 5
     HIGH_PRIORITY = 4
     MAX_DELTA_TIME = 7 * 24 * 3600
@@ -32,9 +33,9 @@ class Event(object):
                              self.queue.env.current_time))
         elif event_time > self.MAX_DELTA_TIME:
             logger.warning(
-                "WARNING: {}: event_time ({}) is much larger than current_time "
-                "({})".format(self.name, event_time,
-                              self.queue.env.current_time))
+                "WARNING: {}: event_time ({}) is much larger than "
+                "current_time ({})".format(self.name, event_time,
+                                           self.queue.env.current_time))
         else:
             self.__time = event_time
 
@@ -85,9 +86,8 @@ class Event(object):
                                   format(self.__class__.__name__))
 
     def __lt__(self, other):
-        """ Returns True if self.time + self.priority
-        < other.time + other.priority"""
-        # return self.time + self.priority < other.time + other.priority
+        """ Returns True if self.time < other.time or self.time == other.time
+        and self.priority < other.priority"""
         result = False
         if self.time < other.time:
             result = True
@@ -130,7 +130,7 @@ class ActionEvent(Event):
     def process(self, env):
 
         if self.__state_machine is not None:
-            self.__state_machine.next_state(self.__class__)
+            self.__state_machine.next_state(self.__class__, env)
 
         return self._process(env)
 

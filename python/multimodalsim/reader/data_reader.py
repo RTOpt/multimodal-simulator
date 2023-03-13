@@ -12,7 +12,7 @@ from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
-    Vehicle, Route, MAX_TIME
+    Vehicle, Route
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,8 @@ class DataReader(object):
 
 class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path,
-                 graph_from_json_file_path=None, sim_end_time=None):
+                 graph_from_json_file_path=None, sim_end_time=None,
+                 vehicles_end_time=None):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
@@ -40,6 +41,7 @@ class ShuttleDataReader(DataReader):
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
         self.__sim_end_time = sim_end_time
+        self.__vehicles_end_time = vehicles_end_time
 
     def get_trips(self):
         """ read trip from a file
@@ -50,14 +52,19 @@ class ShuttleDataReader(DataReader):
         trips = []
         with open(self.__requests_file_path, 'r') as rFile:
             csv_dict_reader = csv.DictReader(rFile, delimiter=';')
-            requests_mode_is_car = [row for row in csv_dict_reader if row['mode'] == 'car']
+            requests_mode_is_car = [row for row in csv_dict_reader if
+                                    row['mode'] == 'car']
             nb_requests = 1
             nb_passengers = 1
             for row in requests_mode_is_car:
                 trip = Trip(nb_requests,
-                            GPSLocation(Node(None, (ast.literal_eval(row['origin_x']),
-                                                                     ast.literal_eval(row['origin_y'])))),
-                            GPSLocation(Node(None, (ast.literal_eval(row['destination_x']), ast.literal_eval(row['destination_y'])))),
+                            GPSLocation(
+                                Node(None, (ast.literal_eval(row['origin_x']),
+                                            ast.literal_eval(
+                                                row['origin_y'])))),
+                            GPSLocation(Node(None, (
+                            ast.literal_eval(row['destination_x']),
+                            ast.literal_eval(row['destination_y'])))),
                             nb_passengers,
                             float(row['departure_time']),
                             float(row['departure_time']),
@@ -83,11 +90,11 @@ class ShuttleDataReader(DataReader):
                 capacity = int(row[4])
 
                 start_stop = Stop(start_time,
-                                  MAX_TIME,
+                                  Vehicle.MAX_TIME,
                                   start_stop_location)
 
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
-                                  start_time, self.__sim_end_time)
+                                  start_time, self.__vehicles_end_time)
 
                 vehicles.append(vehicle)
 
@@ -113,7 +120,7 @@ class ShuttleDataReader(DataReader):
                 coord = (node[1]['pos'][0], node[1]['pos'][1])
                 node[1]['pos'] = coord
                 node[1]['Node'] = Node(node[1]['Node']['id'], coord)
-                #node[1]['Node']['coordinates'] = coord
+                # node[1]['Node']['coordinates'] = coord
 
         return G
 
@@ -194,6 +201,8 @@ class BusDataReader(DataReader):
 
 
 class GTFSReader(DataReader):
+    RELEASE_TIME_INTERVAL = 900
+
     def __init__(self, data_folder, requests_file_path,
                  stops_file_name="stops.txt",
                  stop_times_file_name="stop_times.txt",
@@ -218,6 +227,9 @@ class GTFSReader(DataReader):
         self.__service_dates_dict = None
         self.__trip_service_dict = None
         self.__network_graph = None
+
+        self.__release_time_interval = None
+        self.__min_departure_time_interval = None
 
     def get_trips(self):
         trips = []
@@ -276,7 +288,13 @@ class GTFSReader(DataReader):
 
         return trips
 
-    def get_vehicles(self, release_time_interval=900):
+    def get_vehicles(self, release_time_interval=None,
+                     min_departure_time_interval=None):
+
+        self.__release_time_interval = self.RELEASE_TIME_INTERVAL \
+            if release_time_interval is None else release_time_interval
+        self.__min_departure_time_interval = min_departure_time_interval
+
         self.__read_stops()
         self.__read_stop_times()
         self.__read_calendar_dates()
@@ -287,7 +305,7 @@ class GTFSReader(DataReader):
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict. \
                 items():
             vehicle, next_stops = self.__get_vehicle_and_next_stops(
-                trip_id, stop_time_list, release_time_interval)
+                trip_id, stop_time_list)
 
             vehicle.route = Route(vehicle, next_stops)
 
@@ -365,8 +383,7 @@ class GTFSReader(DataReader):
 
         return available_connections
 
-    def __get_vehicle_and_next_stops(self, trip_id, stop_time_list,
-                                     release_time_interval):
+    def __get_vehicle_and_next_stops(self, trip_id, stop_time_list):
 
         vehicle_id = trip_id
 
@@ -374,6 +391,9 @@ class GTFSReader(DataReader):
 
         start_stop_arrival_time = int(start_stop_time.arrival_time)
         start_stop_departure_time = int(start_stop_time.departure_time)
+        start_stop_min_departure_time = \
+            start_stop_departure_time - self.__min_departure_time_interval \
+                if self.__min_departure_time_interval is not None else None
 
         start_stop_gtfs = self.__stop_by_stop_id_dict[start_stop_time.stop_id]
         start_stop_location = LabelLocation(start_stop_time.stop_id,
@@ -381,14 +401,15 @@ class GTFSReader(DataReader):
                                             start_stop_gtfs.stop_lat)
         start_stop_shape_dist_traveled = \
             float(start_stop_time.shape_dist_traveled) \
-            if start_stop_time.shape_dist_traveled is not None else None
+                if start_stop_time.shape_dist_traveled is not None else None
 
         start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
-                          start_stop_location, start_stop_shape_dist_traveled)
+                          start_stop_location, start_stop_shape_dist_traveled,
+                          min_departure_time=start_stop_min_departure_time)
 
         next_stops = self.__get_next_stops(stop_time_list)
 
-        release_time = start_stop_arrival_time - release_time_interval
+        release_time = start_stop_arrival_time - self.__release_time_interval
 
         end_time = next_stops[-1].arrival_time if len(next_stops) > 0 \
             else start_stop.arrival_time
@@ -403,6 +424,9 @@ class GTFSReader(DataReader):
         for stop_time in stop_time_list[1:]:
             arrival_time = int(stop_time.arrival_time)
             departure_time = int(stop_time.departure_time)
+            min_departure_time = \
+                departure_time - self.__min_departure_time_interval \
+                    if self.__min_departure_time_interval is not None else None
             shape_dist_traveled = float(stop_time.shape_dist_traveled) \
                 if stop_time.shape_dist_traveled is not None else None
 
@@ -412,7 +436,8 @@ class GTFSReader(DataReader):
                              LabelLocation(stop_time.stop_id,
                                            stop_gtfs.stop_lon,
                                            stop_gtfs.stop_lat),
-                             shape_dist_traveled)
+                             shape_dist_traveled,
+                             min_departure_time=min_departure_time)
             next_stops.append(next_stop)
 
         return next_stops

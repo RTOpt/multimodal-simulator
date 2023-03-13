@@ -4,7 +4,7 @@ from multimodalsim.simulator.event import Event, ActionEvent
 import multimodalsim.simulator.optimization_event \
     as optimization_event_process
 from multimodalsim.simulator.vehicle_event import VehicleBoarded, \
-    VehicleAlighted
+    VehicleAlighted, VehicleUpdatePositionEvent
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,10 @@ class PassengerAssignment(ActionEvent):
 
         env.remove_non_assigned_trip(self.__trip.id)
         env.add_assigned_trip(self.__trip)
+
+        if env.coordinates is not None:
+            VehicleUpdatePositionEvent(
+                vehicle, self.queue, self.time).add_to_queue()
 
         PassengerReady(self.__trip, self.queue).add_to_queue()
 

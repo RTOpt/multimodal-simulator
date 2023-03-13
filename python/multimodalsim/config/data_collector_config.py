@@ -24,7 +24,12 @@ class DataCollectorConfig(Config):
             "cumulative_distance":
                 self._config_parser["vehicles"]["cumulative_distance"],
             "stop_lon": self._config_parser["vehicles"]["stop_lon"],
-            "stop_lat": self._config_parser["vehicles"]["stop_lat"]
+            "stop_lat": self._config_parser["vehicles"]["stop_lat"],
+            "lon": self._config_parser["vehicles"]["lon"],
+            "lat": self._config_parser["vehicles"]["lat"],
+            "past_polyline": self._config_parser["vehicles"]["past_polyline"],
+            "future_polyline":
+                self._config_parser["vehicles"]["future_polyline"]
         }
 
         return vehicles_columns
@@ -40,7 +45,12 @@ class DataCollectorConfig(Config):
                 "current_location"],
             "previous_legs": self._config_parser["trips"]["previous_legs"],
             "current_leg": self._config_parser["trips"]["current_leg"],
-            "next_legs": self._config_parser["trips"]["next_legs"]
+            "next_legs": self._config_parser["trips"]["next_legs"],
+            "lon": self._config_parser["trips"]["lon"],
+            "lat": self._config_parser["trips"]["lat"],
+            "past_polyline": self._config_parser["trips"]["past_polyline"],
+            "future_polyline":
+                self._config_parser["trips"]["future_polyline"]
         }
 
         return trips_columns
