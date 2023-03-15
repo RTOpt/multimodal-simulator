@@ -29,7 +29,7 @@ class Request(object):
        """
 
     def __init__(self, id, origin, destination, nb_passengers, release_time,
-                 ready_time, due_time):
+                 ready_time, due_time, name=None):
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -37,6 +37,7 @@ class Request(object):
         self.__ready_time = ready_time
         self.__due_time = due_time
         self.__release_time = release_time
+        self.__name = name
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -73,6 +74,9 @@ class Request(object):
     def release_time(self):
         return self.__release_time
 
+    @property
+    def name(self):
+        return self.__name
 
 class Leg(Request):
     """The ``Leg`` class serves as a structure for storing basic
@@ -162,9 +166,9 @@ class Trip(Request):
     """
 
     def __init__(self, id, origin, destination, nb_passengers, release_time,
-                 ready_time, due_time):
+                 ready_time, due_time, name=None):
         super().__init__(id, origin, destination, nb_passengers, release_time,
-                         ready_time, due_time)
+                         ready_time, due_time, name)
 
         self.__previous_legs = []
         self.__current_leg = None
@@ -211,30 +215,6 @@ class Trip(Request):
     @next_legs.deleter
     def next_legs(self):
         del self.__next_legs
-
-    @property
-    def position(self):
-        return self.__position
-
-    @position.setter
-    def position(self, position):
-        self.__position = position
-
-    @property
-    def past_polyline(self):
-        return self.__past_polyline
-
-    @past_polyline.setter
-    def past_polyline(self, past_polyline):
-        self.__past_polyline = past_polyline
-
-    @property
-    def future_polyline(self):
-        return self.__future_polyline
-
-    @future_polyline.setter
-    def future_polyline(self, future_polyline):
-        self.__future_polyline = future_polyline
 
     def assign_legs(self, legs):
         if legs is not None and len(legs) > 1:

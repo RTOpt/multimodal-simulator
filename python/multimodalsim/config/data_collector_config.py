@@ -27,9 +27,7 @@ class DataCollectorConfig(Config):
             "stop_lat": self._config_parser["vehicles"]["stop_lat"],
             "lon": self._config_parser["vehicles"]["lon"],
             "lat": self._config_parser["vehicles"]["lat"],
-            "past_polyline": self._config_parser["vehicles"]["past_polyline"],
-            "future_polyline":
-                self._config_parser["vehicles"]["future_polyline"]
+            "polylines": self._config_parser["vehicles"]["polylines"],
         }
 
         return vehicles_columns
@@ -46,11 +44,7 @@ class DataCollectorConfig(Config):
             "previous_legs": self._config_parser["trips"]["previous_legs"],
             "current_leg": self._config_parser["trips"]["current_leg"],
             "next_legs": self._config_parser["trips"]["next_legs"],
-            "lon": self._config_parser["trips"]["lon"],
-            "lat": self._config_parser["trips"]["lat"],
-            "past_polyline": self._config_parser["trips"]["past_polyline"],
-            "future_polyline":
-                self._config_parser["trips"]["future_polyline"]
+            "name": self._config_parser["trips"]["name"]
         }
 
         return trips_columns

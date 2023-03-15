@@ -63,8 +63,8 @@ class ShuttleDataReader(DataReader):
                                             ast.literal_eval(
                                                 row['origin_y'])))),
                             GPSLocation(Node(None, (
-                            ast.literal_eval(row['destination_x']),
-                            ast.literal_eval(row['destination_y'])))),
+                                ast.literal_eval(row['destination_x']),
+                                ast.literal_eval(row['destination_y'])))),
                             nb_passengers,
                             float(row['departure_time']),
                             float(row['departure_time']),
@@ -251,6 +251,7 @@ class GTFSReader(DataReader):
                 #     due_date_string, due_time_string)
 
                 trip_id = str(row[self.__trips_columns["id"]])
+                name = trip_id
                 origin = str(row[self.__trips_columns["origin"]])
                 destination = str(row[self.__trips_columns["destination"]])
                 nb_passengers = int(row[self.__trips_columns["nb_passengers"]])
@@ -265,7 +266,8 @@ class GTFSReader(DataReader):
 
                 trip = Trip(trip_id,
                             LabelLocation(origin), LabelLocation(destination),
-                            nb_passengers, release_time, ready_time, due_time)
+                            nb_passengers, release_time, ready_time, due_time,
+                            name=name)
 
                 if legs_stops_pairs_list is not None:
                     leg_number = 1
