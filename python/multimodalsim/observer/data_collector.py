@@ -99,8 +99,8 @@ class StandardDataCollector(DataCollector):
         lat = route.vehicle.position.lat \
             if route.vehicle.position is not None else None
 
-        past_polyline = route.vehicle.past_polyline
-        future_polyline = route.vehicle.future_polyline
+        polylines = route.vehicle.polylines \
+            if route.vehicle.polylines is not None else None
 
         obs_dict = {"id": route.vehicle.id,
                     "time": self.__time,
@@ -116,8 +116,7 @@ class StandardDataCollector(DataCollector):
                     "stop_lat": stop_lat,
                     "lon": lon,
                     "lat": lat,
-                    "past_polyline": past_polyline,
-                    "future_polyline": future_polyline}
+                    "polylines": polylines}
 
         self.__data_container.add_observation(
             "vehicles", obs_dict, "id",
@@ -139,14 +138,6 @@ class StandardDataCollector(DataCollector):
                      in trip.next_legs] \
             if trip.next_legs is not None else None
 
-        lon = trip.position.lon \
-            if trip.position is not None else None
-        lat = trip.position.lat \
-            if trip.position is not None else None
-
-        past_polyline = trip.past_polyline
-        future_polyline = trip.future_polyline
-
         obs_dict = {"id": trip.id,
                     "time": self.__time,
                     "status": trip.status,
@@ -155,10 +146,7 @@ class StandardDataCollector(DataCollector):
                     "previous_legs": previous_legs,
                     "current_leg": current_leg,
                     "next_legs": next_legs,
-                    "lon": lon,
-                    "lat": lat,
-                    "past_polyline": past_polyline,
-                    "future_polyline": future_polyline}
+                    "name": trip.name}
 
         self.__data_container.add_observation("trips", obs_dict, "id",
                                               no_rep_on_keys=["id",

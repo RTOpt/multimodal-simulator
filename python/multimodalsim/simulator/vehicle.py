@@ -36,8 +36,7 @@ class Vehicle(object):
         self.__capacity = capacity
         self.__release_time = release_time
         self.__position = None
-        self.__past_polyline = None
-        self.__future_polyline = None
+        self.__polylines = None
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -82,27 +81,38 @@ class Vehicle(object):
 
     @property
     def position(self):
-        return self.__position
+        position = self.__position
+        if position is None and self.__route is not None \
+                and self.__route.current_stop is not None:
+            position = self.__route.current_stop.location
+        elif position is None and self.__route is not None \
+                and self.__route.previous_stops is not None:
+            position = self.__route.previous_stops[-1].location
+
+        return position
 
     @position.setter
     def position(self, position):
         self.__position = position
 
     @property
-    def past_polyline(self):
-        return self.__past_polyline
+    def polylines(self):
+        return self.__polylines
 
-    @past_polyline.setter
-    def past_polyline(self, past_polyline):
-        self.__past_polyline = past_polyline
+    @polylines.setter
+    def polylines(self, polylines):
+        self.__polylines = polylines
 
-    @property
-    def future_polyline(self):
-        return self.__future_polyline
-
-    @future_polyline.setter
-    def future_polyline(self, future_polyline):
-        self.__future_polyline = future_polyline
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_Vehicle__polylines":
+                setattr(result, k, [])
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
 
 class Route(object):

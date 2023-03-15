@@ -37,10 +37,15 @@ class VehicleReady(Event):
 
         if env.coordinates is not None and self.__update_position_time_step \
                 is not None:
+            self.__vehicle.polylines = \
+                env.coordinates.update_polylines(self.__vehicle.route)
             VehicleUpdatePositionEvent(
                 self.__vehicle, self.queue,
                 self.time + self.__update_position_time_step,
                 self.__update_position_time_step).add_to_queue()
+        elif env.coordinates is not None:
+            self.__vehicle.polylines = \
+                env.coordinates.update_polylines(self.__vehicle.route)
 
         return 'Vehicle Ready process is implemented'
 
@@ -298,18 +303,8 @@ class VehicleUpdatePositionEvent(Event):
 
     def _process(self, env):
 
-        vehicle_position = env.coordinates.update_vehicle_position(
+        self.__vehicle.position = env.coordinates.update_position(
             self.__vehicle, self.__event_time)
-        if vehicle_position != self.__vehicle.position:
-            self.__vehicle.position = vehicle_position
-
-            self.__vehicle.past_polyline = \
-                env.coordinates.update_vehicle_past_polyline(self.__vehicle)
-            self.__vehicle.future_polyline = \
-                env.coordinates.update_vehicle_future_polyline(self.__vehicle,
-                                                               self.__event_time)
-
-            self.__update_trips_positions(self.__vehicle.position, env)
 
         if self.__vehicle.route.status != VehicleStatus.COMPLETE \
                 and self.__time_step is not None:
@@ -324,24 +319,6 @@ class VehicleUpdatePositionEvent(Event):
     def vehicle(self):
         return self.__vehicle
 
-    def __update_trips_positions(self, position, env):
-
-        for leg in self.__vehicle.route.assigned_legs:
-            leg.trip.past_polyline = env.coordinates.update_trip_past_polyline(
-                leg.trip)
-            leg.trip.future_polyline = \
-                env.coordinates.update_trip_future_polyline(leg.trip,
-                                                            self.__event_time)
-
-        for leg in self.__vehicle.route.onboard_legs:
-            leg.trip.position = env.coordinates.update_trip_positions(
-                leg.trip, env.current_time, position)
-            leg.trip.past_polyline = env.coordinates.update_trip_past_polyline(
-                leg.trip)
-            leg.trip.future_polyline = \
-                env.coordinates.update_trip_future_polyline(leg.trip,
-                                                            self.__event_time)
-
 
 class VehicleComplete(ActionEvent):
     def __init__(self, route, queue):
@@ -352,10 +329,6 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-
-        if env.coordinates is not None:
-            VehicleUpdatePositionEvent(
-                self.__route.vehicle, self.queue, self.time).add_to_queue()
 
         return 'Vehicle Complete process is implemented'
 

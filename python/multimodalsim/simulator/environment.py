@@ -198,7 +198,9 @@ class Environment(object):
         non_complete_vehicles = []
         for vehicle in vehicles:
             if vehicle.route.status != VehicleStatus.COMPLETE:
-                non_complete_vehicles.append(vehicle)
+                veh_copy = copy.copy(vehicle)
+                veh_copy.polylines = None
+                non_complete_vehicles.append(veh_copy)
         return non_complete_vehicles
 
     def __get_non_complete_trips(self, trips):
