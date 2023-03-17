@@ -176,10 +176,6 @@ class Trip(Request):
 
         self.__state_machine = PassengerStateMachine(self)
 
-        self.__position = None
-        self.__past_polyline = None
-        self.__future_polyline = None
-
     @property
     def status(self):
         return self.__state_machine.current_state.status
