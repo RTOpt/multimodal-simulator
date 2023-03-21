@@ -66,6 +66,8 @@ class StandardDataCollector(DataCollector):
 
         self.__collect_events_data()
 
+        self.__collect_environment_data(env)
+
     def __load_config(self, config):
         self.__data_container.set_columns("vehicles",
                                           config.get_vehicles_columns())
@@ -102,6 +104,8 @@ class StandardDataCollector(DataCollector):
         polylines = route.vehicle.polylines \
             if route.vehicle.polylines is not None else None
 
+        mode = route.vehicle.mode
+
         obs_dict = {"id": route.vehicle.id,
                     "time": self.__time,
                     "status": route.status,
@@ -116,11 +120,46 @@ class StandardDataCollector(DataCollector):
                     "stop_lat": stop_lat,
                     "lon": lon,
                     "lat": lat,
-                    "polylines": polylines}
+                    "polylines": polylines,
+                    "mode": mode}
 
         self.__data_container.add_observation(
-            "vehicles", obs_dict, "id",
-            no_rep_on_keys=["id", "time"])
+            "vehicles", obs_dict, "id")
+
+        self.__update_trip_cumulative_distance_by_vehicle(route.vehicle)
+
+    def __update_trip_cumulative_distance_by_vehicle(self, veh):
+
+        if "trips_cumulative_distance" \
+                not in self.__data_container.observations_tables:
+            self.__data_container.observations_tables[
+                "trips_cumulative_distance"] = {}
+
+        cumdist_by_veh_by_trip = self.__data_container.observations_tables[
+                "trips_cumulative_distance"]
+
+        if veh.route.current_stop is not None:
+            current_veh_cumdist = \
+                veh.route.current_stop.cumulative_distance
+        else:
+            current_veh_cumdist = \
+                veh.route.previous_stops[-1].cumulative_distance
+
+        for leg in veh.route.assigned_legs:
+            trip = leg.trip
+
+            if trip.id not in cumdist_by_veh_by_trip:
+                cumdist_by_veh_by_trip[trip.id] = {}
+
+            if veh.id not in cumdist_by_veh_by_trip[trip.id]:
+                cumdist_by_veh_by_trip[trip.id][veh.id] = \
+                    {"cumdist": 0, "veh_cumdist": current_veh_cumdist}
+            else:
+                cumdist_by_veh_by_trip[trip.id][veh.id]["cumdist"] += \
+                    current_veh_cumdist \
+                    - cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"]
+                cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"] = \
+                    current_veh_cumdist
 
     def __collect_trips_data(self, trip):
 
@@ -148,9 +187,9 @@ class StandardDataCollector(DataCollector):
                     "next_legs": next_legs,
                     "name": trip.name}
 
-        self.__data_container.add_observation("trips", obs_dict, "id",
-                                              no_rep_on_keys=["id",
-                                                              "time"])
+        self.__data_container.add_observation("trips", obs_dict, "id")
+
+        self.__update_trip_cumulative_distance_by_trip(trip)
 
     def __get_assigned_vehicle_id(self, trip):
         if trip.current_leg is not None \
@@ -175,6 +214,38 @@ class StandardDataCollector(DataCollector):
 
         return current_location
 
+    def __update_trip_cumulative_distance_by_trip(self, trip):
+
+        if "trips_cumulative_distance" \
+                not in self.__data_container.observations_tables:
+            self.__data_container.observations_tables[
+                "trips_cumulative_distance"] = {}
+
+        cumdist_by_veh_by_trip = self.__data_container.observations_tables[
+                "trips_cumulative_distance"]
+        if trip.current_leg.assigned_vehicle is not None:
+            veh = trip.current_leg.assigned_vehicle
+
+            if veh.route.current_stop is not None:
+                current_veh_cumdist = \
+                    veh.route.current_stop.cumulative_distance
+            else:
+                current_veh_cumdist = \
+                    veh.route.previous_stops[-1].cumulative_distance
+
+            if trip.id not in cumdist_by_veh_by_trip:
+                cumdist_by_veh_by_trip[trip.id] = {}
+
+            if veh.id not in cumdist_by_veh_by_trip[trip.id]:
+                cumdist_by_veh_by_trip[trip.id][veh.id] = \
+                    {"cumdist": 0, "veh_cumdist": current_veh_cumdist}
+            else:
+                cumdist_by_veh_by_trip[trip.id][veh.id]["cumdist"] += \
+                    current_veh_cumdist \
+                    - cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"]
+                cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"] = \
+                    current_veh_cumdist
+
     def __collect_events_data(self):
 
         event_name = self.__current_event.name \
@@ -185,6 +256,45 @@ class StandardDataCollector(DataCollector):
                     "priority": self.__event_priority,
                     "index": self.__event_index}
         self.__data_container.add_observation("events", obs_dict, "index")
+
+    def __collect_environment_data(self, env):
+
+        trips_by_mode = {None: 0}
+        active_trips_by_mode = {None: 0}
+        for trip in env.trips:
+            self.__collect_total_nb_trips(trip, trips_by_mode)
+            self.__collect_nb_active_trips(trip, active_trips_by_mode)
+
+        self.__data_container.observations_tables["total_nb_trips_by_mode"] \
+            = trips_by_mode
+        self.__data_container.observations_tables["nb_active_trips_by_mode"] \
+            = active_trips_by_mode
+
+    def __collect_total_nb_trips(self, trip, trips_by_mode):
+
+        trips_by_mode[None] += 1
+        trip_modes = set()
+        for leg in trip.previous_legs:
+            trip_modes.add(leg.assigned_vehicle.mode)
+        if trip.current_leg is not None \
+                and trip.current_leg.assigned_vehicle is not None:
+            mode = trip.current_leg.assigned_vehicle.mode
+            trip_modes.add(mode)
+        for mode in trip_modes:
+            trips_by_mode[mode] = trips_by_mode[mode] + 1 \
+                if mode in trips_by_mode else 1
+
+    def __collect_nb_active_trips(self, trip, active_trips_by_mode):
+
+        if trip.status != PassengersStatus.COMPLETE:
+            active_trips_by_mode[None] += 1
+            if trip.current_leg is not None \
+                    and trip.current_leg.assigned_vehicle is not None:
+                mode = trip.current_leg.assigned_vehicle.mode
+                if mode not in active_trips_by_mode:
+                    active_trips_by_mode[mode] = 1
+                else:
+                    active_trips_by_mode[mode] += 1
 
 
 class DataContainer:
@@ -213,15 +323,9 @@ class DataContainer:
     def set_columns(self, table_name, columns):
         self.__dfs_columns[table_name] = columns
 
-    def add_observation(self, table_name, obs_dict, obs_id_key,
-                        no_rep_on_keys=None):
-
-        # if no_rep_on_keys is None \
-        #         or self.__can_add_obs_to_table(table_name, obs_dict,
-        #                                        obs_id_key, no_rep_on_keys):
+    def add_observation(self, table_name, obs_dict, obs_id_key=None):
         self.__add_obs_to_dict(table_name, obs_dict, obs_id_key)
         self.__updated_dfs[table_name] = False
-        # self.__add_obs_to_df(table_name, obs_dict)
 
     def save_observations_to_csv(self, table_name, file_name):
 
@@ -251,15 +355,6 @@ class DataContainer:
         if table_name not in self.__observations_tables:
             self.__observations_tables[table_name] = []
         self.__observations_tables[table_name].append(row_dict)
-
-        # if table_name not in self.__observations_tables:
-        #     self.__observations_tables[table_name] = {}
-        #
-        # obs_id = row_dict[obs_id_key]
-        # if obs_id not in self.__observations_tables[table_name]:
-        #     self.__observations_tables[table_name][obs_id] = []
-        #
-        # self.__observations_tables[table_name][obs_id].append(row_dict)
 
     def __add_obs_to_df(self, table_name, row_dict):
         if table_name not in self.__observations_tables_dfs:

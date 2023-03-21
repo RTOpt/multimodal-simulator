@@ -8,6 +8,8 @@ from networkx.readwrite import json_graph
 
 import networkx as nx
 
+import os.path
+
 from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
@@ -208,6 +210,7 @@ class GTFSReader(DataReader):
                  stop_times_file_name="stop_times.txt",
                  calendar_dates_file_name="calendar_dates.txt",
                  trips_file_name="trips.txt",
+                 routes_file_name="routes.txt",
                  config=None):
         super().__init__()
         self.__data_folder = data_folder
@@ -216,6 +219,7 @@ class GTFSReader(DataReader):
         self.__stop_times_path = data_folder + stop_times_file_name
         self.__calendar_dates_path = data_folder + calendar_dates_file_name
         self.__trips_path = data_folder + trips_file_name
+        self.__routes_path = data_folder + routes_file_name
 
         config = DataReaderConfig() if config is None else config
         self.__trips_columns = config.get_trips_columns()
@@ -226,6 +230,8 @@ class GTFSReader(DataReader):
         self.__stop_times_by_trip_id_dict = None
         self.__service_dates_dict = None
         self.__trip_service_dict = None
+        self.__trip_route_dict = None
+        self.__route_mode_dict = None
         self.__network_graph = None
 
         self.__release_time_interval = None
@@ -301,6 +307,8 @@ class GTFSReader(DataReader):
         self.__read_stop_times()
         self.__read_calendar_dates()
         self.__read_trips()
+        if self.__routes_path is not None:
+            self.__read_routes()
 
         vehicles = []
 
@@ -416,8 +424,12 @@ class GTFSReader(DataReader):
         end_time = next_stops[-1].arrival_time if len(next_stops) > 0 \
             else start_stop.arrival_time
 
+        route_id = self.__trip_route_dict[trip_id]
+        mode = self.__route_mode_dict[route_id] \
+            if self.__route_mode_dict is not None else None
+
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
-                          self.__CAPACITY, release_time, end_time)
+                          self.__CAPACITY, release_time, end_time, mode)
 
         return vehicle, next_stops
 
@@ -494,13 +506,27 @@ class GTFSReader(DataReader):
 
     def __read_trips(self):
         self.__trip_service_dict = {}
+        self.__trip_route_dict = {}
         with open(self.__trips_path, 'r') as trips_file:
             trips_reader = csv.reader(trips_file, delimiter=',')
             next(trips_reader, None)
             for trips_row in trips_reader:
+                route_id = trips_row[0]
                 service_id = trips_row[1]
                 trip_id = trips_row[2]
                 self.__trip_service_dict[trip_id] = service_id
+                self.__trip_route_dict[trip_id] = route_id
+
+    def __read_routes(self):
+        if os.path.isfile(self.__routes_path):
+            self.__route_mode_dict = {}
+            with open(self.__routes_path, 'r') as routes_file:
+                routes_reader = csv.reader(routes_file, delimiter=',')
+                next(routes_reader, None)
+                for routes_row in routes_reader:
+                    route_id = routes_row[0]
+                    mode_id = routes_row[4]
+                    self.__route_mode_dict[route_id] = mode_id
 
     class GTFSStop:
         def __init__(self, stop_id, stop_name, stop_lon, stop_lat):

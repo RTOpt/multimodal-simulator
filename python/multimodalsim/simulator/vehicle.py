@@ -23,11 +23,10 @@ class Vehicle(object):
             time at which the vehicle is added to the environment.
     """
 
-    # MAX_TIME = math.inf
     MAX_TIME = 7*24*3600
 
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
-                 end_time=None):
+                 end_time=None, mode=None):
         self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
@@ -35,6 +34,7 @@ class Vehicle(object):
         self.__start_stop = start_stop
         self.__capacity = capacity
         self.__release_time = release_time
+        self.__mode = mode
         self.__position = None
         self.__polylines = None
 
@@ -68,6 +68,10 @@ class Vehicle(object):
     @property
     def release_time(self):
         return self.__release_time
+
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def route(self):

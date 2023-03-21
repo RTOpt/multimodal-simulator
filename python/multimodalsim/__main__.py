@@ -8,18 +8,18 @@ import networkx as nx
 from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
     ShuttleGreedyDispatcher
 
-from logger.formatter import ColoredFormatter
+from multimodalsim.logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.simulator.coordinates import CoordinatesOSRM, \
     CoordinatesFromFile
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
-from optimization.dispatcher import FixedLineDispatcher
-from optimization.optimization import Optimization
-from optimization.splitter import OneLegSplitter, MultimodalSplitter
-from reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
-from simulator.network import create_graph
-from simulator.simulation import Simulation
+from multimodalsim.optimization.dispatcher import FixedLineDispatcher
+from multimodalsim.optimization.optimization import Optimization
+from multimodalsim.optimization.splitter import OneLegSplitter, MultimodalSplitter
+from multimodalsim.reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
+from multimodalsim.simulator.network import create_graph
+from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +118,12 @@ def print_statistics(data_container):
     logger.info("nb_event_types: {}".format(data_analyzer.nb_event_types))
     logger.info("nb_events_by_type: \n{}".format(data_analyzer.
                                                  nb_events_by_type))
-    logger.info("nb_trips: {}".format(data_analyzer.nb_trips))
-    logger.info("nb_vehicles: {}".format(data_analyzer.nb_vehicles))
+    logger.info("nb_trips: {}".format(data_analyzer.get_total_nb_trips()))
+    logger.info("nb_active_trips: {}".format(
+        data_analyzer.get_nb_active_trips()))
+    logger.info("nb_vehicles: {}".format(data_analyzer.get_total_nb_vehicles()))
+    logger.info("nb_active_vehicles: {}".format(
+        data_analyzer.get_nb_active_vehicles()))
 
     logger.info(data_analyzer.get_vehicle_status_duration_statistics())
     logger.info(data_analyzer.get_trip_status_duration_statistics())
