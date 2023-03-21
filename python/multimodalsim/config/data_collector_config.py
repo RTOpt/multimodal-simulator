@@ -28,6 +28,7 @@ class DataCollectorConfig(Config):
             "lon": self._config_parser["vehicles"]["lon"],
             "lat": self._config_parser["vehicles"]["lat"],
             "polylines": self._config_parser["vehicles"]["polylines"],
+            "mode": self._config_parser["vehicles"]["mode"]
         }
 
         return vehicles_columns

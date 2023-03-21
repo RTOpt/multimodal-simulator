@@ -135,8 +135,22 @@ class ConsoleVisualizer(Visualizer):
                     current_event, event_priority))
 
     def __print_statistics(self):
-        logger.info("nb_trips: {}, nb_vehicles: {}, distance: {}, ghg-e: {}"
-                    .format(self.__data_analyzer.nb_trips,
-                            self.__data_analyzer.nb_vehicles,
-                            self.__data_analyzer.total_distance_travelled,
-                            self.__data_analyzer.total_ghg_e))
+
+        vehicles_stats = self.__data_analyzer.get_vehicles_statistics()
+        logger.info(vehicles_stats)
+        modes = self.__data_analyzer.modes
+        if len(modes) > 1:
+            for mode in modes:
+                mode_vehicles_stats = \
+                    self.__data_analyzer.get_vehicles_statistics(mode)
+                logger.info("{}: {}".format(mode, mode_vehicles_stats))
+
+        trips_stats = self.__data_analyzer.get_trips_statistics()
+        logger.info(trips_stats)
+        modes = self.__data_analyzer.modes
+        if len(modes) > 1:
+            for mode in modes:
+                mode_trips_stats = \
+                    self.__data_analyzer.get_trips_statistics(mode)
+                logger.info("{}: {}".format(mode, mode_trips_stats))
+

@@ -26,6 +26,14 @@ class DataAnalyzer:
 
         return observations_df.describe(datetime_is_numeric=True)
 
+    def get_vehicles_statistics(self, mode):
+        raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
+                                  "not been implemented")
+
+    def get_trips_statistics(self, mode):
+        raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
+                                  "not been implemented")
+
 
 class FixedLineDataAnalyzer(DataAnalyzer):
 
@@ -53,34 +61,99 @@ class FixedLineDataAnalyzer(DataAnalyzer):
             self.__events_table_name)[name_col].value_counts().sort_index()
 
     @property
-    def nb_trips(self):
+    def modes(self):
+        modes = []
+        if "vehicles" in self.data_container.observations_tables:
+            vehicles_df = self.data_container.get_observations_table_df(
+                self.__vehicles_table_name)
+            mode_col = self.data_container.get_columns("vehicles")["mode"]
+            modes = list(vehicles_df.groupby(mode_col).groups.keys())
+
+        return modes
+
+    @property
+    def modes_by_vehicle(self):
+        modes_by_vehicle = {}
+        if "vehicles" in self.data_container.observations_tables:
+            vehicles_df = self.data_container.get_observations_table_df(
+                self.__vehicles_table_name)
+            id_col = self.data_container.get_columns("vehicles")["id"]
+            mode_col = self.data_container.get_columns("vehicles")["mode"]
+            modes_by_vehicle = \
+                dict(vehicles_df.groupby(id_col)[mode_col].first())
+
+        return modes_by_vehicle
+
+    def get_total_nb_trips(self, mode=None):
         nb_trips = 0
-        if "trips" in self.data_container.observations_tables:
-            trips_df = self.data_container.get_observations_table_df(
-                self.__trips_table_name)
-            id_col = self.data_container.get_columns("trips")["id"]
-            nb_trips = len(trips_df.groupby(id_col))
+        if "total_nb_trips_by_mode" in self.data_container.observations_tables:
+            trips_by_mode = self.data_container.observations_tables[
+                "total_nb_trips_by_mode"]
+            if mode in trips_by_mode:
+                nb_trips = trips_by_mode[mode]
 
         return nb_trips
 
-    @property
-    def nb_vehicles(self):
+    def get_nb_active_trips(self, mode=None):
+        nb_trips = 0
+        if "nb_active_trips_by_mode" \
+                in self.data_container.observations_tables:
+            active_trips_by_mode = self.data_container.observations_tables[
+                "nb_active_trips_by_mode"]
+            if mode in active_trips_by_mode:
+                nb_trips = active_trips_by_mode[mode]
+
+        return nb_trips
+
+    def get_total_nb_vehicles(self, mode=None):
         nb_vehicles = 0
         if "vehicles" in self.data_container.observations_tables:
             vehicles_df = self.data_container.get_observations_table_df(
                 self.__vehicles_table_name)
             id_col = self.data_container.get_columns("vehicles")["id"]
+
+            if mode is not None:
+                mode_col = self.data_container.get_columns("vehicles")["mode"]
+                vehicles_grouped_by_mode = vehicles_df.groupby(mode_col)
+                vehicles_df = vehicles_grouped_by_mode.get_group(mode)
+
             nb_vehicles = len(vehicles_df.groupby(id_col))
 
         return nb_vehicles
 
-    @property
-    def total_distance_travelled(self):
+    def get_nb_active_vehicles(self, mode=None):
+        nb_vehicles = 0
+        if "vehicles" in self.data_container.observations_tables:
+            vehicles_df = self.data_container.get_observations_table_df(
+                self.__vehicles_table_name)
+            id_col = self.data_container.get_columns("vehicles")["id"]
+
+            if mode is not None:
+                mode_col = self.data_container.get_columns("vehicles")["mode"]
+                vehicles_grouped_by_mode = vehicles_df.groupby(mode_col)
+                vehicles_df = vehicles_grouped_by_mode.get_group(mode)
+
+            status_by_veh_id_series = vehicles_df.groupby(id_col)[
+                "Status"].unique()
+            incomplete_mask = status_by_veh_id_series.apply(
+                lambda x: VehicleStatus.COMPLETE not in x)
+
+            nb_vehicles = len(status_by_veh_id_series[incomplete_mask])
+
+        return nb_vehicles
+
+    def get_vehicles_distance_travelled(self, mode=None):
         total_dist = 0
         if "vehicles" in self.data_container.observations_tables:
             vehicles_df = self.data_container.get_observations_table_df(
                 self.__vehicles_table_name)
             id_col = self.data_container.get_columns("vehicles")["id"]
+
+            if mode is not None:
+                mode_col = self.data_container.get_columns("vehicles")["mode"]
+                vehicles_grouped_by_mode = vehicles_df.groupby(mode_col)
+                vehicles_df = vehicles_grouped_by_mode.get_group(mode)
+
             cumulative_distance_col = \
                 self.data_container.get_columns("vehicles")[
                     "cumulative_distance"]
@@ -90,9 +163,60 @@ class FixedLineDataAnalyzer(DataAnalyzer):
 
         return total_dist
 
-    @property
-    def total_ghg_e(self):
-        return self.total_distance_travelled * self.__default_ghg_e
+    def get_trips_distance_travelled(self, mode=None):
+        total_dist = 0
+        if "trips_cumulative_distance" \
+                in self.data_container.observations_tables:
+            cumdist_by_veh_by_trip = \
+                self.data_container.observations_tables[
+                    "trips_cumulative_distance"]
+
+            modes_by_veh = self.modes_by_vehicle
+
+            for trip_id, veh_dict in cumdist_by_veh_by_trip.items():
+                for veh_id, cumdist_dict in veh_dict.items():
+                    if mode is None:
+                        total_dist += cumdist_dict["cumdist"]
+                    elif mode == modes_by_veh[veh_id]:
+                        total_dist += cumdist_dict["cumdist"]
+
+        return total_dist
+
+    def get_total_ghg_e(self, mode=None):
+
+        total_distance_travelled = self.get_vehicles_distance_travelled(mode)
+
+        return total_distance_travelled * self.__default_ghg_e
+
+    def get_vehicles_statistics(self, mode=None):
+
+        nb_vehicles = self.get_total_nb_vehicles(mode)
+        nb_active_vehicles = self.get_nb_active_vehicles(mode)
+        total_distance_travelled = self.get_vehicles_distance_travelled(mode)
+        ghg_e = self.get_total_ghg_e(mode)
+
+        vehicles_statistics = {
+            "Total number of vehicles": nb_vehicles,
+            "Number of active vehicles": nb_active_vehicles,
+            "Distance travelled": total_distance_travelled,
+            "Greenhouse gas emissions": ghg_e
+        }
+
+        return vehicles_statistics
+
+    def get_trips_statistics(self, mode=None):
+
+        nb_trips = self.get_total_nb_trips(mode)
+        nb_active_trips = self.get_nb_active_trips(mode)
+        total_distance_travelled = self.get_trips_distance_travelled(mode)
+
+        vehicles_statistics = {
+            "Total number of trips": nb_trips,
+            "Number of active trips": nb_active_trips,
+            "Distance travelled": total_distance_travelled
+        }
+
+        return vehicles_statistics
 
     def get_vehicle_status_duration_statistics(self):
         vehicles_df = self.data_container.get_observations_table_df(
