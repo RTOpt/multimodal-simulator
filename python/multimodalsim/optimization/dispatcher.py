@@ -210,8 +210,9 @@ class FixedLineDispatcher(Dispatcher):
                 optimal_vehicle = None
 
             if optimal_vehicle is not None:
-                self.__assign_trip_to_vehicle(trip, optimal_vehicle)
-                self.__assign_trip_to_stops(trip, optimal_vehicle)
+                route = self.__state.route_by_vehicle_id[optimal_vehicle.id]
+                self.__assign_trip_to_vehicle(trip, optimal_vehicle, route)
+                self.__assign_trip_to_stops(trip, route)
 
         logger.debug("END OPTIMIZE\n*******************")
 
@@ -226,9 +227,10 @@ class FixedLineDispatcher(Dispatcher):
         optimal_vehicle = None
         earliest_arrival_time = None
         for vehicle in self.__state.vehicles:
+            route = self.__state.route_by_vehicle_id[vehicle.id]
             origin_departure_time, destination_arrival_time = \
                 self.__get_origin_departure_time_and_destination_arrival_time(
-                    vehicle, origin_stop_id, destination_stop_id)
+                    route, origin_stop_id, destination_stop_id)
 
             if origin_departure_time is not None \
                     and origin_departure_time > self.__state.current_time \
@@ -243,10 +245,10 @@ class FixedLineDispatcher(Dispatcher):
         return optimal_vehicle
 
     def __get_origin_departure_time_and_destination_arrival_time(
-            self, vehicle, origin_stop_id, destination_stop_id):
-        origin_stop = self.__get_stop_by_stop_id(origin_stop_id, vehicle)
+            self, route, origin_stop_id, destination_stop_id):
+        origin_stop = self.__get_stop_by_stop_id(origin_stop_id, route)
         destination_stop = self.__get_stop_by_stop_id(destination_stop_id,
-                                                      vehicle)
+                                                      route)
 
         origin_departure_time = None
         destination_arrival_time = None
@@ -257,33 +259,33 @@ class FixedLineDispatcher(Dispatcher):
 
         return origin_departure_time, destination_arrival_time
 
-    def __assign_trip_to_vehicle(self, trip, vehicle):
+    def __assign_trip_to_vehicle(self, trip, vehicle, route):
 
         trip.current_leg.assigned_vehicle = vehicle
 
-        vehicle.route.assign_leg(trip.current_leg)
+        route.assign_leg(trip.current_leg)
 
         self.__modified_vehicles.append(vehicle)
         self.__modified_trips.append(trip)
 
-    def __assign_trip_to_stops(self, trip, vehicle):
+    def __assign_trip_to_stops(self, trip, route):
 
         origin_stop = self.__get_stop_by_stop_id(trip.current_leg.origin.label,
-                                                 vehicle)
+                                                 route)
         destination_stop = self.__get_stop_by_stop_id(
-            trip.current_leg.destination.label, vehicle)
+            trip.current_leg.destination.label, route)
 
         origin_stop.passengers_to_board.append(trip)
 
         destination_stop.passengers_to_alight.append(trip)
 
-    def __get_stop_by_stop_id(self, stop_id, vehicle):
+    def __get_stop_by_stop_id(self, stop_id, route):
         found_stop = None
-        if vehicle.route.current_stop is not None and stop_id \
-                == vehicle.route.current_stop.location.label:
-            found_stop = vehicle.route.current_stop
+        if route.current_stop is not None and stop_id \
+                == route.current_stop.location.label:
+            found_stop = route.current_stop
 
-        for stop in vehicle.route.next_stops:
+        for stop in route.next_stops:
             if stop_id == stop.location.label:
                 found_stop = stop
 

@@ -66,15 +66,17 @@ class EnvironmentUpdate(ActionEvent):
                 passenger_update, self.queue).add_to_queue()
 
         for veh in self.__optimization_result.modified_vehicles:
-            if veh.route.current_stop is not None:
+            route = \
+                self.__optimization_result.state.route_by_vehicle_id[veh.id]
+            if route.current_stop is not None:
                 # Add the passengers_to_board of current_stop that were
                 # modified during optimization.
                 current_stop_modified_passengers_to_board = \
                     [trip for trip
-                     in veh.route.current_stop.passengers_to_board
+                     in route.current_stop.passengers_to_board
                      if trip in self.__optimization_result.modified_requests]
                 current_stop_departure_time = \
-                    veh.route.current_stop.departure_time
+                    route.current_stop.departure_time
             else:
                 current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
@@ -83,10 +85,10 @@ class EnvironmentUpdate(ActionEvent):
             # optimization.
             modified_trips_ids = [modified_trip.id for modified_trip in
                                   self.__optimization_result.modified_requests]
-            modified_assigned_legs = [leg for leg in veh.route.assigned_legs
+            modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
 
-            next_stops = veh.route.next_stops
+            next_stops = route.next_stops
             route_update = RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
                 current_stop_departure_time, modified_assigned_legs)

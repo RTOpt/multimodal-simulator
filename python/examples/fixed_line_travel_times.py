@@ -24,7 +24,8 @@ if __name__ == '__main__':
     requests_file_path = "../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
-    vehicles = data_reader.get_vehicles(min_departure_time_interval=60)
+    vehicles, routes_by_vehicle_id = data_reader.get_vehicles(
+        min_departure_time_interval=60)
     trips = data_reader.get_trips()
 
     # Generate the network from GTFS files.
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles,
+    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
                             environment_observer=environment_observer,
                             coordinates=coordinates,
                             travel_times=matrix_travel_times)
