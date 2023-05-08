@@ -79,6 +79,8 @@ class ShuttleDataReader(DataReader):
 
     def get_vehicles(self):
         vehicles = []
+        routes_by_vehicle_id = {}   # Remains empty
+
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
             next(reader, None)
@@ -100,7 +102,7 @@ class ShuttleDataReader(DataReader):
 
                 vehicles.append(vehicle)
 
-        return vehicles
+        return vehicles, routes_by_vehicle_id
 
     def get_nodes(self):
         nodes = []
@@ -157,6 +159,7 @@ class BusDataReader(DataReader):
     def get_vehicles(self):
 
         vehicles = []
+        routes_by_vehicle_id = {}
 
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
@@ -195,11 +198,11 @@ class BusDataReader(DataReader):
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
                                   release_time)
 
-                vehicle.route = Route(vehicle, next_stops)
+                routes_by_vehicle_id[vehicle.id] = Route(vehicle, next_stops)
 
                 vehicles.append(vehicle)
 
-        return vehicles
+        return vehicles, routes_by_vehicle_id
 
 
 class GTFSReader(DataReader):
@@ -311,17 +314,18 @@ class GTFSReader(DataReader):
             self.__read_routes()
 
         vehicles = []
+        routes_by_vehicle_id = {}
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict. \
                 items():
             vehicle, next_stops = self.__get_vehicle_and_next_stops(
                 trip_id, stop_time_list)
 
-            vehicle.route = Route(vehicle, next_stops)
+            routes_by_vehicle_id[vehicle.id] = Route(vehicle, next_stops)
 
             vehicles.append(vehicle)
 
-        return vehicles
+        return vehicles, routes_by_vehicle_id
 
     def get_network_graph(self, available_connections=None, freeze_interval=5):
 

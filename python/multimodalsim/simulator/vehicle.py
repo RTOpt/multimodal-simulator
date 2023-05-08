@@ -27,7 +27,6 @@ class Vehicle(object):
 
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
                  end_time=None, mode=None):
-        self.__route = None
         self.__id = veh_id
         self.__start_time = start_time
         self.__end_time = end_time if end_time is not None else self.MAX_TIME
@@ -37,6 +36,7 @@ class Vehicle(object):
         self.__mode = mode
         self.__position = None
         self.__polylines = None
+        self.__state_machine = state_machine.VehicleStateMachine(self)
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -74,24 +74,14 @@ class Vehicle(object):
         return self.__mode
 
     @property
-    def route(self):
-        return self.__route
-
-    @route.setter
-    def route(self, route):
-        if self.__route is not None:
-            raise ValueError("Vehicle {} has already a route.".format(self.id))
-        self.__route = route
-
-    @property
     def position(self):
         position = self.__position
-        if position is None and self.__route is not None \
-                and self.__route.current_stop is not None:
-            position = self.__route.current_stop.location
-        elif position is None and self.__route is not None \
-                and self.__route.previous_stops is not None:
-            position = self.__route.previous_stops[-1].location
+        # if position is None and self.__route is not None \
+        #         and self.__route.current_stop is not None:
+        #     position = self.__route.current_stop.location
+        # elif position is None and self.__route is not None \
+        #         and self.__route.previous_stops is not None:
+        #     position = self.__route.previous_stops[-1].location
 
         return position
 
@@ -106,6 +96,14 @@ class Vehicle(object):
     @polylines.setter
     def polylines(self, polylines):
         self.__polylines = polylines
+
+    @property
+    def status(self):
+        return self.__state_machine.current_state.status
+
+    @property
+    def state_machine(self):
+        return self.__state_machine
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -150,8 +148,6 @@ class Route(object):
 
         self.__vehicle = vehicle
 
-        self.__state_machine = state_machine.VehicleStateMachine(self)
-
         self.__current_stop = vehicle.start_stop
         self.__next_stops = next_stops if next_stops is not None else []
         self.__previous_stops = []
@@ -185,14 +181,6 @@ class Route(object):
     @property
     def vehicle(self):
         return self.__vehicle
-
-    @property
-    def status(self):
-        return self.__state_machine.current_state.status
-
-    @property
-    def state_machine(self):
-        return self.__state_machine
 
     @property
     def current_stop(self):
