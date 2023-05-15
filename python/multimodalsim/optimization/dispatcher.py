@@ -49,12 +49,14 @@ class ShuttleDispatcher(Dispatcher):
         modified_vehicles = []
 
         if len(non_assigned_requests) > 0:
+
             vehicles_with_current_stops = \
-                [veh for veh in non_assigned_vehicles if veh.route.current_stop
-                 is not None]
+                [veh for veh in non_assigned_vehicles
+                 if state.route_by_vehicle_id[veh.id].current_stop is not None]
             non_assigned_vehicles_sorted_by_departure_time = sorted(
                 vehicles_with_current_stops,
-                key=lambda x: x.route.current_stop.departure_time)
+                key=lambda x:
+                state.route_by_vehicle_id[x.id].current_stop.departure_time)
 
             potential_non_assigned_requests = non_assigned_requests
 
@@ -64,6 +66,7 @@ class ShuttleDispatcher(Dispatcher):
 
             for dispatch in shuttle_dispatcher:
                 assigned_vehicle = dispatch['vehicle']
+                assigned_route = state.route_by_vehicle_id[assigned_vehicle.id]
                 for req in dispatch['assigned_requests']:
 
                     path = self.__get_path(
@@ -75,16 +78,17 @@ class ShuttleDispatcher(Dispatcher):
                     #     assigned_vehicle.route.current_stop.departure_time
                     # TODO: departure_time may not be defined correctly.
                     departure_time = req.ready_time
-                    if assigned_vehicle.route.current_stop is not None:
-                        assigned_vehicle.route.current_stop.departure_time = departure_time
+                    if assigned_route.current_stop is not None:
+                        assigned_route.current_stop.departure_time \
+                            = departure_time
 
-                    if hasattr(assigned_vehicle.route.current_stop.location,
+                    if hasattr(assigned_route.current_stop.location,
                                'gps_coordinates'):
                         previous_node = \
-                            assigned_vehicle.route.current_stop.location.gps_coordinates
+                            assigned_route.current_stop.location.gps_coordinates
                     else:
                         previous_node = \
-                            assigned_vehicle.route.current_stop.location
+                            assigned_route.current_stop.location
 
                     next_stops = []
                     for node in path:
@@ -104,27 +108,28 @@ class ShuttleDispatcher(Dispatcher):
                                 previous_node = self.__network.nodes[node][
                                     'Node']
 
-                    if len(assigned_vehicle.route.next_stops) != 0 and len(
+                    if len(assigned_route.next_stops) != 0 and len(
                             next_stops) != 0 \
-                            and assigned_vehicle.route.next_stops[
+                            and assigned_route.next_stops[
                         -1].location == \
                             next_stops[0].location:
-                        assigned_vehicle.route.next_stops.extend(
+                        assigned_route.next_stops.extend(
                             next_stops[1:])
                     else:
-                        assigned_vehicle.route.next_stops.extend(next_stops)
+                        assigned_route.next_stops.extend(next_stops)
 
                     req.current_leg.assigned_vehicle = assigned_vehicle
 
-                    assigned_vehicle.route.assign_leg(req.current_leg)
+                    assigned_route.assign_leg(req.current_leg)
 
                     logger.debug(assigned_vehicle)
 
                     logger.debug("assigned_vehicle={}".format(
                         req.current_leg.assigned_vehicle.id))
                     logger.debug(
-                        "assigned_legs={}".format(list(req.id for req in
-                                                       assigned_vehicle.route.assigned_legs)))
+                        "assigned_legs={}".format(
+                            list(req.id for req
+                                 in assigned_route.assigned_legs)))
 
                     request_vehicle_pairs_list.append((req, assigned_vehicle))
                     modified_requests.append(req)
@@ -138,14 +143,16 @@ class ShuttleDispatcher(Dispatcher):
             boarding_stop_found = False
             alighting_stop_found = False
 
-            gps_coord = veh.route.current_stop.location.gps_coordinates \
+            route = state.route_by_vehicle_id[veh.id]
+
+            gps_coord = route.current_stop.location.gps_coordinates \
                 .get_coordinates()
 
             if req.origin.gps_coordinates.get_coordinates() == gps_coord:
-                veh.route.current_stop.passengers_to_board.append(req)
+                route.current_stop.passengers_to_board.append(req)
                 boarding_stop_found = True
 
-            for stop in veh.route.next_stops:
+            for stop in route.next_stops:
                 if req.origin.gps_coordinates.get_coordinates() \
                         == stop.location.gps_coordinates.get_coordinates() \
                         and not boarding_stop_found:
