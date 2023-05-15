@@ -153,13 +153,16 @@ class StandardDataCollector(DataCollector):
             if vehicle.id not in cumdist_by_veh_by_trip[trip.id]:
                 cumdist_by_veh_by_trip[trip.id][vehicle.id] = \
                     {"cumdist": 0, "veh_cumdist": current_veh_cumdist}
-            else:
+            elif current_veh_cumdist is not None:
                 cumdist_by_veh_by_trip[trip.id][vehicle.id]["cumdist"] += \
                     current_veh_cumdist \
                     - cumdist_by_veh_by_trip[trip.id][vehicle.id][
                         "veh_cumdist"]
                 cumdist_by_veh_by_trip[trip.id][vehicle.id]["veh_cumdist"] = \
                     current_veh_cumdist
+            else:
+                cumdist_by_veh_by_trip[trip.id][vehicle.id]["cumdist"] = None
+                cumdist_by_veh_by_trip[trip.id][vehicle.id]["veh_cumdist"] = None
 
     def __collect_trips_data(self, trip):
 
@@ -240,12 +243,15 @@ class StandardDataCollector(DataCollector):
             if veh.id not in cumdist_by_veh_by_trip[trip.id]:
                 cumdist_by_veh_by_trip[trip.id][veh.id] = \
                     {"cumdist": 0, "veh_cumdist": current_veh_cumdist}
-            else:
+            elif current_veh_cumdist is not None:
                 cumdist_by_veh_by_trip[trip.id][veh.id]["cumdist"] += \
                     current_veh_cumdist \
                     - cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"]
                 cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"] = \
                     current_veh_cumdist
+            else:
+                cumdist_by_veh_by_trip[trip.id][veh.id]["cumdist"] = None
+                cumdist_by_veh_by_trip[trip.id][veh.id]["veh_cumdist"] = None
 
     def __collect_events_data(self):
 

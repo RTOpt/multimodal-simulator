@@ -341,5 +341,5 @@ class VehicleComplete(ActionEvent):
 
     def add_to_queue(self):
         if not self.queue.is_event_type_in_queue(self.__class__,
-                                                 owner=self.__route):
+                                                 owner=self.__route.vehicle):
             self.queue.put(self)
