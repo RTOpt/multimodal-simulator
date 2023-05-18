@@ -17,14 +17,18 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         # seconds).
         self.__boarding_time = 10
 
-    def optimize(self, trips, vehicles):
+    def optimize(self, trips, vehicles, state):
 
-        vehicles_with_current_stops = \
-            [veh for veh in vehicles if veh.route.current_stop
-             is not None]
+        vehicles_with_current_stops = []
+        for vehicle in vehicles:
+            route = state.route_by_vehicle_id[vehicle.id]
+            if route.current_stop is not None:
+                vehicles_with_current_stops.append(vehicle)
+
         non_assigned_vehicles_sorted_by_departure_time = sorted(
             vehicles_with_current_stops,
-            key=lambda x: x.route.current_stop.departure_time)
+            key=lambda x:
+            state.route_by_vehicle_id[x.id].current_stop.departure_time)
 
         potential_non_assigned_trips = trips
 
@@ -39,7 +43,10 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         for dispatch in shuttle_dispatcher:
             vehicle = dispatch['vehicle']
             vehicle_trips_by_vehicle_id[vehicle.id] = {"vehicle": vehicle,
-                                                          "trips": []}
+                                                       "trips": []}
+
+            route = state.route_by_vehicle_id[vehicle.id]
+
             for req in dispatch['assigned_requests']:
 
                 path = self.__get_path(
@@ -51,13 +58,13 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
                 current_stop_departure_time_by_vehicle_id[vehicle.id] \
                     = req.ready_time
 
-                if hasattr(vehicle.route.current_stop.location,
+                if hasattr(route.current_stop.location,
                            'gps_coordinates'):
                     previous_node = \
-                        vehicle.route.current_stop.location.gps_coordinates
+                        route.current_stop.location.gps_coordinates
                 else:
                     previous_node = \
-                        vehicle.route.current_stop.location
+                        route.current_stop.location
 
                 departure_time = \
                     current_stop_departure_time_by_vehicle_id[vehicle.id]
