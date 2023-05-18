@@ -145,6 +145,7 @@ class StandardDataCollector(DataCollector):
             current_veh_cumdist = route.previous_stops[-1].cumulative_distance
 
         for leg in route.assigned_legs:
+
             trip = leg.trip
 
             if trip.id not in cumdist_by_veh_by_trip:
@@ -162,7 +163,9 @@ class StandardDataCollector(DataCollector):
                     current_veh_cumdist
             else:
                 cumdist_by_veh_by_trip[trip.id][vehicle.id]["cumdist"] = None
-                cumdist_by_veh_by_trip[trip.id][vehicle.id]["veh_cumdist"] = None
+
+                cumdist_by_veh_by_trip[trip.id][vehicle.id][
+                    "veh_cumdist"] = None
 
     def __collect_trips_data(self, trip):
 

@@ -470,9 +470,7 @@ class GPSLocation(Location):
                                 self.gps_coordinates.get_coordinates()[1])
 
     def __eq__(self, other):
-        if isinstance(other, GPSLocation):
-            return self.gps_coordinates == other.gps_coordinates
-        return False
+        return (self.lon == other.lon) and (self.lat == other.lat)
 
 
 class LabelLocation(Location):

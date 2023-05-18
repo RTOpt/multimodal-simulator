@@ -19,170 +19,94 @@ class Dispatcher(object):
 
 class ShuttleDispatcher(Dispatcher):
 
-    def __init__(self, network):
+    def __init__(self):
         super().__init__()
-        self.__network = network
 
-        # The time difference between the arrival and the departure time (10
-        # seconds).
-        self.__boarding_time = 10
-
-    def optimize(self, network, non_assigned_requests, vehicles):
+    def optimize(self, non_assigned_trips, vehicles):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
     def dispatch(self, state):
-        logger.debug("\n******************\nOPTIMIZE ("
-                     "ShuttleGreedyDispatcher):\n")
-        logger.debug("current_time={}".format(state.current_time))
 
-        non_assigned_requests = state.non_assigned_trips
+        non_assigned_trips = state.non_assigned_trips
         non_assigned_vehicles = state.non_assigned_vehicles
 
-        logger.debug("non_assigned_trips={}"
-                     .format(list(req.id for req in non_assigned_requests)))
-        logger.debug("non_assigned_vehicles={}"
-                     .format(list(veh.id for veh in non_assigned_vehicles)))
-
-        request_vehicle_pairs_list = []
-        modified_requests = []
+        modified_trips = []
         modified_vehicles = []
 
-        if len(non_assigned_requests) > 0:
+        if len(non_assigned_trips) > 0:
+            current_stop_departure_time_by_vehicle_id, \
+            next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id = \
+                self.optimize(non_assigned_trips, non_assigned_vehicles)
 
-            vehicles_with_current_stops = \
-                [veh for veh in non_assigned_vehicles
-                 if state.route_by_vehicle_id[veh.id].current_stop is not None]
-            non_assigned_vehicles_sorted_by_departure_time = sorted(
-                vehicles_with_current_stops,
-                key=lambda x:
-                state.route_by_vehicle_id[x.id].current_stop.departure_time)
+            for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
+                vehicle = veh_trips["vehicle"]
+                trips = veh_trips["trips"]
 
-            potential_non_assigned_requests = non_assigned_requests
+                current_stop_departure_time = \
+                    current_stop_departure_time_by_vehicle_id[vehicle_id]
+                next_stops = next_stops_by_vehicle_id[vehicle_id]
 
-            routes, shuttle_dispatcher = self.optimize(
-                self.__network, potential_non_assigned_requests,
-                non_assigned_vehicles_sorted_by_departure_time)
+                self.__update_route_stops(vehicle.route,
+                                                 current_stop_departure_time,
+                                                 next_stops)
 
-            for dispatch in shuttle_dispatcher:
-                assigned_vehicle = dispatch['vehicle']
-                assigned_route = state.route_by_vehicle_id[assigned_vehicle.id]
-                for req in dispatch['assigned_requests']:
+                self.__assign_legs_vehicle(trips, vehicle)
 
-                    path = self.__get_path(
-                        self.__network,
-                        req.origin.gps_coordinates.get_coordinates(),
-                        req.destination.gps_coordinates.get_coordinates())
+                modified_trips.extend(trips)
+                modified_vehicles.append(vehicle)
 
-                    # departure_time = \
-                    #     assigned_vehicle.route.current_stop.departure_time
-                    # TODO: departure_time may not be defined correctly.
-                    departure_time = req.ready_time
-                    if assigned_route.current_stop is not None:
-                        assigned_route.current_stop.departure_time \
-                            = departure_time
+            self.__assign_trips_to_stops(vehicle_trips_by_vehicle_id)
 
-                    if hasattr(assigned_route.current_stop.location,
-                               'gps_coordinates'):
-                        previous_node = \
-                            assigned_route.current_stop.location.gps_coordinates
-                    else:
-                        previous_node = \
-                            assigned_route.current_stop.location
+        return OptimizationResult(state, modified_trips, modified_vehicles)
 
-                    next_stops = []
-                    for node in path:
-                        if previous_node.get_node_id() != node:
-                            distance = \
-                                self.__network[previous_node.get_node_id()][
-                                    node][
-                                    'length']
-                            if distance > 0:
-                                arrival_time = departure_time + distance
-                                departure_time = arrival_time + self.__boarding_time if node != path[-1] else math.inf
-                                location = GPSLocation(self.__network.nodes[node]['Node'])
+    def __update_route_stops(self, route, current_stop_departure_time,
+                             next_stops):
 
-                                stop = Stop(arrival_time, departure_time,
-                                            location)
-                                next_stops.append(stop)
-                                previous_node = self.__network.nodes[node][
-                                    'Node']
+        route.current_stop.departure_time = current_stop_departure_time
 
-                    if len(assigned_route.next_stops) != 0 and len(
-                            next_stops) != 0 \
-                            and assigned_route.next_stops[
-                        -1].location == \
-                            next_stops[0].location:
-                        assigned_route.next_stops.extend(
-                            next_stops[1:])
-                    else:
-                        assigned_route.next_stops.extend(next_stops)
+        if len(route.next_stops) != 0 \
+                and len(next_stops) != 0 \
+                and route.next_stops[
+            -1].location == \
+                next_stops[0].location:
+            route.next_stops.extend(
+                next_stops[1:])
+        else:
+            route.next_stops.extend(next_stops)
 
-                    req.current_leg.assigned_vehicle = assigned_vehicle
+    def __assign_legs_vehicle(self, trips, vehicle):
+        for trip in trips:
+            trip.current_leg.assigned_vehicle = vehicle
+            vehicle.route.assign_leg(trip.current_leg)
 
-                    assigned_route.assign_leg(req.current_leg)
+    def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id):
 
-                    logger.debug(assigned_vehicle)
+        for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
+            veh = veh_trips["vehicle"]
+            trips = veh_trips["trips"]
 
-                    logger.debug("assigned_vehicle={}".format(
-                        req.current_leg.assigned_vehicle.id))
-                    logger.debug(
-                        "assigned_legs={}".format(
-                            list(req.id for req
-                                 in assigned_route.assigned_legs)))
+            for trip in trips:
+                self.__assign_trip_to_stops(trip, veh.route)
 
-                    request_vehicle_pairs_list.append((req, assigned_vehicle))
-                    modified_requests.append(req)
-                    modified_vehicles.append(assigned_vehicle)
+    def __assign_trip_to_stops(self, trip, route):
+        boarding_stop_found = False
+        alighting_stop_found = False
 
-        logger.debug("request_vehicle_pairs_list:")
-        for req, veh in request_vehicle_pairs_list:
-            logger.debug("---(id={},veh_id={})".format(req.id, veh.id))
+        current_location = route.current_stop.location
 
-        for req, veh in request_vehicle_pairs_list:
-            boarding_stop_found = False
-            alighting_stop_found = False
+        if trip.origin == current_location:
+            route.current_stop.passengers_to_board.append(trip)
+            boarding_stop_found = True
 
-            route = state.route_by_vehicle_id[veh.id]
-
-            gps_coord = route.current_stop.location.gps_coordinates \
-                .get_coordinates()
-
-            if req.origin.gps_coordinates.get_coordinates() == gps_coord:
-                route.current_stop.passengers_to_board.append(req)
+        for stop in route.next_stops:
+            if trip.origin == stop.location and not boarding_stop_found:
+                stop.passengers_to_board.append(trip)
                 boarding_stop_found = True
-
-            for stop in route.next_stops:
-                if req.origin.gps_coordinates.get_coordinates() \
-                        == stop.location.gps_coordinates.get_coordinates() \
-                        and not boarding_stop_found:
-                    stop.passengers_to_board.append(req)
-                    boarding_stop_found = True
-                elif req.destination.gps_coordinates.get_coordinates() == \
-                        stop.location.gps_coordinates.get_coordinates() \
-                        and boarding_stop_found and not alighting_stop_found:
-                    stop.passengers_to_alight.append(req)
-                    alighting_stop_found = True
-
-        logger.debug("END OPTIMIZE\n*******************")
-
-        return OptimizationResult(state, modified_requests, modified_vehicles)
-
-    def __find_shortest_path(self, G, o, d):
-        path = shortest_path(G, source=o, target=d, weight='length')
-        # path_length = path_weight(G, path, weight='length')
-
-        return path
-
-    def __get_path(self, G, node1, node2):
-        for node in G.nodes(data=True):
-            if (node[1]['pos'][0], node[1]['pos'][1]) == node1:
-                origin = node[0]
-            if (node[1]['pos'][0], node[1]['pos'][1]) == node2:
-                destination = node[0]
-        path = self.__find_shortest_path(G, origin, destination)
-        # path_cost = get_manhattan_distance(node1, node2)
-        return path
+            elif trip.destination == stop.location and boarding_stop_found \
+                    and not alighting_stop_found:
+                stop.passengers_to_alight.append(trip)
+                alighting_stop_found = True
 
 
 class FixedLineDispatcher(Dispatcher):
@@ -202,7 +126,7 @@ class FixedLineDispatcher(Dispatcher):
         self.__state = state
         self.__non_assigned_released_requests_list = state.non_assigned_trips
 
-        # Reinitialize modified_requests and modified_vehicles of Dispatcher.
+        # Reinitialize modified_trip and modified_vehicles of Dispatcher.
         self.__modified_trips = []
         self.__modified_vehicles = []
 
