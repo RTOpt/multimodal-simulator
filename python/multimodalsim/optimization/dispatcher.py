@@ -22,7 +22,7 @@ class ShuttleDispatcher(Dispatcher):
     def __init__(self):
         super().__init__()
 
-    def optimize(self, non_assigned_trips, vehicles):
+    def optimize(self, trips, vehicles, state):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
@@ -37,26 +37,26 @@ class ShuttleDispatcher(Dispatcher):
         if len(non_assigned_trips) > 0:
             current_stop_departure_time_by_vehicle_id, \
             next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id = \
-                self.optimize(non_assigned_trips, non_assigned_vehicles)
+                self.optimize(non_assigned_trips, non_assigned_vehicles, state)
 
             for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
                 vehicle = veh_trips["vehicle"]
                 trips = veh_trips["trips"]
+                route = state.route_by_vehicle_id[vehicle_id]
 
                 current_stop_departure_time = \
                     current_stop_departure_time_by_vehicle_id[vehicle_id]
                 next_stops = next_stops_by_vehicle_id[vehicle_id]
 
-                self.__update_route_stops(vehicle.route,
-                                                 current_stop_departure_time,
-                                                 next_stops)
+                self.__update_route_stops(route, current_stop_departure_time,
+                                          next_stops)
 
-                self.__assign_legs_vehicle(trips, vehicle)
+                self.__assign_legs_vehicle(trips, vehicle, route)
 
                 modified_trips.extend(trips)
                 modified_vehicles.append(vehicle)
 
-            self.__assign_trips_to_stops(vehicle_trips_by_vehicle_id)
+            self.__assign_trips_to_stops(vehicle_trips_by_vehicle_id, state)
 
         return OptimizationResult(state, modified_trips, modified_vehicles)
 
@@ -75,19 +75,19 @@ class ShuttleDispatcher(Dispatcher):
         else:
             route.next_stops.extend(next_stops)
 
-    def __assign_legs_vehicle(self, trips, vehicle):
+    def __assign_legs_vehicle(self, trips, vehicle, route):
         for trip in trips:
             trip.current_leg.assigned_vehicle = vehicle
-            vehicle.route.assign_leg(trip.current_leg)
+            route.assign_leg(trip.current_leg)
 
-    def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id):
+    def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id, state):
 
         for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
-            veh = veh_trips["vehicle"]
+            route = state.route_by_vehicle_id[vehicle_id]
             trips = veh_trips["trips"]
 
             for trip in trips:
-                self.__assign_trip_to_stops(trip, veh.route)
+                self.__assign_trip_to_stops(trip, route)
 
     def __assign_trip_to_stops(self, trip, route):
         boarding_stop_found = False
