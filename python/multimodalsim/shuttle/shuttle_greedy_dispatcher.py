@@ -17,7 +17,7 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         # seconds).
         self.__boarding_time = 10
 
-    def optimize(self, trips, vehicles):
+    def optimize(self, trips, vehicles, state):
 
         vehicles_with_current_stops = \
             [veh for veh in vehicles if veh.route.current_stop

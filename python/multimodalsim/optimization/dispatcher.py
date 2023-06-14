@@ -22,7 +22,7 @@ class ShuttleDispatcher(Dispatcher):
     def __init__(self):
         super().__init__()
 
-    def optimize(self, non_assigned_trips, vehicles):
+    def optimize(self, non_assigned_trips, vehicles, state):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
@@ -37,7 +37,7 @@ class ShuttleDispatcher(Dispatcher):
         if len(non_assigned_trips) > 0:
             current_stop_departure_time_by_vehicle_id, \
             next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id = \
-                self.optimize(non_assigned_trips, non_assigned_vehicles)
+                self.optimize(non_assigned_trips, non_assigned_vehicles, state)
 
             for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
                 vehicle = veh_trips["vehicle"]
