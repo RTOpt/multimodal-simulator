@@ -11,8 +11,6 @@ class State:
         self.assigned_trips = env_deep_copy.assigned_trips
         self.non_assigned_trips = env_deep_copy.non_assigned_trips
         self.vehicles = env_deep_copy.vehicles
-        self.assigned_vehicles = env_deep_copy.assigned_vehicles
-        self.non_assigned_vehicles = env_deep_copy.non_assigned_vehicles
 
     def freeze_routes_for_time_interval(self, time_interval):
 
