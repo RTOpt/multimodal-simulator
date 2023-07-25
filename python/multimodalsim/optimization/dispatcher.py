@@ -29,7 +29,7 @@ class ShuttleDispatcher(Dispatcher):
     def dispatch(self, state):
 
         non_assigned_trips = state.non_assigned_trips
-        non_assigned_vehicles = state.non_assigned_vehicles
+        vehicles = state.vehicles
 
         modified_trips = []
         modified_vehicles = []
@@ -37,7 +37,7 @@ class ShuttleDispatcher(Dispatcher):
         if len(non_assigned_trips) > 0:
             current_stop_departure_time_by_vehicle_id, \
             next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id = \
-                self.optimize(non_assigned_trips, non_assigned_vehicles, state)
+                self.optimize(non_assigned_trips, vehicles, state)
 
             for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
                 vehicle = veh_trips["vehicle"]

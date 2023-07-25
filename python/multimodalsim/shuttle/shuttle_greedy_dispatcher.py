@@ -17,20 +17,24 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         # seconds).
         self.__boarding_time = 10
 
-    def optimize(self, trips, vehicles, state):
+    def optimize(self, non_assigned_trips, vehicles, state):
+
+        non_assigned_vehicles = [vehicle for vehicle in vehicles
+                                 if len(vehicle.route.onboard_legs) == 0
+                                 and len(vehicle.route.assigned_legs) == 0]
 
         vehicles_with_current_stops = \
-            [veh for veh in vehicles if veh.route.current_stop
+            [veh for veh in non_assigned_vehicles if veh.route.current_stop
              is not None]
-        non_assigned_vehicles_sorted_by_departure_time = sorted(
+        vehicles_sorted_by_departure_time = sorted(
             vehicles_with_current_stops,
             key=lambda x: x.route.current_stop.departure_time)
 
-        potential_non_assigned_trips = trips
+        potential_non_assigned_trips = non_assigned_trips
 
         routes, shuttle_dispatcher = cvrp_pdp_tw_he_obj_cost(
             self.__network, potential_non_assigned_trips,
-            non_assigned_vehicles_sorted_by_departure_time)
+            vehicles_sorted_by_departure_time)
 
         current_stop_departure_time_by_vehicle_id = {}
         next_stops_by_vehicle_id = {}
@@ -39,7 +43,7 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         for dispatch in shuttle_dispatcher:
             vehicle = dispatch['vehicle']
             vehicle_trips_by_vehicle_id[vehicle.id] = {"vehicle": vehicle,
-                                                          "trips": []}
+                                                       "trips": []}
             for req in dispatch['assigned_requests']:
 
                 path = self.__get_path(

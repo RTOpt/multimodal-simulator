@@ -19,6 +19,7 @@ class ConsoleVisualizer(Visualizer):
         super().__init__()
         self.__data_analyzer = data_analyzer
         self.__last_time = None
+        self.__stats_time = 0
 
     def visualize_environment(self, env, current_event=None, event_index=None,
                               event_priority=None):
@@ -30,8 +31,10 @@ class ConsoleVisualizer(Visualizer):
         if logger.parent.level == logging.DEBUG:
             self.__print_debug(env, current_event, event_index, event_priority)
 
-        # if self.__data_analyzer is not None:
+        # if self.__data_analyzer is not None and env.current_time \
+        #         > self.__stats_time + 10:
         #     self.__print_statistics()
+        #     self.__stats_time = env.current_time
 
     def __print_debug(self, env, current_event, event_index, event_priority):
 
@@ -60,10 +63,6 @@ class ConsoleVisualizer(Visualizer):
             [trip.id for trip in env.non_assigned_trips]))
         logger.debug("--vehicles={}".format(
             [veh.id for veh in env.vehicles]))
-        logger.debug("--assigned_vehicles={}".format(
-            [veh.id for veh in env.assigned_vehicles]))
-        logger.debug("--non_assigned_vehicles={}".format(
-            [veh.id for veh in env.non_assigned_vehicles]))
         logger.debug("Vehicles:")
         for veh in env.vehicles:
             assigned_legs_id = [leg.id for leg in veh.route.assigned_legs]

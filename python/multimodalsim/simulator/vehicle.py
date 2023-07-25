@@ -456,6 +456,23 @@ class Stop(object):
         self.alighting_passengers.remove(trip)
         self.alighted_passengers.append(trip)
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_Stop__alighted_passengers":
+                setattr(result, k, [])
+            elif k == "_Stop__alighting_passengers":
+                setattr(result, k, [])
+            elif k == "_Stop__boarded_passengers":
+                setattr(result, k, [])
+            elif k == "_Stop__boarding_passengers":
+                setattr(result, k, [])
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        return result
+
 
 class Location(object):
     """The ``Location`` class is a base class that mostly serves as a
@@ -484,6 +501,14 @@ class GPSLocation(Location):
     def __eq__(self, other):
         return (self.lon == other.lon) and (self.lat == other.lat)
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memo))
+        return result
+
 
 class LabelLocation(Location):
     def __init__(self, label, lon=None, lat=None):
@@ -499,6 +524,14 @@ class LabelLocation(Location):
         if isinstance(other, LabelLocation):
             return self.label == other.label
         return False
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
 
 class TimeCoordinatesLocation(Location):
@@ -516,6 +549,14 @@ class TimeCoordinatesLocation(Location):
             return self.time == other.time and self.lon == other.lon \
                    and self.lat == other.lat
         return False
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
 
 class RouteUpdate(object):

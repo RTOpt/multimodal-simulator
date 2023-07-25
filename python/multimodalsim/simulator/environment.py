@@ -21,10 +21,6 @@ class Environment(object):
             The trips that are not assigned to a route yet.
         vehicles: list of Vehicle objects
             All the vehicles that were added to the environment.
-        assigned_vehicles: list of Vehicle objects
-            The vehicles that are assigned at least one trip.
-        non_assigned_vehicles: list of Vehicle objects
-            The vehicles that are not assigned any trip yet.
         network: graph
             Graph corresponding to the network.
         optimization: Optimization
@@ -42,8 +38,6 @@ class Environment(object):
         self.__assigned_trips = []
         self.__non_assigned_trips = []
         self.__vehicles = []
-        self.__assigned_vehicles = []
-        self.__non_assigned_vehicles = []
         self.__network = network
         self.__optimization = optimization
         self.__coordinates = coordinates
@@ -145,35 +139,6 @@ class Environment(object):
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
 
-    @property
-    def assigned_vehicles(self):
-        return self.__assigned_vehicles
-
-    def add_assigned_vehicle(self, vehicle):
-        """ Adds a new vehicle to the list of assigned vehicles"""
-        self.__assigned_vehicles.append(vehicle)
-
-    def remove_assigned_vehicle(self, vehicle_id):
-        """ Removes a vehicle from the list of assigned vehicles based on
-        its id """
-        self.__assigned_vehicles = [veh for veh in self.__assigned_vehicles
-                                    if veh.id != vehicle_id]
-
-    @property
-    def non_assigned_vehicles(self):
-        return self.__non_assigned_vehicles
-
-    def add_non_assigned_vehicle(self, vehicle):
-        """ Adds a new vehicle to the list of non-assigned vehicles"""
-        self.__non_assigned_vehicles.append(vehicle)
-
-    def remove_non_assigned_vehicle(self, vehicle_id):
-        """ Removes a vehicle from the list of non-assigned vehicles based
-        on its id """
-        self.__non_assigned_vehicles = [veh for veh
-                                        in self.__non_assigned_vehicles
-                                        if veh.id != vehicle_id]
-
     def get_new_state(self):
         state_copy = copy.copy(self)
         state_copy.__network = None
@@ -183,8 +148,6 @@ class Environment(object):
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)
-        state_copy.__assigned_vehicles = \
-            self.__get_non_complete_vehicles(state_copy.__assigned_vehicles)
 
         state_copy.__trips = self.__get_non_complete_trips(state_copy.__trips)
         state_copy.__assigned_trips = \
