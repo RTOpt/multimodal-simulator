@@ -63,7 +63,8 @@ class ShuttleDispatcher(Dispatcher):
     def __update_route_stops(self, route, current_stop_departure_time,
                              next_stops):
 
-        route.current_stop.departure_time = current_stop_departure_time
+        if route.current_stop is not None:
+            route.current_stop.departure_time = current_stop_departure_time
 
         if len(route.next_stops) != 0 \
                 and len(next_stops) != 0 \
@@ -93,11 +94,12 @@ class ShuttleDispatcher(Dispatcher):
         boarding_stop_found = False
         alighting_stop_found = False
 
-        current_location = route.current_stop.location
+        if route.current_stop is not None:
+            current_location = route.current_stop.location
 
-        if trip.origin == current_location:
-            route.current_stop.passengers_to_board.append(trip)
-            boarding_stop_found = True
+            if trip.origin == current_location:
+                route.current_stop.passengers_to_board.append(trip)
+                boarding_stop_found = True
 
         for stop in route.next_stops:
             if trip.origin == stop.location and not boarding_stop_found:
