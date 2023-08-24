@@ -25,18 +25,20 @@ class Optimize(ActionEvent):
 
     def _process(self, env):
 
-        env_state_deepcopy = env.get_new_state()
-        env.optimization.state = State(env_state_deepcopy)
+        if env.optimization.need_to_optimize():
 
-        env.optimization.state.freeze_routes_for_time_interval(
-            env.optimization.freeze_interval)
+            env_state_deepcopy = env.get_new_state()
+            env.optimization.state = State(env_state_deepcopy)
 
-        optimization_result = env.optimization.dispatch(env.optimization.state)
+            env.optimization.state.freeze_routes_for_time_interval(
+                env.optimization.freeze_interval)
 
-        env.optimization.state.unfreeze_routes_for_time_interval(
-            env.optimization.freeze_interval)
+            optimization_result = env.optimization.dispatch(env.optimization.state)
 
-        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+            env.optimization.state.unfreeze_routes_for_time_interval(
+                env.optimization.freeze_interval)
+
+            EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 

@@ -172,7 +172,7 @@ def main():
     if args.type == "shuttle":
         # Parameters example:
         # shuttle
-        # -r ../../data/shuttle/test3_shuttle/requests_sncf_test0.csv
+        # -r ../../data/shuttle/test3_shuttle/requests_sncf.csv
         # -v ../../data/shuttle/test3_shuttle/vehicles.csv
         # -n ../../data/shuttle/test3_shuttle/nodes.csv
         # -g ../../data/shuttle/test3_shuttle/graph.json

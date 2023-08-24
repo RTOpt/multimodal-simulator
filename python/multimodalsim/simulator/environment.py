@@ -126,7 +126,7 @@ class Environment(object):
         return self.__vehicles
 
     def get_vehicle_by_id(self, veh_id):
-        for veh in self.__vehicles:
+        for veh in self.vehicles:
             if veh.id == veh_id:
                 return veh
 

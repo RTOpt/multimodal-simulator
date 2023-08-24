@@ -12,6 +12,18 @@ class State:
         self.non_assigned_trips = env_deep_copy.non_assigned_trips
         self.vehicles = env_deep_copy.vehicles
 
+    def get_trip_by_id(self, id):
+        found_trip = None
+        for trip in self.trips:
+            if trip.id == id:
+                found_trip = trip
+        return found_trip
+
+    def get_vehicle_by_id(self, veh_id):
+        for veh in self.vehicles:
+            if veh.id == veh_id:
+                return veh
+
     def freeze_routes_for_time_interval(self, time_interval):
 
         self.current_time = self.current_time + time_interval

@@ -110,10 +110,6 @@ class StateMachine:
 
     def next_state(self, event, env):
 
-        # logger.debug("EVENT: {}".format(event.__name__))
-        # logger.debug("current state: {}".format(self.__current_state))
-        # logger.debug("self.__transitions={}".format(self.__transitions))
-
         transition_possible = False
         if event.__name__ in self.__transitions:
             for transition in self.__transitions[event.__name__]:
@@ -131,8 +127,6 @@ class StateMachine:
             raise ValueError(
                 "Event {} is not possible from status {}!".format(
                     event, self.__current_state))
-
-        # logger.debug("next state: {}".format(self.__current_state))
 
         return self.__current_state
 
@@ -190,6 +184,10 @@ class PassengerStateMachine(StateMachine):
         super().__init__(owner=trip)
 
         self.add_transition(PassengersStatus.RELEASE,
+                            PassengersStatus.ASSIGNED, PassengerAssignment)
+        self.add_transition(PassengersStatus.ASSIGNED,
+                            PassengersStatus.ASSIGNED, PassengerAssignment)
+        self.add_transition(PassengersStatus.READY,
                             PassengersStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengersStatus.ASSIGNED, PassengersStatus.READY,
                             PassengerReady)

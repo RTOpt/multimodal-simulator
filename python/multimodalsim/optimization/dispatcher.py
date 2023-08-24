@@ -2,7 +2,7 @@ import logging
 import math
 
 from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.vehicle import Stop, GPSLocation
+from multimodalsim.simulator.vehicle import Stop, LabelLocation
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
 logger = logging.getLogger(__name__)
@@ -21,44 +21,79 @@ class ShuttleDispatcher(Dispatcher):
 
     def __init__(self):
         super().__init__()
+        self.__state = None
 
-    def optimize(self, non_assigned_trips, vehicles, state):
+    def prepare_input(self):
+        # Extract from the state the trips and the vehicles that should be used for optimization.
+
+        non_assigned_vehicles = [vehicle for vehicle in self.__state.vehicles
+                                 if len(vehicle.route.onboard_legs) == 0
+                                 and len(vehicle.route.assigned_legs) == 0]
+
+        vehicles_with_current_stops = \
+            [veh for veh in non_assigned_vehicles if veh.route.current_stop
+             is not None]
+        vehicles_sorted_by_departure_time = sorted(
+            vehicles_with_current_stops,
+            key=lambda x: x.route.current_stop.departure_time)
+
+        return self.__state.non_assigned_trips, \
+               vehicles_sorted_by_departure_time
+
+    def optimize(self, trips, vehicles, current_time, state):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def dispatch(self, state):
-
-        non_assigned_trips = state.non_assigned_trips
-        vehicles = state.vehicles
+    def process_output(self, route_by_vehicle_id,
+                       trip_ids_by_vehicle_id):
 
         modified_trips = []
         modified_vehicles = []
 
-        if len(non_assigned_trips) > 0:
-            current_stop_departure_time_by_vehicle_id, \
-            next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id = \
-                self.optimize(non_assigned_trips, vehicles, state)
+        for vehicle_id, route in route_by_vehicle_id.items():
+            vehicle = self.__state.get_vehicle_by_id(vehicle_id)
+            trips = [self.__state.get_trip_by_id(trip_id) for trip_id
+                     in trip_ids_by_vehicle_id[vehicle_id]]
 
-            for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
-                vehicle = veh_trips["vehicle"]
-                trips = veh_trips["trips"]
+            current_stop_departure_time = route[0]["departure_time"]
+            next_stops = []
+            for stop_info in route[1:]:
+                stop = Stop(stop_info["arrival_time"],
+                            stop_info["departure_time"],
+                            LabelLocation(stop_info["stop_id"]))
+                next_stops.append(stop)
 
-                current_stop_departure_time = \
-                    current_stop_departure_time_by_vehicle_id[vehicle_id]
-                next_stops = next_stops_by_vehicle_id[vehicle_id]
+            self.__update_route_stops(vehicle.route,
+                                      current_stop_departure_time,
+                                      next_stops)
 
-                self.__update_route_stops(vehicle.route,
-                                                 current_stop_departure_time,
-                                                 next_stops)
+            self.__assign_legs_vehicle(trips, vehicle)
 
-                self.__assign_legs_vehicle(trips, vehicle)
+            for trip in trips:
+                self.__assign_trip_to_stops(trip, vehicle.route)
 
-                modified_trips.extend(trips)
-                modified_vehicles.append(vehicle)
+            modified_trips.extend(trips)
+            modified_vehicles.append(vehicle)
 
-            self.__assign_trips_to_stops(vehicle_trips_by_vehicle_id)
+        return OptimizationResult(self.__state, modified_trips,
+                                  modified_vehicles)
 
-        return OptimizationResult(state, modified_trips, modified_vehicles)
+    def dispatch(self, state):
+
+        self.__state = state
+
+        trips, vehicles = self.prepare_input()
+
+        if len(trips) > 0 and len(vehicles) > 0:
+            route_by_vehicle_id, trip_ids_by_vehicle_id = self.optimize(
+                trips, vehicles, state.current_time, state)
+
+            optimization_result = self.process_output(route_by_vehicle_id,
+                                                      trip_ids_by_vehicle_id)
+        else:
+            optimization_result = OptimizationResult(state, [], [])
+
+        return optimization_result
 
     def __update_route_stops(self, route, current_stop_departure_time,
                              next_stops):
