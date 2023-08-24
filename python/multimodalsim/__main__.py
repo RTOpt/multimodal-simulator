@@ -231,7 +231,7 @@ def main():
             g = data_reader.get_network_graph(
                 available_connections=available_connections)
             g_path = "../../data/fixed_line/stl/network_graph/" \
-                     "bus_network_graph_20191103.txt"
+                     "bus_network_graph_20191101_4pm    .txt"
             nx.write_gpickle(g, g_path)
 
         if args.multimodal:
@@ -246,7 +246,7 @@ def main():
 
     opt = Optimization(dispatcher, splitter)
 
-    vehicles = data_reader.get_vehicles()
+    vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
     environment_observer = StandardEnvironmentObserver()
@@ -263,7 +263,8 @@ def main():
         logger.info("No coordinates")
         coordinates = None
 
-    simulation = Simulation(opt, trips, vehicles, network=g,
+    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
+                            network=g,
                             environment_observer=environment_observer,
                             coordinates=coordinates)
     simulation.simulate()

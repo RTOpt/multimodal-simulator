@@ -59,10 +59,11 @@ class StandardDataCollector(DataCollector):
             self.__collect_trips_data(current_event.trip)
         elif isinstance(current_event, ActionEvent) \
                 and isinstance(current_event.state_machine.owner,
-                               multimodalsim.simulator.vehicle.Route):
-            self.__collect_vehicles_data(current_event.state_machine.owner)
+                               multimodalsim.simulator.vehicle.Vehicle):
+            vehicle = current_event.state_machine.owner
+            self.__collect_vehicles_data(vehicle)
         elif hasattr(current_event, "vehicle"):
-            self.__collect_vehicles_data(current_event.vehicle.route)
+            self.__collect_vehicles_data(current_event.vehicle)
 
         self.__collect_events_data()
 
@@ -76,7 +77,9 @@ class StandardDataCollector(DataCollector):
         self.__data_container.set_columns("events",
                                           config.get_events_columns())
 
-    def __collect_vehicles_data(self, route):
+    def __collect_vehicles_data(self, vehicle):
+
+        route = self.__env.get_route_by_vehicle_id(vehicle.id)
 
         previous_stops = [str(stop.location) for stop
                           in route.previous_stops]
@@ -96,19 +99,17 @@ class StandardDataCollector(DataCollector):
             if current_stop_loc is not None else None
         stop_lat = current_stop_loc.lat \
             if current_stop_loc is not None else None
-        lon = route.vehicle.position.lon \
-            if route.vehicle.position is not None else None
-        lat = route.vehicle.position.lat \
-            if route.vehicle.position is not None else None
+        lon = vehicle.position.lon if vehicle.position is not None else None
+        lat = vehicle.position.lat if vehicle.position is not None else None
 
-        polylines = route.vehicle.polylines \
-            if route.vehicle.polylines is not None else None
+        polylines = vehicle.polylines \
+            if vehicle.polylines is not None else None
 
-        mode = route.vehicle.mode
+        mode = vehicle.mode
 
-        obs_dict = {"id": route.vehicle.id,
+        obs_dict = {"id": vehicle.id,
                     "time": self.__time,
-                    "status": route.status,
+                    "status": vehicle.status,
                     "previous_stops": previous_stops,
                     "current_stop": str(current_stop_loc),
                     "next_stops": next_stops,
@@ -126,9 +127,9 @@ class StandardDataCollector(DataCollector):
         self.__data_container.add_observation(
             "vehicles", obs_dict, "id")
 
-        self.__update_trip_cumulative_distance_by_vehicle(route.vehicle)
+        self.__update_trip_cumulative_distance_by_vehicle(vehicle, route)
 
-    def __update_trip_cumulative_distance_by_vehicle(self, vehicle):
+    def __update_trip_cumulative_distance_by_vehicle(self, vehicle, route):
 
         if "trips_cumulative_distance" \
                 not in self.__data_container.observations_tables:
@@ -138,14 +139,13 @@ class StandardDataCollector(DataCollector):
         cumdist_by_veh_by_trip = self.__data_container.observations_tables[
                 "trips_cumulative_distance"]
 
-        if vehicle.route.current_stop is not None:
-            current_veh_cumdist = \
-                vehicle.route.current_stop.cumulative_distance
+        if route.current_stop is not None:
+            current_veh_cumdist = route.current_stop.cumulative_distance
         else:
-            current_veh_cumdist = \
-                vehicle.route.previous_stops[-1].cumulative_distance
+            current_veh_cumdist = route.previous_stops[-1].cumulative_distance
 
-        for leg in vehicle.route.assigned_legs:
+        for leg in route.assigned_legs:
+
             trip = leg.trip
 
             if trip.id not in cumdist_by_veh_by_trip:
@@ -163,6 +163,7 @@ class StandardDataCollector(DataCollector):
                     current_veh_cumdist
             else:
                 cumdist_by_veh_by_trip[trip.id][vehicle.id]["cumdist"] = None
+
                 cumdist_by_veh_by_trip[trip.id][vehicle.id][
                     "veh_cumdist"] = None
 
@@ -230,13 +231,14 @@ class StandardDataCollector(DataCollector):
                 "trips_cumulative_distance"]
         if trip.current_leg.assigned_vehicle is not None:
             veh = trip.current_leg.assigned_vehicle
+            route = self.__env.get_route_by_vehicle_id(veh.id)
 
-            if veh.route.current_stop is not None:
+            if route.current_stop is not None:
                 current_veh_cumdist = \
-                    veh.route.current_stop.cumulative_distance
+                    route.current_stop.cumulative_distance
             else:
                 current_veh_cumdist = \
-                    veh.route.previous_stops[-1].cumulative_distance
+                    route.previous_stops[-1].cumulative_distance
 
             if trip.id not in cumdist_by_veh_by_trip:
                 cumdist_by_veh_by_trip[trip.id] = {}

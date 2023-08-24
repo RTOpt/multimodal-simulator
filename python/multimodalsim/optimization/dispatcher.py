@@ -26,16 +26,19 @@ class ShuttleDispatcher(Dispatcher):
     def prepare_input(self):
         # Extract from the state the trips and the vehicles that should be used for optimization.
 
-        non_assigned_vehicles = [vehicle for vehicle in self.__state.vehicles
-                                 if len(vehicle.route.onboard_legs) == 0
-                                 and len(vehicle.route.assigned_legs) == 0]
+        non_assigned_vehicles = []
+        vehicles_with_current_stops = []
+        for vehicle in self.__state.vehicles:
+            route = self.__state.route_by_vehicle_id[vehicle.id]
+            if len(route.onboard_legs) == 0 and len(route.assigned_legs) == 0:
+                non_assigned_vehicles.append(vehicle)
+                if route.current_stop is not None:
+                    vehicles_with_current_stops.append(vehicle)
 
-        vehicles_with_current_stops = \
-            [veh for veh in non_assigned_vehicles if veh.route.current_stop
-             is not None]
         vehicles_sorted_by_departure_time = sorted(
             vehicles_with_current_stops,
-            key=lambda x: x.route.current_stop.departure_time)
+            key=lambda x:
+            self.__state.route_by_vehicle_id[x.id].current_stop.departure_time)
 
         return self.__state.non_assigned_trips, \
                vehicles_sorted_by_departure_time
@@ -50,33 +53,37 @@ class ShuttleDispatcher(Dispatcher):
         modified_trips = []
         modified_vehicles = []
 
-        for vehicle_id, route in route_by_vehicle_id.items():
+        for vehicle_id, stops_list in route_by_vehicle_id.items():
             vehicle = self.__state.get_vehicle_by_id(vehicle_id)
+            route = self.__state.route_by_vehicle_id[vehicle_id]
+
             trips = [self.__state.get_trip_by_id(trip_id) for trip_id
                      in trip_ids_by_vehicle_id[vehicle_id]]
 
-            current_stop_departure_time = route[0]["departure_time"]
+            current_stop_departure_time = stops_list[0]["departure_time"]
             next_stops = []
-            for stop_info in route[1:]:
-                stop = Stop(stop_info["arrival_time"],
-                            stop_info["departure_time"],
-                            LabelLocation(stop_info["stop_id"]))
+            for stop_dict in stops_list[1:]:
+                stop = Stop(stop_dict["arrival_time"],
+                            stop_dict["departure_time"],
+                            LabelLocation(stop_dict["stop_id"]))
                 next_stops.append(stop)
 
-            self.__update_route_stops(vehicle.route,
-                                      current_stop_departure_time,
+            self.__update_route_stops(route, current_stop_departure_time,
                                       next_stops)
 
-            self.__assign_legs_vehicle(trips, vehicle)
+            self.__assign_legs_vehicle(trips, vehicle, route)
 
             for trip in trips:
-                self.__assign_trip_to_stops(trip, vehicle.route)
+                self.__assign_trip_to_stops(trip, route)
+
+
 
             modified_trips.extend(trips)
             modified_vehicles.append(vehicle)
 
         return OptimizationResult(self.__state, modified_trips,
                                   modified_vehicles)
+
 
     def dispatch(self, state):
 
@@ -111,19 +118,19 @@ class ShuttleDispatcher(Dispatcher):
         else:
             route.next_stops.extend(next_stops)
 
-    def __assign_legs_vehicle(self, trips, vehicle):
+    def __assign_legs_vehicle(self, trips, vehicle, route):
         for trip in trips:
             trip.current_leg.assigned_vehicle = vehicle
-            vehicle.route.assign_leg(trip.current_leg)
+            route.assign_leg(trip.current_leg)
 
-    def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id):
-
-        for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
-            veh = veh_trips["vehicle"]
-            trips = veh_trips["trips"]
-
-            for trip in trips:
-                self.__assign_trip_to_stops(trip, veh.route)
+    # def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id, state):
+    #
+    #     for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
+    #         route = state.route_by_vehicle_id[vehicle_id]
+    #         trips = veh_trips["trips"]
+    #
+    #         for trip in trips:
+    #             self.__assign_trip_to_stops(trip, route)
 
     def __assign_trip_to_stops(self, trip, route):
         boarding_stop_found = False
@@ -178,8 +185,9 @@ class FixedLineDispatcher(Dispatcher):
                 optimal_vehicle = None
 
             if optimal_vehicle is not None:
-                self.__assign_trip_to_vehicle(trip, optimal_vehicle)
-                self.__assign_trip_to_stops(trip, optimal_vehicle)
+                route = self.__state.route_by_vehicle_id[optimal_vehicle.id]
+                self.__assign_trip_to_vehicle(trip, optimal_vehicle, route)
+                self.__assign_trip_to_stops(trip, route)
 
         logger.debug("END OPTIMIZE\n*******************")
 
@@ -194,9 +202,10 @@ class FixedLineDispatcher(Dispatcher):
         optimal_vehicle = None
         earliest_arrival_time = None
         for vehicle in self.__state.vehicles:
+            route = self.__state.route_by_vehicle_id[vehicle.id]
             origin_departure_time, destination_arrival_time = \
                 self.__get_origin_departure_time_and_destination_arrival_time(
-                    vehicle, origin_stop_id, destination_stop_id)
+                    route, origin_stop_id, destination_stop_id)
 
             if origin_departure_time is not None \
                     and origin_departure_time > self.__state.current_time \
@@ -211,10 +220,10 @@ class FixedLineDispatcher(Dispatcher):
         return optimal_vehicle
 
     def __get_origin_departure_time_and_destination_arrival_time(
-            self, vehicle, origin_stop_id, destination_stop_id):
-        origin_stop = self.__get_stop_by_stop_id(origin_stop_id, vehicle)
+            self, route, origin_stop_id, destination_stop_id):
+        origin_stop = self.__get_stop_by_stop_id(origin_stop_id, route)
         destination_stop = self.__get_stop_by_stop_id(destination_stop_id,
-                                                      vehicle)
+                                                      route)
 
         origin_departure_time = None
         destination_arrival_time = None
@@ -225,33 +234,33 @@ class FixedLineDispatcher(Dispatcher):
 
         return origin_departure_time, destination_arrival_time
 
-    def __assign_trip_to_vehicle(self, trip, vehicle):
+    def __assign_trip_to_vehicle(self, trip, vehicle, route):
 
         trip.current_leg.assigned_vehicle = vehicle
 
-        vehicle.route.assign_leg(trip.current_leg)
+        route.assign_leg(trip.current_leg)
 
         self.__modified_vehicles.append(vehicle)
         self.__modified_trips.append(trip)
 
-    def __assign_trip_to_stops(self, trip, vehicle):
+    def __assign_trip_to_stops(self, trip, route):
 
         origin_stop = self.__get_stop_by_stop_id(trip.current_leg.origin.label,
-                                                 vehicle)
+                                                 route)
         destination_stop = self.__get_stop_by_stop_id(
-            trip.current_leg.destination.label, vehicle)
+            trip.current_leg.destination.label, route)
 
         origin_stop.passengers_to_board.append(trip)
 
         destination_stop.passengers_to_alight.append(trip)
 
-    def __get_stop_by_stop_id(self, stop_id, vehicle):
+    def __get_stop_by_stop_id(self, stop_id, route):
         found_stop = None
-        if vehicle.route.current_stop is not None and stop_id \
-                == vehicle.route.current_stop.location.label:
-            found_stop = vehicle.route.current_stop
+        if route.current_stop is not None and stop_id \
+                == route.current_stop.location.label:
+            found_stop = route.current_stop
 
-        for stop in vehicle.route.next_stops:
+        for stop in route.next_stops:
             if stop_id == stop.location.label:
                 found_stop = stop
 

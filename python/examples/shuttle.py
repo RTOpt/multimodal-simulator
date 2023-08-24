@@ -21,7 +21,7 @@ if __name__ == '__main__':
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                     graph_file_path, vehicles_end_time=100000)
 
-    vehicles = data_reader.get_vehicles()
+    vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
     g = data_reader.get_json_graph()
 
@@ -35,7 +35,8 @@ if __name__ == '__main__':
     environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles, network=g,
+    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
+                            network=g,
                             environment_observer=environment_observer)
 
     # Execute the simulation.
