@@ -38,6 +38,8 @@ class Environment(object):
         self.__assigned_trips = []
         self.__non_assigned_trips = []
         self.__vehicles = []
+        self.__routes_by_vehicle_id = {}
+
         self.__network = network
         self.__optimization = optimization
         self.__coordinates = coordinates
@@ -125,10 +127,10 @@ class Environment(object):
     def vehicles(self):
         return self.__vehicles
 
-    def get_vehicle_by_id(self, veh_id):
-        for veh in self.vehicles:
-            if veh.id == veh_id:
-                return veh
+    def get_vehicle_by_id(self, vehicle_id):
+        for vehicle in self.vehicles:
+            if vehicle.id == vehicle_id:
+                return vehicle
 
     def add_vehicle(self, vehicle):
         """ Adds a new vehicle to the vehicles list"""
@@ -138,6 +140,20 @@ class Environment(object):
         """ Removes a vehicle from the vehicles list based on its id"""
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
+
+    @property
+    def route_by_vehicle_id(self):
+        return self.__routes_by_vehicle_id
+
+    def get_route_by_vehicle_id(self, vehicle_id):
+        route = None
+        if vehicle_id in self.__routes_by_vehicle_id:
+            route = self.__routes_by_vehicle_id[vehicle_id]
+
+        return route
+
+    def add_route(self, route, vehicle_id):
+        self.__routes_by_vehicle_id[vehicle_id] = route
 
     def get_new_state(self):
         state_copy = copy.copy(self)
@@ -160,7 +176,7 @@ class Environment(object):
     def __get_non_complete_vehicles(self, vehicles):
         non_complete_vehicles = []
         for vehicle in vehicles:
-            if vehicle.route.status != VehicleStatus.COMPLETE:
+            if vehicle.status != VehicleStatus.COMPLETE:
                 veh_copy = copy.copy(vehicle)
                 veh_copy.polylines = None
                 non_complete_vehicles.append(veh_copy)

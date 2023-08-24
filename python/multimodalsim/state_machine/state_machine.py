@@ -205,8 +205,8 @@ class PassengerStateMachine(StateMachine):
 
 class VehicleStateMachine(StateMachine):
 
-    def __init__(self, route):
-        super().__init__(owner=route)
+    def __init__(self, vehicle):
+        super().__init__(owner=vehicle)
 
         self.add_transition(VehicleStatus.RELEASE, VehicleStatus.IDLE,
                             VehicleWaiting)

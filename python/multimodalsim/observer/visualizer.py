@@ -65,28 +65,29 @@ class ConsoleVisualizer(Visualizer):
             [veh.id for veh in env.vehicles]))
         logger.debug("Vehicles:")
         for veh in env.vehicles:
-            assigned_legs_id = [leg.id for leg in veh.route.assigned_legs]
-            onboard_legs_id = [leg.id for leg in veh.route.onboard_legs]
-            alighted_legs_id = [leg.id for leg in veh.route.alighted_legs]
+            route = env.get_route_by_vehicle_id(veh.id)
+            assigned_legs_id = [leg.id for leg in route.assigned_legs]
+            onboard_legs_id = [leg.id for leg in route.onboard_legs]
+            alighted_legs_id = [leg.id for leg in route.alighted_legs]
 
             logger.debug(
                 "{}: status: {}, start_time: {}, end_time: {}, "
                 "assigned_legs: {},  onboard_legs: {}, "
-                "alighted_legs: {}".format(veh.id, veh.route.status,
+                "alighted_legs: {}".format(veh.id, veh.status,
                                            veh.start_time, veh.end_time,
                                            assigned_legs_id, onboard_legs_id,
                                            alighted_legs_id))
             logger.debug("  --previous_stops:")
-            for stop in veh.route.previous_stops:
+            for stop in route.previous_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
             logger.debug("  --current_stop:")
-            if veh.route.current_stop is not None:
+            if route.current_stop is not None:
                 logger.debug("   --{}: {}".format(
-                    veh.route.current_stop.location, veh.route.current_stop))
+                    route.current_stop.location, route.current_stop))
             else:
-                logger.debug("   --{}".format(veh.route.current_stop))
+                logger.debug("   --{}".format(route.current_stop))
             logger.debug("  --next_stops:")
-            for stop in veh.route.next_stops:
+            for stop in route.next_stops:
                 logger.debug("   --{}: {}".format(stop.location, stop))
         logger.debug("Requests:")
         for trip in env.trips:
