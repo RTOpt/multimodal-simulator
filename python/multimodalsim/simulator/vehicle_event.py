@@ -29,8 +29,8 @@ class VehicleReady(Event):
         if self.__vehicle.route is None:
             self.__vehicle.route = Route(self.__vehicle)
 
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
+        # optimization_event.Optimize(env.current_time, self.queue). \
+        #     add_to_queue()
 
         VehicleWaiting(self.__vehicle.route, self.queue).add_to_queue()
 
@@ -57,6 +57,9 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env):
+
+        optimization_event.Optimize(env.current_time, self.queue). \
+            add_to_queue()
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board

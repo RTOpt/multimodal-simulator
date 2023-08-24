@@ -1,11 +1,17 @@
 import math
+import logging
 
-from networkx import shortest_path
+from itertools import groupby
 
 from multimodalsim.optimization.dispatcher import ShuttleDispatcher
-from multimodalsim.shuttle.solution_construction import cvrp_pdp_tw_he_obj_cost
-from multimodalsim.simulator.vehicle import GPSLocation, Stop
+from multimodalsim.shuttle.constraints_and_objective_function import \
+    variables_declaration
+from multimodalsim.shuttle.solution_construction import \
+    cvrp_pdp_tw_he_obj_cost, get_distances, get_durations, update_data, \
+    set_initial_solution, improve_solution, get_routes_dict
+from multimodalsim.simulator.vehicle import Stop, LabelLocation
 
+logger = logging.getLogger(__name__)
 
 class ShuttleGreedyDispatcher(ShuttleDispatcher):
 
@@ -17,94 +23,117 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         # seconds).
         self.__boarding_time = 10
 
-    def optimize(self, non_assigned_trips, vehicles, state):
+    def optimize(self, trips, vehicles, current_time, state):
 
-        non_assigned_vehicles = [vehicle for vehicle in vehicles
-                                 if len(vehicle.route.onboard_legs) == 0
-                                 and len(vehicle.route.assigned_legs) == 0]
+        route_by_vehicle_id, trip_ids_by_vehicle_id = self.__optimize(
+            trips, vehicles, current_time)
 
-        vehicles_with_current_stops = \
-            [veh for veh in non_assigned_vehicles if veh.route.current_stop
-             is not None]
-        vehicles_sorted_by_departure_time = sorted(
-            vehicles_with_current_stops,
-            key=lambda x: x.route.current_stop.departure_time)
+        return route_by_vehicle_id, trip_ids_by_vehicle_id
 
-        potential_non_assigned_trips = non_assigned_trips
+    def __optimize(self, non_assigned_requests, vehicles, current_time):
 
-        routes, shuttle_dispatcher = cvrp_pdp_tw_he_obj_cost(
-            self.__network, potential_non_assigned_trips,
-            vehicles_sorted_by_departure_time)
+        max_travel_time = 7200
+        distances = get_distances(self.__network)
+        # service duration for costumer i
+        # it will be considered as 0
+        # d = [0 for i in range(len(self.__network.nodes))]
+        d = {i: 0 for i in self.__network.nodes}
 
-        current_stop_departure_time_by_vehicle_id = {}
-        next_stops_by_vehicle_id = {}
-        vehicle_trips_by_vehicle_id = {}
+        # travel time between vertices
+        # let's assume that it depends just on the distance between vertices
+        t = get_durations(self.__network)
 
-        for dispatch in shuttle_dispatcher:
-            vehicle = dispatch['vehicle']
-            vehicle_trips_by_vehicle_id[vehicle.id] = {"vehicle": vehicle,
-                                                       "trips": []}
-            for req in dispatch['assigned_requests']:
+        P, D, q, T, non_assigned_requests = update_data(self.__network,
+                                                        non_assigned_requests,
+                                                        vehicles)
 
-                path = self.__get_path(
-                    self.__network,
-                    req.origin.gps_coordinates.get_coordinates(),
-                    req.destination.gps_coordinates.get_coordinates())
+        V_p = set([req.destination.label for req in P]).union(
+            set([req.origin.label for req in D]))
+        # V_p = non_assigned_requests
 
-                # TODO: departure_time may not be defined correctly.
-                current_stop_departure_time_by_vehicle_id[vehicle.id] \
-                    = req.ready_time
+        X, Y, U, W, R = variables_declaration(self.__network.nodes, vehicles,
+                                              non_assigned_requests)
+        X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org, veh_trips_assignments_list = \
+            set_initial_solution(self.__network, non_assigned_requests,
+                                 vehicles, X, Y,
+                                 U, W, R,
+                                 distances, d, t, V_p, P, D, q, T,
+                                 max_travel_time)
+        X, Y, U, W, R, X_org, Y_org, U_org, W_org, R_org, veh_trips_assignments_list = \
+            improve_solution(self.__network, non_assigned_requests, vehicles,
+                             X, Y, U,
+                             W, R, X_org, Y_org, U_org, W_org, R_org,
+                             distances, d, t, V_p, veh_trips_assignments_list,
+                             P,
+                             D, q, T, max_travel_time)
 
-                if hasattr(vehicle.route.current_stop.location,
-                           'gps_coordinates'):
-                    previous_node = \
-                        vehicle.route.current_stop.location.gps_coordinates
-                else:
-                    previous_node = \
-                        vehicle.route.current_stop.location
+        route_stop_ids_by_vehicle_id = self.__extract_next_stops_by_vehicle(
+            veh_trips_assignments_list)
 
-                departure_time = \
-                    current_stop_departure_time_by_vehicle_id[vehicle.id]
-                next_stops_by_vehicle_id[vehicle.id] = []
-                for node in path:
-                    if previous_node.get_node_id() != node:
-                        distance = \
-                            self.__network[previous_node.get_node_id()][
-                                node][
-                                'length']
-                        if distance > 0:
-                            arrival_time = departure_time + distance
-                            departure_time = \
-                                arrival_time + self.__boarding_time \
-                                    if node != path[-1] else math.inf
+        trip_ids_by_vehicle_id = self.__extract_trips_by_vehicle(
+            veh_trips_assignments_list)
 
-                            location = GPSLocation(
-                                self.__network.nodes[node]['Node'])
-                            stop = Stop(arrival_time, departure_time,
-                                        location)
+        route_by_vehicle_id = self.__extract_route_by_vehicle_id(
+            route_stop_ids_by_vehicle_id, current_time)
 
-                            next_stops_by_vehicle_id[vehicle.id].append(stop)
+        return route_by_vehicle_id, trip_ids_by_vehicle_id
 
-                            previous_node = self.__network.nodes[node][
-                                'Node']
+    def __extract_next_stops_by_vehicle(self, veh_trips_assignments_list):
+        route_stop_ids_by_vehicle_id = {}
+        for veh_trips_assignment in veh_trips_assignments_list:
+            next_stop_ids = [stop_id for stop_id, _
+                             in groupby(veh_trips_assignment["route"])]
+            route_stop_ids_by_vehicle_id[
+                veh_trips_assignment["vehicle"].id] = next_stop_ids
 
-                vehicle_trips_by_vehicle_id[vehicle.id]["trips"].append(req)
+        return route_stop_ids_by_vehicle_id
 
-        return current_stop_departure_time_by_vehicle_id, \
-               next_stops_by_vehicle_id, vehicle_trips_by_vehicle_id
+    def __extract_route_by_vehicle_id(self, route_stop_ids_by_vehicle_id,
+                                      current_time):
 
-    def __find_shortest_path(self, G, o, d):
-        path = shortest_path(G, source=o, target=d, weight='length')
-        # path_length = path_weight(G, path, weight='length')
+        route_by_vehicle_id = {}
+        for vehicle_id, route_stop_ids \
+                in route_stop_ids_by_vehicle_id.items():
+            route = self.__extract_route(route_stop_ids, current_time)
+            route_by_vehicle_id[vehicle_id] = route
 
-        return path
+        return route_by_vehicle_id
 
-    def __get_path(self, G, node1, node2):
-        for node in G.nodes(data=True):
-            if (node[1]['pos'][0], node[1]['pos'][1]) == node1:
-                origin = node[0]
-            if (node[1]['pos'][0], node[1]['pos'][1]) == node2:
-                destination = node[0]
-        path = self.__find_shortest_path(G, origin, destination)
-        # path_cost = get_manhattan_distance(node1, node2)
-        return path
+    def __extract_route(self, route_stop_ids, current_time):
+        route = [{
+            "stop_id": route_stop_ids[0],
+            "arrival_time": None,
+            "departure_time": current_time
+        }]
+
+        departure_time = current_time
+        previous_stop_id = route_stop_ids[0]
+        for stop_id in route_stop_ids[1:]:
+            logger.warning(previous_stop_id)
+            logger.warning(stop_id)
+            distance = \
+                self.__network[previous_stop_id][stop_id]['length']
+            arrival_time = departure_time + distance
+            departure_time = arrival_time + self.__boarding_time \
+                if stop_id != route_stop_ids[-1] else math.inf
+
+            stop_info = {
+                "stop_id": stop_id,
+                "arrival_time": arrival_time,
+                "departure_time": departure_time
+            }
+
+            route.append(stop_info)
+            previous_stop_id = stop_id
+
+        return route
+
+    def __extract_trips_by_vehicle(self, veh_trips_assignments_list):
+        trip_ids_by_vehicle_id = {}
+        for veh_trips_assignment in veh_trips_assignments_list:
+            trip_ids = [trip.id for trip in
+                        veh_trips_assignment['assigned_requests']]
+            trip_ids_by_vehicle_id[
+                veh_trips_assignment["vehicle"].id] = trip_ids
+
+        return trip_ids_by_vehicle_id

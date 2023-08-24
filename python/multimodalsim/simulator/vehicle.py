@@ -486,28 +486,28 @@ class Location(object):
         pass
 
 
-class GPSLocation(Location):
-    def __init__(self, gps_coordinates):
-        # gps_coordinates is an object of type Node
-        super().__init__()
-        self.gps_coordinates = gps_coordinates
-        self.lon = gps_coordinates.get_coordinates()[0]
-        self.lat = gps_coordinates.get_coordinates()[1]
-
-    def __str__(self):
-        return "({},{})".format(self.gps_coordinates.get_coordinates()[0],
-                                self.gps_coordinates.get_coordinates()[1])
-
-    def __eq__(self, other):
-        return (self.lon == other.lon) and (self.lat == other.lat)
-
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            setattr(result, k, copy.deepcopy(v, memo))
-        return result
+# class GPSLocation(Location):
+#     def __init__(self, gps_coordinates):
+#         # gps_coordinates is an object of type Node
+#         super().__init__()
+#         self.gps_coordinates = gps_coordinates
+#         self.lon = gps_coordinates.get_coordinates()[0]
+#         self.lat = gps_coordinates.get_coordinates()[1]
+#
+#     def __str__(self):
+#         return "({},{})".format(self.gps_coordinates.get_coordinates()[0],
+#                                 self.gps_coordinates.get_coordinates()[1])
+#
+#     def __eq__(self, other):
+#         return (self.lon == other.lon) and (self.lat == other.lat)
+#
+#     def __deepcopy__(self, memo):
+#         cls = self.__class__
+#         result = cls.__new__(cls)
+#         memo[id(self)] = result
+#         for k, v in self.__dict__.items():
+#             setattr(result, k, copy.deepcopy(v, memo))
+#         return result
 
 
 class LabelLocation(Location):

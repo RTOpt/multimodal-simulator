@@ -42,6 +42,10 @@ class Optimization(object):
     def dispatch(self, state):
         return self.__dispatcher.dispatch(state)
 
+    def need_to_optimize(self):
+        # By default, reoptimize every time the Optimize event is processed.
+        return True
+
 
 class OptimizationResult(object):
 
