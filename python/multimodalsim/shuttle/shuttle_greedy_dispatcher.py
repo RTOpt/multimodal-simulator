@@ -6,12 +6,11 @@ from itertools import groupby
 from multimodalsim.optimization.dispatcher import ShuttleDispatcher
 from multimodalsim.shuttle.constraints_and_objective_function import \
     variables_declaration
-from multimodalsim.shuttle.solution_construction import \
-    cvrp_pdp_tw_he_obj_cost, get_distances, get_durations, update_data, \
-    set_initial_solution, improve_solution, get_routes_dict
-from multimodalsim.simulator.vehicle import Stop, LabelLocation
+from multimodalsim.shuttle.solution_construction import get_distances, \
+    get_durations, update_data, set_initial_solution, improve_solution
 
 logger = logging.getLogger(__name__)
+
 
 class ShuttleGreedyDispatcher(ShuttleDispatcher):
 
@@ -23,14 +22,27 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         # seconds).
         self.__boarding_time = 10
 
+    def prepare_input(self, state):
+        # Extract from the state the trips and the vehicles that should be used for optimization.
+
+        non_assigned_vehicles = []
+        vehicles_with_current_stops = []
+        for vehicle in state.vehicles:
+            route = state.route_by_vehicle_id[vehicle.id]
+            if len(route.onboard_legs) == 0 and len(route.assigned_legs) == 0:
+                non_assigned_vehicles.append(vehicle)
+                if route.current_stop is not None:
+                    vehicles_with_current_stops.append(vehicle)
+
+        vehicles_sorted_by_departure_time = sorted(
+            vehicles_with_current_stops,
+            key=lambda x:
+            state.route_by_vehicle_id[x.id].current_stop.departure_time)
+
+        return state.non_assigned_trips, \
+               vehicles_sorted_by_departure_time
+
     def optimize(self, trips, vehicles, current_time, state):
-
-        route_by_vehicle_id, trip_ids_by_vehicle_id = self.__optimize(
-            trips, vehicles, current_time)
-
-        return route_by_vehicle_id, trip_ids_by_vehicle_id
-
-    def __optimize(self, non_assigned_requests, vehicles, current_time):
 
         max_travel_time = 7200
         distances = get_distances(self.__network)
@@ -44,7 +56,7 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
         t = get_durations(self.__network)
 
         P, D, q, T, non_assigned_requests = update_data(self.__network,
-                                                        non_assigned_requests,
+                                                        trips,
                                                         vehicles)
 
         V_p = set([req.destination.label for req in P]).union(
@@ -67,66 +79,64 @@ class ShuttleGreedyDispatcher(ShuttleDispatcher):
                              P,
                              D, q, T, max_travel_time)
 
-        route_stop_ids_by_vehicle_id = self.__extract_next_stops_by_vehicle(
+        stop_ids_by_vehicle_id = self.__extract_next_stops_by_vehicle(
             veh_trips_assignments_list)
 
         trip_ids_by_vehicle_id = self.__extract_trips_by_vehicle(
             veh_trips_assignments_list)
 
-        route_by_vehicle_id = self.__extract_route_by_vehicle_id(
-            route_stop_ids_by_vehicle_id, current_time)
+        stops_list_by_vehicle_id = self.__extract_stops_list_by_vehicle_id(
+            stop_ids_by_vehicle_id, current_time)
 
-        return route_by_vehicle_id, trip_ids_by_vehicle_id
+        return stops_list_by_vehicle_id, trip_ids_by_vehicle_id
 
     def __extract_next_stops_by_vehicle(self, veh_trips_assignments_list):
-        route_stop_ids_by_vehicle_id = {}
+        stop_ids_by_vehicle_id = {}
         for veh_trips_assignment in veh_trips_assignments_list:
             next_stop_ids = [stop_id for stop_id, _
                              in groupby(veh_trips_assignment["route"])]
-            route_stop_ids_by_vehicle_id[
+            stop_ids_by_vehicle_id[
                 veh_trips_assignment["vehicle"].id] = next_stop_ids
 
-        return route_stop_ids_by_vehicle_id
+        return stop_ids_by_vehicle_id
 
-    def __extract_route_by_vehicle_id(self, route_stop_ids_by_vehicle_id,
+    def __extract_stops_list_by_vehicle_id(self, stop_ids_by_vehicle_id,
                                       current_time):
 
-        route_by_vehicle_id = {}
-        for vehicle_id, route_stop_ids \
-                in route_stop_ids_by_vehicle_id.items():
-            route = self.__extract_route(route_stop_ids, current_time)
-            route_by_vehicle_id[vehicle_id] = route
+        stops_list_by_vehicle_id = {}
+        for vehicle_id, stop_ids \
+                in stop_ids_by_vehicle_id.items():
+            stops_list = self.__extract_stops_list(stop_ids, current_time)
+            stops_list_by_vehicle_id[vehicle_id] = stops_list
 
-        return route_by_vehicle_id
+        return stops_list_by_vehicle_id
 
-    def __extract_route(self, route_stop_ids, current_time):
-        route = [{
-            "stop_id": route_stop_ids[0],
+    def __extract_stops_list(self, stop_ids, current_time):
+        stops_list = [{
+            "stop_id": stop_ids[0],
             "arrival_time": None,
             "departure_time": current_time
         }]
 
         departure_time = current_time
-        previous_stop_id = route_stop_ids[0]
-        for stop_id in route_stop_ids[1:]:
-            logger.warning(previous_stop_id)
-            logger.warning(stop_id)
+        previous_stop_id = stop_ids[0]
+        for stop_id in stop_ids[1:]:
             distance = \
                 self.__network[previous_stop_id][stop_id]['length']
             arrival_time = departure_time + distance
             departure_time = arrival_time + self.__boarding_time \
-                if stop_id != route_stop_ids[-1] else math.inf
+                if stop_id != stop_ids[-1] else math.inf
 
-            stop_info = {
+            stop_dict = {
                 "stop_id": stop_id,
                 "arrival_time": arrival_time,
                 "departure_time": departure_time
             }
 
-            route.append(stop_info)
+            stops_list.append(stop_dict)
             previous_stop_id = stop_id
 
-        return route
+        return stops_list
 
     def __extract_trips_by_vehicle(self, veh_trips_assignments_list):
         trip_ids_by_vehicle_id = {}
