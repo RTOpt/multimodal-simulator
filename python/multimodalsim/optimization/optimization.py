@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class Optimization(object):
 
-    def __init__(self, dispatcher, splitter=None, freeze_interval=5):
+    def __init__(self, dispatcher, splitter=None, freeze_interval=0):
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
         self.__freeze_interval = freeze_interval

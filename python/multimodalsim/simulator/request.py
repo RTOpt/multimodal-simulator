@@ -106,7 +106,7 @@ class Leg(Request):
     @assigned_vehicle.setter
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
-        # Patrick: I added the condition self.assigned_vehicle != vehicle
+        # The condition self.assigned_vehicle != vehicle has been added
         # for the case where two Optimize(Event) take place at the same time
         # (same event_time). In this case, the environment is not updated
         # between the two Optimize(Event). Therefore, the optimization

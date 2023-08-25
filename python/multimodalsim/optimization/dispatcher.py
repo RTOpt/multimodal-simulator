@@ -21,50 +21,159 @@ class ShuttleDispatcher(Dispatcher):
 
     def __init__(self):
         super().__init__()
-        self.__state = None
 
-    def prepare_input(self):
-        # Extract from the state the trips and the vehicles that should be used for optimization.
+    def prepare_input(self, state):
+        # Extract from the state the trips and the vehicles that are sent as
+        # input to the optimize method (i.e. the trips and the vehicles that
+        # you want to optimize).
+        #
+        # By default, all trips (i.e., state.trips) and all vehicles (i.e.,
+        # state.vehicles) existing at the time of optimization will be
+        # optimized.
+        #
+        # This method can be overriden to return only the trips and the
+        # vehicles that should be optimized based on your needs (see, for
+        # example, ShuttleSimpleDispatcher).
+        #
+        # Input:
+        #   -state: An object of type State that corresponds to a partial deep
+        #    copy of the environment.
+        #
+        # Output:
+        #   -trips: A list of objects of type Trip that corresponds to the
+        #    trips (i.e., passengers or requests) that should be considered by
+        #    the optimize methods.
+        #   -vehicles: A list of objects of type Vehicle that corresponds to
+        #   the vehicles (i.e., shuttles) that should be considered by the
+        #   optimize methods.
 
-        non_assigned_vehicles = []
-        vehicles_with_current_stops = []
-        for vehicle in self.__state.vehicles:
-            route = self.__state.route_by_vehicle_id[vehicle.id]
-            if len(route.onboard_legs) == 0 and len(route.assigned_legs) == 0:
-                non_assigned_vehicles.append(vehicle)
-                if route.current_stop is not None:
-                    vehicles_with_current_stops.append(vehicle)
+        trips = state.trips  # All the trips
+        vehicles = state.vehicles   # All the vehicles
 
-        vehicles_sorted_by_departure_time = sorted(
-            vehicles_with_current_stops,
-            key=lambda x:
-            self.__state.route_by_vehicle_id[x.id].current_stop.departure_time)
-
-        return self.__state.non_assigned_trips, \
-               vehicles_sorted_by_departure_time
+        return trips, vehicles
 
     def optimize(self, trips, vehicles, current_time, state):
+        # Must be overriden (see ShuttleSimpleDispatcher and
+        # ShuttleSimpleNetworkDispatcher for simple examples).
+        #
+        # Input:
+        #   -trips: List of the trips to be optimized.
+        #   -vehicles: List of the vehicles to be optimized.
+        #   -current_time: Integer equal to the current time of the State.
+        #    The value of current_time is defined as follows:
+        #       current_time = Environment.current_time
+        #       + Optimization.freeze_interval.
+        #    Environment.current_time: The time at which the Optimize event is
+        #    processed.
+        #    freeze_interval: 0, by default, see Optimization.freeze_interval
+        #    for more details
+        #   -state: An object of type State that corresponds to a partial deep
+        #    copy of the environment.
+        #
+        # Output:
+        #   -stops_list_by_vehicle_id:
+        #       -Dictionary:
+        #           -keys: IDs of the vehicles modified by the optimization.
+        #           -values: List of dictionaries that correspond to a stop of
+        #            the route associated with the vehicle. Each dictionary has
+        #            the following structure:
+        #               stop_dict = {
+        #                   "stop_id": the label of the stop location,
+        #                   "arrival_time": the time at which the vehicle will
+        #                       arrive at the stop,
+        #                   "departure_time": the time at which the vehicle
+        #                                     will leave the stop.
+        #               }
+        #       -Example:
+        #           -key: "1" # The ID of the vehicle
+        #           -value:
+        #               [
+        #                  stop1_dict = {
+        #                    "stop_id": "0",
+        #                    "arrival_time": None,
+        #                       # The arrival time of the first stop of the
+        #                       # list does not matter. It will not be modified
+        #                       # by the simulator since it is the current stop
+        #                       # and cannot be altered.
+        #                     "departure_time": current_time
+        #                   },
+        #                  stop2_dict = {
+        #                     "stop_id": "5",
+        #                    "arrival_time": current_time + 300
+        #                    "departure_time": current_time + 360
+        #                  },
+        #                  stop3_dict = {
+        #                    "stop_id": "2",
+        #                    "arrival_time": current_time + 600
+        #                    "departure_time": None
+        #                       # The departure time of the last stop does not
+        #                       # matter. It is set to math.inf.
+        #                  }
+        #              ]
+        #       In this example, a route composed of 3 stops is assigned to the
+        #       vehicle with an ID of "1". The locations of the 3 stops are
+        #       labelled by "0", "5" and "2", respectively. The vehicle leaves
+        #       the first stop at time current_time and arrives at the second
+        #       stop at time current_time + 300. In other words, it took the
+        #       vehicle 300 seconds to travel from the first stop to the second
+        #       stop. Then, the vehicle leaves the second stop at time
+        #       current_time + 360, which means that there was a time interval
+        #       (e.g., service time) of 60 seconds between the arrival and the
+        #       departure. Finally, the vehicle arrives at the third (and last)
+        #       stop at time current_time + 600, which corresponds to a travel
+        #       time of 240 seconds between the second and the third stop.
+        #
+        #   -trip_ids_by_vehicle_id:
+        #       -Dictionary:
+        #           -keys: IDs of the vehicles modified by the optimization.
+        #           -values: List of the trip IDs assigned to the vehicle.
+        #       -Example:
+        #           -key: "1" # The ID of the vehicle
+        #           -value: ["3", "4"] # List of IDs of the trips to be served
+        #               by the vehicle.
+        #           In this example, trips "3" and "4" are assigned to
+        #           vehicle "1".
+
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def process_output(self, route_by_vehicle_id,
-                       trip_ids_by_vehicle_id):
+    def process_output(self, stops_list_by_vehicle_id, trip_ids_by_vehicle_id,
+                       state):
+        # Create and modify the simulation objects that correspond to the
+        # output of the optimize method. In other words, this method
+        # "translates" the results of optimization (i.e.,
+        # stops_list_by_vehicle_id and trip_ids_by_vehicle_id) into the
+        # "language" of the simulator.
+        #
+        # Input:
+        #   -stops_list_by_vehicle_id: the first output of the optimize method
+        #    (see optimize above).
+        #   -trip_ids_by_vehicle_id: the second output of the optimize method
+        #    (see optimize above).
+        #   -state: An object of type State that corresponds to a partial deep
+        #    copy of the environment.
 
         modified_trips = []
         modified_vehicles = []
 
-        for vehicle_id, stops_list in route_by_vehicle_id.items():
-            vehicle = self.__state.get_vehicle_by_id(vehicle_id)
-            route = self.__state.route_by_vehicle_id[vehicle_id]
+        for vehicle_id, stops_list in stops_list_by_vehicle_id.items():
+            vehicle = state.get_vehicle_by_id(vehicle_id)
+            route = state.route_by_vehicle_id[vehicle_id]
 
-            trips = [self.__state.get_trip_by_id(trip_id) for trip_id
+            trips = [state.get_trip_by_id(trip_id) for trip_id
                      in trip_ids_by_vehicle_id[vehicle_id]]
 
             current_stop_departure_time = stops_list[0]["departure_time"]
             next_stops = []
             for stop_dict in stops_list[1:]:
+
+                # The departure time of the last stop is set to infinity
+                # (because it is unknown).
+                departure_time = stop_dict["departure_time"] \
+                    if stop_dict != stops_list[-1] else math.inf
+
                 stop = Stop(stop_dict["arrival_time"],
-                            stop_dict["departure_time"],
+                            departure_time,
                             LabelLocation(stop_dict["stop_id"]))
                 next_stops.append(stop)
 
@@ -76,27 +185,24 @@ class ShuttleDispatcher(Dispatcher):
             for trip in trips:
                 self.__assign_trip_to_stops(trip, route)
 
-
-
             modified_trips.extend(trips)
             modified_vehicles.append(vehicle)
 
-        return OptimizationResult(self.__state, modified_trips,
-                                  modified_vehicles)
-
+        return OptimizationResult(state, modified_trips, modified_vehicles)
 
     def dispatch(self, state):
 
-        self.__state = state
-
-        trips, vehicles = self.prepare_input()
+        trips, vehicles = self.prepare_input(state)
 
         if len(trips) > 0 and len(vehicles) > 0:
-            route_by_vehicle_id, trip_ids_by_vehicle_id = self.optimize(
+            # The optimize method is called only if there is at least one trip
+            # and one vehicle to optimize.
+            stops_list_by_vehicle_id, trip_ids_by_vehicle_id = self.optimize(
                 trips, vehicles, state.current_time, state)
 
-            optimization_result = self.process_output(route_by_vehicle_id,
-                                                      trip_ids_by_vehicle_id)
+            optimization_result = self.process_output(stops_list_by_vehicle_id,
+                                                      trip_ids_by_vehicle_id,
+                                                      state)
         else:
             optimization_result = OptimizationResult(state, [], [])
 
@@ -122,15 +228,6 @@ class ShuttleDispatcher(Dispatcher):
         for trip in trips:
             trip.current_leg.assigned_vehicle = vehicle
             route.assign_leg(trip.current_leg)
-
-    # def __assign_trips_to_stops(self, vehicle_trips_by_vehicle_id, state):
-    #
-    #     for vehicle_id, veh_trips in vehicle_trips_by_vehicle_id.items():
-    #         route = state.route_by_vehicle_id[vehicle_id]
-    #         trips = veh_trips["trips"]
-    #
-    #         for trip in trips:
-    #             self.__assign_trip_to_stops(trip, route)
 
     def __assign_trip_to_stops(self, trip, route):
         boarding_stop_found = False
