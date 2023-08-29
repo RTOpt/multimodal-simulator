@@ -42,10 +42,10 @@ class ShuttleDispatcher(Dispatcher):
         # Output:
         #   -trips: A list of objects of type Trip that corresponds to the
         #    trips (i.e., passengers or requests) that should be considered by
-        #    the optimize methods.
+        #    the optimize method.
         #   -vehicles: A list of objects of type Vehicle that corresponds to
         #   the vehicles (i.e., shuttles) that should be considered by the
-        #   optimize methods.
+        #   optimize method.
 
         trips = state.trips  # All the trips
         vehicles = state.vehicles   # All the vehicles
@@ -53,6 +53,10 @@ class ShuttleDispatcher(Dispatcher):
         return trips, vehicles
 
     def optimize(self, trips, vehicles, current_time, state):
+        # Determine the vehicle routing and the trip-route assignment according
+        # to an optimization algorithm. The optimization algorithm should be
+        # coded in this method.
+        #
         # Must be overriden (see ShuttleSimpleDispatcher and
         # ShuttleSimpleNetworkDispatcher for simple examples).
         #
