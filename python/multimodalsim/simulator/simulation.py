@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 class Simulation(object):
 
-    def __init__(self, optimization, trips, vehicles, routes_by_vehicle_id,
-                 network=None, environment_observer=None, coordinates=None,
+    def __init__(self, opt, trips, vehicles, network=None,
+                 environment_observer=None, coordinates=None,
                  travel_times=None, config=None):
 
-        self.__env = Environment(optimization, network=network, coordinates=coordinates,
+        self.__env = Environment(opt, network=network, coordinates=coordinates,
                                  travel_times=travel_times)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
@@ -26,10 +26,7 @@ class Simulation(object):
         self.__load_config(config)
 
         for vehicle in vehicles:
-            route = routes_by_vehicle_id[vehicle.id] \
-                if vehicle.id in routes_by_vehicle_id else None
-
-            VehicleReady(vehicle, route, self.__queue,
+            VehicleReady(vehicle, self.__queue,
                          self.__update_position_time_step).add_to_queue()
 
         for trip in trips:

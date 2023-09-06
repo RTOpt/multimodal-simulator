@@ -4,8 +4,8 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.reader.data_reader import ShuttleDataReader
-from multimodalsim.optimization.shuttle.shuttle_simple_network_dispatcher import \
-    ShuttleSimpleNetworkDispatcher
+from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
+    ShuttleGreedyDispatcher
 from multimodalsim.simulator.simulation import Simulation
 
 if __name__ == '__main__':
@@ -14,20 +14,22 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
     # Read input data from files
-    requests_file_path = "../../../data/shuttle/simple_network_dispatcher/requests.csv"
-    vehicles_file_path = "../../../data/shuttle/simple_network_dispatcher/vehicles.csv"
-    graph_file_path = "../../../data/shuttle/simple_network_dispatcher/graph.json"
+    requests_file_path = "../../data/shuttle/test3_shuttle/requests_sncf_test0.csv"
+    vehicles_file_path = "../../data/shuttle/test3_shuttle/vehicles.csv"
+    nodes_file_path = "../../data/shuttle/test3_shuttle/nodes.csv"
+    graph_file_path = "../../data/shuttle/test3_shuttle/graph.json"
 
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
-                                    graph_file_path,
+                                    nodes_file_path, graph_file_path,
                                     vehicles_end_time=100000)
 
-    vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
+    vehicles = data_reader.get_vehicles()
     trips = data_reader.get_trips()
-    network_graph = data_reader.get_json_graph()
+    nodes = data_reader.get_nodes()
+    g = data_reader.get_json_graph()
 
     # Initialize the optimizer.
-    dispatcher = ShuttleSimpleNetworkDispatcher(network_graph)
+    dispatcher = ShuttleGreedyDispatcher(g)
 
     # OneLegSplitter is used by default
     opt = Optimization(dispatcher)
@@ -36,8 +38,7 @@ if __name__ == '__main__':
     environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
-                            network=network_graph,
+    simulation = Simulation(opt, trips, vehicles, network=g,
                             environment_observer=environment_observer)
 
     # Execute the simulation.

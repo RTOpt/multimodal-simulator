@@ -2,6 +2,9 @@ import itertools
 import csv
 from copy import deepcopy
 
+from multimodalsim.shuttle.constraints_and_objective_function import *
+from multimodalsim.shuttle.plot import plot_routes
+
 
 def get_distances(G):
     distances = [[0]*len(G.nodes) for i in range(len(G.nodes))]

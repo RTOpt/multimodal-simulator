@@ -12,3 +12,13 @@ class CoordinatesOSRMConfig(Config):
     @property
     def url(self):
         return self._config_parser["parameters"]["url"]
+
+    @property
+    def future_polylines_osrm(self):
+        future_polylines_osrm_str = \
+            self._config_parser["parameters"]["future_polylines_osrm"]
+        if future_polylines_osrm_str == "False":
+            future_polylines_osrm = False
+        else:
+            future_polylines_osrm = True
+        return future_polylines_osrm

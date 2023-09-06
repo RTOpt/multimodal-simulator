@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class Optimization(object):
 
-    def __init__(self, dispatcher, splitter=None, freeze_interval=0):
+    def __init__(self, dispatcher, splitter=None, freeze_interval=5):
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
         self.__freeze_interval = freeze_interval
@@ -41,10 +41,6 @@ class Optimization(object):
 
     def dispatch(self, state):
         return self.__dispatcher.dispatch(state)
-
-    def need_to_optimize(self, env_stats):
-        # By default, reoptimize every time the Optimize event is processed.
-        return True
 
 
 class OptimizationResult(object):

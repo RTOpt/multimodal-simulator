@@ -1,7 +1,6 @@
 import copy
 import logging
 
-from multimodalsim.optimization.state import State
 from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
 
 logger = logging.getLogger(__name__)
@@ -22,10 +21,6 @@ class Environment(object):
             The trips that are not assigned to a route yet.
         vehicles: list of Vehicle objects
             All the vehicles that were added to the environment.
-        routes_by_vehicle_id: dictionary associating an id (string) with a
-        Route object.
-            The route of each vehicle in the environment (key: Vehicle.id,
-            value: associated Route)
         network: graph
             Graph corresponding to the network.
         optimization: Optimization
@@ -43,8 +38,6 @@ class Environment(object):
         self.__assigned_trips = []
         self.__non_assigned_trips = []
         self.__vehicles = []
-        self.__routes_by_vehicle_id = {}
-
         self.__network = network
         self.__optimization = optimization
         self.__coordinates = coordinates
@@ -67,12 +60,11 @@ class Environment(object):
     def trips(self):
         return self.__trips
 
-    def get_trip_by_id(self, trip_id):
+    def get_trip_by_id(self, id):
         found_trip = None
         for trip in self.trips:
-            if trip.id == trip_id:
+            if trip.id == id:
                 found_trip = trip
-                break
         return found_trip
 
     def add_trip(self, trip):
@@ -133,12 +125,10 @@ class Environment(object):
     def vehicles(self):
         return self.__vehicles
 
-    def get_vehicle_by_id(self, vehicle_id):
-        found_vehicle = None
-        for vehicle in self.vehicles:
-            if vehicle.id == vehicle_id:
-                found_vehicle = vehicle
-        return found_vehicle
+    def get_vehicle_by_id(self, veh_id):
+        for veh in self.__vehicles:
+            if veh.id == veh_id:
+                return veh
 
     def add_vehicle(self, vehicle):
         """ Adds a new vehicle to the vehicles list"""
@@ -148,30 +138,6 @@ class Environment(object):
         """ Removes a vehicle from the vehicles list based on its id"""
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
-
-    @property
-    def route_by_vehicle_id(self):
-        return self.__routes_by_vehicle_id
-
-    def get_route_by_vehicle_id(self, vehicle_id):
-        route = None
-        if vehicle_id in self.__routes_by_vehicle_id:
-            route = self.__routes_by_vehicle_id[vehicle_id]
-
-        return route
-
-    def add_route(self, route, vehicle_id):
-        self.__routes_by_vehicle_id[vehicle_id] = route
-
-    def get_environment_statistics(self):
-        env_stats = None
-
-        # TODO: Create object (maybe define EnvironmentStatistics?) that
-        #  contains the statistics about the environment required to determine
-        #  whether optimization is needed or not.
-
-        return env_stats
-
 
     def get_new_state(self):
         state_copy = copy.copy(self)
@@ -187,14 +153,14 @@ class Environment(object):
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = State(copy.deepcopy(state_copy))
+        state_deepcopy = copy.deepcopy(state_copy)
 
         return state_deepcopy
 
     def __get_non_complete_vehicles(self, vehicles):
         non_complete_vehicles = []
         for vehicle in vehicles:
-            if vehicle.status != VehicleStatus.COMPLETE:
+            if vehicle.route.status != VehicleStatus.COMPLETE:
                 veh_copy = copy.copy(vehicle)
                 veh_copy.polylines = None
                 non_complete_vehicles.append(veh_copy)

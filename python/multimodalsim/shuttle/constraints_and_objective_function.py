@@ -10,28 +10,28 @@ def variables_declaration(V, K, V_p):
     # binary represent if the arc i to j is traversed by the vehicle k
     # initialized with False
     # X = [[[False for j in range(len(V))] for i in range(len(V))] for k in range(len(K))]
-    X = {k.id: {i: {j: False for j in V} for i in V} for k in K}
+    X = {k.id: [[False for j in range(len(V))] for i in range(len(V))] for k in K}
 
     # binary represent if the vehicle k serve client at vertex i
     # initialized with False
     # Y = [[False for i in range(len(V))] for k in range(len(K))]
-    Y = {k.id: {i: False for i in V} for k in K}
+    Y = {k.id: [False for i in range(len(V))] for k in K}
 
-    # the moment the vehicle k arrives at vertex i
+    # the moment the vehicle k arrive at vertex i
     # U[k][0] the arrival at the station for pickup
     # and U[k][n+1] arrival at the station for delivery
     # initialized with -1
     # U = [[-1 for i in range(len(V) + 1)] for k in range(len(K))]
-    U = {k.id: dict({i: -1 for i in V}, **{'sink': -1}) for k in K}
+    U = {k.id: [-1 for i in range(len(V) + 1)] for k in K}
 
     # the load of vehicle k in vertex i
     # initialized with 0
     # W = [[0 for i in range(len(V))] for k in range(len(K))]
-    W = {k.id: {i: 0 for i in V} for k in K}
+    W = {k.id: [0 for i in range(len(V))] for k in K}
 
     # travel time for customers at vertex i
     # initialized with 0
-    R = {i: 0 for i in V}
+    R = [0 for i in range(len(V))]
 
     # set of not served customers
     # V_not_served = set(V_p)
@@ -75,13 +75,12 @@ def verify_const_3(Y, K, V):
     return verified
 
 def verify_const_4(X, K, V):
-    hub_id = '0'
 
     verified = True
     for f_k in K:
         sum_x = 0
         for f_j in V:
-            sum_x += (1 if X[f_k.id][hub_id][f_j] else 0)
+            sum_x += (1 if X[f_k.id][0][f_j] else 0)
         if sum_x > 1:
             verified = False
             break
@@ -121,8 +120,8 @@ def verify_const_7(V, Y, R, U, K, P, T, d):
 
     verified = True
     for f_k in K:
-        for f_i in [req.destination.label for req in P]:
-            f_sum = U[f_k.id]['sink'] - (U[f_k.id][f_i] + d[f_i]) - (T[f_i] - d[f_i]) * (1 - (1 if Y[f_k.id][f_i] else 0))
+        for f_i in [req.destination.gps_coordinates.id for req in P]:
+            f_sum = U[f_k.id][len(V)] - (U[f_k.id][f_i] + d[f_i]) - (T[f_i] - d[f_i]) * (1 - (1 if Y[f_k.id][f_i] else 0))
             if R[f_i] < f_sum.__round__(2):
                 verified = False
                 break
@@ -135,7 +134,7 @@ def verify_const_8(R, U, K, D, d):
 
     verified = True
     for f_k in K:
-        for f_i in [req.origin.label for req in D]:
+        for f_i in [req.origin.gps_coordinates.id for req in D]:
             if R[f_i] < U[f_k.id][f_i] - d[f_i] - U[f_k.id][f_i]:
                 verified = False
                 break
@@ -155,7 +154,7 @@ def verify_const_10_a(R, P, max_travel_time):
 
     verified = True
     # TODO : This Constraint is changed ( we took just the first part )
-    for f_i in [req.destination.label for req in P]:
+    for f_i in [req.destination.gps_coordinates.id for req in P]:
         if R[f_i] > max_travel_time:
             verified = False
             break
@@ -166,7 +165,7 @@ def verify_const_10_b(R, D, max_travel_time):
 
     verified = True
     # TODO : This Constraint is changed ( we took just the first part )
-    for f_i in [req.origin.label for req in D]:
+    for f_i in [req.origin.gps_coordinates.id for req in D]:
         if R[f_i] > max_travel_time:
             verified = False
             break
@@ -178,7 +177,7 @@ def verify_const_11(Y, U, K, D):
     verified = True
     for f_k in K:
         for req in D:
-            f_i = req.origin.label
+            f_i = req.origin.gps_coordinates.id
             ready_time_f_i = req.ready_time
             due_time_f_i = req.due_time
             if U[f_k.id][f_i] != -1 and (ready_time_f_i * Y[f_k.id][f_i] > U[f_k.id][f_i] or U[f_k.id][f_i] > due_time_f_i * Y[f_k.id][f_i]):
@@ -194,14 +193,14 @@ def verify_const_12(Y, K, D, P, q):
     verified = True
     for f_k in K:
         sum_y_q = 0
-        for f_i in [req.destination.label for req in P]:
+        for f_i in [req.destination.gps_coordinates.id for req in P]:
             sum_y_q += Y[f_k.id][f_i] * q[f_i]
         if sum_y_q > f_k.capacity:
             verified = False
             break
 
         sum_y_q = 0
-        for f_i in [req.origin.label for req in D]:
+        for f_i in [req.origin.gps_coordinates.id for req in D]:
             sum_y_q += Y[f_k.id][f_i] * (-1 * q[f_i])
         if sum_y_q > f_k.capacity:
             verified = False

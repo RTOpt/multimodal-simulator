@@ -14,10 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class VehicleReady(Event):
-    def __init__(self, vehicle, route, queue, update_position_time_step=None):
+    def __init__(self, vehicle, queue, update_position_time_step=None):
         super().__init__('VehicleReady', queue, vehicle.release_time)
         self.__vehicle = vehicle
-        self.__route = route
         self.__update_position_time_step = update_position_time_step
 
     @property
@@ -27,24 +26,25 @@ class VehicleReady(Event):
     def _process(self, env):
         env.add_vehicle(self.__vehicle)
 
-        if self.__route is None:
-            self.__route = Route(self.__vehicle)
+        if self.__vehicle.route is None:
+            self.__vehicle.route = Route(self.__vehicle)
 
-        env.add_route(self.__route, self.__vehicle.id)
+        optimization_event.Optimize(env.current_time, self.queue). \
+            add_to_queue()
 
-        VehicleWaiting(self.__route, self.queue).add_to_queue()
+        VehicleWaiting(self.__vehicle.route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
                 is not None:
             self.__vehicle.polylines = \
-                env.coordinates.update_polylines(self.__route)
+                env.coordinates.update_polylines(self.__vehicle.route)
             VehicleUpdatePositionEvent(
                 self.__vehicle, self.queue,
                 self.time + self.__update_position_time_step,
                 self.__update_position_time_step).add_to_queue()
         elif env.coordinates is not None:
             self.__vehicle.polylines = \
-                env.coordinates.update_polylines(self.__route)
+                env.coordinates.update_polylines(self.__vehicle.route)
 
         return 'Vehicle Ready process is implemented'
 
@@ -53,13 +53,10 @@ class VehicleWaiting(ActionEvent):
     def __init__(self, route, queue, time=None):
         time = time if time is not None else queue.env.current_time
         super().__init__('VehicleBoarding', queue, time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.state_machine)
         self.__route = route
 
     def _process(self, env):
-
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -85,7 +82,7 @@ class VehicleBoarding(ActionEvent):
     def __init__(self, route, queue):
         super().__init__('VehicleBoarding', queue,
                          queue.env.current_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.state_machine)
         self.__route = route
 
     def _process(self, env):
@@ -103,7 +100,7 @@ class VehicleDeparture(ActionEvent):
     def __init__(self, route, queue):
         super().__init__('Vehicle Departure', queue,
                          route.current_stop.departure_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.state_machine)
         self.__route = route
 
     def _process(self, env):
@@ -128,7 +125,7 @@ class VehicleDeparture(ActionEvent):
 class VehicleArrival(ActionEvent):
     def __init__(self, route, queue, arrival_time):
         super().__init__('VehicleArrival', queue, arrival_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.state_machine)
         self.__route = route
 
     def _process(self, env):
@@ -136,12 +133,6 @@ class VehicleArrival(ActionEvent):
         self.__update_stop_times(env.current_time)
 
         self.__route.arrive()
-
-        if len(self.__route.next_stops) == 0 \
-                and not self.__route.vehicle.reusable:
-            VehicleComplete(self.__route, self.queue,
-                            self.queue.env.current_time).add_to_queue(
-                forced_insertion=True)
 
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
@@ -178,7 +169,6 @@ class VehicleNotification(Event):
         self.__route_update = route_update
         self.__vehicle = queue.env.get_vehicle_by_id(
             self.__route_update.vehicle_id)
-        self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env):
@@ -186,49 +176,49 @@ class VehicleNotification(Event):
         self.__env = env
 
         if self.__route_update.next_stops is not None:
-            self.__route.next_stops = \
+            self.__vehicle.route.next_stops = \
                 copy.deepcopy(self.__route_update.next_stops)
-            for stop in self.__route.next_stops:
+            for stop in self.__vehicle.route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
 
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
             # Add passengers to board that were modified by optimization and
             # that are not already present in
-            # self.__route.current_stop.passengers_to_board
+            # vehicle.route.current_stop.passengers_to_board
             actual_modified_passengers_to_board = \
                 self.__replace_copy_trips_with_actual_trips(
                     self.__route_update.
                     current_stop_modified_passengers_to_board)
             for trip in actual_modified_passengers_to_board:
                 if trip not in \
-                        self.__route.current_stop.passengers_to_board:
-                    self.__route.current_stop.passengers_to_board \
+                        self.__vehicle.route.current_stop.passengers_to_board:
+                    self.__vehicle.route.current_stop.passengers_to_board \
                         .append(trip)
 
         if self.__route_update.current_stop_departure_time is not None \
-                and self.__route.current_stop is not None:
-            # If self.__route.current_stop.departure_time is equal to
+                and self.__vehicle.route.current_stop is not None:
+            # If vehicle.route.current_stop.departure_time is equal to
             # env.current_time, then the vehicle may have already left the
-            # current stop. In this case self.__route.current_stop should
+            # current stop. In this case vehicle.route.current_stop should
             # be None (because optimization should not modify current stops
             # when departure time is close to current time), and we do not
             # modify it.
-            if self.__route.current_stop.departure_time \
+            if self.__vehicle.route.current_stop.departure_time \
                     != self.__route_update.current_stop_departure_time:
-                self.__route.current_stop.departure_time \
+                self.__vehicle.route.current_stop.departure_time \
                     = self.__route_update.current_stop_departure_time
-                VehicleWaiting(self.__route, self.queue).add_to_queue()
+                VehicleWaiting(self.__vehicle.route, self.queue).add_to_queue()
 
         if self.__route_update.modified_assigned_legs is not None:
             # Add the assigned legs that were modified by optimization and
-            # that are not already present in self.__route.assigned_legs.
+            # that are not already present in vehicle.route.assigned_legs.
             actual_modified_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.modified_assigned_legs)
             for leg in actual_modified_assigned_legs:
-                if leg not in self.__route.assigned_legs:
-                    self.__route.assigned_legs.append(leg)
+                if leg not in self.__vehicle.route.assigned_legs:
+                    self.__vehicle.route.assigned_legs.append(leg)
 
         return 'Notify Vehicle process is implemented'
 
@@ -255,8 +245,7 @@ class VehicleNotification(Event):
 class VehicleBoarded(Event):
     def __init__(self, trip, queue):
         self.__trip = trip
-        self.__route = queue.env.get_route_by_vehicle_id(
-            self.__trip.current_leg.assigned_vehicle.id)
+        self.__route = self.__trip.current_leg.assigned_vehicle.route
         super().__init__('VehicleBoarded', queue)
 
     def _process(self, env):
@@ -277,9 +266,7 @@ class VehicleBoarded(Event):
 class VehicleAlighted(Event):
     def __init__(self, leg, queue):
         self.__leg = leg
-        self.__route = leg.assigned_vehicle
-        self.__route = queue.env.get_route_by_vehicle_id(
-            leg.assigned_vehicle.id)
+        self.__route = leg.assigned_vehicle.route
         super().__init__('VehicleAlighted', queue)
 
     def _process(self, env):
@@ -304,6 +291,7 @@ class VehicleUpdatePositionEvent(Event):
         self.__time_step = time_step
 
     def _process(self, env):
+
         self.__vehicle.position = env.coordinates.update_position(
             self.__vehicle, self.__event_time)
 
@@ -322,11 +310,10 @@ class VehicleUpdatePositionEvent(Event):
 
 
 class VehicleComplete(ActionEvent):
-    def __init__(self, route, queue, event_time=None):
-        if event_time is None:
-            event_time = max(route.vehicle.end_time, queue.env.current_time)
-        super().__init__('VehicleComplete', queue, event_time,
-                         state_machine=route.vehicle.state_machine,
+    def __init__(self, route, queue):
+        super().__init__('VehicleComplete', queue,
+                         max(route.vehicle.end_time, queue.env.current_time),
+                         state_machine=route.state_machine,
                          event_priority=Event.LOW_PRIORITY)
         self.__route = route
 
@@ -334,8 +321,7 @@ class VehicleComplete(ActionEvent):
 
         return 'Vehicle Complete process is implemented'
 
-    def add_to_queue(self, forced_insertion=False):
+    def add_to_queue(self):
         if not self.queue.is_event_type_in_queue(self.__class__,
-                                                 owner=self.__route.vehicle)\
-                or forced_insertion:
-            super().add_to_queue()
+                                                 owner=self.__route):
+            self.queue.put(self)

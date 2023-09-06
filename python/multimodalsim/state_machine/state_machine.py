@@ -110,6 +110,10 @@ class StateMachine:
 
     def next_state(self, event, env):
 
+        # logger.debug("EVENT: {}".format(event.__name__))
+        # logger.debug("current state: {}".format(self.__current_state))
+        # logger.debug("self.__transitions={}".format(self.__transitions))
+
         transition_possible = False
         if event.__name__ in self.__transitions:
             for transition in self.__transitions[event.__name__]:
@@ -127,6 +131,8 @@ class StateMachine:
             raise ValueError(
                 "Event {} is not possible from status {}!".format(
                     event, self.__current_state))
+
+        # logger.debug("next state: {}".format(self.__current_state))
 
         return self.__current_state
 
@@ -185,10 +191,6 @@ class PassengerStateMachine(StateMachine):
 
         self.add_transition(PassengersStatus.RELEASE,
                             PassengersStatus.ASSIGNED, PassengerAssignment)
-        self.add_transition(PassengersStatus.ASSIGNED,
-                            PassengersStatus.ASSIGNED, PassengerAssignment)
-        self.add_transition(PassengersStatus.READY,
-                            PassengersStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengersStatus.ASSIGNED, PassengersStatus.READY,
                             PassengerReady)
         self.add_transition(PassengersStatus.READY, PassengersStatus.ONBOARD,
@@ -205,8 +207,8 @@ class PassengerStateMachine(StateMachine):
 
 class VehicleStateMachine(StateMachine):
 
-    def __init__(self, vehicle):
-        super().__init__(owner=vehicle)
+    def __init__(self, route):
+        super().__init__(owner=route)
 
         self.add_transition(VehicleStatus.RELEASE, VehicleStatus.IDLE,
                             VehicleWaiting)
@@ -223,8 +225,6 @@ class VehicleStateMachine(StateMachine):
         self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.IDLE,
                             VehicleWaiting)
         self.add_transition(VehicleStatus.IDLE, VehicleStatus.COMPLETE,
-                            VehicleComplete)
-        self.add_transition(VehicleStatus.COMPLETE, VehicleStatus.COMPLETE,
                             VehicleComplete)
 
         self.current_state = VehicleStatus.RELEASE
