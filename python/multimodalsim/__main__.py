@@ -5,16 +5,16 @@ import pstats
 
 import networkx as nx
 
-from multimodalsim.shuttle.shuttle_greedy_dispatcher import \
-    ShuttleGreedyDispatcher
-
 from multimodalsim.logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
+from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
+    FixedLineDispatcher
+from multimodalsim.optimization.shuttle.shuttle_greedy_dispatcher import \
+    ShuttleGreedyDispatcher
 from multimodalsim.simulator.coordinates import CoordinatesOSRM, \
     CoordinatesFromFile
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
-from multimodalsim.optimization.dispatcher import FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import OneLegSplitter, MultimodalSplitter
 from multimodalsim.reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
@@ -62,9 +62,6 @@ def check_arguments(args):
     if args.type != "shuttle" and args.type != "fixed":
         raise ValueError("The type of optimization must be either 'shuttle' "
                          "or 'fixed'!")
-    elif args.type == "shuttle" and args.nodes is None:
-        raise ValueError("Shuttle optimization requires the path to the "
-                         "nodes (--nodes)!")
     elif (args.type == "shuttle" or args.type == "fixed") \
             and args.requests is None:
         raise ValueError("Shuttle optimization requires the path to the "
@@ -172,24 +169,18 @@ def main():
     if args.type == "shuttle":
         # Parameters example:
         # shuttle
-        # -r ../../data/shuttle/test3_shuttle/requests_sncf_test0.csv
+        # -r ../../data/shuttle/test3_shuttle/requests_sncf.csv
         # -v ../../data/shuttle/test3_shuttle/vehicles.csv
-        # -n ../../data/shuttle/test3_shuttle/nodes.csv
         # -g ../../data/shuttle/test3_shuttle/graph.json
-        # --log -level DEBUG
+        # --log-level DEBUG
         logger.info("Shuttle")
 
-        nodes_file_path = args.nodes
         graph_from_json_file_path = args.graph
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
-                                        nodes_file_path,
-                                        graph_from_json_file_path)
-        nodes = data_reader.get_nodes()
-        if graph_from_json_file_path:
-            g = data_reader.get_json_graph()
-        else:
-            g = create_graph(nodes)
+                                        graph_from_json_file_path,
+                                        vehicles_end_time=100000)
+        g = data_reader.get_json_graph()
 
         splitter = OneLegSplitter()
         dispatcher = ShuttleGreedyDispatcher(g)
@@ -231,7 +222,7 @@ def main():
             g = data_reader.get_network_graph(
                 available_connections=available_connections)
             g_path = "../../data/fixed_line/stl/network_graph/" \
-                     "bus_network_graph_20191103.txt"
+                     "bus_network_graph_20191101_4pm    .txt"
             nx.write_gpickle(g, g_path)
 
         if args.multimodal:
@@ -246,7 +237,7 @@ def main():
 
     opt = Optimization(dispatcher, splitter)
 
-    vehicles = data_reader.get_vehicles()
+    vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
     environment_observer = StandardEnvironmentObserver()
@@ -263,7 +254,8 @@ def main():
         logger.info("No coordinates")
         coordinates = None
 
-    simulation = Simulation(opt, trips, vehicles, network=g,
+    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
+                            network=g,
                             environment_observer=environment_observer,
                             coordinates=coordinates)
     simulation.simulate()

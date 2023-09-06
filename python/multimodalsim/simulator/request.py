@@ -78,6 +78,7 @@ class Request(object):
     def name(self):
         return self.__name
 
+
 class Leg(Request):
     """The ``Leg`` class serves as a structure for storing basic
         information about the legs. This class inherits from Request class
@@ -106,7 +107,7 @@ class Leg(Request):
     @assigned_vehicle.setter
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
-        # Patrick: I added the condition self.assigned_vehicle != vehicle
+        # The condition self.assigned_vehicle != vehicle has been added
         # for the case where two Optimize(Event) take place at the same time
         # (same event_time). In this case, the environment is not updated
         # between the two Optimize(Event). Therefore, the optimization
@@ -172,7 +173,7 @@ class Trip(Request):
 
         self.__previous_legs = []
         self.__current_leg = None
-        self.__next_legs = None
+        self.__next_legs = []
 
         self.__state_machine = PassengerStateMachine(self)
 
@@ -208,24 +209,35 @@ class Trip(Request):
     def next_legs(self, next_legs):
         self.__next_legs = next_legs
 
-    @next_legs.deleter
-    def next_legs(self):
-        del self.__next_legs
+    # @next_legs.deleter
+    # def next_legs(self):
+    #     del self.__next_legs
 
     def assign_legs(self, legs):
-        if legs is not None and len(legs) > 1:
-            self.__current_leg = legs[0]
-            self.__next_legs = legs[1:]
-        elif legs is not None and len(legs) > 0:
-            self.__current_leg = legs[0]
-            self.__next_legs = []
-        else:
-            self.__current_leg = None
-            self.__next_legs = []
 
-    def change_leg(self):
+        self.__next_legs = legs
+
+        # if legs is not None and len(legs) > 1:
+        #     # self.__current_leg = legs[0]
+        #     # self.__next_legs = legs[1:]
+        #
+        # elif legs is not None and len(legs) > 0:
+        #     self.__current_leg = legs[0]
+        #     self.__next_legs = []
+        # else:
+        #     self.__current_leg = None
+        #     self.__next_legs = []
+
+    def finish_current_leg(self):
         self.__previous_legs.append(self.current_leg)
-        self.current_leg = self.next_legs.pop(0)
+        self.current_leg = None
+
+    def start_next_leg(self):
+        if len(self.next_legs) > 0:
+            self.current_leg = self.next_legs.pop(0)
+        else:
+            raise ValueError(
+                "Trip ({}) does not have any next leg.".format(self.id))
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -240,8 +252,7 @@ class Trip(Request):
 
 
 class PassengerUpdate(object):
-    def __init__(self, vehicle_id, request_id, current_leg, next_legs=None):
+    def __init__(self, vehicle_id, request_id, next_legs=None):
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
-        self.current_leg = current_leg
         self.next_legs = next_legs

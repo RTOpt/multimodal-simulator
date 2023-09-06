@@ -1,6 +1,5 @@
 import logging
 
-from multimodalsim.optimization.state import State
 from multimodalsim.simulator.event import ActionEvent
 from multimodalsim.simulator.vehicle import RouteUpdate
 
@@ -25,18 +24,21 @@ class Optimize(ActionEvent):
 
     def _process(self, env):
 
-        env_state_deepcopy = env.get_new_state()
-        env.optimization.state = State(env_state_deepcopy)
+        env_stats = env.get_environment_statistics()
 
-        env.optimization.state.freeze_routes_for_time_interval(
-            env.optimization.freeze_interval)
+        if env.optimization.need_to_optimize(env_stats):
 
-        optimization_result = env.optimization.dispatch(env.optimization.state)
+            env.optimization.state = env.get_new_state()
 
-        env.optimization.state.unfreeze_routes_for_time_interval(
-            env.optimization.freeze_interval)
+            env.optimization.state.freeze_routes_for_time_interval(
+                env.optimization.freeze_interval)
 
-        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+            optimization_result = env.optimization.dispatch(env.optimization.state)
+
+            env.optimization.state.unfreeze_routes_for_time_interval(
+                env.optimization.freeze_interval)
+
+            EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 
@@ -44,7 +46,7 @@ class Optimize(ActionEvent):
 
         if self.__multiple_optimize_events or not \
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
-            self.queue.put(self)
+            super().add_to_queue()
 
 
 class EnvironmentUpdate(ActionEvent):
@@ -56,25 +58,26 @@ class EnvironmentUpdate(ActionEvent):
     def _process(self, env):
 
         for trip in self.__optimization_result.modified_requests:
-            current_leg = trip.current_leg
             next_legs = trip.next_legs
+            next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
 
             passenger_update = request.PassengerUpdate(
-                trip.current_leg.assigned_vehicle.id, trip.id, current_leg,
-                next_legs)
+                next_leg_assigned_vehicle.id, trip.id, next_legs)
             passenger_event_process.PassengerAssignment(
                 passenger_update, self.queue).add_to_queue()
 
         for veh in self.__optimization_result.modified_vehicles:
-            if veh.route.current_stop is not None:
+            route = \
+                self.__optimization_result.state.route_by_vehicle_id[veh.id]
+            if route.current_stop is not None:
                 # Add the passengers_to_board of current_stop that were
                 # modified during optimization.
                 current_stop_modified_passengers_to_board = \
                     [trip for trip
-                     in veh.route.current_stop.passengers_to_board
+                     in route.current_stop.passengers_to_board
                      if trip in self.__optimization_result.modified_requests]
                 current_stop_departure_time = \
-                    veh.route.current_stop.departure_time
+                    route.current_stop.departure_time
             else:
                 current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
@@ -83,10 +86,10 @@ class EnvironmentUpdate(ActionEvent):
             # optimization.
             modified_trips_ids = [modified_trip.id for modified_trip in
                                   self.__optimization_result.modified_requests]
-            modified_assigned_legs = [leg for leg in veh.route.assigned_legs
+            modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
 
-            next_stops = veh.route.next_stops
+            next_stops = route.next_stops
             route_update = RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
                 current_stop_departure_time, modified_assigned_legs)

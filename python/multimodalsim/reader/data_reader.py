@@ -13,8 +13,7 @@ import os.path
 from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
-from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, \
-    Vehicle, Route
+from multimodalsim.simulator.vehicle import LabelLocation, Stop, Vehicle, Route
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +30,12 @@ class DataReader(object):
 
 
 class ShuttleDataReader(DataReader):
-    def __init__(self, requests_file_path, vehicles_file_path, nodes_file_path,
+    def __init__(self, requests_file_path, vehicles_file_path,
                  graph_from_json_file_path=None, sim_end_time=None,
                  vehicles_end_time=None):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
-        self.__nodes_file_path = nodes_file_path
         self.__graph_from_json_file_path = graph_from_json_file_path
 
         # The time difference between the arrival and the departure time.
@@ -54,64 +52,44 @@ class ShuttleDataReader(DataReader):
         trips = []
         with open(self.__requests_file_path, 'r') as rFile:
             csv_dict_reader = csv.DictReader(rFile, delimiter=';')
-            requests_mode_is_car = [row for row in csv_dict_reader if
-                                    row['mode'] == 'car']
-            nb_requests = 1
-            nb_passengers = 1
-            for row in requests_mode_is_car:
-                trip = Trip(nb_requests,
-                            GPSLocation(
-                                Node(None, (ast.literal_eval(row['origin_x']),
-                                            ast.literal_eval(
-                                                row['origin_y'])))),
-                            GPSLocation(Node(None, (
-                                ast.literal_eval(row['destination_x']),
-                                ast.literal_eval(row['destination_y'])))),
+            nb_passengers = 1  # Each request corresponds to 1 passenger.
+            for row in csv_dict_reader:
+                trip = Trip(str(row['trip_id']),
+                            LabelLocation(str(row['origin'])),
+                            LabelLocation(str(row['destination'])),
                             nb_passengers,
-                            float(row['departure_time']),
-                            float(row['departure_time']),
-                            float(row['departure_time']) + 60 * 60 * 2
+                            int(row['release_time']),
+                            int(row['ready_time']),
+                            int(row['due_time'])
                             )
                 trips.append(trip)
-                nb_requests += 1
 
         return trips
 
     def get_vehicles(self):
         vehicles = []
-        with open(self.__vehicles_file_path, 'r') as rFile:
-            reader = csv.reader(rFile, delimiter=';')
-            next(reader, None)
+        routes_by_vehicle_id = {}   # Remains empty
 
-            for row in reader:
-                vehicle_id = int(row[0])
-                start_time = float(row[1])
-                start_stop_location = GPSLocation(
-                    Node(None, (ast.literal_eval(row[2]),
-                                ast.literal_eval(row[3]))))
-                capacity = int(row[4])
+        with open(self.__vehicles_file_path, 'r') as rFile:
+            csv_dict_reader = csv.DictReader(rFile, delimiter=';')
+            for row in csv_dict_reader:
+                vehicle_id = str(row["vehicle_id"])
+                start_time = float(row["start_time"])
+                start_stop_location = LabelLocation(str(row["start_stop"]))
+                capacity = int(row["capacity"])
 
                 start_stop = Stop(start_time,
                                   Vehicle.MAX_TIME,
                                   start_stop_location)
 
+                # reusable=True since the vehicles are shuttles.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
-                                  start_time, self.__vehicles_end_time)
+                                  start_time, self.__vehicles_end_time,
+                                  reusable=True)
 
                 vehicles.append(vehicle)
 
-        return vehicles
-
-    def get_nodes(self):
-        nodes = []
-        with open(self.__nodes_file_path, 'r') as rFile:
-            reader = csv.reader(rFile, delimiter=';')
-            next(reader, None)
-            for row in reader:
-                nodes.append(Node(int(row[0]), (ast.literal_eval(row[1]),
-                                                ast.literal_eval(row[2]))))
-
-        return nodes
+        return vehicles, routes_by_vehicle_id
 
     def get_json_graph(self):
         with open(self.__graph_from_json_file_path) as f:
@@ -122,7 +100,6 @@ class ShuttleDataReader(DataReader):
                 coord = (node[1]['pos'][0], node[1]['pos'][1])
                 node[1]['pos'] = coord
                 node[1]['Node'] = Node(node[1]['Node']['id'], coord)
-                # node[1]['Node']['coordinates'] = coord
 
         return G
 
@@ -157,6 +134,7 @@ class BusDataReader(DataReader):
     def get_vehicles(self):
 
         vehicles = []
+        routes_by_vehicle_id = {}
 
         with open(self.__vehicles_file_path, 'r') as rFile:
             reader = csv.reader(rFile, delimiter=';')
@@ -195,11 +173,11 @@ class BusDataReader(DataReader):
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
                                   release_time)
 
-                vehicle.route = Route(vehicle, next_stops)
+                routes_by_vehicle_id[vehicle.id] = Route(vehicle, next_stops)
 
                 vehicles.append(vehicle)
 
-        return vehicles
+        return vehicles, routes_by_vehicle_id
 
 
 class GTFSReader(DataReader):
@@ -311,17 +289,18 @@ class GTFSReader(DataReader):
             self.__read_routes()
 
         vehicles = []
+        routes_by_vehicle_id = {}
 
         for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict. \
                 items():
             vehicle, next_stops = self.__get_vehicle_and_next_stops(
                 trip_id, stop_time_list)
 
-            vehicle.route = Route(vehicle, next_stops)
+            routes_by_vehicle_id[vehicle.id] = Route(vehicle, next_stops)
 
             vehicles.append(vehicle)
 
-        return vehicles
+        return vehicles, routes_by_vehicle_id
 
     def get_network_graph(self, available_connections=None, freeze_interval=5):
 
