@@ -2,13 +2,13 @@ import logging  # Required to modify the log level
 
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
-from multimodalsim.optimization.dispatcher import FixedLineDispatcher
+from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
+    FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.reader.travel_times_reader import MatrixTravelTimesReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile, \
-    CoordinatesOSRM
+from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
-    gtfs_folder_path = "../../data/fixed_line/gtfs/gtfs/"
-    requests_file_path = "../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
+    gtfs_folder_path = "../../../data/fixed_line/gtfs/gtfs/"
+    requests_file_path = "../../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles(
@@ -32,13 +32,12 @@ if __name__ == '__main__':
     g = data_reader.get_network_graph()
 
     # Set to None if coordinates of the vehicles are not available.
-    coordinates_file_path = "../../data/fixed_line/gtfs/coordinates" \
-                            "/coordinates_5s.csv"
+    coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_5s.csv"
     coordinates = CoordinatesFromFile(coordinates_file_path)
 
     # Read travel times
     travel_times_file_path = \
-        "../../data/fixed_line/gtfs/actual_travel_times_late.csv"
+        "../../../data/fixed_line/gtfs/actual_travel_times_late.csv"
     matrix_travel_times_reader = \
         MatrixTravelTimesReader(travel_times_file_path)
     matrix_travel_times = matrix_travel_times_reader.get_matrix_travel_times()
@@ -60,7 +59,7 @@ if __name__ == '__main__':
     # Execute the simulation.
     simulation.simulate()
 
-    output_folder = "../../output/fixed_line_travel_times/"
+    output_folder = "../../../output/fixed_line_travel_times/"
     data_container = simulation.data_collectors[0].data_container
     if data_container is not None and output_folder is not None:
         if "vehicles" in data_container.observations_tables:

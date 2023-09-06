@@ -229,7 +229,8 @@ class StandardDataCollector(DataCollector):
 
         cumdist_by_veh_by_trip = self.__data_container.observations_tables[
                 "trips_cumulative_distance"]
-        if trip.current_leg.assigned_vehicle is not None:
+        if trip.current_leg is not None \
+                and trip.current_leg.assigned_vehicle is not None:
             veh = trip.current_leg.assigned_vehicle
             route = self.__env.get_route_by_vehicle_id(veh.id)
 

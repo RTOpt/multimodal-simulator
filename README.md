@@ -345,8 +345,38 @@ three methods:
 
 ##### Example 1: ShuttleSimpleDispatcher
 
+The ShuttleSimpleDispatcher (/multimodalsim/shittle/shuttle_simple_dispatcher.
+py) is a simple example that demonstrates how to use the ShuttleDispatcher.
+It is based on a simple optimization algorithm that assigns to the vehicles 
+available at the hub the trips of the environment that have not been 
+assigned yet. Moreover, each vehicle serves at most one trip at a time.
+
+This example does not make use of a network (e.g., a graph that indicates 
+the distance/travel time between the different locations). The travel time 
+between any pair of nodes is considered constant.
+
+For more details, see the comments in 
+/multimodalsim/shittle/shuttle_simple_dispatcher.py.
+
 ##### Example 2: ShuttleSimpleNetworkDispatcher
 
+The ShuttleSimpleNetworkDispatcher 
+(/multimodalsim/shittle/shuttle_simple_network_dispatcher.
+py) is a simple example that demonstrates how to use the 
+ShuttleDispatcher with a network (e.g., a graph that indicates 
+the distance/travel time between the different locations). It is based on 
+the same simple optimization algorithm as the ShuttleSimpleDispatcher. The 
+only difference is that the travel time between any pair of nodes is now 
+given by the network.
+
+For more details, see the comments in 
+/multimodalsim/shittle/shuttle_simple_network_dispatcher.py.
+
+##### Example 3: ShuttleGreedyDispatcher
+
+The ShuttleGreedyDispatcher 
+(/multimodalsim/shittle/shuttle_greedy_dispatcher.py) is a more complex example. It is based on an 
+optimization algorithm that assigns the trips to the vehicles in a greedy way.
 
 ## Examples
  

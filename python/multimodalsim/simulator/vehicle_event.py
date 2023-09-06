@@ -32,9 +32,6 @@ class VehicleReady(Event):
 
         env.add_route(self.__route, self.__vehicle.id)
 
-        # optimization_event.Optimize(env.current_time, self.queue). \
-        #     add_to_queue()
-
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
@@ -139,6 +136,12 @@ class VehicleArrival(ActionEvent):
         self.__update_stop_times(env.current_time)
 
         self.__route.arrive()
+
+        if len(self.__route.next_stops) == 0 \
+                and not self.__route.vehicle.reusable:
+            VehicleComplete(self.__route, self.queue,
+                            self.queue.env.current_time).add_to_queue(
+                forced_insertion=True)
 
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
@@ -248,6 +251,7 @@ class VehicleNotification(Event):
 
         return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
 
+
 class VehicleBoarded(Event):
     def __init__(self, trip, queue):
         self.__trip = trip
@@ -300,7 +304,6 @@ class VehicleUpdatePositionEvent(Event):
         self.__time_step = time_step
 
     def _process(self, env):
-
         self.__vehicle.position = env.coordinates.update_position(
             self.__vehicle, self.__event_time)
 
@@ -319,9 +322,10 @@ class VehicleUpdatePositionEvent(Event):
 
 
 class VehicleComplete(ActionEvent):
-    def __init__(self, route, queue):
-        super().__init__('VehicleComplete', queue,
-                         max(route.vehicle.end_time, queue.env.current_time),
+    def __init__(self, route, queue, event_time=None):
+        if event_time is None:
+            event_time = max(route.vehicle.end_time, queue.env.current_time)
+        super().__init__('VehicleComplete', queue, event_time,
                          state_machine=route.vehicle.state_machine,
                          event_priority=Event.LOW_PRIORITY)
         self.__route = route
@@ -330,7 +334,8 @@ class VehicleComplete(ActionEvent):
 
         return 'Vehicle Complete process is implemented'
 
-    def add_to_queue(self):
+    def add_to_queue(self, forced_insertion=False):
         if not self.queue.is_event_type_in_queue(self.__class__,
-                                                 owner=self.__route.vehicle):
-            self.queue.put(self)
+                                                 owner=self.__route.vehicle)\
+                or forced_insertion:
+            super().add_to_queue()
