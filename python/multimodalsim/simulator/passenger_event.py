@@ -46,14 +46,14 @@ class PassengerAssignment(ActionEvent):
             self.__passenger_update.assigned_vehicle_id)
 
         if self.__passenger_update.next_legs is not None:
-            self.__trip.current_leg =\
-                self.__replace_copy_legs_with_actual_legs(
-                    self.__passenger_update.current_leg)
+            # self.__trip.current_leg =\
+            #     self.__replace_copy_legs_with_actual_legs(
+            #         self.__passenger_update.current_leg)
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)
 
-        self.__trip.current_leg.assigned_vehicle = vehicle
+        self.__trip.next_legs[0].assigned_vehicle = vehicle
 
         env.remove_non_assigned_trip(self.__trip.id)
         env.add_assigned_trip(self.__trip)
@@ -92,7 +92,7 @@ class PassengerToBoard(ActionEvent):
         self.__trip = trip
 
     def _process(self, env):
-
+        self.__trip.start_next_leg()
         self.__trip.current_leg.boarding_time = env.current_time
 
         VehicleBoarded(self.__trip, self.queue).add_to_queue()
@@ -112,13 +112,14 @@ class PassengerAlighting(ActionEvent):
 
         VehicleAlighted(self.__trip.current_leg, self.queue).add_to_queue()
 
+        self.__trip.finish_current_leg()
+
         if self.__trip.next_legs is None or len(self.__trip.next_legs) == 0:
             # No connection
             logger.debug("No connection: {}".format(self.__trip.id))
         else:
             # Connection
             logger.debug("Connection: {}".format(self.__trip.id))
-            self.__trip.change_leg()
 
             # The trip is considered as non-assigned again
             env.remove_assigned_trip(self.__trip.id)

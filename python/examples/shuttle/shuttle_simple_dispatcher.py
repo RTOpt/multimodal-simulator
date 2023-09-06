@@ -4,7 +4,7 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.reader.data_reader import ShuttleDataReader
-from multimodalsim.shuttle.shuttle_simple_dispatcher import \
+from multimodalsim.optimization.shuttle.shuttle_simple_dispatcher import \
     ShuttleSimpleDispatcher
 from multimodalsim.simulator.simulation import Simulation
 
@@ -14,8 +14,8 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
     # Read input data from files
-    requests_file_path = "../../data/shuttle/simple_dispatcher/requests.csv"
-    vehicles_file_path = "../../data/shuttle/simple_dispatcher/vehicles.csv"
+    requests_file_path = "../../../data/shuttle/simple_dispatcher/requests.csv"
+    vehicles_file_path = "../../../data/shuttle/simple_dispatcher/vehicles.csv"
 
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                     vehicles_end_time=100000)

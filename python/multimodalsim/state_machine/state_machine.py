@@ -224,5 +224,7 @@ class VehicleStateMachine(StateMachine):
                             VehicleWaiting)
         self.add_transition(VehicleStatus.IDLE, VehicleStatus.COMPLETE,
                             VehicleComplete)
+        self.add_transition(VehicleStatus.COMPLETE, VehicleStatus.COMPLETE,
+                            VehicleComplete)
 
         self.current_state = VehicleStatus.RELEASE

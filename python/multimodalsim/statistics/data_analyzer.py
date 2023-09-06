@@ -1,8 +1,10 @@
 import pandas as pd
+import logging
 
 from multimodalsim.config.data_analyzer_config import DataAnalyzerConfig
 from multimodalsim.state_machine.status import PassengersStatus, VehicleStatus
 
+logger = logging.getLogger(__name__)
 
 class DataAnalyzer:
 
@@ -234,14 +236,12 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         status_col = self.data_container.get_columns("trips")["status"]
         previous_legs_col = self.data_container.get_columns("trips")[
             "previous_legs"]
-        current_leg_col = self.data_container.get_columns("trips")[
-            "current_leg"]
 
         trips_complete_series = trips_df[trips_df[status_col]
                                          == PassengersStatus.COMPLETE]
 
         trips_legs_complete_series = trips_complete_series.apply(
-            lambda x: x[previous_legs_col] + [x[current_leg_col]], axis=1)
+            lambda x: x[previous_legs_col], axis=1)
 
         nb_boardings_by_stop = {}
         trips_legs_complete_series.map(
@@ -285,13 +285,11 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         status_col = self.data_container.get_columns("trips")["status"]
         previous_legs_col = self.data_container.get_columns("trips")[
             "previous_legs"]
-        current_leg_col = self.data_container.get_columns("trips")[
-            "current_leg"]
 
         trips_complete_series = trips_df[trips_df[status_col] 
                                          == VehicleStatus.COMPLETE]
         trips_legs_complete_series = trips_complete_series.apply(
-            lambda x: x[previous_legs_col] + [x[current_leg_col]], axis=1)
+            lambda x: x[previous_legs_col], axis=1)
 
         nb_legs_by_trip_df = trips_df[
             trips_df[status_col] == VehicleStatus.COMPLETE][[id_col]] \

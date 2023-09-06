@@ -3,16 +3,17 @@ from networkx.readwrite import json_graph
 import json
 import networkx as nx
 
-from multimodalsim.shuttle.get_paths_osrm import get_path
+from multimodalsim.optimization.shuttle.get_paths_osrm import get_path
 
 
 class Position(object):
     def __init__(self, coordinates):
         self.coordinates = coordinates
 
+
 class CustomEncoder(json.JSONEncoder):
     def default(self, o):
-            return o.__dict__
+        return o.__dict__
 
 
 def get_manhattan_distance(node1, node2):
@@ -82,5 +83,3 @@ def create_graph(nodes):
         json.dump(json_data, json_file, indent=4, cls=CustomEncoder)
 
     return G
-
-
