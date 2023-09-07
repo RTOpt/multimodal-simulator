@@ -33,7 +33,8 @@ class Optimize(ActionEvent):
             env.optimization.state.freeze_routes_for_time_interval(
                 env.optimization.freeze_interval)
 
-            optimization_result = env.optimization.dispatch(env.optimization.state)
+            optimization_result = env.optimization.dispatch(
+                env.optimization.state)
 
             env.optimization.state.unfreeze_routes_for_time_interval(
                 env.optimization.freeze_interval)

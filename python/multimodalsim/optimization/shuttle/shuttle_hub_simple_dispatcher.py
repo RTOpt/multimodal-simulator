@@ -2,13 +2,13 @@ import logging
 
 from itertools import cycle
 
-from multimodalsim.optimization.shuttle.shuttle_dispatcher import ShuttleDispatcher, \
+from multimodalsim.optimization.dispatcher import Dispatcher, \
     OptimizedRoutePlan
 
 logger = logging.getLogger(__name__)
 
 
-class ShuttleSimpleDispatcher(ShuttleDispatcher):
+class ShuttleHubSimpleDispatcher(Dispatcher):
 
     def __init__(self, travel_time=600, hub_location="0"):
         """

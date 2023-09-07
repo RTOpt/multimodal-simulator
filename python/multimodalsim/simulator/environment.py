@@ -164,14 +164,10 @@ class Environment(object):
         self.__routes_by_vehicle_id[vehicle_id] = route
 
     def get_environment_statistics(self):
-        env_stats = None
 
-        # TODO: Create object (maybe define EnvironmentStatistics?) that
-        #  contains the statistics about the environment required to determine
-        #  whether optimization is needed or not.
+        env_stats = EnvironmentStatistics(self)
 
         return env_stats
-
 
     def get_new_state(self):
         state_copy = copy.copy(self)
@@ -222,3 +218,19 @@ class Environment(object):
     @property
     def travel_times(self):
         return self.__travel_times
+
+
+class EnvironmentStatistics:
+
+    def __init__(self, env):
+        self.__nb_vehicles = len(env.vehicles)
+        self.__nb_trips = len(env.trips)
+
+    @property
+    def nb_vehicles(self):
+        return self.__nb_vehicles
+
+    @property
+    def nb_trips(self):
+        return self.__nb_trips
+
