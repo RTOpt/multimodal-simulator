@@ -5,7 +5,7 @@ from itertools import groupby
 
 from multimodalsim.optimization.shuttle.constraints_and_objective_function import \
     variables_declaration
-from multimodalsim.optimization.shuttle.shuttle_dispatcher import ShuttleDispatcher, \
+from multimodalsim.optimization.dispatcher import Dispatcher, \
     OptimizedRoutePlan
 from multimodalsim.optimization.shuttle.solution_construction import get_distances, \
     get_durations, update_data, set_initial_solution, improve_solution
@@ -13,7 +13,7 @@ from multimodalsim.optimization.shuttle.solution_construction import get_distanc
 logger = logging.getLogger(__name__)
 
 
-class ShuttleGreedyDispatcher(ShuttleDispatcher):
+class ShuttleGreedyDispatcher(Dispatcher):
 
     def __init__(self, network):
         super().__init__()

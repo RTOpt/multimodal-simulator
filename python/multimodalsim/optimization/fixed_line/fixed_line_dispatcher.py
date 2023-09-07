@@ -1,7 +1,7 @@
 import logging
 
-from multimodalsim.optimization.dispatcher import Dispatcher
-from multimodalsim.optimization.optimization import OptimizationResult
+from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, \
+    Dispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -10,67 +10,63 @@ class FixedLineDispatcher(Dispatcher):
 
     def __init__(self):
         super().__init__()
-        self.__non_assigned_released_requests_list = None
-        self.__state = None
-        self.__modified_trips = []
-        self.__modified_vehicles = []
 
-    def dispatch(self, state):
+    def prepare_input(self, state):
+        """Before optimizing, we extract the legs and the routes that we want
+        to be considered by the optimization algorithm. For the
+        FixedLineDispatcher, we want to keep only the legs that have not
+        been assigned to any route yet.
+        """
 
-        logger.debug("\n******************\nOPTIMIZE (FixedLineDispatcher):\n")
-        logger.debug("current_time={}".format(state.current_time))
+        # The next legs that have not been assigned to any route yet.
+        selected_next_legs = state.non_assigned_next_legs
 
-        self.__state = state
-        self.__non_assigned_released_requests_list = state.non_assigned_trips
+        # All the routes
+        selected_routes = state.route_by_vehicle_id.values()
 
-        # Reinitialize modified_trip and modified_vehicles of Dispatcher.
-        self.__modified_trips = []
-        self.__modified_vehicles = []
+        return selected_next_legs, selected_routes
 
-        logger.debug("state.non_assigned_trips: {}".format(
-            [trip.id for trip in state.non_assigned_trips]))
+    def optimize(self, selected_next_legs, selected_routes, current_time,
+                 state):
+        """Each selected next leg is assigned to the optimal route. The optimal
+        route is the one that has the earliest arrival time at destination
+        (i.e. leg.destination)."""
 
-        for trip in self.__non_assigned_released_requests_list:
-            if len(trip.next_legs) > 0:
-                next_leg = trip.next_legs[0]
-                optimal_vehicle = self.__find_optimal_vehicle_for_leg(next_leg)
-            else:
-                optimal_vehicle = None
+        optimized_route_plans = []
+        for leg in selected_next_legs:
+            optimal_route = self.__find_optimal_route_for_leg(
+                leg, selected_routes, current_time)
 
-            if optimal_vehicle is not None:
-                route = self.__state.route_by_vehicle_id[optimal_vehicle.id]
-                self.__assign_trip_to_vehicle(trip, optimal_vehicle, route)
-                self.__assign_trip_to_stops(trip, route)
+            if optimal_route is not None:
+                optimized_route_plan = OptimizedRoutePlan(optimal_route)
+                optimized_route_plan.assign_leg(leg)
+                optimized_route_plans.append(optimized_route_plan)
 
-        logger.debug("END OPTIMIZE\n*******************")
+        return optimized_route_plans
 
-        return OptimizationResult(state, self.__modified_trips,
-                                  self.__modified_vehicles)
-
-    def __find_optimal_vehicle_for_leg(self, leg):
+    def __find_optimal_route_for_leg(self, leg, selected_routes, current_time):
 
         origin_stop_id = leg.origin.label
         destination_stop_id = leg.destination.label
 
-        optimal_vehicle = None
+        optimal_route = None
         earliest_arrival_time = None
-        for vehicle in self.__state.vehicles:
-            route = self.__state.route_by_vehicle_id[vehicle.id]
+        for route in selected_routes:
             origin_departure_time, destination_arrival_time = \
                 self.__get_origin_departure_time_and_destination_arrival_time(
                     route, origin_stop_id, destination_stop_id)
 
             if origin_departure_time is not None \
-                    and origin_departure_time > self.__state.current_time \
+                    and origin_departure_time > current_time \
                     and origin_departure_time >= leg.trip.ready_time \
                     and destination_arrival_time is not None \
                     and destination_arrival_time <= leg.trip.due_time \
                     and (earliest_arrival_time is None
                          or destination_arrival_time < earliest_arrival_time):
                 earliest_arrival_time = destination_arrival_time
-                optimal_vehicle = vehicle
+                optimal_route = route
 
-        return optimal_vehicle
+        return optimal_route
 
     def __get_origin_departure_time_and_destination_arrival_time(
             self, route, origin_stop_id, destination_stop_id):
@@ -86,26 +82,6 @@ class FixedLineDispatcher(Dispatcher):
             destination_arrival_time = destination_stop.arrival_time
 
         return origin_departure_time, destination_arrival_time
-
-    def __assign_trip_to_vehicle(self, trip, vehicle, route):
-
-        trip.next_legs[0].assigned_vehicle = vehicle
-
-        route.assign_leg(trip.next_legs[0])
-
-        self.__modified_vehicles.append(vehicle)
-        self.__modified_trips.append(trip)
-
-    def __assign_trip_to_stops(self, trip, route):
-
-        origin_stop = self.__get_stop_by_stop_id(
-            trip.next_legs[0].origin.label, route)
-        destination_stop = self.__get_stop_by_stop_id(
-            trip.next_legs[0].destination.label, route)
-
-        origin_stop.passengers_to_board.append(trip)
-
-        destination_stop.passengers_to_alight.append(trip)
 
     def __get_stop_by_stop_id(self, stop_id, route):
         found_stop = None
