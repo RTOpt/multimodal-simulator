@@ -3,8 +3,8 @@ import logging  # Required to modify the log level
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.shuttle.shuttle_simple_network_dispatcher import \
-    ShuttleHubSimpleNetworkDispatcher
+from multimodalsim.optimization.shuttle.shuttle_hub_simple_network_dispatcher \
+    import ShuttleHubSimpleNetworkDispatcher
 from multimodalsim.reader.data_reader import ShuttleDataReader
 from multimodalsim.simulator.simulation import Simulation
 
