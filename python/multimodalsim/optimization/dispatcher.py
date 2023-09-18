@@ -161,13 +161,11 @@ class Dispatcher:
 
     def __update_route_next_stops(self, route_plan):
         # Update current stop departure time
-        if route_plan.route.current_stop is not None \
-                and route_plan.current_stop_departure_time is not None:
+        if route_plan.route.current_stop is not None:
             route_plan.route.current_stop.departure_time = \
                 route_plan.current_stop_departure_time
 
-        if route_plan.next_stops is not None:
-            route_plan.route.next_stops = route_plan.next_stops
+        route_plan.route.next_stops = route_plan.next_stops
 
         # Last stop departure time is set to infinity (since it is unknown).
         if route_plan.next_stops is not None \
@@ -213,6 +211,7 @@ class OptimizedRoutePlan:
             appended through the append_next_stop method, then the original
             stops of the route will not be modified (see FixedLineDispatcher
             for an example).
+
     """
 
     def __init__(self, route, current_stop_departure_time=None,
@@ -231,7 +230,7 @@ class OptimizedRoutePlan:
 
         self.__route = route
         self.__current_stop_departure_time = current_stop_departure_time
-        self.__next_stops = next_stops
+        self.__next_stops = next_stops if next_stops is not None else []
         self.__assigned_legs = assigned_legs if assigned_legs is not None \
             else []
 
@@ -296,6 +295,10 @@ class OptimizedRoutePlan:
 
         return self.__assigned_legs
 
+    def copy_route_stops(self):
 
+        if self.route.current_stop is not None:
+            self.__current_stop_departure_time = \
+                self.route.current_stop.departure_time
 
-
+        self.__next_stops = self.route.next_stops
