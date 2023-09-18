@@ -39,6 +39,10 @@ class FixedLineDispatcher(Dispatcher):
 
             if optimal_route is not None:
                 optimized_route_plan = OptimizedRoutePlan(optimal_route)
+
+                # Use the current and next stops of the route.
+                optimized_route_plan.copy_route_stops()
+
                 optimized_route_plan.assign_leg(leg)
                 optimized_route_plans.append(optimized_route_plan)
 
