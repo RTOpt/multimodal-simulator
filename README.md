@@ -9,17 +9,42 @@ transportation system.
 
 ### General Description
 
-multimodalsim generates multi-modal simulations of a transportation system 
-in which vehicles transport passengers from an origin to a destination.
+multimodalsim generates multi-modal discrete events simulations of a 
+transportation system in which vehicles transport passengers from an origin 
+to a destination.
 
 ### Agents
 
+Two types of agents interact in a simulation: the trips and 
+the vehicles.
+
 #### Trips (passengers)
 
-* Requests
-* Legs
+Each trip is associated with an object of type **Trip**, which inherits 
+from the base class Request. 
+
+An object of type Request essentially consists of a request to transport 
+one or more passengers from a given origin to a given destination. Moreover, a 
+request contains time information that specifies the period over which the 
+passengers should be transported:
+* Release time: the time at which appears in the system (i.e., is added to 
+  the environment).
+* Ready time: the time from which the passengers are available to be 
+  picked up.
+* Due time: the time at which the passengers should have arrived at 
+  destination.
+
+In addition to all the information contained in a request, an object of 
+type Trip specifies the series of locations by which the passengers stop
+during their trip. Each segment of a trip (i.e., a successive pair of locations)
+is called a leg and is associated with an object of type **Leg**, which 
+also inherits from the base class Request. If a trip has more than one leg,
+then it is said to be multimodal; otherwise, it is unimodal.
+
 
 #### Vehicles
+
+Each vehicle is associated with an object of type Vehicle. 
 
 * Route
 * Stop
@@ -27,15 +52,37 @@ in which vehicles transport passengers from an origin to a destination.
 
 ### Environment
 
+
+
 ### State
 
 ### Events
 
+A simulation is based on a sequence of events. Each event is processed at a 
+particular time and has a specific effect on the environment. No change in 
+the system occurs between two consecutive events.
+
+There are three different types of events: optimization events, passenger 
+events and vehicle events.
+
+A flow chart illustrating the relationship between the different events can 
+be found on page 2 of multimodal-simulator/docs/flow_charts.pdf.
+
+#### 
+
 #### Passenger events
+
+
 
 #### Vehicle events
 
 ### Events queue
+
+The events of the simulation are stored in a priority queue. The priority 
+of the queue is determined by the time of the event (i.e., Event.time), as 
+well as its priority (i.e., Event.priority). The events with the smallest time 
+are processed first. Among the events that have the same time, the ones with 
+the lowest priority are processed first.
 
 
 ### Main loop
@@ -65,7 +112,7 @@ below).
 For example:
 
     splitter = OneLegSplitter()
-    dispatcher = ShuttleSimpleDispatcher(g)
+    dispatcher = ShuttleHubSimpleDispatcher(g)
     optimization = Optimization(dispatcher, splitter)
 
 ### Simulation
@@ -246,74 +293,71 @@ the **splitter** parameter of **Optimization** (see **Optimization** above).
 ### Dispatcher
 
 A dispatcher is an object that inherits from the base class **Dispatcher** 
-(/multimodalsim/optimization/dispatcher.py) and that overrides the 
-**dispatch** method. This method is called whenever the OptimizeEvent is 
-processed (and an optimization is required). It has for objective to 
-optimize the vehicle routing and the trip-route assignment. In other words,
-it determines the list of next stops (i.e., the route) of each vehicle and 
-which leg is assigned to which route (or vehicle).
+(/multimodalsim/optimization/dispatcher.py) and that has a **dispatch** 
+method. This method is called whenever the OptimizeEvent is processed (and 
+an optimization is required). It has for objective to optimize the vehicle 
+routing and the trip-route assignment. In other words, it determines the 
+list of next stops (i.e., the route) of each vehicle and 
+which leg is assigned to which route.
 
 The **dispatch** method takes a State object as argument. Since 
 a State object is essentially a deep copy of the environment (see 
 **Environment** and **State** above), it is in particular possible to 
-extract from it information about the vehicles and the trips. This 
-information can then be used to construct and solve and optimization model.
+extract from it information about the routes and the legs. This 
+information can then be used to construct and solve an optimization model.
 
 The output of the **dispatch** method is an object of type 
 **OptimizationResult** (/multimodalsim/optimization/optimization.py). This 
-object essentially contains a copy of the Trips and the Vehicle objects that 
-were modified by the optimization algorithm of the **dispatch** method.
+object essentially contains a copy of the Trip objects and the Vehicle objects 
+that were modified by the optimization algorithm of the **dispatch** method.
 
 Note that overriding the **dispatch** method of the base class 
 **Dispatcher** directly requires a relatively advanced knowledge of the 
-package. If your simulation involves the use of shuttle-like vehicles, you may 
-find it easier to start with a ShuttleDispatcher (see **ShuttleDispatcher** 
-below).
+package. In many cases, it is sufficient to use the default **dispatch** 
+method and override the **prepare_input** and the **optimize** methods. For 
+more details, see the next subsection.
 
-A few examples of dispatchers are provided with the package (see, **Example 
-1** and **Example 2**), but in general, users will probably want to create 
-their own Dispatcher object, whether it inherits from ShuttleDispatcher 
-(see below) or from the base class Dispatcher directly.
+#### Default **dispatch** method
 
-#### ShuttleDispatcher
-
-The ShuttleDispatcher (/multimodalsim/optimization/dispatcher.py) is a
-dispatcher that was created with the purpose of facilitating the 
-integration of optimization algorithms to simulations with shuttles (or 
-shuttle-like vehicles). In particular, it makes it easier to translate the 
-results of optimization into a language understandable by the simulator.
+The default **dispatch** method was created with the purpose of facilitating 
+the integration of optimization algorithms to simulations. In particular, 
+it makes it possible to translate optimization results into a language 
+understandable by the simulator without having to understand all the 
+intricate details of the simulator.
 
 The predefined **dispatch** method calls successively the following 
 three methods:
 * **prepare_input**: 
-  * Description: This method extracts from the state the trips and the 
-    vehicles that you want to be considered by the optimization algorithm. 
-    For example, you may want to include only the trips that are not 
-    already assigned to a vehicle.
-  * Default behavior: All the trips and all the vehicles of the 
-    environment are optimized.
+  * Description: This method selects from the state the legs and the 
+    routes that you want to be considered by the optimization algorithm. 
+    For example, you may want to include only the legs that are not 
+    already assigned to a route.
+  * Default behavior: All the legs and all the routes of the environment 
+    are optimized.
   * Input: 
     * state (**State**): the state of the environment at the time of 
       optimization (see 
       **State** above)
   * Output:
-    * trips (**list** of **Trip** objects): list of the trips that will be 
-      considered by the **optimize** method (see bullet point below).
-    * vehicles: (**list** of **Vehicle** objects): list of the vehicles that 
-      will be considered by the **optimize** method (see bullet point below).
+    * selected_next_legs (**list** of **Leg** objects): list of the next legs 
+      selected to be considered by the **optimize** method (see bullet point 
+      below). A "next leg" is the first leg of the list Trip.next_legs.
+    * selected_routes: (**list** of **Route** objects): list of the routes 
+      selected to be considered by the **optimize** method (see bullet point
+      below).
 * **optimize**:
   * Description: This method determines the vehicle routing and the 
     trip-route assignment. In other words, this is where the optimization 
     algorithm should be coded. 
   * Default behavior: This method has no default behavior. It must be 
     overriden.
-  * Input:    
-    * trips (**list** of **Trip** objects): List of the trips to be 
-      considered by the optimization algorithm (i.e., first output of 
-      **prepare_input**).
-    * vehicles (**list** of **Vehicle** objects): List of the vehicles to 
-      be considered by the optimization algorithm (i.e., second output of 
-      **prepare_input**).
+  * Input:
+    * selected_next_legs (**list** of **Leg** objects): list of the next legs 
+      selected to be considered by the optimization algorithm (i.e., first 
+      output of **prepare_input**).
+    * selected_routes (**list** of **Route** objects): list of the 
+      routes selected to be considered by the optimization algorithm (i.e., 
+      second output of **prepare_input**).
     * current_time: Integer equal to the current time of the state of the 
       environment. Note that the current time of the state may be different 
       from the current time of the environment due to the "freeze interval".
@@ -321,31 +365,35 @@ three methods:
     * state (**State**): the state of the environment at the time of 
       optimization (see **State** above)
   * Output:
-    * stops_list_by_vehicle_id (**dict**): Dictionary mapping the vehicle 
-      ID of each vehicle that was modified by the optimization to a list 
-      of its current and next stops. For each stop, the stop ID as well as 
-      the arrival and the departure times of the vehicle must be 
-      specified. For a detailed description of the structure of this object,
-      see the comments after the method header
-      in /multimodalsim/optimization/dispatcher.py.
-    * trip_ids_by_vehicle_id (**dict**): Dictionary mapping the vehicle 
-      ID of each vehicle that was modified by the optimization to a list 
-      of the trips assigned to the vehicle. For a detailed description of the 
-      structure of this object, see the comments after the method header 
-      in /multimodalsim/optimization/dispatcher.py.
-* **process_output**:
+    * optimized_route_plans (**list** of **OptimizedRoutePlan** objects): 
+      List of the OptimizedRoutePlan objects (see next bullet point).
+  * **OptimizedRoutePlan**: In the **optimize** method, a list of  
+    OptimizedRoutePlan objects that contain the results of optimization 
+    must be created. More precisely, for each route that should be modified 
+    by the optimization, an object of type OptimizedRoutePlan specifies the 
+    departure time of the current stop, the list of next stops and the legs 
+    assigned to the route.
+* **process_optimized_route_plans**:
   * Description: This method "translates" the results of optimization (i.e.,
-    the output of the **optimize** method) into the "language" of the 
-    simulator (i.e., **Route**, **Stop**, **Vehicle**, **Trip**, etc.).
+    the optimized route plans returned by the **optimize** method) into the 
+    "language" of the simulator (i.e., **Route**, **Stop**, **Vehicle**, 
+    **Trip**, etc.).
   * Default behavior: It assigns the legs to the routes and modifies the 
-    next stops of a route according to the output of the **optimize** 
-    method. This default behavior should be sufficient for most 
-    applications of the **ShuttleDispatcher**. In most cases, there is no 
+    next stops of a route according to the list of OptimizedRoutePlan 
+    objects returned by the **optimize** method. This default behavior 
+    should be sufficient for most applications. In general, there is no 
     need to override this method.
 
-##### Example 1: ShuttleSimpleDispatcher
+#### Examples
 
-The ShuttleSimpleDispatcher (/multimodalsim/shittle/shuttle_simple_dispatcher.
+A few examples of dispatchers are provided with the package, but in general,
+users will probably want to create their own Dispatcher object, whether by 
+using or not the default **dispatch** method.
+
+##### Example 1: ShuttleHubSimpleDispatcher
+
+The ShuttleHubSimpleDispatcher 
+(/multimodalsim/shuttle/shuttle_hub_simple_dispatcher.
 py) is a simple example that demonstrates how to use the ShuttleDispatcher.
 It is based on a simple optimization algorithm that assigns to the vehicles 
 available at the hub the trips of the environment that have not been 
@@ -356,27 +404,30 @@ the distance/travel time between the different locations). The travel time
 between any pair of nodes is considered constant.
 
 For more details, see the comments in 
-/multimodalsim/shittle/shuttle_simple_dispatcher.py.
+/multimodalsim/shuttle/shuttle_simple_dispatcher.py.
 
-##### Example 2: ShuttleSimpleNetworkDispatcher
+##### Example 2: ShuttleHubSimpleNetworkDispatcher
 
-The ShuttleSimpleNetworkDispatcher 
-(/multimodalsim/shittle/shuttle_simple_network_dispatcher.
-py) is a simple example that demonstrates how to use the 
-ShuttleDispatcher with a network (e.g., a graph that indicates 
-the distance/travel time between the different locations). It is based on 
-the same simple optimization algorithm as the ShuttleSimpleDispatcher. The 
+The ShuttleHubSimpleNetworkDispatcher 
+(/multimodalsim/shuttle/shuttle_hub_simple_network_dispatcher.py) is a 
+simple example that demonstrates how to use the 
+ShuttleDispatcher with a network (e.g., a graph that indicates the 
+distance/travel time between the different locations). It is based on 
+the same simple optimization algorithm as the ShuttleHubSimpleDispatcher. The 
 only difference is that the travel time between any pair of nodes is now 
 given by the network.
 
 For more details, see the comments in 
-/multimodalsim/shittle/shuttle_simple_network_dispatcher.py.
+/multimodalsim/shuttle/shuttle_hub_simple_network_dispatcher.py.
 
 ##### Example 3: ShuttleGreedyDispatcher
 
 The ShuttleGreedyDispatcher 
-(/multimodalsim/shittle/shuttle_greedy_dispatcher.py) is a more complex example. It is based on an 
+(/multimodalsim/shuttle/shuttle_greedy_dispatcher.py) is a more complex 
+example. It is based on an 
 optimization algorithm that assigns the trips to the vehicles in a greedy way.
+
+##### Example 4: FixedLineDispatcher
 
 ## Examples
  
