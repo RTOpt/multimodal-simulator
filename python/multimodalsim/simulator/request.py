@@ -8,24 +8,25 @@ logger = logging.getLogger(__name__)
 
 class Request(object):
     """The ``Request`` class mostly serves as a structure for storing basic
-       information about the trip
+       information about the passengers.
        Attributes:
        ----------
        id: int
-            unique id for each request
+            Unique id for each request
        origin: Location
-            location of the origin
+            Location of the origin
        destination:  Location
-            location of the destination
+            Location of the destination
        nb_passengers: int
             Number of passengers of the trip.
        release_time float
-            time and Time at which the trip is appeared in the system.
+            Time at which the trip appears in the system.
        ready_time: float
-            time at which the trip has to be picked up.
-       due_time float
-            time at which the trip has to be dropped off.
-
+            Time at which the trip is available to be picked up.
+       due_time: float
+            Time at which the trip has to be dropped off.
+       name: string
+            Name of the passenger.
        """
 
     def __init__(self, id, origin, destination, nb_passengers, release_time,
@@ -209,24 +210,9 @@ class Trip(Request):
     def next_legs(self, next_legs):
         self.__next_legs = next_legs
 
-    # @next_legs.deleter
-    # def next_legs(self):
-    #     del self.__next_legs
-
     def assign_legs(self, legs):
 
         self.__next_legs = legs
-
-        # if legs is not None and len(legs) > 1:
-        #     # self.__current_leg = legs[0]
-        #     # self.__next_legs = legs[1:]
-        #
-        # elif legs is not None and len(legs) > 0:
-        #     self.__current_leg = legs[0]
-        #     self.__next_legs = []
-        # else:
-        #     self.__current_leg = None
-        #     self.__next_legs = []
 
     def finish_current_leg(self):
         self.__previous_legs.append(self.current_leg)
