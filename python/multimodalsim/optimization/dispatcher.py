@@ -259,7 +259,8 @@ class OptimizedRoutePlan:
         """
         self.__current_stop_departure_time = departure_time
 
-    def append_next_stop(self, stop_id, arrival_time, departure_time=None):
+    def append_next_stop(self, stop_id, arrival_time, departure_time=None,
+                         lon=None, lat=None, cumulative_distance=None):
         """Append a stop to the list of next stops of the route plan.
             Parameters:
                 stop_id: string
@@ -269,6 +270,15 @@ class OptimizedRoutePlan:
                 departure_time: int or None
                     Time at which the vehicle is panned to leave the stop.
                     If None, then departure_time is set equal to arrival_time.
+                lon: float
+                    Longitude of the stop. If None, then the stop has no
+                    longitude.
+                lat: float
+                    Latitude of the stop. If None, then the stop has no
+                    latitude.
+                cumulative_distance: float
+                    Cumulative distance that the vehicle will have travelled
+                    when it arrives at the stop.
         """
         if self.__next_stops is None:
             self.__next_stops = []
@@ -276,7 +286,9 @@ class OptimizedRoutePlan:
         if departure_time is None:
             departure_time = arrival_time
 
-        stop = Stop(arrival_time, departure_time, LabelLocation(stop_id))
+        stop = Stop(arrival_time, departure_time,
+                    LabelLocation(stop_id, lon, lat),
+                    cumulative_distance=cumulative_distance)
 
         self.__next_stops.append(stop)
 
@@ -296,6 +308,8 @@ class OptimizedRoutePlan:
         return self.__assigned_legs
 
     def copy_route_stops(self):
+        """Copy the current and next stops of the route to the current and
+        next stops of OptimizedRoutePlan, respectively."""
 
         if self.route.current_stop is not None:
             self.__current_stop_departure_time = \
