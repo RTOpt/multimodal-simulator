@@ -2,23 +2,26 @@ import argparse
 import logging
 import cProfile
 import pstats
+import json
 
 import networkx as nx
+from networkx.readwrite import json_graph
 
 from multimodalsim.logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
-from multimodalsim.optimization.shuttle.shuttle_greedy_dispatcher import \
-    ShuttleGreedyDispatcher
+from multimodalsim.optimization.shuttle.shuttle_hub_simple_network_dispatcher \
+    import ShuttleHubSimpleNetworkDispatcher
 from multimodalsim.simulator.coordinates import CoordinatesOSRM, \
     CoordinatesFromFile
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import OneLegSplitter, MultimodalSplitter
-from multimodalsim.reader.data_reader import BusDataReader, GTFSReader, ShuttleDataReader
-from multimodalsim.simulator.network import create_graph
+from multimodalsim.optimization.splitter import OneLegSplitter, \
+    MultimodalSplitter
+from multimodalsim.reader.data_reader import BusDataReader, GTFSReader, \
+    ShuttleDataReader
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
@@ -169,9 +172,9 @@ def main():
     if args.type == "shuttle":
         # Parameters example:
         # shuttle
-        # -r ../../data/shuttle/test3_shuttle/requests_sncf.csv
-        # -v ../../data/shuttle/test3_shuttle/vehicles.csv
-        # -g ../../data/shuttle/test3_shuttle/graph.json
+        # -r ../../data/shuttle/simple_network_dispatcher/requests.csv
+        # -v ../../data/shuttle/simple_network_dispatcher/vehicles.csv
+        # -g ../../data/shuttle/simple_network_dispatcher/graph.json
         # --log-level DEBUG
         logger.info("Shuttle")
 
@@ -179,19 +182,20 @@ def main():
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                         graph_from_json_file_path,
-                                        vehicles_end_time=100000)
+                                        vehicles_end_time=50000)
         g = data_reader.get_json_graph()
 
         splitter = OneLegSplitter()
-        dispatcher = ShuttleGreedyDispatcher(g)
+        dispatcher = ShuttleHubSimpleNetworkDispatcher(g, hub_location="100")
 
     elif args.type == "fixed":
         logger.info("FixedLine")
 
         if args.gtfs:
-            # Parameters example: fixed --gtfs --gtfs-folder
-            # ../../data/fixed_line/gtfs/gtfs/ -r
-            # ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal
+            # Parameters example:
+            # fixed --gtfs
+            # --gtfs-folder ../../data/fixed_line/gtfs/gtfs/
+            # -r ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal
             # --log-level DEBUG
             data_reader = GTFSReader(args.gtfs_folder, requests_file_path)
             # RTC: fixed --gtfs --gtfs-folder ../../data/fixed_line/gtfs_rtc/ -r ../../data/fixed_line/requests_gtfs_rtc/small_requests.csv --log-level INFO
@@ -216,14 +220,19 @@ def main():
             available_connections = []
 
         if args.graph:
-            g = nx.read_gpickle(args.graph)
+            with open(args.graph, 'r') as f:
+                graph_data = json.load(f)
+                g = json_graph.node_link_graph(graph_data)
         else:
             logger.info("Generate network graph...")
             g = data_reader.get_network_graph(
                 available_connections=available_connections)
-            g_path = "../../data/fixed_line/stl/network_graph/" \
-                     "bus_network_graph_20191101_4pm    .txt"
-            nx.write_gpickle(g, g_path)
+            g_path = "../../../../donnees_de_mobilite/data/stl/stl/20191101_4pm/" \
+                     "bus_network_graph_20191101_4pm.json"
+
+            with open(g_path, 'w+') as f:
+                graph_data = json_graph.node_link_data(g)
+                json.dump(graph_data, f, ensure_ascii=False, indent=4)
 
         if args.multimodal:
             splitter = MultimodalSplitter(
