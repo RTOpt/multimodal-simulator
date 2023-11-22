@@ -12,15 +12,30 @@ class Vehicle(object):
         Properties
         ----------
         id: int
-            unique id
+            Unique id
         start_time: int
-            time at which the vehicle is ready to start
+            Time at which the vehicle is ready to start
         start_stop: Stop
             Stop at which the vehicle starts.
         capacity: int
             Maximum number of passengers that can fit in the vehicle
         release_time: int
-            time at which the vehicle is added to the environment.
+            Time at which the vehicle is added to the environment.
+        mode: string
+            The name of the vehicle mode.
+        reusable: Boolean
+            Specifies whether the vehicle can be reused after it has traveled
+            the current route (i.e., its route has no more next stops).
+        position: Location
+            Most recent location of the vehicle. Note that the position is not
+            updated at every time unit; it is updated only when the event
+            VehicleUpdatePositionEvent is processed.
+        polylines: dict
+            A dictionary that specifies for each stop id (key),
+            the polyline until the next stop.
+        status: int
+            Represents the different status of the vehicle
+            (VehicleStatus(Enum)).
     """
 
     MAX_TIME = 7*24*3600
@@ -80,9 +95,7 @@ class Vehicle(object):
 
     @property
     def position(self):
-        position = self.__position
-
-        return position
+        return self.__position
 
     @position.setter
     def position(self, position):
@@ -481,7 +494,13 @@ class LabelLocation(Location):
         self.lat = lat
 
     def __str__(self):
-        return self.label
+
+        if self.lon is not None or self.lat is not None:
+            ret_str = "{}: ({},{})".format(self.label, self.lon, self.lat)
+        else:
+            ret_str = "{}".format(self.label)
+
+        return ret_str
 
     def __eq__(self, other):
         if isinstance(other, LabelLocation):
