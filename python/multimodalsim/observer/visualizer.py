@@ -15,11 +15,12 @@ class Visualizer(object):
 
 class ConsoleVisualizer(Visualizer):
 
-    def __init__(self, data_analyzer=None):
+    def __init__(self, data_analyzer=None, stats_delta_time=10):
         super().__init__()
         self.__data_analyzer = data_analyzer
         self.__last_time = None
         self.__stats_time = 0
+        self.__stats_delta_time = stats_delta_time
 
     def visualize_environment(self, env, current_event=None, event_index=None,
                               event_priority=None):
@@ -31,10 +32,10 @@ class ConsoleVisualizer(Visualizer):
         if logger.parent.level == logging.DEBUG:
             self.__print_debug(env, current_event, event_index, event_priority)
 
-        # if self.__data_analyzer is not None and env.current_time \
-        #         > self.__stats_time + 10:
-        #     self.__print_statistics()
-        #     self.__stats_time = env.current_time
+        if self.__data_analyzer is not None and env.current_time \
+                > self.__stats_time + self.__stats_delta_time:
+            self.__print_statistics()
+            self.__stats_time = env.current_time
 
     def __print_debug(self, env, current_event, event_index, event_priority):
 
