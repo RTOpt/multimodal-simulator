@@ -26,7 +26,7 @@ class DataAnalyzer:
         observations_df = self.data_container \
             .get_observations_table_df(table_name)
 
-        return observations_df.describe(datetime_is_numeric=True)
+        return observations_df.describe(include='all')
 
     def get_vehicles_statistics(self, mode):
         raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
@@ -177,10 +177,9 @@ class FixedLineDataAnalyzer(DataAnalyzer):
 
             for trip_id, veh_dict in cumdist_by_veh_by_trip.items():
                 for veh_id, cumdist_dict in veh_dict.items():
-                    if mode is None:
-                        total_dist += cumdist_dict["cumdist"]
-                    elif mode == modes_by_veh[veh_id]:
-                        total_dist += cumdist_dict["cumdist"]
+                    if (mode is None) or (mode == modes_by_veh[veh_id]):
+                        total_dist += cumdist_dict["cumdist"] \
+                            if cumdist_dict["cumdist"] is not None else 0
 
         return total_dist
 

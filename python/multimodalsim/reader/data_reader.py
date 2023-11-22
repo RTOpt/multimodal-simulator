@@ -34,6 +34,7 @@ class ShuttleDataReader(DataReader):
                  graph_from_json_file_path=None, sim_end_time=None,
                  vehicles_end_time=None):
         super().__init__()
+        self.__network = None
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
         self.__graph_from_json_file_path = graph_from_json_file_path
@@ -54,9 +55,27 @@ class ShuttleDataReader(DataReader):
             csv_dict_reader = csv.DictReader(rFile, delimiter=';')
             nb_passengers = 1  # Each request corresponds to 1 passenger.
             for row in csv_dict_reader:
+                orig_id = str(row['origin'])
+                dest_id = str(row['destination'])
+
+                if self.__network is not None:
+                    lon_orig = self.__network.nodes[orig_id]["lon"]
+                    lat_orig = self.__network.nodes[orig_id]["lat"]
+
+                    lon_dest = self.__network.nodes[dest_id]["lon"]
+                    lat_dest = self.__network.nodes[dest_id]["lat"]
+                else:
+                    lon_orig = lat_orig = None
+                    lon_dest = lat_dest = None
+
+                orig_location = LabelLocation(orig_id, lon=lon_orig,
+                                              lat=lat_orig)
+                dest_location = LabelLocation(dest_id, lon=lon_dest,
+                                              lat=lat_dest)
+
                 trip = Trip(str(row['trip_id']),
-                            LabelLocation(str(row['origin'])),
-                            LabelLocation(str(row['destination'])),
+                            orig_location,
+                            dest_location,
                             nb_passengers,
                             int(row['release_time']),
                             int(row['ready_time']),
@@ -68,15 +87,27 @@ class ShuttleDataReader(DataReader):
 
     def get_vehicles(self):
         vehicles = []
-        routes_by_vehicle_id = {}   # Remains empty
+        routes_by_vehicle_id = {}  # Remains empty
 
         with open(self.__vehicles_file_path, 'r') as rFile:
             csv_dict_reader = csv.DictReader(rFile, delimiter=';')
             for row in csv_dict_reader:
                 vehicle_id = str(row["vehicle_id"])
                 start_time = float(row["start_time"])
-                start_stop_location = LabelLocation(str(row["start_stop"]))
                 capacity = int(row["capacity"])
+
+                stop_id = str(row["start_stop"])
+
+                if self.__network is not None:
+                    lon = self.__network.nodes[stop_id]["lon"]
+                    lat = self.__network.nodes[stop_id]["lat"]
+                else:
+                    lon = None
+                    lat = None
+
+                mode = str(row["mode"]) if "mode" in row else None
+
+                start_stop_location = LabelLocation(stop_id, lon=lon, lat=lat)
 
                 start_stop = Stop(start_time,
                                   Vehicle.MAX_TIME,
@@ -85,7 +116,7 @@ class ShuttleDataReader(DataReader):
                 # reusable=True since the vehicles are shuttles.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
                                   start_time, self.__vehicles_end_time,
-                                  reusable=True)
+                                  mode=mode, reusable=True)
 
                 vehicles.append(vehicle)
 
@@ -95,13 +126,15 @@ class ShuttleDataReader(DataReader):
         with open(self.__graph_from_json_file_path) as f:
             js_graph = json.load(f)
 
-            G = json_graph.node_link_graph(js_graph)
-            for node in G.nodes(data=True):
+            self.__network = json_graph.node_link_graph(js_graph)
+            for node in self.__network.nodes(data=True):
+                node[1]['lon'] = node[1]['pos'][0]
+                node[1]['lat'] = node[1]['pos'][1]
                 coord = (node[1]['pos'][0], node[1]['pos'][1])
                 node[1]['pos'] = coord
                 node[1]['Node'] = Node(node[1]['Node']['id'], coord)
 
-        return G
+        return self.__network
 
 
 class BusDataReader(DataReader):
