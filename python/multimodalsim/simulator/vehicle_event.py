@@ -230,6 +230,11 @@ class VehicleNotification(Event):
                 if leg not in self.__route.assigned_legs:
                     self.__route.assigned_legs.append(leg)
 
+        # Update polylines
+        if env.coordinates is not None:
+            self.__vehicle.polylines = \
+                env.coordinates.update_polylines(self.__route)
+
         return 'Notify Vehicle process is implemented'
 
     def __update_stop_with_actual_trips(self, stop):
@@ -299,15 +304,16 @@ class VehicleUpdatePositionEvent(Event):
         super().__init__("VehicleUpdatePositionEvent", queue, event_time)
 
         self.__vehicle = vehicle
+        self.__route = queue.env.get_route_by_vehicle_id(vehicle.id)
         self.__event_time = event_time
         self.__queue = queue
         self.__time_step = time_step
 
     def _process(self, env):
         self.__vehicle.position = env.coordinates.update_position(
-            self.__vehicle, self.__event_time)
+            self.__vehicle, self.__route, self.__event_time)
 
-        if self.__vehicle.route.status != VehicleStatus.COMPLETE \
+        if self.__vehicle.status != VehicleStatus.COMPLETE \
                 and self.__time_step is not None:
             VehicleUpdatePositionEvent(
                 self.__vehicle, self.__queue,

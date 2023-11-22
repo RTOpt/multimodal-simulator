@@ -18,7 +18,7 @@ class Coordinates:
     def __init__(self):
         pass
 
-    def update_position(self, vehicle, time):
+    def update_position(self, vehicle, route, time):
         raise NotImplementedError(
             'Coordinates.update_position not implemented')
 
@@ -34,7 +34,7 @@ class CoordinatesFromFile(Coordinates):
         self.__vehicle_positions_dict = {}
         self.__read_coordinates_from_file()
 
-    def update_position(self, vehicle, time):
+    def update_position(self, vehicle, route, time):
 
         time_positions = None
         if vehicle.id in self.__vehicle_positions_dict:
@@ -46,15 +46,15 @@ class CoordinatesFromFile(Coordinates):
                 if pos_time > time:
                     break
                 current_position = position
-        elif vehicle.route is not None \
-                and vehicle.route.current_stop is not None:
+        elif route is not None \
+                and route.current_stop is not None:
             # If no time_positions are available, use location of current_stop.
-            current_position = vehicle.route.current_stop.location
-        elif vehicle.route is not None \
-                and len(vehicle.route.previous_stops) > 0:
+            current_position = route.current_stop.location
+        elif route is not None \
+                and len(route.previous_stops) > 0:
             # If current_stop is None, use location of the most recent
             # previous_stops.
-            current_position = vehicle.route.previous_stops[-1].location
+            current_position = route.previous_stops[-1].location
 
         update_time_dict(current_position, vehicle.id, time,
                          self.__vehicle_positions_dict)
@@ -95,20 +95,21 @@ class CoordinatesOSRM(Coordinates):
         config = CoordinatesOSRMConfig() if config is None else config
         self.__osrm_url = config.url
 
-    def update_position(self, vehicle, current_time):
+    def update_position(self, vehicle, route, current_time):
 
         current_position = None
 
-        if vehicle.route.current_stop is not None:
-            current_position = vehicle.route.current_stop.location
-        elif len(vehicle.route.previous_stops) > 0 \
+        if route.current_stop is not None:
+            current_position = route.current_stop.location
+        elif len(route.previous_stops) > 0 \
                 and vehicle.polylines is not None:
             # Current position is between two stops
-            stop1 = vehicle.route.previous_stops[-1]
-            stop2 = vehicle.route.next_stops[0]
+            stop1 = route.previous_stops[-1]
+            stop2 = route.next_stops[0]
+            stop_id = str(len(route.previous_stops) - 1)
 
             current_coordinates = self.__extract_coordinates_from_polyline(
-                vehicle, current_time, stop1, stop2)
+                vehicle, current_time, stop1, stop2, stop_id)
 
             current_position = TimeCoordinatesLocation(current_time,
                                                        current_coordinates[0],
@@ -156,14 +157,20 @@ class CoordinatesOSRM(Coordinates):
                                    stop_coordinates[i + 1]]
                     leg_polyline = polyline.encode(coordinates, geojson=True)
                     leg_durations_frac = [1.0]
-                    polylines[stop_ids[i]] = (leg_polyline, leg_durations_frac)
+                    polylines[str(i)] = (leg_polyline, leg_durations_frac)
+                    # polylines[stop_ids[i]] = (leg_polyline, leg_durations_frac)
+
+        else:
+            polylines[str(0)] = ("", [])
+            # polylines[stop_ids[0]] = ("", [])
 
         return polylines
 
     def __extract_coordinates_from_polyline(self, vehicle, current_time, stop1,
-                                            stop2):
+                                            stop2, stop_id):
 
-        stop_polyline_durations = vehicle.polylines[stop1.location.label]
+        # stop_polyline_durations = vehicle.polylines[stop1.location.label]
+        stop_polyline_durations = vehicle.polylines[stop_id]
 
         stop_coordinates = polyline.decode(stop_polyline_durations[0],
                                            geojson=True)
@@ -244,7 +251,8 @@ class CoordinatesOSRM(Coordinates):
             leg_coordinates = coordinates[start_coord_index:end_coord_index]
             leg_polyline = polyline.encode(leg_coordinates, geojson=True)
 
-            polylines[stop_ids[leg_index]] = (leg_polyline, leg_durations_frac)
+            # polylines[stop_ids[leg_index]] = (leg_polyline, leg_durations_frac)
+            polylines[str(leg_index)] = (leg_polyline, leg_durations_frac)
 
             # The last coordinates of a given leg are the same as the first
             # coordinates of the next leg
@@ -272,21 +280,21 @@ class CoordinatesOSRMOld(Coordinates):
         self.__polylines_osrm_response_dict = {}
         self.__coordinates_segments_dict = {}
 
-    def update_position(self, vehicle, current_time):
+    def update_position(self, vehicle, route, current_time):
 
         current_position = get_from_time_dict(
             vehicle.id, current_time, self.__vehicle_positions_dict)
 
-        if current_position is None and vehicle.route is None:
+        if current_position is None and route is None:
             current_position = None
         elif current_position is None \
-                and vehicle.route.current_stop is not None:
-            current_position = vehicle.route.current_stop.location
+                and route.current_stop is not None:
+            current_position = route.current_stop.location
         elif current_position is None \
-                and len(vehicle.route.previous_stops) > 0:
+                and len(route.previous_stops) > 0:
             # Current position is between two stops
-            stop1 = vehicle.route.previous_stops[-1]
-            stop2 = vehicle.route.next_stops[0]
+            stop1 = route.previous_stops[-1]
+            stop2 = route.next_stops[0]
 
             current_coordinates = self.__get_coordinates_from_osrm(
                 current_time,

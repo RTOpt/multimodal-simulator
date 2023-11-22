@@ -99,13 +99,14 @@ class StandardDataCollector(DataCollector):
             if current_stop_loc is not None else None
         stop_lat = current_stop_loc.lat \
             if current_stop_loc is not None else None
-        lon = vehicle.position.lon if vehicle.position is not None else None
-        lat = vehicle.position.lat if vehicle.position is not None else None
+        lon = vehicle.position.lon if vehicle.position is not None else stop_lon
+        lat = vehicle.position.lat if vehicle.position is not None else stop_lat
 
         polylines = vehicle.polylines \
-            if vehicle.polylines is not None else None
+            if vehicle.polylines is not None and len(vehicle.polylines) > 0 \
+            else None
 
-        mode = vehicle.mode
+        mode = vehicle.mode if vehicle.mode is not None else "bus2"
 
         obs_dict = {"id": vehicle.id,
                     "time": self.__time,
@@ -175,13 +176,30 @@ class StandardDataCollector(DataCollector):
         previous_legs = [(str(leg.origin), str(leg.destination)) for leg
                          in trip.previous_legs] \
             if trip.previous_legs is not None else None
-        current_leg = (str(trip.current_leg.origin),
-                       str(trip.current_leg.destination)) \
-            if trip.current_leg is not None else None
 
-        next_legs = [(str(leg.origin), str(leg.destination)) for leg
-                     in trip.next_legs] \
-            if trip.next_legs is not None else None
+        if trip.current_leg is not None:
+            current_leg = (str(trip.current_leg.origin),
+                           str(trip.current_leg.destination))
+
+            next_legs = [(str(leg.origin), str(leg.destination)) for leg
+                         in trip.next_legs] \
+                if trip.next_legs is not None else []
+
+        elif len(trip.next_legs) > 0:
+            current_leg = (str(trip.next_legs[0].origin),
+                           str(trip.next_legs[0].destination))
+
+            next_legs = [(str(leg.origin), str(leg.destination)) for leg
+                         in trip.next_legs[1:]] \
+                if len(trip.next_legs) > 1 else []
+        else:
+            current_leg = None
+
+            next_legs = [(str(leg.origin), str(leg.destination)) for leg
+                         in trip.next_legs] \
+                if trip.next_legs is not None else []
+
+        name = trip.name if trip.name is not None else trip.id
 
         obs_dict = {"id": trip.id,
                     "time": self.__time,
@@ -191,7 +209,7 @@ class StandardDataCollector(DataCollector):
                     "previous_legs": previous_legs,
                     "current_leg": current_leg,
                     "next_legs": next_legs,
-                    "name": trip.name}
+                    "name": name}
 
         self.__data_container.add_observation("trips", obs_dict, "id")
 
@@ -201,6 +219,9 @@ class StandardDataCollector(DataCollector):
         if trip.current_leg is not None \
                 and trip.current_leg.assigned_vehicle is not None:
             assigned_vehicle_id = trip.current_leg.assigned_vehicle.id
+        elif len(trip.next_legs) > 0 \
+                and trip.next_legs[0].assigned_vehicle is not None:
+            assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id
         else:
             assigned_vehicle_id = None
 
@@ -217,6 +238,10 @@ class StandardDataCollector(DataCollector):
         elif trip.current_leg is not None \
                 and trip.status == PassengersStatus.COMPLETE:
             current_location = trip.current_leg.destination
+        elif len(trip.next_legs) > 0:
+            current_location = trip.next_legs[0].origin
+        elif len(trip.previous_legs) > 0:
+            current_location = trip.previous_legs[0].destination
 
         return current_location
 
