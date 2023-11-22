@@ -105,7 +105,10 @@ class ShuttleHubSimpleNetworkDispatcher(Dispatcher):
         hub_to_origin_travel_time = self.__network.get_edge_data(
             route.current_stop.location.label, leg.origin.label)["length"]
         first_stop_time = current_time + hub_to_origin_travel_time
-        route_plan.append_next_stop(leg.origin.label, first_stop_time)
+        origin_lon = self.__network.nodes[leg.origin.label]["lon"]
+        origin_lat = self.__network.nodes[leg.origin.label]["lat"]
+        route_plan.append_next_stop(leg.origin.label, first_stop_time,
+                                    lon=origin_lon, lat=origin_lat)
 
         # Third stop:
         #   -location: leg destination
@@ -114,7 +117,10 @@ class ShuttleHubSimpleNetworkDispatcher(Dispatcher):
         origin_to_destination_travel_time = self.__network.get_edge_data(
             leg.origin.label, leg.destination.label)["length"]
         second_stop_time = first_stop_time + origin_to_destination_travel_time
-        route_plan.append_next_stop(leg.destination.label, second_stop_time)
+        destination_lon = self.__network.nodes[leg.destination.label]["lon"]
+        destination_lat = self.__network.nodes[leg.destination.label]["lat"]
+        route_plan.append_next_stop(leg.destination.label, second_stop_time,
+                                    lon=destination_lon, lat=destination_lat)
 
         # Fourth (and last) stop:
         #   -location: hub
@@ -123,7 +129,10 @@ class ShuttleHubSimpleNetworkDispatcher(Dispatcher):
         destination_to_hub_travel_time = self.__network.get_edge_data(
             leg.destination.label, self.__hub_location)["length"]
         last_stop_time = second_stop_time + destination_to_hub_travel_time
-        route_plan.append_next_stop(self.__hub_location, last_stop_time)
+        hub_lon = self.__network.nodes[self.__hub_location]["lon"]
+        hub_lat = self.__network.nodes[self.__hub_location]["lat"]
+        route_plan.append_next_stop(self.__hub_location, last_stop_time,
+                                    lon=hub_lon, lat=hub_lat)
 
         route_plan.assign_leg(leg)
 

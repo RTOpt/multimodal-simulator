@@ -22,12 +22,13 @@ if __name__ == '__main__':
                                     graph_file_path,
                                     vehicles_end_time=100000)
 
+    network_graph = data_reader.get_json_graph()
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
-    network_graph = data_reader.get_json_graph()
 
     # Initialize the optimizer.
-    dispatcher = ShuttleHubSimpleNetworkDispatcher(network_graph)
+    dispatcher = ShuttleHubSimpleNetworkDispatcher(network_graph,
+                                                   hub_location="100")
 
     # OneLegSplitter is used by default
     opt = Optimization(dispatcher)
