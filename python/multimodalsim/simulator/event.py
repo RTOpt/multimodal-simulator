@@ -128,7 +128,6 @@ class ActionEvent(Event):
         return self.__state_machine
 
     def process(self, env):
-
         if self.__state_machine is not None:
             self.__state_machine.next_state(self.__class__, env)
 

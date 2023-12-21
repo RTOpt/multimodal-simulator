@@ -15,6 +15,10 @@ class EventQueue(object):
     def env(self):
         return self.__env
 
+    def queue(self):
+        """check if the queue is empty"""
+        return self.__queue.queue
+
     def is_empty(self):
         """check if the queue is empty"""
         return self.__queue.empty()

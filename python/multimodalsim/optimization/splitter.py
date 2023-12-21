@@ -61,6 +61,9 @@ class MultimodalSplitter(Splitter):
                 optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
                 optimal_legs = self.__get_legs_from_path(optimal_path)
 
+        self.__state = None
+        self.__trip = None
+
         return optimal_legs
 
     def __find_potential_source_nodes(self, trip):

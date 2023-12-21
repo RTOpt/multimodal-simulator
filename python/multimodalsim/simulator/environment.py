@@ -1,5 +1,6 @@
 import copy
 import logging
+from multiprocessing import Condition
 
 from multimodalsim.optimization.state import State
 from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
@@ -49,6 +50,8 @@ class Environment(object):
         self.__optimization = optimization
         self.__coordinates = coordinates
         self.__travel_times = travel_times
+
+        self.__optimize_cv = None
 
     @property
     def current_time(self):
@@ -175,6 +178,7 @@ class Environment(object):
         state_copy.__optimization = None
         state_copy.__coordinates = None
         state_copy.__travel_times = None
+        state_copy.optimize_cv = None
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)
@@ -218,6 +222,14 @@ class Environment(object):
     @property
     def travel_times(self):
         return self.__travel_times
+
+    @property
+    def optimize_cv(self):
+        return self.__optimize_cv
+
+    @optimize_cv.setter
+    def optimize_cv(self, optimize_cv):
+        self.__optimize_cv = optimize_cv
 
 
 class EnvironmentStatistics:

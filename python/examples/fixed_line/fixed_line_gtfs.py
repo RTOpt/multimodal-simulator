@@ -5,7 +5,8 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import MultimodalSplitter
+from multimodalsim.optimization.splitter import MultimodalSplitter, \
+    OneLegSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
@@ -33,10 +34,12 @@ if __name__ == '__main__':
     # Generate the network from GTFS files.
     g = data_reader.get_network_graph()
 
+    freeze_interval = 5
     # Initialize the optimizer.
-    splitter = MultimodalSplitter(g)
+    splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
+    # splitter = OneLegSplitter()
     dispatcher = FixedLineDispatcher()
-    opt = Optimization(dispatcher, splitter)
+    opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 
     # Initialize the observer.
     environment_observer = StandardEnvironmentObserver()
