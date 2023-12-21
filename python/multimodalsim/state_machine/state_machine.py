@@ -57,8 +57,11 @@ class Transition:
 
 class StateMachine:
 
-    def __init__(self, states=None, initial_state=None, transitions=[],
+    def __init__(self, states=None, initial_state=None, transitions=None,
                  owner=None):
+
+        if transitions is None:
+            transitions = []
 
         if states is None:
             self.__states = []
@@ -174,6 +177,19 @@ class OptimizationStateMachine(StateMachine):
         self.add_transition(OptimizationStatus.UPDATEENVIRONMENT,
                             OptimizationStatus.IDLE,
                             optimization_event_process.EnvironmentIdle)
+
+        # self.add_transition(OptimizationStatus.OPTIMIZING,
+        #                     OptimizationStatus.OPTIMIZING,
+        #                     optimization_event_process.Optimize)
+        # self.add_transition(OptimizationStatus.IDLE,
+        #                     OptimizationStatus.UPDATEENVIRONMENT,
+        #                     optimization_event_process.EnvironmentUpdate)
+        # self.add_transition(OptimizationStatus.UPDATEENVIRONMENT,
+        #                     OptimizationStatus.UPDATEENVIRONMENT,
+        #                     optimization_event_process.EnvironmentUpdate)
+        # self.add_transition(OptimizationStatus.IDLE,
+        #                     OptimizationStatus.IDLE,
+        #                     optimization_event_process.EnvironmentIdle)
 
         self.current_state = OptimizationStatus.IDLE
 

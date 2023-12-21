@@ -201,6 +201,9 @@ class VehicleNotification(Event):
                     self.__route_update.
                     current_stop_modified_passengers_to_board)
             for trip in actual_modified_passengers_to_board:
+                logger.error("trip.id={}".format(trip.id))
+                logger.error("self.__route.vehicle.id={}".format(
+                    self.__route.vehicle.id))
                 if trip not in \
                         self.__route.current_stop.passengers_to_board:
                     self.__route.current_stop.passengers_to_board \
