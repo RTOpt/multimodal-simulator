@@ -21,9 +21,10 @@ class Optimize(ActionEvent):
                  batch=None, max_optimization_time=1, wait_for=5):
         if batch is not None:
             # Round to the smallest integer greater than or equal to time that
-            # is also a multiple of batch.
+            # is also a multiple of batch.#
             time = time + (batch - (time % batch)) % batch
-        super().__init__('Optimize', queue, time, event_priority=10,
+        super().__init__('Optimize', queue, time,
+                         event_priority=self.VERY_LOW_PRIORITY,
                          state_machine=queue.env.optimization.state_machine)
         self.__multiple_optimize_events = multiple_optimize_events
         self.__wait_for = wait_for
@@ -64,7 +65,19 @@ class Optimize(ActionEvent):
 
             logger.warning("BEFORE")
             env.optimize_cv = Condition()
-            optimize_thread = Thread(target=self.__optimize, args=(env,))
+
+            env.optimization.state = env.get_new_state()
+
+            cv = Condition()
+
+            hold_event = Hold(self.queue, env.current_time
+                              + env.optimization.freeze_interval, cv)
+            hold_event.add_to_queue()
+
+            logger.warning("hold_event")
+
+            optimize_thread = Thread(target=self.__optimize, args=(env, cv,
+                                                                   hold_event))
             logger.warning("AFTER")
 
             optimize_thread.start()
@@ -77,11 +90,11 @@ class Optimize(ActionEvent):
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
             super().add_to_queue()
 
-    def __optimize(self, env):
+    def __optimize(self, env, cv, hold_event):
 
         logger.warning("__optimize")
 
-        env.optimization.state = env.get_new_state()
+
 
         logger.error("BEFORE optimize_cv")
 
@@ -94,9 +107,16 @@ class Optimize(ActionEvent):
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
+        logger.warning("env.optimization.state.current_time={}".format(
+            env.optimization.state.current_time))
+
         logger.warning("env.optimization.freeze_interval={}".format(env.optimization.freeze_interval))
 
+        logger.error("env.current_time={}".format(env.current_time))
+
         with mp.Manager() as manager:
+
+            logger.error("env.current_time={}".format(env.current_time))
 
             logger.warning("manager")
 
@@ -123,19 +143,7 @@ class Optimize(ActionEvent):
 
             logger.warning("opt_process.start()")
 
-            cv = Condition()
 
-            logger.warning("cv = Condition()")
-
-            logger.warning("env.current_time + env.optimization.freeze_interval={}".format(
-                env.current_time + env.optimization.freeze_interval))
-
-            hold_event = Hold(self.queue, env.current_time
-                              + env.optimization.freeze_interval, cv,
-                              opt_process.pid)
-            hold_event.add_to_queue()
-
-            logger.warning("hold_event")
 
             logger.warning(
                 "opt_process.is_alive()={}".format(opt_process.is_alive()))
@@ -150,7 +158,9 @@ class Optimize(ActionEvent):
 
             while opt_process.is_alive():
                 if hold_event.on_hold:
+                    logger.warning("BEFORE SLEEP")
                     time.sleep(self.__max_optimization_time)
+                    logger.warning("AFTER SLEEP")
                     if opt_process.is_alive():
                         logger.warning("Terminate optimization process"
                                        .format(self.__wait_for))
@@ -259,14 +269,13 @@ class EnvironmentIdle(ActionEvent):
 
 
 class Hold(Event):
-    def __init__(self, queue, event_time, cv, process_id=None):
+    def __init__(self, queue, event_time, cv):
         super().__init__('Hold', queue, event_time=event_time)
 
         self.__cv = cv
 
         self.__canceled = False
         self.__on_hold = False
-        self.__process_id = process_id
 
     @property
     def cv(self):
@@ -290,8 +299,6 @@ class Hold(Event):
         if not self.__canceled:
             logger.critical("not canceled!")
             with self.__cv:
-                process_id = self.__process_id
-                logger.critical("wait: {}".format(process_id))
                 self.__cv.wait()
         logger.critical("HOLD: END")
 

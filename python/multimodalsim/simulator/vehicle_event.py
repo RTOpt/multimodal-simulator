@@ -3,7 +3,8 @@ import copy
 
 from multimodalsim.simulator.event import Event, ActionEvent
 from multimodalsim.state_machine.status import VehicleStatus
-from multimodalsim.simulator.vehicle import Route
+# from multimodalsim.simulator.vehicle import Route
+import multimodalsim.simulator.vehicle
 
 import multimodalsim.simulator.optimization_event \
     as optimization_event
@@ -28,7 +29,8 @@ class VehicleReady(Event):
         env.add_vehicle(self.__vehicle)
 
         if self.__route is None:
-            self.__route = Route(self.__vehicle)
+            self.__route = multimodalsim.simulator.vehicle.Route(
+                self.__vehicle)
 
         env.add_route(self.__route, self.__vehicle.id)
 
@@ -103,10 +105,14 @@ class VehicleDeparture(ActionEvent):
     def __init__(self, route, queue):
         super().__init__('Vehicle Departure', queue,
                          route.current_stop.departure_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.vehicle.state_machine,
+                         # event_priority=Event.EXTREME_LOW_PRIORITY
+                         )
         self.__route = route
 
     def _process(self, env):
+
+        logger.warning("self.__route.vehicle.id={}".format(self.__route.vehicle.id))
 
         if env.travel_times is not None:
             from_stop = copy.deepcopy(self.__route.current_stop)
@@ -182,6 +188,11 @@ class VehicleNotification(Event):
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env):
+
+        logger.warning("self.__route_update.vehicle_id={}".format(self.__route_update.vehicle_id))
+        if self.__route_update.current_stop_modified_passengers_to_board is not None:
+            for trip in self.__route_update.current_stop_modified_passengers_to_board:
+                logger.warning(trip)
 
         self.__env = env
 

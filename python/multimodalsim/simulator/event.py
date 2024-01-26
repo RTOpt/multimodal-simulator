@@ -12,7 +12,9 @@ class Event(object):
     amounts to figuring out which event occurs first """
 
     MAX_PRIORITY = 1000
-    LOW_PRIORITY = 6
+    EXTREME_LOW_PRIORITY = 20
+    VERY_LOW_PRIORITY = 15
+    LOW_PRIORITY = 10
     STANDARD_PRIORITY = 5
     HIGH_PRIORITY = 4
     MAX_DELTA_TIME = 7 * 24 * 3600
