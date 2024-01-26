@@ -2,7 +2,7 @@ import logging
 import copy
 
 from multimodalsim.simulator.event import Event, ActionEvent
-from multimodalsim.state_machine.status import VehicleStatus
+from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
 from multimodalsim.simulator.vehicle import Route
 
 import multimodalsim.simulator.optimization_event \
@@ -91,7 +91,11 @@ class VehicleBoarding(ActionEvent):
     def _process(self, env):
         passengers_to_board_copy = self.__route.current_stop. \
             passengers_to_board.copy()
-        for req in passengers_to_board_copy:
+
+        passengers_ready = [trip for trip in passengers_to_board_copy
+                            if trip.status == PassengersStatus.READY]
+
+        for req in passengers_ready:
             self.__route.initiate_boarding(req)
             passenger_event.PassengerToBoard(
                 req, self.queue).add_to_queue()
