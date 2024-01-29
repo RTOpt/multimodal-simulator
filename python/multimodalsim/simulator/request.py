@@ -108,17 +108,6 @@ class Leg(Request):
     @assigned_vehicle.setter
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
-        # The condition self.assigned_vehicle != vehicle has been added
-        # for the case where two Optimize(Event) take place at the same time
-        # (same event_time). In this case, the environment is not updated
-        # between the two Optimize(Event). Therefore, the optimization
-        # results of the two Optimize(Event) should be the same and,
-        # as a consequence, the same vehicle will be reassigned to the trip.
-        if self.__assigned_vehicle is not None \
-                and self.__assigned_vehicle.id != vehicle.id:
-            raise ValueError(
-                "Request ({}) is already assigned to a vehicle ({}).".format(
-                    self.id, self.__assigned_vehicle.id))
         self.__assigned_vehicle = vehicle
 
     @property
