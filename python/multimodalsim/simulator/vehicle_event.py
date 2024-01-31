@@ -52,7 +52,7 @@ class VehicleReady(Event):
 class VehicleWaiting(ActionEvent):
     def __init__(self, route, queue, time=None):
         time = time if time is not None else queue.env.current_time
-        super().__init__('VehicleBoarding', queue, time,
+        super().__init__('VehicleWaiting', queue, time,
                          state_machine=route.vehicle.state_machine)
         self.__route = route
 
@@ -85,7 +85,8 @@ class VehicleBoarding(ActionEvent):
     def __init__(self, route, queue):
         super().__init__('VehicleBoarding', queue,
                          queue.env.current_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.vehicle.state_machine,
+                         event_priority=Event.LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):
