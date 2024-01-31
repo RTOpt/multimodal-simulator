@@ -164,7 +164,8 @@ class Dispatcher:
             route_plan.route.assign_leg(leg)
 
             # Assign the trip associated with leg to the stops of the route
-            if leg not in route_plan.legs_manually_assigned_to_stops:
+            if leg not in route_plan.legs_manually_assigned_to_stops \
+                    and leg not in route_plan.already_onboard_legs:
                 self.__automatically_assign_trip_to_stops(leg,
                                                           route_plan.route)
 
@@ -374,9 +375,11 @@ class OptimizedRoutePlan:
             stop.passengers_to_board.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
+                self.assign_leg(leg)
 
     def __assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
         for leg in legs_to_alight:
             stop.passengers_to_alight.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
+                self.assign_leg(leg)
