@@ -31,20 +31,13 @@ class Optimize(ActionEvent):
         self.__max_optimization_time = max_optimization_time
 
     def process(self, env):
-        logger.error(
-            "{} - {} - {}: {}".format(self.index, self.time, self.priority,
-                                      self))
 
-        logger.error("self.state_machine.current_state={}".format(self.state_machine.current_state))
-        logger.error("type={}".format(
-            type(self.state_machine.current_state.status)))
         if self.state_machine.current_state.status == OptimizationStatus.OPTIMIZING:
             logger.error("PUT BACK IN QUEUE")
             if env.optimize_cv is not None:
                 with env.optimize_cv:
                     logger.error("env.optimize_cv.wait()")
                     env.optimize_cv.wait()
-                    logger.error("AFTER env.optimize_cv.wait()")
 
             self.add_to_queue()
 
@@ -63,22 +56,17 @@ class Optimize(ActionEvent):
 
         if env.optimization.need_to_optimize(env_stats):
 
-            logger.warning("BEFORE")
             env.optimize_cv = Condition()
 
             env.optimization.state = env.get_new_state()
 
-            cv = Condition()
-
+            hold_cv = Condition()
             hold_event = Hold(self.queue, env.current_time
-                              + env.optimization.freeze_interval, cv)
+                              + env.optimization.freeze_interval, hold_cv)
             hold_event.add_to_queue()
 
-            logger.warning("hold_event")
-
-            optimize_thread = Thread(target=self.__optimize, args=(env, cv,
-                                                                   hold_event))
-            logger.warning("AFTER")
+            optimize_thread = Thread(target=self.__optimize,
+                                     args=(env, hold_cv, hold_event))
 
             optimize_thread.start()
 
@@ -90,29 +78,12 @@ class Optimize(ActionEvent):
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
             super().add_to_queue()
 
-    def __optimize(self, env, cv, hold_event):
+    def __optimize(self, env, hold_cv, hold_event):
 
         logger.warning("__optimize")
 
-
-
-        logger.error("BEFORE optimize_cv")
-
-        logger.error(env.optimization.state.__dict__)
-
-        # logger.error(env.optimization.state.optimize_cv)
-
-        logger.warning("get_new_state")
-
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
-
-        logger.warning("env.optimization.state.current_time={}".format(
-            env.optimization.state.current_time))
-
-        logger.warning("env.optimization.freeze_interval={}".format(env.optimization.freeze_interval))
-
-        logger.error("env.current_time={}".format(env.current_time))
 
         with mp.Manager() as manager:
 
@@ -121,10 +92,6 @@ class Optimize(ActionEvent):
             logger.warning("manager")
 
             process_dict = manager.dict()
-
-            logger.warning("manager.dict()")
-
-            logger.error(env.optimization.__dict__)
 
             process_dict["optimization"] = env.optimization
 
@@ -135,32 +102,17 @@ class Optimize(ActionEvent):
             opt_process = DispatchProcess(dispatch=Optimize.dispatch,
                                           process_dict=process_dict)
 
-            logger.warning("BEFORE opt_process")
+            logger.warning("opt_process.start()")
 
             opt_process.start()
 
             logger.warning("PROCESS PID: {}".format(opt_process.pid))
 
-            logger.warning("opt_process.start()")
-
-
-
-            logger.warning(
-                "opt_process.is_alive()={}".format(opt_process.is_alive()))
-
-            # time.sleep(5)
-
             process_terminated = False
-
-            logger.warning("BEFORE PROCESS IS ALIVE")
-            logger.warning(
-                "opt_process.is_alive()={}".format(opt_process.is_alive()))
-
             while opt_process.is_alive():
                 if hold_event.on_hold:
-                    logger.warning("BEFORE SLEEP")
+                    logger.warning("SLEEP")
                     time.sleep(self.__max_optimization_time)
-                    logger.warning("AFTER SLEEP")
                     if opt_process.is_alive():
                         logger.warning("Terminate optimization process"
                                        .format(self.__wait_for))
@@ -173,13 +125,13 @@ class Optimize(ActionEvent):
             logger.warning("process_terminated: {}".format(process_terminated))
             if not process_terminated:
                 opt_process.join()
-            logger.warning("opt_process.join(): AFTER: {}".format(
+            logger.warning("opt_process.join(): {}".format(
                 opt_process.pid))
 
             opt_process.close()
 
-            logger.warning("cv")
-            with cv:
+            logger.warning("hold_cv")
+            with hold_cv:
                 hold_event.canceled = True
 
                 optimization_result = process_dict["optimization_result"]
@@ -190,7 +142,7 @@ class Optimize(ActionEvent):
                                   self.queue).add_to_queue()
 
                 logger.warning("notify")
-                cv.notify()
+                hold_cv.notify()
 
                 logger.warning("OUT")
 
@@ -294,13 +246,13 @@ class Hold(Event):
         self.__canceled = canceled
 
     def _process(self, env):
-        logger.critical("HOLD: BEGIN")
-        self.__on_hold = True
-        if not self.__canceled:
-            logger.critical("not canceled!")
-            with self.__cv:
+        with self.__cv:
+            logger.critical("HOLD: BEGIN")
+            self.__on_hold = True
+            if not self.__canceled:
+                logger.critical("not canceled!")
                 self.__cv.wait()
-        logger.critical("HOLD: END")
+            logger.critical("HOLD: END")
 
         return 'Hold process is implemented'
 

@@ -55,8 +55,8 @@ class Simulation(object):
         # main loop of the simulation
         while not self.__queue.is_empty():
 
-            for event in self.__queue.queue():
-                logger.warning("{} - {} - {}: {}".format(event.index, event.time, event.priority, event))
+            # for event in self.__queue.queue():
+            #     logger.warning("{} - {} - {}: {}".format(event.index, event.time, event.priority, event))
 
             current_event = self.__queue.pop()
 
