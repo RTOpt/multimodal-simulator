@@ -64,6 +64,10 @@ class VehicleWaiting(ActionEvent):
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
             VehicleBoarding(self.__route, self.queue).add_to_queue()
+            if self.__route.current_stop.departure_time > env.current_time:
+                VehicleWaiting(
+                    self.__route, self.queue,
+                    self.__route.current_stop.departure_time).add_to_queue()
         elif len(self.__route.next_stops) > 0:
             # No passengers to board
             if self.__route.current_stop.departure_time > env.current_time:
@@ -79,6 +83,15 @@ class VehicleWaiting(ActionEvent):
             VehicleComplete(self.__route, self.queue).add_to_queue()
 
         return 'Vehicle Waiting process is implemented'
+
+    def add_to_queue(self):
+        # Before adding the event, cancel all priorly added VehicleWaiting
+        # events associated with the vehicle since they have now become
+        # obsolete.
+        self.queue.cancel_event_type(self.__class__, time=None,
+                                     owner=self.__route.vehicle)
+
+        super().add_to_queue()
 
 
 class VehicleBoarding(ActionEvent):
@@ -198,18 +211,14 @@ class VehicleNotification(Event):
 
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
-            # Add passengers to board that were modified by optimization and
-            # that are not already present in
-            # self.__route.current_stop.passengers_to_board
+            # Modify passengers_to_board of current_stop according to the
+            # results of the optimization.
             actual_modified_passengers_to_board = \
                 self.__replace_copy_trips_with_actual_trips(
                     self.__route_update.
                     current_stop_modified_passengers_to_board)
-            for trip in actual_modified_passengers_to_board:
-                if trip not in \
-                        self.__route.current_stop.passengers_to_board:
-                    self.__route.current_stop.passengers_to_board \
-                        .append(trip)
+            self.__route.current_stop.passengers_to_board = \
+                actual_modified_passengers_to_board
 
         if self.__route_update.current_stop_departure_time is not None \
                 and self.__route.current_stop is not None:

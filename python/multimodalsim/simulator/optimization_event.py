@@ -71,12 +71,9 @@ class EnvironmentUpdate(ActionEvent):
             route = \
                 self.__optimization_result.state.route_by_vehicle_id[veh.id]
             if route.current_stop is not None:
-                # Add the passengers_to_board of current_stop that were
-                # modified during optimization.
+                # Copy passengers_to_board and departure time of current_stop.
                 current_stop_modified_passengers_to_board = \
-                    [trip for trip
-                     in route.current_stop.passengers_to_board
-                     if trip in self.__optimization_result.modified_requests]
+                    route.current_stop.passengers_to_board
                 current_stop_departure_time = \
                     route.current_stop.departure_time
             else:
