@@ -50,6 +50,8 @@ class Event(object):
 
         self.__priority = 1 - 1 / (1 + event_priority)
 
+        self.__cancelled = False
+
     @property
     def name(self):
         return self.__name
@@ -78,8 +80,22 @@ class Event(object):
     def index(self, index):
         self.__index = index
 
+    @property
+    def cancelled(self):
+        return self.__cancelled
+
+    @cancelled.setter
+    def cancelled(self, cancelled):
+        self.__cancelled = cancelled
+
     def process(self, env):
-        return self._process(env)
+
+        if not self.cancelled:
+            return_message = self._process(env)
+        else:
+            return_message = "The event was cancelled."
+
+        return return_message
 
     def _process(self, env):
         raise NotImplementedError('_process of {} not implemented'.
@@ -123,16 +139,22 @@ class ActionEvent(Event):
 
         self.__state_machine = state_machine
 
+        self.__cancelled = False
+
     @property
     def state_machine(self):
         return self.__state_machine
 
     def process(self, env):
 
-        if self.__state_machine is not None:
-            self.__state_machine.next_state(self.__class__, env)
+        if not self.cancelled:
+            if self.__state_machine is not None:
+                self.__state_machine.next_state(self.__class__, env)
+            return_message = self._process(env)
+        else:
+            return_message = "The event was cancelled."
 
-        return self._process(env)
+        return return_message
 
 
 class TimeSyncEvent(Event):
