@@ -191,6 +191,8 @@ class PassengerStateMachine(StateMachine):
                             PassengersStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengersStatus.ASSIGNED, PassengersStatus.READY,
                             PassengerReady)
+        self.add_transition(PassengersStatus.READY, PassengersStatus.READY,
+                            PassengerReady)
         self.add_transition(PassengersStatus.READY, PassengersStatus.ONBOARD,
                             PassengerToBoard)
         self.add_transition(PassengersStatus.ONBOARD,
