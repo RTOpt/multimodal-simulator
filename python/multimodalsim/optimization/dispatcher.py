@@ -191,16 +191,16 @@ class Dispatcher:
             current_location = route.current_stop.location
 
             if leg.origin == current_location:
-                route.current_stop.passengers_to_board.append(leg.trip)
+                self.__add_passenger_to_board(leg.trip, route.current_stop)
                 boarding_stop_found = True
 
         for stop in route.next_stops:
             if leg.origin == stop.location and not boarding_stop_found:
-                stop.passengers_to_board.append(leg.trip)
+                self.__add_passenger_to_board(leg.trip, stop)
                 boarding_stop_found = True
             elif leg.destination == stop.location and boarding_stop_found \
                     and not alighting_stop_found:
-                stop.passengers_to_alight.append(leg.trip)
+                self.__add_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
@@ -209,6 +209,16 @@ class Dispatcher:
             if leg.destination == stop.location:
                 stop.passengers_to_alight.append(leg.trip)
                 break
+
+    def __add_passenger_to_board(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_board]
+        if trip.id not in trip_ids_list:
+            stop.passengers_to_board.append(trip)
+
+    def __add_passenger_to_alight(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
+        if trip.id not in trip_ids_list:
+            stop.passengers_to_alight.append(trip)
 
 
 class OptimizedRoutePlan:
