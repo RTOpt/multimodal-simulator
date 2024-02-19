@@ -45,6 +45,24 @@ class EventQueue(object):
 
         return is_in_queue
 
+    def cancel_event_type(self, event_type, time=None, owner=None):
+        events_to_be_cancelled = []
+        for event in self.__queue.queue:
+            if owner is not None \
+                    and isinstance(event, ActionEvent) \
+                    and event.state_machine.owner == owner \
+                    and self.__is_event_looked_for(event, event_type, time):
+                events_to_be_cancelled.append(event)
+            elif owner is None \
+                    and self.__is_event_looked_for(event, event_type, time):
+                events_to_be_cancelled.append(event)
+
+        self.cancel_events(events_to_be_cancelled)
+
+    def cancel_events(self, events):
+        for event in events:
+            event.cancelled = True
+
     def __is_event_looked_for(self, event, event_type, time):
         is_event = False
         if time is not None and event.time == time \
