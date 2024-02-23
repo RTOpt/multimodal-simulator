@@ -53,7 +53,8 @@ class VehicleWaiting(ActionEvent):
     def __init__(self, route, queue, time=None):
         time = time if time is not None else queue.env.current_time
         super().__init__('VehicleWaiting', queue, time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.vehicle.state_machine,
+                         event_priority=Event.LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):
@@ -347,7 +348,7 @@ class VehicleComplete(ActionEvent):
             event_time = max(route.vehicle.end_time, queue.env.current_time)
         super().__init__('VehicleComplete', queue, event_time,
                          state_machine=route.vehicle.state_machine,
-                         event_priority=Event.LOW_PRIORITY)
+                         event_priority=Event.VERY_LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):

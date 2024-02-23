@@ -2,6 +2,7 @@ import logging
 import copy
 
 import multimodalsim.state_machine.state_machine as state_machine
+from multimodalsim.state_machine.status import PassengersStatus
 
 logger = logging.getLogger(__name__)
 
@@ -274,8 +275,13 @@ class Route(object):
         self.__assigned_legs.append(leg)
 
     def requests_to_pickup(self):
-        """Updates the list of requests to pick up by the vehicle"""
-        return self.__current_stop.passengers_to_board
+        """Returns the list of requests ready to be picked up by the vehicle"""
+        requests_to_pickup = []
+        for trip in self.__current_stop.passengers_to_board:
+            if trip.status == PassengersStatus.READY:
+                requests_to_pickup.append(trip)
+
+        return requests_to_pickup
 
     def __deepcopy__(self, memo):
         cls = self.__class__
