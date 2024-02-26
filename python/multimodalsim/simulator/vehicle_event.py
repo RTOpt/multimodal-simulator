@@ -112,8 +112,6 @@ class VehicleDeparture(ActionEvent):
 
     def _process(self, env):
 
-        logger.warning("self.__route.vehicle.id={}".format(self.__route.vehicle.id))
-
         if env.travel_times is not None:
             from_stop = copy.deepcopy(self.__route.current_stop)
             to_stop = copy.deepcopy(self.__route.next_stops[0])
@@ -189,11 +187,6 @@ class VehicleNotification(Event):
 
     def _process(self, env):
 
-        logger.warning("self.__route_update.vehicle_id={}".format(self.__route_update.vehicle_id))
-        if self.__route_update.current_stop_modified_passengers_to_board is not None:
-            for trip in self.__route_update.current_stop_modified_passengers_to_board:
-                logger.warning(trip)
-
         self.__env = env
 
         if self.__route_update.next_stops is not None:
@@ -212,9 +205,6 @@ class VehicleNotification(Event):
                     self.__route_update.
                     current_stop_modified_passengers_to_board)
             for trip in actual_modified_passengers_to_board:
-                logger.error("trip.id={}".format(trip.id))
-                logger.error("self.__route.vehicle.id={}".format(
-                    self.__route.vehicle.id))
                 if trip not in \
                         self.__route.current_stop.passengers_to_board:
                     self.__route.current_stop.passengers_to_board \
