@@ -135,7 +135,6 @@ class Dispatcher:
         modified_vehicles = []
 
         for route_plan in optimized_route_plans:
-
             self.__process_route_plan(route_plan)
 
             trips = [leg.trip for leg in route_plan.assigned_legs]
@@ -152,12 +151,23 @@ class Dispatcher:
 
         self.__update_route_next_stops(route_plan)
 
+        for leg in route_plan.already_onboard_legs:
+            # Assign leg to route
+            route_plan.route.assign_leg(leg)
+
+            # Assign the trip associated with leg that was already on board
+            # before optimization took place to the stops of the route
+            self.__assign_already_onboard_trip_to_stop(leg, route_plan.route)
+
         for leg in route_plan.assigned_legs:
-            # Assign legs to route
+            # Assign leg to route
             route_plan.route.assign_leg(leg)
 
             # Assign the trip associated with leg to the stops of the route
-            self.__assign_trip_to_stops(leg, route_plan.route)
+            if leg not in route_plan.legs_manually_assigned_to_stops \
+                    and leg not in route_plan.already_onboard_legs:
+                self.__automatically_assign_trip_to_stops(leg,
+                                                          route_plan.route)
 
     def __update_route_next_stops(self, route_plan):
         # Update current stop departure time
@@ -172,7 +182,8 @@ class Dispatcher:
                 and len(route_plan.next_stops) > 0:
             route_plan.route.next_stops[-1].departure_time = math.inf
 
-    def __assign_trip_to_stops(self, leg, route):
+    def __automatically_assign_trip_to_stops(self, leg, route):
+
         boarding_stop_found = False
         alighting_stop_found = False
 
@@ -180,17 +191,34 @@ class Dispatcher:
             current_location = route.current_stop.location
 
             if leg.origin == current_location:
-                route.current_stop.passengers_to_board.append(leg.trip)
+                self.__add_passenger_to_board(leg.trip, route.current_stop)
                 boarding_stop_found = True
 
         for stop in route.next_stops:
             if leg.origin == stop.location and not boarding_stop_found:
-                stop.passengers_to_board.append(leg.trip)
+                self.__add_passenger_to_board(leg.trip, stop)
                 boarding_stop_found = True
             elif leg.destination == stop.location and boarding_stop_found \
                     and not alighting_stop_found:
-                stop.passengers_to_alight.append(leg.trip)
+                self.__add_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
+
+    def __assign_already_onboard_trip_to_stop(self, leg, route):
+
+        for stop in route.next_stops:
+            if leg.destination == stop.location:
+                stop.passengers_to_alight.append(leg.trip)
+                break
+
+    def __add_passenger_to_board(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_board]
+        if trip.id not in trip_ids_list:
+            stop.passengers_to_board.append(trip)
+
+    def __add_passenger_to_alight(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
+        if trip.id not in trip_ids_list:
+            stop.passengers_to_alight.append(trip)
 
 
 class OptimizedRoutePlan:
@@ -234,6 +262,10 @@ class OptimizedRoutePlan:
         self.__assigned_legs = assigned_legs if assigned_legs is not None \
             else []
 
+        self.__already_onboard_legs = []
+
+        self.__legs_manually_assigned_to_stops = []
+
     @property
     def route(self):
         return self.__route
@@ -250,6 +282,14 @@ class OptimizedRoutePlan:
     def assigned_legs(self):
         return self.__assigned_legs
 
+    @property
+    def already_onboard_legs(self):
+        return self.__already_onboard_legs
+
+    @property
+    def legs_manually_assigned_to_stops(self):
+        return self.__legs_manually_assigned_to_stops
+
     def update_current_stop_departure_time(self, departure_time):
         """Modify the departure time of the current stop of the route plan
         (i.e., the stop at which the vehicle is at the time of optimization).
@@ -260,7 +300,8 @@ class OptimizedRoutePlan:
         self.__current_stop_departure_time = departure_time
 
     def append_next_stop(self, stop_id, arrival_time, departure_time=None,
-                         lon=None, lat=None, cumulative_distance=None):
+                         lon=None, lat=None, cumulative_distance=None,
+                         legs_to_board=None, legs_to_alight=None):
         """Append a stop to the list of next stops of the route plan.
             Parameters:
                 stop_id: string
@@ -279,6 +320,16 @@ class OptimizedRoutePlan:
                 cumulative_distance: float
                     Cumulative distance that the vehicle will have travelled
                     when it arrives at the stop.
+                legs_to_board: list of objects of type Leg or None
+                    The legs that should be boarded at that stop. If None, then
+                    the legs that are not explicitly assigned to a stop will
+                    automatically be boarded at the first stop corresponding to
+                    the origin location.
+                legs_to_alight: list of objects of type Leg or None
+                    The legs that should be alighted at that stop. If None,
+                    then the legs that are not explicitly assigned to a stop
+                    will automatically be alighted at the first stop
+                    corresponding to the destination location.
         """
         if self.__next_stops is None:
             self.__next_stops = []
@@ -289,6 +340,12 @@ class OptimizedRoutePlan:
         stop = Stop(arrival_time, departure_time,
                     LabelLocation(stop_id, lon, lat),
                     cumulative_distance=cumulative_distance)
+
+        if legs_to_board is not None:
+            self.__assign_legs_to_board_to_stop(legs_to_board, stop)
+
+        if legs_to_alight is not None:
+            self.__assign_legs_to_alight_to_stop(legs_to_alight, stop)
 
         self.__next_stops.append(stop)
 
@@ -303,7 +360,8 @@ class OptimizedRoutePlan:
 
         leg.assigned_vehicle = self.route.vehicle
 
-        self.__assigned_legs.append(leg)
+        if leg not in self.__assigned_legs:
+            self.__assigned_legs.append(leg)
 
         return self.__assigned_legs
 
@@ -316,3 +374,22 @@ class OptimizedRoutePlan:
                 self.route.current_stop.departure_time
 
         self.__next_stops = self.route.next_stops
+
+    def assign_already_onboard_legs(self):
+        """The legs that are on board will automatically be alighted at the
+        first stop corresponding to the destination location."""
+        self.__already_onboard_legs.extend(self.route.onboard_legs)
+
+    def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
+        for leg in legs_to_board:
+            stop.passengers_to_board.append(leg.trip)
+            if leg not in self.__legs_manually_assigned_to_stops:
+                self.__legs_manually_assigned_to_stops.append(leg)
+                self.assign_leg(leg)
+
+    def __assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
+        for leg in legs_to_alight:
+            stop.passengers_to_alight.append(leg.trip)
+            if leg not in self.__legs_manually_assigned_to_stops:
+                self.__legs_manually_assigned_to_stops.append(leg)
+                self.assign_leg(leg)

@@ -2,9 +2,9 @@ import logging
 import copy
 
 from multimodalsim.simulator.event import Event, ActionEvent
-from multimodalsim.state_machine.status import VehicleStatus
-# from multimodalsim.simulator.vehicle import Route
 import multimodalsim.simulator.vehicle
+from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
+
 
 import multimodalsim.simulator.optimization_event \
     as optimization_event
@@ -54,8 +54,9 @@ class VehicleReady(Event):
 class VehicleWaiting(ActionEvent):
     def __init__(self, route, queue, time=None):
         time = time if time is not None else queue.env.current_time
-        super().__init__('VehicleBoarding', queue, time,
-                         state_machine=route.vehicle.state_machine)
+        super().__init__('VehicleWaiting', queue, time,
+                         state_machine=route.vehicle.state_machine,
+                         event_priority=Event.LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):
@@ -66,6 +67,10 @@ class VehicleWaiting(ActionEvent):
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
             VehicleBoarding(self.__route, self.queue).add_to_queue()
+            if self.__route.current_stop.departure_time > env.current_time:
+                VehicleWaiting(
+                    self.__route, self.queue,
+                    self.__route.current_stop.departure_time).add_to_queue()
         elif len(self.__route.next_stops) > 0:
             # No passengers to board
             if self.__route.current_stop.departure_time > env.current_time:
@@ -82,18 +87,32 @@ class VehicleWaiting(ActionEvent):
 
         return 'Vehicle Waiting process is implemented'
 
+    def add_to_queue(self):
+        # Before adding the event, cancel all priorly added VehicleWaiting
+        # events associated with the vehicle since they have now become
+        # obsolete.
+        self.queue.cancel_event_type(self.__class__, time=None,
+                                     owner=self.__route.vehicle)
+
+        super().add_to_queue()
+
 
 class VehicleBoarding(ActionEvent):
     def __init__(self, route, queue):
         super().__init__('VehicleBoarding', queue,
                          queue.env.current_time,
-                         state_machine=route.vehicle.state_machine)
+                         state_machine=route.vehicle.state_machine,
+                         event_priority=Event.LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):
         passengers_to_board_copy = self.__route.current_stop. \
             passengers_to_board.copy()
-        for req in passengers_to_board_copy:
+
+        passengers_ready = [trip for trip in passengers_to_board_copy
+                            if trip.status == PassengersStatus.READY]
+
+        for req in passengers_ready:
             self.__route.initiate_boarding(req)
             passenger_event.PassengerToBoard(
                 req, self.queue).add_to_queue()
@@ -197,18 +216,14 @@ class VehicleNotification(Event):
 
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
-            # Add passengers to board that were modified by optimization and
-            # that are not already present in
-            # self.__route.current_stop.passengers_to_board
+            # Modify passengers_to_board of current_stop according to the
+            # results of the optimization.
             actual_modified_passengers_to_board = \
                 self.__replace_copy_trips_with_actual_trips(
                     self.__route_update.
                     current_stop_modified_passengers_to_board)
-            for trip in actual_modified_passengers_to_board:
-                if trip not in \
-                        self.__route.current_stop.passengers_to_board:
-                    self.__route.current_stop.passengers_to_board \
-                        .append(trip)
+            self.__route.current_stop.passengers_to_board = \
+                actual_modified_passengers_to_board
 
         if self.__route_update.current_stop_departure_time is not None \
                 and self.__route.current_stop is not None:
@@ -337,7 +352,7 @@ class VehicleComplete(ActionEvent):
             event_time = max(route.vehicle.end_time, queue.env.current_time)
         super().__init__('VehicleComplete', queue, event_time,
                          state_machine=route.vehicle.state_machine,
-                         event_priority=Event.LOW_PRIORITY)
+                         event_priority=Event.VERY_LOW_PRIORITY)
         self.__route = route
 
     def _process(self, env):
