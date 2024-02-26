@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from threading import Thread, Condition
 import multiprocessing as mp
@@ -17,36 +16,31 @@ logger = logging.getLogger(__name__)
 
 
 class Optimize(ActionEvent):
-    def __init__(self, time, queue, multiple_optimize_events=False,
-                 batch=None, max_optimization_time=1, wait_for=5):
-        if batch is not None:
+    def __init__(self, time, queue, multiple_optimize_events=None,
+                 batch=None, max_optimization_time=None, asynchronous=None):
+
+        self.__load_parameters_from_config(queue.env.optimization,
+                                           multiple_optimize_events, batch,
+                                           max_optimization_time, asynchronous)
+
+        if self.__batch is not None:
             # Round to the smallest integer greater than or equal to time that
             # is also a multiple of batch.#
             time = time + (batch - (time % batch)) % batch
         super().__init__('Optimize', queue, time,
                          event_priority=self.VERY_LOW_PRIORITY,
                          state_machine=queue.env.optimization.state_machine)
-        self.__multiple_optimize_events = multiple_optimize_events
-        self.__wait_for = wait_for
-        self.__max_optimization_time = max_optimization_time
 
     def process(self, env):
 
-        if self.state_machine.current_state.status == OptimizationStatus.OPTIMIZING:
-            logger.error("PUT BACK IN QUEUE")
-            if env.optimize_cv is not None:
-                with env.optimize_cv:
-                    logger.error("env.optimize_cv.wait()")
-                    env.optimize_cv.wait()
-
+        if self.state_machine.current_state.status \
+                == OptimizationStatus.OPTIMIZING:
+            with env.optimize_cv:
+                env.optimize_cv.wait()
             self.add_to_queue()
-
             process_message = 'Optimize process is put back in the event queue'
         else:
-            logger.error("PROCESS")
-            if self.state_machine is not None:
-                self.state_machine.next_state(self.__class__, env)
-            process_message = self._process(env)
+            process_message = super().process(env)
 
         return process_message
 
@@ -55,20 +49,14 @@ class Optimize(ActionEvent):
         env_stats = env.get_environment_statistics()
 
         if env.optimization.need_to_optimize(env_stats):
-
             env.optimize_cv = Condition()
 
             env.optimization.state = env.get_new_state()
 
-            hold_cv = Condition()
-            hold_event = Hold(self.queue, env.current_time
-                              + env.optimization.freeze_interval, hold_cv)
-            hold_event.add_to_queue()
-
-            optimize_thread = Thread(target=self.__optimize,
-                                     args=(env, hold_cv, hold_event))
-
-            optimize_thread.start()
+            if self.__asynchronous:
+                self.__optimize_asynchronously(env)
+            else:
+                self.__optimize_synchronously(env)
 
         return 'Optimize process is implemented'
 
@@ -78,73 +66,44 @@ class Optimize(ActionEvent):
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
             super().add_to_queue()
 
-    def __optimize(self, env, hold_cv, hold_event):
+    def __optimize_synchronously(self, env):
+        env.optimization.state.freeze_routes_for_time_interval(
+            env.optimization.freeze_interval)
 
-        logger.warning("__optimize")
+        optimization_result = env.optimization.dispatch(
+            env.optimization.state)
+
+        env.optimization.state.unfreeze_routes_for_time_interval(
+            env.optimization.freeze_interval)
+
+        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+
+    def __optimize_asynchronously(self, env):
+        hold_cv = Condition()
+
+        hold_event = Hold(self.queue, env.current_time
+                          + env.optimization.freeze_interval, hold_cv,
+                          self.__max_optimization_time)
+        hold_event.add_to_queue()
+
+        optimize_thread = Thread(target=self.__optimize_in_new_thread,
+                                 args=(env, hold_cv, hold_event))
+        optimize_thread.start()
+
+    def __optimize_in_new_thread(self, env, hold_cv, hold_event):
 
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
         with mp.Manager() as manager:
+            process_dict = self.__create_process_dict(env, manager)
 
-            logger.error("env.current_time={}".format(env.current_time))
-
-            logger.warning("manager")
-
-            process_dict = manager.dict()
-
-            process_dict["optimization"] = env.optimization
-
-            process_dict["optimization_result"] = None
-
-            logger.warning("DispatchProcess")
-
-            opt_process = DispatchProcess(dispatch=Optimize.dispatch,
-                                          process_dict=process_dict)
-
-            logger.warning("opt_process.start()")
-
+            opt_process = self.__create_optimize_process(process_dict,
+                                                         hold_event)
             opt_process.start()
+            opt_process.join()
 
-            logger.warning("PROCESS PID: {}".format(opt_process.pid))
-
-            process_terminated = False
-            while opt_process.is_alive():
-                if hold_event.on_hold:
-                    logger.warning("SLEEP")
-                    time.sleep(self.__max_optimization_time)
-                    if opt_process.is_alive():
-                        logger.warning("Terminate optimization process"
-                                       .format(self.__wait_for))
-                        opt_process.terminate()
-                        time.sleep(self.__wait_for)
-                        if opt_process.exitcode is None:
-                            opt_process.kill()
-                        process_terminated = True
-
-            logger.warning("process_terminated: {}".format(process_terminated))
-            if not process_terminated:
-                opt_process.join()
-            logger.warning("opt_process.join(): {}".format(
-                opt_process.pid))
-
-            opt_process.close()
-
-            logger.warning("hold_cv")
-            with hold_cv:
-                hold_event.canceled = True
-
-                optimization_result = process_dict["optimization_result"]
-                logger.warning(optimization_result)
-
-                logger.warning("EnvironmentUpdate")
-                EnvironmentUpdate(optimization_result,
-                                  self.queue).add_to_queue()
-
-                logger.warning("notify")
-                hold_cv.notify()
-
-                logger.warning("OUT")
+            self.__create_environment_update(process_dict, hold_event)
 
         env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
@@ -152,11 +111,54 @@ class Optimize(ActionEvent):
         with env.optimize_cv:
             env.optimize_cv.notify()
 
+    def __create_process_dict(self, env, manager):
+
+        process_dict = manager.dict()
+        process_dict["state"] = env.optimization.state
+        process_dict["dispatch_function"] = env.optimization.dispatch
+        process_dict["optimization_result"] = None
+
+        return process_dict
+
+    def __create_optimize_process(self, process_dict, hold_event):
+        opt_process = DispatchProcess(dispatch=Optimize.dispatch,
+                                      process_dict=process_dict)
+        with hold_event.cv:
+            hold_event.optimization_process = opt_process
+
+        return opt_process
+
+    def __create_environment_update(self, process_dict, hold_event):
+        with hold_event.cv:
+            hold_event.cancelled = True
+            optimization_result = process_dict["optimization_result"]
+            EnvironmentUpdate(optimization_result,
+                              self.queue).add_to_queue()
+            hold_event.cv.notify()
+
     @staticmethod
-    def dispatch(optimization):
-        optimization_result = optimization.dispatch(optimization.state)
+    def dispatch(dispatch_function, state):
+        optimization_result = dispatch_function(state)
 
         return optimization_result
+
+    def __load_parameters_from_config(self, optimization,
+                                      multiple_optimize_events, batch,
+                                      max_optimization_time, asynchronous):
+
+        config = optimization.config
+
+        self.__multiple_optimize_events = config.multiple_optimize_events \
+            if multiple_optimize_events is None else multiple_optimize_events
+        self.__batch = config.batch if batch is None else config.batch
+
+        self.__asynchronous = config.asynchronous \
+            if asynchronous is None else asynchronous
+
+        max_optimization_time = config.max_optimization_time \
+            if max_optimization_time is None else max_optimization_time
+        self.__max_optimization_time = optimization.freeze_interval \
+            if max_optimization_time is None else max_optimization_time
 
 
 class EnvironmentUpdate(ActionEvent):
@@ -221,13 +223,19 @@ class EnvironmentIdle(ActionEvent):
 
 
 class Hold(Event):
-    def __init__(self, queue, event_time, cv):
+    def __init__(self, queue, event_time, cv, max_optimization_time):
         super().__init__('Hold', queue, event_time=event_time)
 
         self.__cv = cv
+        self.__max_optimization_time = max_optimization_time
+        self.__timestamp = time.time()
 
-        self.__canceled = False
+        self.__cancelled = False
         self.__on_hold = False
+        self.__optimization_process = None
+
+        self.__termination_waiting_time = \
+            queue.env.optimization.config.termination_waiting_time
 
     @property
     def cv(self):
@@ -238,40 +246,55 @@ class Hold(Event):
         return self.__on_hold
 
     @property
-    def canceled(self):
-        return self.__canceled
+    def cancelled(self):
+        return self.__cancelled
 
-    @canceled.setter
-    def canceled(self, canceled):
-        self.__canceled = canceled
+    @cancelled.setter
+    def cancelled(self, cancelled):
+        self.__cancelled = cancelled
+
+    @property
+    def optimization_process(self):
+        return self.__optimization_process
+
+    @optimization_process.setter
+    def optimization_process(self, optimization_process):
+        self.__optimization_process = optimization_process
 
     def _process(self, env):
         with self.__cv:
-            logger.critical("HOLD: BEGIN")
             self.__on_hold = True
-            if not self.__canceled:
-                logger.critical("not canceled!")
-                self.__cv.wait()
-            logger.critical("HOLD: END")
+            if not self.__cancelled:
+                elapsed_time = time.time() - self.__timestamp
+                timeout = self.__max_optimization_time - elapsed_time \
+                    if self.__max_optimization_time - elapsed_time > 0 else 0
+                wait_return = self.__cv.wait(timeout=timeout)
+                if not wait_return:
+                    self.__terminate_process()
 
         return 'Hold process is implemented'
+
+    def __terminate_process(self):
+        if self.__optimization_process.is_alive():
+            logger.warning("Terminate optimization process".format(
+                self.__termination_waiting_time))
+            self.__optimization_process.terminate()
+            time.sleep(self.__termination_waiting_time)
+            if self.__optimization_process.exitcode is None:
+                self.__optimization_process.kill()
+            raise RuntimeError("Optimization exceeded the time limit of {} "
+                               "seconds.".format(self.__max_optimization_time))
 
 
 class DispatchProcess(mp.Process):
     def __init__(self, dispatch, process_dict):
-
         super().__init__()
         self.__dispatch = dispatch
         self.__process_dict = process_dict
 
     def run(self):
-        process_id = os.getpid()
-        logger.error("PROCESS BEGIN: {}".format(process_id))
+        state = self.__process_dict["state"]
+        dispatch_function = self.__process_dict["dispatch_function"]
 
-        optimization = self.__process_dict["optimization"]
-
-        optimization_result = self.__dispatch(optimization)
-
+        optimization_result = self.__dispatch(dispatch_function, state)
         self.__process_dict["optimization_result"] = optimization_result
-
-        logger.error("PROCESS END: {}".format(process_id))

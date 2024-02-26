@@ -1,5 +1,6 @@
 import logging
 
+from multimodalsim.config.optimization_config import OptimizationConfig
 from multimodalsim.optimization.splitter import OneLegSplitter
 from multimodalsim.state_machine.state_machine import OptimizationStateMachine
 
@@ -8,13 +9,18 @@ logger = logging.getLogger(__name__)
 
 class Optimization(object):
 
-    def __init__(self, dispatcher, splitter=None, freeze_interval=30):
+    def __init__(self, dispatcher, splitter=None, freeze_interval=None,
+                 config=None):
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
-        self.__freeze_interval = freeze_interval
+
         self.__state_machine = OptimizationStateMachine(self)
 
         self.__state = None
+
+        self.__config = OptimizationConfig() if config is None else config
+        self.__freeze_interval = freeze_interval \
+            if freeze_interval is not None else self.__config.freeze_interval
 
     @property
     def status(self):
@@ -53,6 +59,11 @@ class Optimization(object):
     @property
     def dispatcher(self):
         return self.__dispatcher
+
+    @property
+    def config(self):
+        return self.__config
+
 
 class OptimizationResult(object):
 

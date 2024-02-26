@@ -4,6 +4,7 @@ from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
+from multimodalsim.simulator.optimization_event import Optimize
 
 from multimodalsim.simulator.passenger_event import PassengerRelease
 from multimodalsim.simulator.vehicle_event import VehicleReady
@@ -17,7 +18,8 @@ class Simulation(object):
                  network=None, environment_observer=None, coordinates=None,
                  travel_times=None, config=None):
 
-        self.__env = Environment(optimization, network=network, coordinates=coordinates,
+        self.__env = Environment(optimization, network=network,
+                                 coordinates=coordinates,
                                  travel_times=travel_times)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
@@ -49,14 +51,11 @@ class Simulation(object):
     def data_collectors(self):
         return self.__environment_observer.data_collectors
 
-    def simulate(self, max_time=None):
+    def simulate(self, max_time=None, asynchronous=False):
         max_time = self.__max_time if max_time is None else max_time
 
         # main loop of the simulation
         while not self.__queue.is_empty():
-
-            # for event in self.__queue.queue():
-            #     logger.warning("{} - {} - {}: {}".format(event.index, event.time, event.priority, event))
 
             current_event = self.__queue.pop()
 

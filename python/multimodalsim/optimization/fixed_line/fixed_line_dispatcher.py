@@ -32,8 +32,6 @@ class FixedLineDispatcher(Dispatcher):
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""
 
-        logger.error("current_time={}".format(current_time))
-
         optimized_route_plans = []
         for leg in selected_next_legs:
             optimal_route = self.__find_optimal_route_for_leg(
