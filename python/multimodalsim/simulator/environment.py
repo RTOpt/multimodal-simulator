@@ -110,8 +110,10 @@ class Environment(object):
         return self.__assigned_trips
 
     def add_assigned_trip(self, trip):
-        """ Adds a new trip to the list of assigned trips"""
-        self.__assigned_trips.append(trip)
+        """ Adds a new trip to the list of assigned trips if it is not already
+        there"""
+        if trip not in self.__assigned_trips:
+            self.__assigned_trips.append(trip)
 
     def remove_assigned_trip(self, trip_id):
         """ Removes a trip from the list of assigned trips based on its id"""
@@ -123,8 +125,10 @@ class Environment(object):
         return self.__non_assigned_trips
 
     def add_non_assigned_trip(self, trip):
-        """ Adds a new trip to the list of non-assigned trips"""
-        self.__non_assigned_trips.append(trip)
+        """ Adds a new trip to the list of non-assigned trips it is not already
+        there"""
+        if trip not in self.__non_assigned_trips:
+            self.__non_assigned_trips.append(trip)
 
     def remove_non_assigned_trip(self, trip_id):
         """ Removes a trip from the list of non-assigned trips based on its
