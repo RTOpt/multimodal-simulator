@@ -4,6 +4,7 @@ from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader, os
 from multimodalsim.simulator.simulation import Simulation
 from multimodalsim.visualizer.visualizer import ConsoleVisualizer
+import logging 
 
 if __name__ == '__main__':
 
@@ -27,6 +28,7 @@ if __name__ == '__main__':
 
     # Initialize the simulation.
     simulation = Simulation(opt, trips, vehicles, visualizer=visualizer)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     # Execute the simulation.
     simulation.simulate()

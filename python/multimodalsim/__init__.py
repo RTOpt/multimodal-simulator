@@ -11,6 +11,9 @@ console_stream_handler.setFormatter(ColoredFormatter())
 
 root_logger = logging.getLogger()
 
+### If you want debug mode add the following line
+# logging.getLogger().setLevel(logging.DEBUG)
+
 # Remove default handler
 for h in root_logger.handlers:
     root_logger.removeHandler(h)
