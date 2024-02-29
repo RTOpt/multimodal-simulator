@@ -1,12 +1,14 @@
 import csv
 import ast
 from datetime import datetime, timedelta
+import os 
+import sys
 
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, GPSLocation, Vehicle, Route
 
-
+sys.path.insert(1, r"C:\Users\kklau\Desktop\Simulator")
 class DataReader(object):
     def __init__(self):
         pass
@@ -153,9 +155,9 @@ class GTFSReader(DataReader):
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
-        self.__stop_times_path = data_folder + stop_times_file_name
-        self.__calendar_dates_path = data_folder + calendar_dates_file_name
-        self.__trips_path = data_folder + trips_file_name
+        self.__stop_times_path = os.path.join(data_folder,stop_times_file_name)
+        self.__calendar_dates_path = os.path.join(data_folder,calendar_dates_file_name)
+        self.__trips_path = os.path.join(data_folder,trips_file_name)
 
         self.__CAPACITY = 10
 
