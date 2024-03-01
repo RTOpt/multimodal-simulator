@@ -1,3 +1,6 @@
+#STL confidential data 
+data/fixed_line/gtfs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

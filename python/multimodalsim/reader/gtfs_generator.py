@@ -6,8 +6,10 @@ from multimodalsim.config.gtfs_generator_config import GTFSGeneratorConfig
 
 logger = logging.getLogger(__name__)
 
-
 class GTFSGenerator:
+###This class reads files containing the passage_arret data from the STL and generates the corresponding GTFS-type files.
+### Input files are named Donnees_PASSAGE_ARRET_VLV_2019-11-01_2019-11-30.scv.
+### Output files for each day are saved in a folder named after the date, in the gtfs_folder folder.
     def __init__(self, config=None):
         config = GTFSGeneratorConfig() if config is None else config
         self.__load_config(config)

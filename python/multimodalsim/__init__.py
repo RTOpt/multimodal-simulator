@@ -14,6 +14,7 @@ root_logger = logging.getLogger()
 
 ### If you want debug mode add the following line
 # logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
 
 # Remove default handler
 for h in root_logger.handlers:
