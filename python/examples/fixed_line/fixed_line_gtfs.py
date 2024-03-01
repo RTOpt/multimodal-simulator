@@ -7,7 +7,7 @@ from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter, \
     OneLegSplitter
-from multimodalsim.reader.data_reader import GTFSReader
+from multimodalsim.reader.data_reader import GTFSReader, os
 from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
@@ -20,12 +20,12 @@ if __name__ == '__main__':
 
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
-    gtfs_folder_path = "../../../data/fixed_line/gtfs/gtfs/"
-    requests_file_path = "../../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
+    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs")
+    requests_file_path = os.path.join("data","fixed_line","gtfs","requests_gtfs_v1.csv")
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
     # Set to None if coordinates of the vehicles are not available.
-    coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
+    coordinates_file_path = os.path.join("data","fixed_line","gtfs","coordinates","coordinates_30s.csv")
     coordinates = CoordinatesFromFile(coordinates_file_path)
 
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
@@ -37,7 +37,6 @@ if __name__ == '__main__':
     freeze_interval = 5
     # Initialize the optimizer.
     splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
-    # splitter = OneLegSplitter()
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 

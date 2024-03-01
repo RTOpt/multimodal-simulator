@@ -9,6 +9,8 @@ from networkx.readwrite import json_graph
 import networkx as nx
 
 import os.path
+import sys
+sys.path.insert(1, r"C:\Users\kklau\Desktop\Simulator")
 
 from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
@@ -16,7 +18,7 @@ from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import LabelLocation, Stop, Vehicle, Route
 
 logger = logging.getLogger(__name__)
-
+sys.path
 
 class DataReader(object):
     def __init__(self):
@@ -226,11 +228,11 @@ class GTFSReader(DataReader):
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
-        self.__stops_path = data_folder + stops_file_name
-        self.__stop_times_path = data_folder + stop_times_file_name
-        self.__calendar_dates_path = data_folder + calendar_dates_file_name
-        self.__trips_path = data_folder + trips_file_name
-        self.__routes_path = data_folder + routes_file_name
+        self.__stops_path = os.path.join(data_folder, stops_file_name)
+        self.__stop_times_path = os.path.join(data_folder,stop_times_file_name)
+        self.__calendar_dates_path = os.path.join(data_folder,calendar_dates_file_name)
+        self.__trips_path = os.path.join(data_folder,trips_file_name)
+        self.__routes_path = os.path.join(data_folder,routes_file_name)
 
         config = DataReaderConfig() if config is None else config
         self.__trips_columns = config.get_trips_columns()
