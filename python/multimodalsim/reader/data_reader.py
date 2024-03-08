@@ -126,7 +126,7 @@ class ShuttleDataReader(DataReader):
 
         return vehicles, routes_by_vehicle_id
 
-    def get_json_graph(self):
+    def get_json_graph(self) -> nx.Graph:
         with open(self.__graph_from_json_file_path) as f:
             js_graph = json.load(f)
 

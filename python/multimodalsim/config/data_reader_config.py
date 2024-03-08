@@ -5,11 +5,11 @@ import os
 
 class DataReaderConfig(Config):
     def __init__(self,
-                 config_file=os.path.join(os.path.dirname(__file__),
-                                          "ini/gtfs_data_reader.ini")):
+                 config_file: str = os.path.join(os.path.dirname(__file__),
+                                                 "ini/gtfs_data_reader.ini")):
         super().__init__(config_file)
 
-    def get_trips_columns(self):
+    def get_trips_columns(self) -> dict:
         trips_columns = {
             "id": int(self._config_parser["trips"]["id"]),
             "origin": int(self._config_parser["trips"]["origin"]),

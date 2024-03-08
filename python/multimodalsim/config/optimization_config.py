@@ -4,21 +4,22 @@ import os
 
 
 class OptimizationConfig(Config):
-    def __init__(self, config_file=os.path.join(os.path.dirname(__file__),
-                                                "ini/optimization.ini")):
+    def __init__(self,
+                 config_file: str = os.path.join(os.path.dirname(__file__),
+                                                 "ini/optimization.ini")):
         super().__init__(config_file)
 
     @property
-    def freeze_interval(self):
+    def freeze_interval(self) -> int:
         return int(self._config_parser["general"]["freeze_interval"])
 
     @property
-    def multiple_optimize_events(self):
+    def multiple_optimize_events(self) -> str:
         return self._config_parser.getboolean("general",
                                               "multiple_optimize_events")
 
     @property
-    def batch(self):
+    def batch(self) -> float:
         config_batch = \
             self._config_parser["general"]["batch"]
         if len(config_batch) == 0:
@@ -29,11 +30,11 @@ class OptimizationConfig(Config):
         return batch
 
     @property
-    def asynchronous(self):
+    def asynchronous(self) -> bool:
         return self._config_parser.getboolean("asynchronous", "asynchronous")
 
     @property
-    def max_optimization_time(self):
+    def max_optimization_time(self) -> float:
         config_max_optimization_time = \
             self._config_parser["asynchronous"]["max_optimization_time"]
         if len(config_max_optimization_time) == 0:
@@ -44,6 +45,6 @@ class OptimizationConfig(Config):
         return max_optimization_time
 
     @property
-    def termination_waiting_time(self):
+    def termination_waiting_time(self) -> float:
         return float(self._config_parser["asynchronous"][
                          "termination_waiting_time"])

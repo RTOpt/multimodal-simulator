@@ -2,6 +2,9 @@ import math
 import logging
 
 from itertools import groupby
+from typing import List, Tuple
+
+import networkx as nx
 
 from multimodalsim.optimization.shuttle.constraints_and_objective_function import \
     variables_declaration
@@ -9,13 +12,16 @@ from multimodalsim.optimization.dispatcher import Dispatcher, \
     OptimizedRoutePlan
 from multimodalsim.optimization.shuttle.solution_construction import get_distances, \
     get_durations, update_data, set_initial_solution, improve_solution
+from multimodalsim.optimization.state import State
+from multimodalsim.simulator.vehicle import Route
+import multimodalsim.simulator.request as request
 
 logger = logging.getLogger(__name__)
 
 
 class ShuttleGreedyDispatcher(Dispatcher):
 
-    def __init__(self, network):
+    def __init__(self, network: nx.Graph):
         super().__init__()
         self.__network = network
 
@@ -23,8 +29,8 @@ class ShuttleGreedyDispatcher(Dispatcher):
         # seconds).
         self.__boarding_time = 10
 
-    def prepare_input(self, state):
-
+    def prepare_input(self, state: State) \
+            -> Tuple[List['request.Leg'], List[Route]]:
         routes_with_current_stops = []
         for vehicle in state.vehicles:
             route = state.route_by_vehicle_id[vehicle.id]
@@ -38,8 +44,9 @@ class ShuttleGreedyDispatcher(Dispatcher):
 
         return state.non_assigned_next_legs, routes_sorted_by_departure_time
 
-    def optimize(self, selected_next_legs, selected_routes, current_time,
-                 state):
+    def optimize(self, selected_next_legs: List['request.Leg'],
+                 selected_routes: List[Route], current_time: int,
+                 state: State) -> List[OptimizedRoutePlan]:
 
         vehicles = [route.vehicle for route in selected_routes]
         trips = [leg.trip for leg in selected_next_legs]
