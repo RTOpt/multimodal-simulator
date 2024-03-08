@@ -1,5 +1,7 @@
 import pandas as pd
 import logging
+import sys
+sys.path.insert(1, r"C:\Users\kklau\Desktop\Simulator")
 
 from multimodalsim.config.request_generator_config \
     import RequestsGeneratorConfig

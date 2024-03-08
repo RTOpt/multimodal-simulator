@@ -193,7 +193,7 @@ def main():
 
         if args.gtfs:
             # Parameters example:
-            # fixed --gtfs
+            #fixed --gtfs
             # --gtfs-folder ../../data/fixed_line/gtfs/gtfs/
             # -r ../../data/fixed_line/gtfs/requests_gtfs_v1.csv --multimodal
             # --log-level DEBUG

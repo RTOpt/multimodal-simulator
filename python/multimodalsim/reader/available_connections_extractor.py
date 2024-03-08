@@ -6,7 +6,7 @@ from geopy import distance
 from multimodalsim.config.request_generator_config \
     import RequestsGeneratorConfig
 from multimodalsim.reader.requests_generator import CAPFormatter
-
+###TEST 
 
 class AvailableConnectionsExtractor:
     def __init__(self, cap_file_path, stop_times_file_path, config=None):
