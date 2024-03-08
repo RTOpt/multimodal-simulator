@@ -20,7 +20,6 @@ class CAPRequestsGenerator(RequestsGenerator):
     def __init__(self, cap_file_path, stop_times_file_path, config=None):
         super().__init__()
 
-        config = RequestsGeneratorConfig() if config is None else config
         self.__load_config(config)
 
         self.__cap_formatter = CAPFormatter(cap_file_path,
@@ -62,6 +61,11 @@ class CAPRequestsGenerator(RequestsGenerator):
         requests_df.to_csv(requests_file_path, sep=";")
 
     def __load_config(self, config):
+        if isinstance(config, str):
+            config = RequestsGeneratorConfig(config)
+        elif not isinstance(config, RequestsGeneratorConfig):
+            config = RequestsGeneratorConfig()
+
         self.__max_connection_time = config.max_connection_time
         self.__release_time_delta = config.release_time_delta
         self.__ready_time_delta = config.ready_time_delta
@@ -173,6 +177,11 @@ class CAPFormatter:
         return self.__cap_df
 
     def __load_config(self, config):
+        if isinstance(config, str):
+            config = RequestsGeneratorConfig(config)
+        elif not isinstance(config, RequestsGeneratorConfig):
+            config = RequestsGeneratorConfig()
+
         self.__id_col = config.id_col
         self.__arrival_time_col = config.arrival_time_col
         self.__boarding_time_col = config.boarding_time_col

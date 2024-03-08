@@ -182,7 +182,7 @@ def main():
 
         data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                         graph_from_json_file_path,
-                                        vehicles_end_time=50000)
+                                        vehicles_end_time=100000)
         g = data_reader.get_json_graph()
 
         splitter = OneLegSplitter()

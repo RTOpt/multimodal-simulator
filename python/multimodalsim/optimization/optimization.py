@@ -18,9 +18,8 @@ class Optimization(object):
 
         self.__state = None
 
-        self.__config = OptimizationConfig() if config is None else config
-        self.__freeze_interval = freeze_interval \
-            if freeze_interval is not None else self.__config.freeze_interval
+        self.__load_config(config, freeze_interval)
+
 
     @property
     def status(self):
@@ -63,6 +62,17 @@ class Optimization(object):
     @property
     def config(self):
         return self.__config
+
+    def __load_config(self, config, freeze_interval):
+        if isinstance(config, str):
+            self.__config = OptimizationConfig(config)
+        elif not isinstance(config, OptimizationConfig):
+            self.__config = OptimizationConfig()
+        else:
+            self.__config = config
+
+        self.__freeze_interval = freeze_interval \
+            if freeze_interval is not None else self.__config.freeze_interval
 
 
 class OptimizationResult(object):

@@ -35,7 +35,6 @@ class StandardDataCollector(DataCollector):
         self.__current_event = None
         self.__time = None
 
-        config = DataCollectorConfig() if config is None else config
         self.__load_config(config)
 
     @property
@@ -70,6 +69,11 @@ class StandardDataCollector(DataCollector):
         self.__collect_environment_data(env)
 
     def __load_config(self, config):
+        if isinstance(config, str):
+            config = DataCollectorConfig(config)
+        elif not isinstance(config, DataCollectorConfig):
+            config = DataCollectorConfig()
+
         self.__data_container.set_columns("vehicles",
                                           config.get_vehicles_columns())
         self.__data_container.set_columns("trips",

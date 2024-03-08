@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 class GTFSGenerator:
     def __init__(self, config=None):
-        config = GTFSGeneratorConfig() if config is None else config
         self.__load_config(config)
 
         self.__passage_arret_file_path_list = None
@@ -157,6 +156,11 @@ class GTFSGenerator:
         return stop_times_with_date_df
 
     def __load_config(self, config):
+        if isinstance(config, str):
+            config = GTFSGeneratorConfig(config)
+        elif not isinstance(config, GTFSGeneratorConfig):
+            config = GTFSGeneratorConfig()
+
         self.__trip_id_col = config.trip_id_col
         self.__arrival_time_col = config.arrival_time_col
         self.__departure_time_col = config.departure_time_col

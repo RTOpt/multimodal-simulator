@@ -3,7 +3,7 @@ import time
 from threading import Thread, Condition
 import multiprocessing as mp
 
-from multimodalsim.simulator.event import ActionEvent, Event
+from multimodalsim.simulator.event import ActionEvent, Event, TimeSyncEvent
 from multimodalsim.simulator.vehicle import RouteUpdate
 
 import multimodalsim.simulator.request as request
@@ -219,16 +219,15 @@ class EnvironmentIdle(ActionEvent):
         return 'Environment Idle process is implemented'
 
 
-class Hold(Event):
+class Hold(TimeSyncEvent):
     def __init__(self, queue, event_time, cv, max_optimization_time):
-        super().__init__('Hold', queue, event_time=event_time)
+        speed = (event_time - queue.env.current_time) / max_optimization_time
+        super().__init__(queue, event_time, speed, event_name='Hold')
 
         self.__cv = cv
         self.__max_optimization_time = max_optimization_time
         self.__timestamp = time.time()
 
-        self.__cancelled = False
-        self.__on_hold = False
         self.__optimization_process = None
 
         self.__termination_waiting_time = \
@@ -239,18 +238,6 @@ class Hold(Event):
         return self.__cv
 
     @property
-    def on_hold(self):
-        return self.__on_hold
-
-    @property
-    def cancelled(self):
-        return self.__cancelled
-
-    @cancelled.setter
-    def cancelled(self, cancelled):
-        self.__cancelled = cancelled
-
-    @property
     def optimization_process(self):
         return self.__optimization_process
 
@@ -258,18 +245,11 @@ class Hold(Event):
     def optimization_process(self, optimization_process):
         self.__optimization_process = optimization_process
 
-    def _process(self, env):
+    def _synchronize(self):
         with self.__cv:
-            self.__on_hold = True
-            if not self.__cancelled:
-                elapsed_time = time.time() - self.__timestamp
-                timeout = self.__max_optimization_time - elapsed_time \
-                    if self.__max_optimization_time - elapsed_time > 0 else 0
-                wait_return = self.__cv.wait(timeout=timeout)
-                if not wait_return:
-                    self.__terminate_process()
-
-        return 'Hold process is implemented'
+            wait_return = self.__cv.wait(timeout=self._waiting_time)
+            if not wait_return:
+                self.__terminate_process()
 
     def __terminate_process(self):
         if self.__optimization_process.is_alive():

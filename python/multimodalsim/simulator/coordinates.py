@@ -92,8 +92,7 @@ class CoordinatesOSRM(Coordinates):
     def __init__(self, config=None):
         super().__init__()
 
-        config = CoordinatesOSRMConfig() if config is None else config
-        self.__osrm_url = config.url
+        self.__load_config(config)
 
     def update_position(self, vehicle, route, current_time):
 
@@ -158,18 +157,23 @@ class CoordinatesOSRM(Coordinates):
                     leg_polyline = polyline.encode(coordinates, geojson=True)
                     leg_durations_frac = [1.0]
                     polylines[str(i)] = (leg_polyline, leg_durations_frac)
-                    # polylines[stop_ids[i]] = (leg_polyline, leg_durations_frac)
 
         else:
             polylines[str(0)] = ("", [])
-            # polylines[stop_ids[0]] = ("", [])
 
         return polylines
+
+    def __load_config(self, config):
+        if isinstance(config, str):
+            config = CoordinatesOSRMConfig(config)
+        elif not isinstance(config, CoordinatesOSRMConfig):
+            config = CoordinatesOSRMConfig()
+
+        self.__osrm_url = config.url
 
     def __extract_coordinates_from_polyline(self, vehicle, current_time, stop1,
                                             stop2, stop_id):
 
-        # stop_polyline_durations = vehicle.polylines[stop1.location.label]
         stop_polyline_durations = vehicle.polylines[stop_id]
 
         stop_coordinates = polyline.decode(stop_polyline_durations[0],
@@ -259,262 +263,6 @@ class CoordinatesOSRM(Coordinates):
             start_coord_index = end_coord_index - 1
 
         return polylines
-
-
-class CoordinatesOSRMOld(Coordinates):
-    def __init__(self, config=None):
-        super().__init__()
-
-        config = CoordinatesOSRMConfig() if config is None else config
-        self.__osrm_url = config.url
-        self.__future_polylines_osrm = config.future_polylines_osrm
-
-        self.__vehicle_positions_dict = {}
-        self.__trip_positions_dict = {}
-
-        self.__vehicle_past_polylines_dict = {}
-        self.__vehicle_future_polylines_dict = {}
-        self.__trip_past_polylines_dict = {}
-        self.__trip_future_polylines_dict = {}
-        self.__osrm_response_dict = {}
-        self.__polylines_osrm_response_dict = {}
-        self.__coordinates_segments_dict = {}
-
-    def update_position(self, vehicle, route, current_time):
-
-        current_position = get_from_time_dict(
-            vehicle.id, current_time, self.__vehicle_positions_dict)
-
-        if current_position is None and route is None:
-            current_position = None
-        elif current_position is None \
-                and route.current_stop is not None:
-            current_position = route.current_stop.location
-        elif current_position is None \
-                and len(route.previous_stops) > 0:
-            # Current position is between two stops
-            stop1 = route.previous_stops[-1]
-            stop2 = route.next_stops[0]
-
-            current_coordinates = self.__get_coordinates_from_osrm(
-                current_time,
-                stop1.departure_time,
-                stop1.location.lon,
-                stop1.location.lat,
-                stop2.arrival_time,
-                stop2.location.lon,
-                stop2.location.lat)
-
-            current_position = TimeCoordinatesLocation(current_time,
-                                                       current_coordinates[0],
-                                                       current_coordinates[1])
-
-        update_time_dict(current_position, vehicle.id, current_time,
-                         self.__vehicle_positions_dict)
-
-        return current_position
-
-    def update_trip_positions(self, trip, time, position):
-
-        update_time_dict(position, trip.id, time, self.__trip_positions_dict)
-
-        return position
-
-    def update_vehicle_past_polyline(self, vehicle):
-
-        past_polyline = None
-
-        positions_by_time = self.__vehicle_positions_dict[vehicle.id]
-        positions = []
-        previous_coord = None
-        for time, position in positions_by_time.items():
-            current_coord = (position.lon, position.lat)
-            if current_coord != previous_coord:
-                positions.append(current_coord)
-                previous_coord = current_coord
-
-        if len(positions) > 1:
-            past_polyline = polyline.encode(positions, geojson=True)
-
-        return past_polyline
-
-    def update_trip_past_polyline(self, trip):
-
-        past_polyline = None
-
-        if trip.id in self.__trip_positions_dict:
-            positions_by_time = self.__trip_positions_dict[trip.id]
-            positions = []
-            previous_coord = None
-            for time, position in positions_by_time.items():
-                current_coord = (position.lon, position.lat)
-                if current_coord != previous_coord:
-                    positions.append(current_coord)
-                    previous_coord = current_coord
-
-            if len(positions) > 1:
-                past_polyline = polyline.encode(positions, geojson=True)
-
-        return past_polyline
-
-    def update_vehicle_future_polyline(self, vehicle, current_time):
-
-        future_polyline = get_from_time_dict(
-            vehicle, current_time, self.__vehicle_future_polylines_dict)
-        if future_polyline is None:
-            future_polyline = self.__update_vehicle_future_polyline(vehicle)
-            update_time_dict(future_polyline, vehicle.id, current_time,
-                             self.__vehicle_future_polylines_dict)
-
-        return future_polyline
-
-    def update_trip_future_polyline(self, trip, current_time):
-
-        future_polyline = get_from_time_dict(
-            trip, current_time, self.__trip_future_polylines_dict)
-        if future_polyline is None:
-            future_polyline = self.__update_trip_future_polyline(trip)
-            update_time_dict(future_polyline, trip.id, current_time,
-                             self.__trip_future_polylines_dict)
-
-        return future_polyline
-
-    def __get_coordinates_from_osrm(self, current_time, time1, lon1, lat1,
-                                    time2, lon2, lat2):
-
-        service_url = "route/v1/driving/"
-        args_url = "?annotations=true&overview=full"
-        coord_url = "{},{};{},{}".format(lon1, lat1, lon2, lat2)
-
-        if coord_url in self.__osrm_response_dict:
-            response = self.__osrm_response_dict[coord_url]
-        else:
-            request_url = self.__osrm_url + service_url + coord_url + args_url
-            response = requests.get(request_url)
-            self.__osrm_response_dict[coord_url] = response
-
-        route_res = response.json()
-        coordinates = polyline.decode(route_res['routes'][0]['geometry'],
-                                      geojson=True)
-        durations = route_res['routes'][0]['legs'][0]['annotation']['duration']
-        # We should always have that len(durations) == len(coordinates) - 1
-
-        current_coordinates = \
-            self.__calculate_current_coordinates(current_time, time1, time2,
-                                                 coordinates, durations)
-
-        return current_coordinates
-
-    def __calculate_current_coordinates(self, current_time, time1, time2,
-                                        coordinates, durations):
-        current_time_factor = (current_time - time1) / (time2 - time1)
-        cumulative_durations = np.cumsum(durations)
-        total_duration = cumulative_durations[-1]
-        current_duration = current_time_factor * total_duration
-
-        current_i = 0
-        for i in range(len(durations)):
-            if current_duration >= cumulative_durations[i]:
-                current_i = i
-
-        coordinates1 = coordinates[current_i + 1]
-        if current_i + 2 < len(coordinates):
-            coordinates2 = coordinates[current_i + 2]
-            duration1 = cumulative_durations[current_i]
-            duration2 = cumulative_durations[current_i + 1]
-            current_coordinates = \
-                self.__interpolate_coordinates(coordinates1, coordinates2,
-                                               duration1, duration2,
-                                               current_duration)
-        else:
-            # Vehicle is at the end of the route (i.e., coordinates1 is the
-            # last coordinates)
-            current_coordinates = coordinates1
-
-        return current_coordinates
-
-    def __interpolate_coordinates(self, coordinates1, coordinates2, time1,
-                                  time2, current_time):
-        inter_factor = (current_time - time1) / (time2 - time1)
-
-        current_lon = inter_factor * (coordinates2[0]
-                                      - coordinates1[0]) + coordinates1[0]
-        current_lat = inter_factor * (coordinates2[1]
-                                      - coordinates1[1]) + coordinates1[1]
-        current_coordinates = (current_lon, current_lat)
-
-        return current_coordinates
-
-    def __update_vehicle_future_polyline(self, vehicle):
-
-        future_polyline = None
-        future_coordinates = []
-
-        if vehicle.position is not None:
-            future_coordinates.append((vehicle.position.lon,
-                                       vehicle.position.lat))
-
-        for stop in vehicle.route.next_stops:
-            stop_coord = (stop.location.lon, stop.location.lat)
-            future_coordinates.append(stop_coord)
-
-        if len(future_coordinates) > 1 and self.__future_polylines_osrm:
-            future_polyline = \
-                self.__get_polyline_from_osrm(future_coordinates)
-        elif len(future_coordinates) > 1:
-            future_polyline = polyline.encode(future_coordinates,
-                                              geojson=True)
-
-        return future_polyline
-
-    def __update_trip_future_polyline(self, trip):
-
-        future_polyline = None
-        future_coordinates = []
-
-        if trip.position is not None:
-            future_coordinates.append((trip.position.lon, trip.position.lat))
-
-        if trip.current_leg.assigned_vehicle is not None:
-            current_leg_next_stops = get_next_stops_until_dest(
-                trip.current_leg.destination,
-                trip.current_leg.assigned_vehicle.route)
-            for stop in current_leg_next_stops:
-                stop_coord = (stop.location.lon, stop.location.lat)
-                future_coordinates.append(stop_coord)
-
-        if len(future_coordinates) > 1 and self.__future_polylines_osrm:
-            future_polyline = \
-                self.__get_polyline_from_osrm(future_coordinates)
-        elif len(future_coordinates) > 1:
-            future_polyline = polyline.encode(future_coordinates,
-                                              geojson=True)
-
-        return future_polyline
-
-    def __get_polyline_from_osrm(self, coordinates_list):
-        coordinates_str_list = [str(coord[0]) + "," + str(coord[1]) for coord
-                                in coordinates_list]
-
-        service_url = "route/v1/driving/"
-        args_url = ""
-        coord_url = ";".join(coordinates_str_list)
-
-        if coord_url in self.__polylines_osrm_response_dict:
-            response = self.__polylines_osrm_response_dict[coord_url]
-        else:
-            request_url = self.__osrm_url + service_url + coord_url + args_url
-            response = requests.get(request_url)
-            self.__polylines_osrm_response_dict[coord_url] = response
-
-        route_res = response.json()
-
-        if route_res['code'] == 'Ok':
-            returned_polyline = route_res['routes'][0]['geometry']
-        else:
-            returned_polyline = None
-
-        return returned_polyline
 
 
 def get_from_time_dict(key, time, time_dict):

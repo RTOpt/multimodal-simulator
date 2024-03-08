@@ -8,7 +8,8 @@ from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter, \
     OneLegSplitter
 from multimodalsim.reader.data_reader import GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile
+from multimodalsim.simulator.coordinates import CoordinatesFromFile, \
+    CoordinatesOSRM
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,9 @@ if __name__ == '__main__':
     # Set to None if coordinates of the vehicles are not available.
     coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
     coordinates = CoordinatesFromFile(coordinates_file_path)
+
+    # To estimate the coordinates from an OSRM server, use the following:
+    # coordinates = CoordinatesOSRM()
 
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()

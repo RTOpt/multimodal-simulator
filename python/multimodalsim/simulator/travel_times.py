@@ -20,8 +20,6 @@ class MatrixTravelTimes(TravelTimes):
 
     def get_expected_arrival_time(self, from_stop, to_stop, vehicle):
 
-        logger.warning(self.__times_matrix)
-
         travel_time = \
             self.__times_matrix[vehicle.id][from_stop.location.label][
                 to_stop.location.label]

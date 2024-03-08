@@ -15,8 +15,6 @@ class MatrixTravelTimesReader:
 
         times_matrix = self.__read_from_file()
 
-        logger.warning(times_matrix)
-
         matrix_travel_times = MatrixTravelTimes(times_matrix)
 
         return matrix_travel_times

@@ -42,7 +42,6 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def __init__(self, data_container=None, config=None):
         super().__init__(data_container)
 
-        config = DataAnalyzerConfig() if config is None else config
         self.__load_config(config)
 
     @property
@@ -327,8 +326,12 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         return route_durations_df
 
     def __load_config(self, config):
-        self.__default_ghg_e = config.ghg_e
+        if isinstance(config, str):
+            config = DataAnalyzerConfig(config)
+        elif not isinstance(config, DataAnalyzerConfig):
+            config = DataAnalyzerConfig()
 
+        self.__default_ghg_e = config.ghg_e
         self.__events_table_name = config.events_table
         self.__vehicles_table_name = config.vehicles_table
         self.__trips_table_name = config.trips_table

@@ -171,17 +171,20 @@ class TimeSyncEvent(Event):
         current_time = queue.env.current_time
         self.__event_timestamp = time.time() \
                                  + (event_time - current_time) / speed
-        self.__time_slept = None
+        self._waiting_time = None
 
     def process(self, env):
         current_timestamp = time.time()
-        self.__time_slept = self.__event_timestamp - current_timestamp
-        if self.__time_slept > 0:
-            time.sleep(self.__time_slept)
+        self._waiting_time = self.__event_timestamp - current_timestamp
+        if self._waiting_time > 0:
+            self._synchronize()
         self._process(env)
 
+    def _synchronize(self):
+        time.sleep(self._waiting_time)
+
     def _process(self, env):
-        return str(self.__time_slept)
+        return str(self._waiting_time)
 
 
 class RecurrentTimeSyncEvent(TimeSyncEvent):

@@ -232,8 +232,7 @@ class GTFSReader(DataReader):
         self.__trips_path = data_folder + trips_file_name
         self.__routes_path = data_folder + routes_file_name
 
-        config = DataReaderConfig() if config is None else config
-        self.__trips_columns = config.get_trips_columns()
+        self.__load_config(config)
 
         self.__CAPACITY = 10
 
@@ -404,6 +403,14 @@ class GTFSReader(DataReader):
                     available_connections[location] = locations_cc_set
 
         return available_connections
+
+    def __load_config(self, config):
+        if isinstance(config, str):
+            config = DataReaderConfig(config)
+        elif not isinstance(config, DataReaderConfig):
+            config = DataReaderConfig()
+
+        self.__trips_columns = config.get_trips_columns()
 
     def __get_vehicle_and_next_stops(self, trip_id, stop_time_list):
 
