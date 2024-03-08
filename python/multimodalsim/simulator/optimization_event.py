@@ -221,8 +221,9 @@ class EnvironmentIdle(ActionEvent):
 
 class Hold(TimeSyncEvent):
     def __init__(self, queue, event_time, cv, max_optimization_time):
-        speed = (event_time - queue.env.current_time) / max_optimization_time
-        super().__init__(queue, event_time, speed, event_name='Hold')
+        super().__init__(queue, event_time,
+                         max_waiting_time=max_optimization_time,
+                         event_name='Hold')
 
         self.__cv = cv
         self.__max_optimization_time = max_optimization_time
@@ -247,9 +248,10 @@ class Hold(TimeSyncEvent):
 
     def _synchronize(self):
         with self.__cv:
-            wait_return = self.__cv.wait(timeout=self._waiting_time)
-            if not wait_return:
-                self.__terminate_process()
+            if not self.cancelled:
+                wait_return = self.__cv.wait(timeout=self._waiting_time)
+                if not wait_return:
+                    self.__terminate_process()
 
     def __terminate_process(self):
         if self.__optimization_process.is_alive():

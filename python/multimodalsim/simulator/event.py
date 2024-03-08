@@ -160,28 +160,36 @@ class ActionEvent(Event):
 
 class TimeSyncEvent(Event):
 
-    def __init__(self, queue, event_time, speed, event_priority=None,
-                 event_name=None):
+    def __init__(self, queue, event_time, speed=None, max_waiting_time=None,
+                 event_priority=None, event_name=None):
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         if event_name is None:
             event_name = "TimeSyncEvent"
         super().__init__(event_name, queue, event_time, event_priority)
 
-        current_time = queue.env.current_time
-        self.__event_timestamp = time.time() \
-                                 + (event_time - current_time) / speed
+        if speed is not None:
+            current_time = queue.env.current_time
+            self.__event_timestamp = time.time() \
+                                     + (event_time - current_time) / speed
+        elif max_waiting_time is not None:
+            self.__event_timestamp = time.time() + max_waiting_time
+        else:
+            raise ValueError("Either the parameter 'speed' or the parameter "
+                             "'max_waiting_time' must be different from None.")
+
         self._waiting_time = None
 
     def process(self, env):
         current_timestamp = time.time()
-        self._waiting_time = self.__event_timestamp - current_timestamp
-        if self._waiting_time > 0:
-            self._synchronize()
+        self._waiting_time = self.__event_timestamp - current_timestamp \
+            if self.__event_timestamp - current_timestamp > 0 else 0
+        self._synchronize()
         self._process(env)
 
     def _synchronize(self):
-        time.sleep(self._waiting_time)
+        if self._waiting_time > 0:
+            time.sleep(self._waiting_time)
 
     def _process(self, env):
         return str(self._waiting_time)
@@ -190,7 +198,8 @@ class TimeSyncEvent(Event):
 class RecurrentTimeSyncEvent(TimeSyncEvent):
     def __init__(self, queue, event_time, speed,
                  time_step, event_priority=None):
-        super().__init__(queue, event_time, speed, event_priority,
+        super().__init__(queue, event_time, speed=speed,
+                         event_priority=event_priority,
                          event_name="RecurrentTimeSyncEvent")
 
         self.__event_time = event_time
