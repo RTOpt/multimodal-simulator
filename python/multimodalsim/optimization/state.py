@@ -1,5 +1,8 @@
 import logging
 
+import multimodalsim.simulator.request as request
+import multimodalsim.simulator.vehicle as vehicle_module
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +51,7 @@ class State:
         self.non_assigned_next_legs = self.__get_next_legs(
             self.non_assigned_trips)
 
-    def get_trip_by_id(self, trip_id):
+    def get_trip_by_id(self, trip_id: str | int) -> 'request.Trip':
         found_trip = None
         for trip in self.trips:
             if trip.id == trip_id:
@@ -56,7 +59,8 @@ class State:
                 break
         return found_trip
 
-    def get_vehicle_by_id(self, vehicle_id):
+    def get_vehicle_by_id(self,
+                          vehicle_id: str | int) -> 'vehicle_module.Vehicle':
         found_vehicle = None
         for vehicle in self.vehicles:
             logger.warning("vehicle.id={}".format(vehicle.id))
@@ -65,7 +69,7 @@ class State:
                 break
         return found_vehicle
 
-    def get_leg_by_id(self, leg_id):
+    def get_leg_by_id(self, leg_id: str | int) -> 'request.Leg':
         # Look for the leg in the legs of all trips.
         found_leg = None
         for trip in self.trips:
@@ -84,13 +88,13 @@ class State:
 
         return found_leg
 
-    def freeze_routes_for_time_interval(self, time_interval):
+    def freeze_routes_for_time_interval(self, time_interval: int):
 
         self.current_time = self.current_time + time_interval
 
         self.__move_stops_backward()
 
-    def unfreeze_routes_for_time_interval(self, time_interval):
+    def unfreeze_routes_for_time_interval(self, time_interval: int):
 
         self.current_time = self.current_time - time_interval
 

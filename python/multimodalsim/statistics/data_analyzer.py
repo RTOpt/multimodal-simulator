@@ -2,7 +2,7 @@ import pandas as pd
 import logging
 
 from multimodalsim.config.data_analyzer_config import DataAnalyzerConfig
-from multimodalsim.state_machine.status import PassengersStatus, VehicleStatus
+from multimodalsim.state_machine.status import PassengerStatus, VehicleStatus
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
             "previous_legs"]
 
         trips_complete_series = trips_df[trips_df[status_col]
-                                         == PassengersStatus.COMPLETE]
+                                         == PassengerStatus.COMPLETE]
 
         trips_legs_complete_series = trips_complete_series.apply(
             lambda x: x[previous_legs_col], axis=1)
@@ -304,7 +304,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         time_col = self.data_container.get_columns("trips")["time"]
 
         trips_ready_complete_df = trips_df[trips_df[status_col].isin(
-            [PassengersStatus.READY, PassengersStatus.COMPLETE])]
+            [PassengerStatus.READY, PassengerStatus.COMPLETE])]
         trip_durations_df = trips_ready_complete_df.groupby(id_col).agg(
             {time_col: lambda x: max(x) - min(x)})
 

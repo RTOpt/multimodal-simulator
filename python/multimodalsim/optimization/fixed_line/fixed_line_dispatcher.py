@@ -1,7 +1,11 @@
 import logging
+from typing import Tuple, List
 
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, \
     Dispatcher
+from multimodalsim.optimization.state import State
+from multimodalsim.simulator.vehicle import Route
+import multimodalsim.simulator.request as request
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +15,8 @@ class FixedLineDispatcher(Dispatcher):
     def __init__(self):
         super().__init__()
 
-    def prepare_input(self, state):
+    def prepare_input(self, state: State) \
+            -> Tuple[List['request.Leg'], List[Route]]:
         """Before optimizing, we extract the legs and the routes that we want
         to be considered by the optimization algorithm. For the
         FixedLineDispatcher, we want to keep only the legs that have not
@@ -26,8 +31,9 @@ class FixedLineDispatcher(Dispatcher):
 
         return selected_next_legs, selected_routes
 
-    def optimize(self, selected_next_legs, selected_routes, current_time,
-                 state):
+    def optimize(self, selected_next_legs: List['request.Leg'],
+                 selected_routes: List[Route], current_time: int,
+                 state: State) -> List[OptimizedRoutePlan]:
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""

@@ -1,14 +1,20 @@
 import copy
 import logging
-from multiprocessing import Condition
+from threading import Condition
+from typing import Optional, Any, List
 
+from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.state import State
-from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
+from multimodalsim.simulator.coordinates import Coordinates
+import multimodalsim.simulator.request as request
+from multimodalsim.simulator.travel_times import TravelTimes
+from multimodalsim.simulator.vehicle import Vehicle, Route
+from multimodalsim.state_machine.status import VehicleStatus, PassengerStatus
 
 logger = logging.getLogger(__name__)
 
 
-class Environment(object):
+class Environment:
     """The ``Environment`` class mostly serves as a structure for storing basic
     information about the environment
         Attributes:
@@ -37,8 +43,10 @@ class Environment(object):
             The actual travel times of the vehicles.
         """
 
-    def __init__(self, optimization, network=None, coordinates=None,
-                 travel_times=None):
+    def __init__(self, optimization: Optimization,
+                 network: Optional[Any] = None,
+                 coordinates: Optional[Coordinates] = None,
+                 travel_times: Optional[TravelTimes] = None):
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -54,11 +62,11 @@ class Environment(object):
         self.__optimize_cv = None
 
     @property
-    def current_time(self):
+    def current_time(self) -> int:
         return self.__current_time
 
     @current_time.setter
-    def current_time(self, current_time):
+    def current_time(self, current_time: int):
         if current_time < self.__current_time:
             logger.warning(
                 "{} < {}".format(current_time, self.__current_time))
@@ -67,10 +75,10 @@ class Environment(object):
         self.__current_time = current_time
 
     @property
-    def trips(self):
+    def trips(self) -> List['request.Trip']:
         return self.__trips
 
-    def get_trip_by_id(self, trip_id):
+    def get_trip_by_id(self, trip_id: str | int) -> 'request.Trip':
         found_trip = None
         for trip in self.trips:
             if trip.id == trip_id:
@@ -78,15 +86,15 @@ class Environment(object):
                 break
         return found_trip
 
-    def add_trip(self, trip):
+    def add_trip(self, trip: 'request.Trip'):
         """ Adds a new trip to the trips list"""
         self.__trips.append(trip)
 
-    def remove_trip(self, trip_id):
+    def remove_trip(self, trip_id: str | int):
         """ Removes a trip from the requests list based on its id"""
         self.__trips = [trip for trip in self.__trips if trip.id != trip_id]
 
-    def get_leg_by_id(self, leg_id):
+    def get_leg_by_id(self, leg_id: str | int) -> 'request.Leg':
         # Look for the leg in the legs of all trips.
         found_leg = None
         for trip in self.__trips:
@@ -106,77 +114,77 @@ class Environment(object):
         return found_leg
 
     @property
-    def assigned_trips(self):
+    def assigned_trips(self) -> List['request.Trip']:
         return self.__assigned_trips
 
-    def add_assigned_trip(self, trip):
+    def add_assigned_trip(self, trip: 'request.Trip'):
         """ Adds a new trip to the list of assigned trips if it is not already
         there"""
         if trip not in self.__assigned_trips:
             self.__assigned_trips.append(trip)
 
-    def remove_assigned_trip(self, trip_id):
+    def remove_assigned_trip(self, trip_id: str | int):
         """ Removes a trip from the list of assigned trips based on its id"""
         self.__assigned_trips = [trip for trip in self.__assigned_trips
                                  if trip.id != trip_id]
 
     @property
-    def non_assigned_trips(self):
+    def non_assigned_trips(self) -> List['request.Trip']:
         return self.__non_assigned_trips
 
-    def add_non_assigned_trip(self, trip):
+    def add_non_assigned_trip(self, trip: 'request.Trip'):
         """ Adds a new trip to the list of non-assigned trips it is not already
         there"""
         if trip not in self.__non_assigned_trips:
             self.__non_assigned_trips.append(trip)
 
-    def remove_non_assigned_trip(self, trip_id):
+    def remove_non_assigned_trip(self, trip_id: str | int):
         """ Removes a trip from the list of non-assigned trips based on its
         id """
         self.__non_assigned_trips = [trip for trip in self.__non_assigned_trips
                                      if trip.id != trip_id]
 
     @property
-    def vehicles(self):
+    def vehicles(self) -> List[Vehicle]:
         return self.__vehicles
 
-    def get_vehicle_by_id(self, vehicle_id):
+    def get_vehicle_by_id(self, vehicle_id: str | int) -> Vehicle:
         found_vehicle = None
         for vehicle in self.vehicles:
             if vehicle.id == vehicle_id:
                 found_vehicle = vehicle
         return found_vehicle
 
-    def add_vehicle(self, vehicle):
+    def add_vehicle(self, vehicle: Vehicle):
         """ Adds a new vehicle to the vehicles list"""
         self.__vehicles.append(vehicle)
 
-    def remove_vehicle(self, vehicle_id):
+    def remove_vehicle(self, vehicle_id: str | int):
         """ Removes a vehicle from the vehicles list based on its id"""
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
 
     @property
-    def route_by_vehicle_id(self):
+    def route_by_vehicle_id(self) -> dict[str | int, Route]:
         return self.__routes_by_vehicle_id
 
-    def get_route_by_vehicle_id(self, vehicle_id):
+    def get_route_by_vehicle_id(self, vehicle_id: str | int) -> Route:
         route = None
         if vehicle_id in self.__routes_by_vehicle_id:
             route = self.__routes_by_vehicle_id[vehicle_id]
 
         return route
 
-    def add_route(self, route, vehicle_id):
+    def add_route(self, route: Route, vehicle_id: str | int):
         self.__routes_by_vehicle_id[vehicle_id] = route
 
-    def get_environment_statistics(self):
+    def get_environment_statistics(self) -> 'EnvironmentStatistics':
 
         env_stats = EnvironmentStatistics(self)
 
         return env_stats
 
-    def get_new_state(self):
+    def get_new_state(self) -> State:
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
@@ -207,46 +215,46 @@ class Environment(object):
     def __get_non_complete_trips(self, trips):
         non_complete_trips = []
         for trip in trips:
-            if trip.status != PassengersStatus.COMPLETE:
+            if trip.status != PassengerStatus.COMPLETE:
                 non_complete_trips.append(trip)
         return non_complete_trips
 
     @property
-    def network(self):
+    def network(self) -> Optional[Any]:
         return self.__network
 
     @property
-    def optimization(self):
+    def optimization(self) -> Optimization:
         return self.__optimization
 
     @property
-    def coordinates(self):
+    def coordinates(self) -> Coordinates:
         return self.__coordinates
 
     @property
-    def travel_times(self):
+    def travel_times(self) -> TravelTimes:
         return self.__travel_times
 
     @property
-    def optimize_cv(self):
+    def optimize_cv(self) -> Optional[Condition]:
         return self.__optimize_cv
 
     @optimize_cv.setter
-    def optimize_cv(self, optimize_cv):
+    def optimize_cv(self, optimize_cv: Optional[Condition]):
         self.__optimize_cv = optimize_cv
 
 
 class EnvironmentStatistics:
 
-    def __init__(self, env):
+    def __init__(self, env: Environment):
         self.__nb_vehicles = len(env.vehicles)
         self.__nb_trips = len(env.trips)
 
     @property
-    def nb_vehicles(self):
+    def nb_vehicles(self) -> int:
         return self.__nb_vehicles
 
     @property
-    def nb_trips(self):
+    def nb_trips(self) -> int:
         return self.__nb_trips
 

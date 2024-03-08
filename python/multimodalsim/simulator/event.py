@@ -1,12 +1,17 @@
 import functools
 import logging
 import time
+from typing import Optional
+
+import multimodalsim.simulator.event_queue as event_queue
+import multimodalsim.simulator.environment as environment
+import multimodalsim.state_machine.state_machine as state_machine
 
 logger = logging.getLogger(__name__)
 
 
 @functools.total_ordering
-class Event(object):
+class Event:
     """An event with event_number occurs at a specific time ``event_time``
     and involves a specific event type ``event_type``. Comparing two events
     amounts to figuring out which event occurs first """
@@ -18,8 +23,9 @@ class Event(object):
     HIGH_PRIORITY = 4
     MAX_DELTA_TIME = 7 * 24 * 3600
 
-    def __init__(self, event_name, queue, event_time=None, event_priority=5,
-                 index=None):
+    def __init__(self, event_name: str, queue: 'event_queue.EventQueue',
+                 event_time: Optional[int] = None, event_priority: int = 5,
+                 index: Optional[int] = None):
         self.__name = event_name
         self.__queue = queue
         self.__index = index
@@ -54,42 +60,42 @@ class Event(object):
         self.__cancelled = False
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__name
 
     @property
-    def queue(self):
+    def queue(self) -> 'event_queue.EventQueue':
         return self.__queue
 
     @property
-    def time(self):
+    def time(self) -> int:
         return self.__time
 
     @time.setter
-    def time(self, time):
+    def time(self, time: int):
         self.__time = time
 
     @property
-    def priority(self):
+    def priority(self) -> float:
         return self.__priority
 
     @property
-    def index(self):
+    def index(self) -> int:
         return self.__index
 
     @index.setter
-    def index(self, index):
+    def index(self, index: int):
         self.__index = index
 
     @property
-    def cancelled(self):
+    def cancelled(self) -> bool:
         return self.__cancelled
 
     @cancelled.setter
-    def cancelled(self, cancelled):
+    def cancelled(self, cancelled: bool):
         self.__cancelled = cancelled
 
-    def process(self, env):
+    def process(self, env: 'environment.Environment') -> str:
 
         if not self.cancelled:
             return_message = self._process(env)
@@ -98,7 +104,7 @@ class Event(object):
 
         return return_message
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         raise NotImplementedError('_process of {} not implemented'.
                                   format(self.__class__.__name__))
 
@@ -129,8 +135,10 @@ class Event(object):
 
 class ActionEvent(Event):
 
-    def __init__(self, event_name, queue, event_time=None,
-                 event_priority=Event.STANDARD_PRIORITY, state_machine=None):
+    def __init__(self, event_name: str, queue: 'event_queue.EventQueue',
+                 event_time: Optional[int] = None,
+                 event_priority: int = Event.STANDARD_PRIORITY,
+                 state_machine: Optional['state_machine.StateMachine'] = None):
         super().__init__(event_name, queue, event_time, event_priority)
 
         if state_machine is not None \
@@ -143,10 +151,10 @@ class ActionEvent(Event):
         self.__cancelled = False
 
     @property
-    def state_machine(self):
+    def state_machine(self) -> Optional['state_machine.StateMachine']:
         return self.__state_machine
 
-    def process(self, env):
+    def process(self, env: 'environment.Environment') -> str:
 
         if not self.cancelled:
             if self.__state_machine is not None:
@@ -160,8 +168,11 @@ class ActionEvent(Event):
 
 class TimeSyncEvent(Event):
 
-    def __init__(self, queue, event_time, speed=None, max_waiting_time=None,
-                 event_priority=None, event_name=None):
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
+                 speed: Optional[int] = None,
+                 max_waiting_time: Optional[int] = None,
+                 event_priority: Optional[int] = None,
+                 event_name: Optional[str] = None):
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         if event_name is None:
@@ -180,18 +191,18 @@ class TimeSyncEvent(Event):
 
         self._waiting_time = None
 
-    def process(self, env):
+    def process(self, env: 'environment.Environment') -> str:
         current_timestamp = time.time()
         self._waiting_time = self.__event_timestamp - current_timestamp \
             if self.__event_timestamp - current_timestamp > 0 else 0
         self._synchronize()
-        self._process(env)
+        return self._process(env)
 
     def _synchronize(self):
         if self._waiting_time > 0:
             time.sleep(self._waiting_time)
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         return str(self._waiting_time)
 
 
@@ -208,7 +219,7 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
         self.__time_step = time_step
         self.__event_priority = event_priority
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         if not self.__queue.is_empty():
             RecurrentTimeSyncEvent(
                 self.__queue, self.__event_time + self.__time_step,
@@ -219,20 +230,22 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
 
 
 class PauseEvent(Event):
-    def __init__(self, queue, event_time, event_priority=None):
+    def __init__(self, queue: 'event_queue.EventQueue',
+                 event_time: int, event_priority: Optional[int] = None):
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         super().__init__("PauseEvent", queue, event_time, event_priority)
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         return "Simulation paused"
 
 
 class ResumeEvent(Event):
-    def __init__(self, queue, event_time, event_priority=None):
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
+                 event_priority: Optional[int] = None):
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         super().__init__("ResumeEvent", queue, event_time, event_priority)
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         return "Simulation resumed"

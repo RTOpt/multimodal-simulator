@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 class MatrixTravelTimesReader:
 
-    def __init__(self, travel_times_file_path):
+    def __init__(self, travel_times_file_path: str):
         self.__travel_times_file_path = travel_times_file_path
 
-    def get_matrix_travel_times(self):
+    def get_matrix_travel_times(self) -> MatrixTravelTimes:
 
         times_matrix = self.__read_from_file()
 

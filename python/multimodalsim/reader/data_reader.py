@@ -4,6 +4,8 @@ import logging
 from ast import literal_eval
 from datetime import datetime, timedelta
 import json
+from typing import List, Optional, Tuple
+
 from networkx.readwrite import json_graph
 
 import networkx as nx
@@ -13,7 +15,8 @@ import os.path
 from multimodalsim.config.data_reader_config import DataReaderConfig
 from multimodalsim.simulator.network import Node
 from multimodalsim.simulator.request import Trip, Leg
-from multimodalsim.simulator.vehicle import LabelLocation, Stop, Vehicle, Route
+from multimodalsim.simulator.vehicle import Vehicle, Route
+from multimodalsim.simulator.stop import LabelLocation, Stop
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +25,18 @@ class DataReader(object):
     def __init__(self):
         pass
 
-    def get_vehicles(self):
+    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
         raise NotImplementedError('get_vehicle_data not implemented')
 
-    def get_trips(self):
+    def get_trips(self) -> List[Trip]:
         raise NotImplementedError('get_request_data not implemented')
 
 
 class ShuttleDataReader(DataReader):
-    def __init__(self, requests_file_path, vehicles_file_path,
-                 graph_from_json_file_path=None, sim_end_time=None,
-                 vehicles_end_time=None):
+    def __init__(self, requests_file_path: str, vehicles_file_path: str,
+                 graph_from_json_file_path: Optional[str] = None,
+                 sim_end_time: Optional[str] = None,
+                 vehicles_end_time: Optional[int] = None):
         super().__init__()
         self.__network = None
         self.__requests_file_path = requests_file_path
@@ -44,7 +48,7 @@ class ShuttleDataReader(DataReader):
         self.__sim_end_time = sim_end_time
         self.__vehicles_end_time = vehicles_end_time
 
-    def get_trips(self):
+    def get_trips(self) -> List[Trip]:
         """ read trip from a file
                    format:
                    requestId, origin, destination, nb_passengers, ready_date,
@@ -85,7 +89,7 @@ class ShuttleDataReader(DataReader):
 
         return trips
 
-    def get_vehicles(self):
+    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
         vehicles = []
         routes_by_vehicle_id = {}  # Remains empty
 
@@ -138,7 +142,7 @@ class ShuttleDataReader(DataReader):
 
 
 class BusDataReader(DataReader):
-    def __init__(self, requests_file_path, vehicles_file_path):
+    def __init__(self, requests_file_path: str, vehicles_file_path: str):
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
@@ -148,7 +152,7 @@ class BusDataReader(DataReader):
         # The time required to travel from one stop to the next stop.
         self.__travel_time = 200
 
-    def get_trips(self):
+    def get_trips(self) -> List[Trip]:
         trips_list = []
         with open(self.__requests_file_path, 'r') as file:
             reader = csv.reader(file, delimiter=';')
@@ -164,7 +168,7 @@ class BusDataReader(DataReader):
 
         return trips_list
 
-    def get_vehicles(self):
+    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
 
         vehicles = []
         routes_by_vehicle_id = {}
@@ -216,13 +220,13 @@ class BusDataReader(DataReader):
 class GTFSReader(DataReader):
     RELEASE_TIME_INTERVAL = 900
 
-    def __init__(self, data_folder, requests_file_path,
-                 stops_file_name="stops.txt",
-                 stop_times_file_name="stop_times.txt",
-                 calendar_dates_file_name="calendar_dates.txt",
-                 trips_file_name="trips.txt",
-                 routes_file_name="routes.txt",
-                 config=None):
+    def __init__(self, data_folder: str, requests_file_path: str,
+                 stops_file_name: str = "stops.txt",
+                 stop_times_file_name: str = "stop_times.txt",
+                 calendar_dates_file_name: str = "calendar_dates.txt",
+                 trips_file_name: str = "trips.txt",
+                 routes_file_name: str = "routes.txt",
+                 config: Optional[str | DataReaderConfig] = None):
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
@@ -247,7 +251,7 @@ class GTFSReader(DataReader):
         self.__release_time_interval = None
         self.__min_departure_time_interval = None
 
-    def get_trips(self):
+    def get_trips(self) -> List[Trip]:
         trips = []
         with open(self.__requests_file_path, 'r') as requests_file:
             requests_reader = csv.reader(requests_file, delimiter=';')
@@ -306,8 +310,10 @@ class GTFSReader(DataReader):
 
         return trips
 
-    def get_vehicles(self, release_time_interval=None,
-                     min_departure_time_interval=None):
+    def get_vehicles(
+            self, release_time_interval: Optional[int] = None,
+            min_departure_time_interval: Optional[int] = None) \
+            -> Tuple[List[Vehicle], dict[str | int, Route]]:
 
         self.__release_time_interval = self.RELEASE_TIME_INTERVAL \
             if release_time_interval is None else release_time_interval
@@ -334,7 +340,8 @@ class GTFSReader(DataReader):
 
         return vehicles, routes_by_vehicle_id
 
-    def get_network_graph(self, available_connections=None, freeze_interval=5):
+    def get_network_graph(self, available_connections: Optional[dict] = None,
+                          freeze_interval: int = 5) -> nx.DiGraph:
 
         available_connections = {} if available_connections is None \
             else available_connections
@@ -390,7 +397,8 @@ class GTFSReader(DataReader):
 
         return self.__network_graph
 
-    def get_available_connections(self, locations_connected_comp_file_path):
+    def get_available_connections(
+            self, locations_connected_comp_file_path: str) -> dict:
 
         available_connections = {}
 
@@ -548,16 +556,18 @@ class GTFSReader(DataReader):
                     self.__route_mode_dict[route_id] = mode_id
 
     class GTFSStop:
-        def __init__(self, stop_id, stop_name, stop_lon, stop_lat):
+        def __init__(self, stop_id: int, stop_name: str, stop_lon: float,
+                     stop_lat: float):
             self.stop_id = stop_id
             self.stop_name = stop_name
             self.stop_lon = float(stop_lon)
             self.stop_lat = float(stop_lat)
 
     class GTFSStopTime:
-        def __init__(self, trip_id, arrival_time, departure_time, stop_id,
-                     stop_sequence, pickup_type, drop_off_type,
-                     shape_dist_traveled=None):
+        def __init__(self, trip_id: int, arrival_time: int,
+                     departure_time: int, stop_id: int,
+                     stop_sequence: int, pickup_type: int, drop_off_type: int,
+                     shape_dist_traveled: Optional[float] = None):
             self.trip_id = trip_id
             self.arrival_time = int(arrival_time)
             self.departure_time = int(departure_time)

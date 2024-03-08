@@ -1,14 +1,16 @@
 import logging
+from typing import List, Any, Optional
 
 import networkx as nx
 
-from multimodalsim.simulator.request import Leg
-from multimodalsim.simulator.vehicle import LabelLocation
+import multimodalsim.simulator.request as request
+from multimodalsim.optimization.state import State
+from multimodalsim.simulator.stop import LabelLocation
 
 logger = logging.getLogger(__name__)
 
 
-class Splitter(object):
+class Splitter:
 
     def __init__(self):
         pass
@@ -22,19 +24,20 @@ class OneLegSplitter(Splitter):
     def __init__(self):
         super().__init__()
 
-    def split(self, trip, state):
-
-        leg = Leg(trip.id, trip.origin, trip.destination,
-                  trip.nb_passengers, trip.release_time, trip.ready_time,
-                  trip.due_time, trip)
+    def split(self, trip: 'request.Trip', state: State) -> List['request.Leg']:
+        leg = request.Leg(trip.id, trip.origin, trip.destination,
+                          trip.nb_passengers, trip.release_time,
+                          trip.ready_time,
+                          trip.due_time, trip)
 
         return [leg]
 
 
 class MultimodalSplitter(Splitter):
 
-    def __init__(self, network_graph, available_connections=None,
-                 freeze_interval=5):
+    def __init__(self, network_graph: Any,
+                 available_connections: Optional[dict] = None,
+                 freeze_interval: int = 5):
         super().__init__()
         self.__network_graph = network_graph
         self.__available_connections = available_connections \
@@ -43,7 +46,7 @@ class MultimodalSplitter(Splitter):
         self.__trip = None
         self.__state = None
 
-    def split(self, trip, state):
+    def split(self, trip: 'request.Trip', state: State):
 
         self.__state = state
         self.__trip = trip
@@ -121,11 +124,12 @@ class MultimodalSplitter(Splitter):
         for node in path:
             if node[1] != leg_vehicle_id:
                 leg_id = self.__trip.id + "_" + str(leg_number)
-                leg = Leg(leg_id, LabelLocation(leg_first_stop_id),
-                          LabelLocation(leg_second_stop_id),
-                          self.__trip.nb_passengers, self.__trip.release_time,
-                          self.__trip.ready_time, self.__trip.due_time,
-                          self.__trip)
+                leg = request.Leg(leg_id, LabelLocation(leg_first_stop_id),
+                                  LabelLocation(leg_second_stop_id),
+                                  self.__trip.nb_passengers,
+                                  self.__trip.release_time,
+                                  self.__trip.ready_time, self.__trip.due_time,
+                                  self.__trip)
                 legs.append(leg)
 
                 leg_vehicle_id = node[1]
@@ -138,11 +142,12 @@ class MultimodalSplitter(Splitter):
         # Last leg
         last_leg_second_stop = path[-1][0]
         leg_id = self.__trip.id + "_" + str(leg_number)
-        last_leg = Leg(leg_id, LabelLocation(leg_first_stop_id),
-                       LabelLocation(last_leg_second_stop),
-                       self.__trip.nb_passengers, self.__trip.release_time,
-                       self.__trip.ready_time, self.__trip.due_time,
-                       self.__trip)
+        last_leg = request.Leg(leg_id, LabelLocation(leg_first_stop_id),
+                               LabelLocation(last_leg_second_stop),
+                               self.__trip.nb_passengers,
+                               self.__trip.release_time,
+                               self.__trip.ready_time, self.__trip.due_time,
+                               self.__trip)
         legs.append(last_leg)
 
         filtered_legs = self.__filter_legs(legs)

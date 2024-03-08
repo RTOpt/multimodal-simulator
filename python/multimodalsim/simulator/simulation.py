@@ -1,21 +1,34 @@
 import logging
+from typing import List, Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
+from multimodalsim.observer.data_collector import DataCollector
+from multimodalsim.observer.environment_observer import EnvironmentObserver
+from multimodalsim.optimization.optimization import Optimization
+from multimodalsim.simulator.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
 
 from multimodalsim.simulator.passenger_event import PassengerRelease
+from multimodalsim.simulator.request import Trip
+from multimodalsim.simulator.travel_times import TravelTimes
+from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.vehicle_event import VehicleReady
 
 logger = logging.getLogger(__name__)
 
 
-class Simulation(object):
+class Simulation:
 
-    def __init__(self, optimization, trips, vehicles, routes_by_vehicle_id,
-                 network=None, environment_observer=None, coordinates=None,
-                 travel_times=None, config=None):
+    def __init__(self, optimization: Optimization, trips: List[Trip],
+                 vehicles: List[Vehicle],
+                 routes_by_vehicle_id: dict[str | int, Route],
+                 network: Optional[Any] = None,
+                 environment_observer: Optional[EnvironmentObserver] = None,
+                 coordinates: Optional[Coordinates] = None,
+                 travel_times: Optional[TravelTimes] = None,
+                 config: str | SimulationConfig = None):
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
@@ -32,10 +45,14 @@ class Simulation(object):
         self.__initialize_time(vehicles, trips)
 
     @property
-    def data_collectors(self):
-        return self.__environment_observer.data_collectors
+    def data_collectors(self) -> Optional[List[DataCollector]]:
+        if self.__environment_observer is not None:
+            data_collectors = self.__environment_observer.data_collectors
+        else:
+            data_collectors = None
+        return data_collectors
 
-    def simulate(self, max_time=None, asynchronous=False):
+    def simulate(self, max_time: Optional[int] = None):
         max_time = self.__max_time if max_time is None else max_time
 
         # main loop of the simulation

@@ -8,7 +8,7 @@ import numpy as np
 from ast import literal_eval
 
 from multimodalsim.config.coordinates_osrm_config import CoordinatesOSRMConfig
-from multimodalsim.simulator.vehicle import TimeCoordinatesLocation
+from multimodalsim.simulator.stop import TimeCoordinatesLocation
 
 logger = logging.getLogger(__name__)
 

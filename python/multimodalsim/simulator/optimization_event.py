@@ -2,22 +2,30 @@ import logging
 import time
 from threading import Thread, Condition
 import multiprocessing as mp
+from typing import Optional, Callable
 
-from multimodalsim.simulator.event import ActionEvent, Event, TimeSyncEvent
-from multimodalsim.simulator.vehicle import RouteUpdate
+from multimodalsim.optimization.state import State
+from multimodalsim.simulator.event import ActionEvent, TimeSyncEvent
+import multimodalsim.simulator.vehicle as vehicle_module
 
 import multimodalsim.simulator.request as request
 import \
     multimodalsim.simulator.passenger_event as passenger_event_process
 import multimodalsim.simulator.vehicle_event as vehicle_event_process
 from multimodalsim.state_machine.status import OptimizationStatus
+import multimodalsim.simulator.event_queue as event_queue
+import multimodalsim.simulator.environment as environment
+import multimodalsim.optimization.optimization as optimization_module
 
 logger = logging.getLogger(__name__)
 
 
 class Optimize(ActionEvent):
-    def __init__(self, time, queue, multiple_optimize_events=None,
-                 batch=None, max_optimization_time=None, asynchronous=None):
+    def __init__(self, time: int, queue: 'event_queue.EventQueue',
+                 multiple_optimize_events: Optional[bool] = None,
+                 batch: Optional[int] = None,
+                 max_optimization_time: Optional[int] = None,
+                 asynchronous: Optional[bool] = None):
 
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
@@ -31,7 +39,7 @@ class Optimize(ActionEvent):
                          event_priority=self.VERY_LOW_PRIORITY,
                          state_machine=queue.env.optimization.state_machine)
 
-    def process(self, env):
+    def process(self, env: 'environment.Environment') -> str:
 
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
@@ -44,7 +52,7 @@ class Optimize(ActionEvent):
 
         return process_message
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
 
         env_stats = env.get_environment_statistics()
 
@@ -137,7 +145,7 @@ class Optimize(ActionEvent):
             hold_event.cv.notify()
 
     @staticmethod
-    def dispatch(dispatch_function, state):
+    def dispatch(dispatch_function: Callable, state: State):
         optimization_result = dispatch_function(state)
 
         return optimization_result
@@ -162,12 +170,14 @@ class Optimize(ActionEvent):
 
 
 class EnvironmentUpdate(ActionEvent):
-    def __init__(self, optimization_result, queue):
+    def __init__(self,
+                 optimization_result: 'optimization_module.OptimizationResult',
+                 queue: 'event_queue.EventQueue'):
         super().__init__('EnvironmentUpdate', queue,
                          state_machine=queue.env.optimization.state_machine)
         self.__optimization_result = optimization_result
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
 
         for trip in self.__optimization_result.modified_requests:
             next_legs = trip.next_legs
@@ -199,7 +209,7 @@ class EnvironmentUpdate(ActionEvent):
                                       if leg.trip.id in modified_trips_ids]
 
             next_stops = route.next_stops
-            route_update = RouteUpdate(
+            route_update = vehicle_module.RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
                 current_stop_departure_time, modified_assigned_legs)
             vehicle_event_process.VehicleNotification(
@@ -211,16 +221,17 @@ class EnvironmentUpdate(ActionEvent):
 
 
 class EnvironmentIdle(ActionEvent):
-    def __init__(self, queue):
+    def __init__(self, queue: 'event_queue.EventQueue'):
         super().__init__('EnvironmentIdle', queue,
                          state_machine=queue.env.optimization.state_machine)
 
-    def _process(self, env):
+    def _process(self, env: 'environment.Environment') -> str:
         return 'Environment Idle process is implemented'
 
 
 class Hold(TimeSyncEvent):
-    def __init__(self, queue, event_time, cv, max_optimization_time):
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
+                 cv: Condition, max_optimization_time: int):
         super().__init__(queue, event_time,
                          max_waiting_time=max_optimization_time,
                          event_name='Hold')
@@ -235,15 +246,15 @@ class Hold(TimeSyncEvent):
             queue.env.optimization.config.termination_waiting_time
 
     @property
-    def cv(self):
+    def cv(self) -> Condition:
         return self.__cv
 
     @property
-    def optimization_process(self):
+    def optimization_process(self) -> 'DispatchProcess':
         return self.__optimization_process
 
     @optimization_process.setter
-    def optimization_process(self, optimization_process):
+    def optimization_process(self, optimization_process: 'DispatchProcess'):
         self.__optimization_process = optimization_process
 
     def _synchronize(self):
@@ -266,7 +277,7 @@ class Hold(TimeSyncEvent):
 
 
 class DispatchProcess(mp.Process):
-    def __init__(self, dispatch, process_dict):
+    def __init__(self, dispatch: Callable, process_dict: dict):
         super().__init__()
         self.__dispatch = dispatch
         self.__process_dict = process_dict

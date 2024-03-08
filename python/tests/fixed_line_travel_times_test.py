@@ -7,7 +7,7 @@ from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.reader.travel_times_reader import MatrixTravelTimesReader
 from multimodalsim.simulator.simulation import Simulation
-from multimodalsim.state_machine.status import PassengersStatus, VehicleStatus
+from multimodalsim.state_machine.status import PassengerStatus, VehicleStatus
 
 unittest.TestLoader.sortTestMethodsUsing = None
 
@@ -63,7 +63,7 @@ class FixedLineMultimodalTestCase(unittest.TestCase):
     def test_trip_complete_status(self):
 
         for trip in self.__trips:
-            self.assertEqual(trip.status, PassengersStatus.COMPLETE)
+            self.assertEqual(trip.status, PassengerStatus.COMPLETE)
 
 
 
