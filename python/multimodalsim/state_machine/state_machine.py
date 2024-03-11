@@ -4,7 +4,7 @@ from typing import Type, Optional, Any
 
 import multimodalsim.simulator.optimization_event \
     as optimization_event_process
-from multimodalsim.optimization.optimization import Optimization
+import multimodalsim.optimization.optimization as optimization_module
 from multimodalsim.simulator.event import Event
 from multimodalsim.simulator.passenger_event \
     import PassengerAssignment, PassengerReady, PassengerToBoard, \
@@ -172,7 +172,8 @@ class StateMachine:
 
 class OptimizationStateMachine(StateMachine):
 
-    def __init__(self, optimization: Optimization) -> None:
+    def __init__(self,
+                 optimization: 'optimization_module.Optimization') -> None:
         super().__init__(owner=optimization)
         self.add_transition(OptimizationStatus.IDLE,
                             OptimizationStatus.OPTIMIZING,

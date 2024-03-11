@@ -3,7 +3,7 @@ import logging
 from threading import Condition
 from typing import Optional, Any
 
-from multimodalsim.optimization.optimization import Optimization
+import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 from multimodalsim.simulator.coordinates import Coordinates
 import multimodalsim.simulator.request as request
@@ -43,7 +43,7 @@ class Environment:
             The actual travel times of the vehicles.
         """
 
-    def __init__(self, optimization: Optimization,
+    def __init__(self, optimization: 'optimization_module.Optimization',
                  network: Optional[Any] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None) -> None:
@@ -224,7 +224,7 @@ class Environment:
         return self.__network
 
     @property
-    def optimization(self) -> Optimization:
+    def optimization(self) -> 'optimization_module.Optimization':
         return self.__optimization
 
     @property
