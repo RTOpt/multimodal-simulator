@@ -10,20 +10,20 @@ logger = logging.getLogger(__name__)
 
 class Visualizer(object):
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def visualize_environment(self, env: 'environment.Environment',
                               current_event: Optional[Event] = None,
                               event_index: Optional[int] = None,
-                              event_priority: Optional[int] = None):
+                              event_priority: Optional[int] = None) -> None:
         pass
 
 
 class ConsoleVisualizer(Visualizer):
 
     def __init__(self, data_analyzer: Optional[DataAnalyzer] = None,
-                 stats_delta_time: int = 10):
+                 stats_delta_time: float = 10) -> None:
         super().__init__()
         self.__data_analyzer = data_analyzer
         self.__last_time = None
@@ -33,7 +33,7 @@ class ConsoleVisualizer(Visualizer):
     def visualize_environment(self, env: 'environment.Environment',
                               current_event: Optional[Event] = None,
                               event_index: Optional[int] = None,
-                              event_priority: Optional[int] = None):
+                              event_priority: Optional[int] = None) -> None:
 
         if self.__last_time is None or env.current_time != self.__last_time:
             logger.info("current_time={}".format(env.current_time))

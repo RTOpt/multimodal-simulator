@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pandas as pd
 import logging
 
@@ -8,16 +10,18 @@ logger = logging.getLogger(__name__)
 
 
 class RequestsGenerator:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def generate_requests(self):
+    def generate_requests(self) -> pd.DataFrame:
         pass
 
 
 class CAPRequestsGenerator(RequestsGenerator):
 
-    def __init__(self, cap_file_path, stop_times_file_path, config=None):
+    def __init__(
+            self, cap_file_path: str, stop_times_file_path: str,
+            config: Optional[str | RequestsGeneratorConfig] = None) -> None:
         super().__init__()
 
         self.__load_config(config)
@@ -28,12 +32,14 @@ class CAPRequestsGenerator(RequestsGenerator):
         self.__requests_df = None
 
     @property
-    def requests_df(self):
+    def requests_df(self) -> pd.DataFrame:
         return self.__requests_df
 
-    def generate_requests(self, max_connection_time=None,
-                          release_time_delta=None, ready_time_delta=None,
-                          due_time_delta=None):
+    def generate_requests(
+            self, max_connection_time: Optional[float] = None,
+            release_time_delta: Optional[float] = None,
+            ready_time_delta: Optional[float] = None,
+            due_time_delta: Optional[float] = None) -> pd.DataFrame:
 
         if max_connection_time is None:
             max_connection_time = self.__max_connection_time
@@ -51,7 +57,8 @@ class CAPRequestsGenerator(RequestsGenerator):
 
         return self.__requests_df
 
-    def save_to_csv(self, requests_file_path, requests_df=None):
+    def save_to_csv(self, requests_file_path: str,
+                    requests_df: Optional[pd.DataFrame] = None) -> None:
         if requests_df is None and self.__requests_df is None:
             raise ValueError("Requests must be generated first!")
 
@@ -158,7 +165,9 @@ class CAPRequestsGenerator(RequestsGenerator):
 
 
 class CAPFormatter:
-    def __init__(self, cap_file_path, stop_times_file_path, config):
+    def __init__(
+            self, cap_file_path: str, stop_times_file_path: str,
+            config: Optional[str | RequestsGeneratorConfig] = None) -> None:
 
         self.__load_config(config)
 
@@ -166,10 +175,10 @@ class CAPFormatter:
         self.__read_stop_times_csv(stop_times_file_path)
 
     @property
-    def cap_df(self):
+    def cap_df(self) -> pd.DataFrame:
         return self.__cap_df
 
-    def format_cap(self, max_connection_time):
+    def format_cap(self, max_connection_time: float) -> pd.DataFrame:
         self.__preformat()
         self.__filter()
         self.__add_boarding_type(max_connection_time)
@@ -260,7 +269,8 @@ class CAPFormatter:
         self.__cap_df["boarding_type_lead"] = cap_grouped_by_id_client[
             "boarding_type"].shift(-1)
 
-        self.__cap_df[self.__origin_stop_id_col] = self.__cap_df[self.__origin_stop_id_col].apply(
+        self.__cap_df[self.__origin_stop_id_col] = self.__cap_df[
+            self.__origin_stop_id_col].apply(
             int)
         self.__cap_df[self.__destination_stop_id_col] = self.__cap_df[
             self.__destination_stop_id_col].apply(int)

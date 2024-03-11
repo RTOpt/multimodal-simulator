@@ -1,6 +1,6 @@
 import logging
 import copy
-from typing import Optional, List
+from typing import Optional
 
 import multimodalsim.state_machine.state_machine as state_machine
 from multimodalsim.simulator.stop import Location
@@ -36,8 +36,8 @@ class Request:
        """
 
     def __init__(self, id: str | int, origin: Location, destination: Location,
-                 nb_passengers: int, release_time: int, ready_time: int,
-                 due_time: int, name: Optional[str] = None):
+                 nb_passengers: int, release_time: float, ready_time: float,
+                 due_time: float, name: Optional[str] = None) -> None:
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -47,7 +47,7 @@ class Request:
         self.__release_time = release_time
         self.__name = name
 
-    def __str__(self):
+    def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
             class_string += str(attribute) + ": " + str(value) + ",\n"
@@ -71,15 +71,15 @@ class Request:
         return self.__nb_passengers
 
     @property
-    def ready_time(self) -> int:
+    def ready_time(self) -> float:
         return self.__ready_time
 
     @property
-    def due_time(self) -> int:
+    def due_time(self) -> float:
         return self.__due_time
 
     @property
-    def release_time(self) -> int:
+    def release_time(self) -> float:
         return self.__release_time
 
     @property
@@ -93,14 +93,18 @@ class Leg(Request):
         Properties
         ----------
         assigned_vehicle: Vehicle
-            the vehicle assigned to the leg.
+            Vehicle assigned to the leg.
         trip: Trip
-            the trip to which belongs the leg.
+            Trip to which belongs the leg.
+        boarding_time: float
+            Time at which the leg boarded the assigned vehicle.
+        alighting_time: float
+            Time at which the leg alighted from the assigned vehicle.
     """
 
     def __init__(self, id: str | int, origin: Location, destination: Location,
-                 nb_passengers: int, release_time: int, ready_time: int,
-                 due_time: int, trip: Optional['Trip'] = None):
+                 nb_passengers: int, release_time: float, ready_time: float,
+                 due_time: float, trip: Optional['Trip'] = None):
         super().__init__(id, origin, destination, nb_passengers, release_time,
                          ready_time, due_time)
         self.__assigned_vehicle = None
@@ -123,22 +127,22 @@ class Leg(Request):
         return self.__trip
 
     @property
-    def boarding_time(self) -> int:
+    def boarding_time(self) -> float:
         return self.__boarding_time
 
     @boarding_time.setter
-    def boarding_time(self, boarding_time: int):
+    def boarding_time(self, boarding_time: float) -> None:
         self.__boarding_time = boarding_time
 
     @property
-    def alighting_time(self) -> int:
+    def alighting_time(self) -> float:
         return self.__alighting_time
 
     @alighting_time.setter
-    def alighting_time(self, alighting_time: int):
+    def alighting_time(self, alighting_time: float) -> None:
         self.__alighting_time = alighting_time
 
-    def __str__(self):
+    def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
             # To prevent recursion error.
@@ -165,8 +169,8 @@ class Trip(Request):
     """
 
     def __init__(self, id: str | int, origin: Location, destination: Location,
-                 nb_passengers: int, release_time: int, ready_time: int,
-                 due_time: int, name: Optional[str] = None):
+                 nb_passengers: int, release_time: float, ready_time: float,
+                 due_time: float, name: Optional[str] = None) -> None:
         super().__init__(id, origin, destination, nb_passengers, release_time,
                          ready_time, due_time, name)
 
@@ -185,7 +189,7 @@ class Trip(Request):
         return self.__state_machine
 
     @property
-    def previous_legs(self) -> List[Leg]:
+    def previous_legs(self) -> list[Leg]:
         return self.__previous_legs
 
     @property
@@ -197,32 +201,32 @@ class Trip(Request):
         self.__current_leg = current_leg
 
     @current_leg.deleter
-    def current_leg(self):
+    def current_leg(self) -> None:
         del self.__current_leg
 
     @property
-    def next_legs(self) -> List[Leg]:
+    def next_legs(self) -> list[Leg]:
         return self.__next_legs
 
     @next_legs.setter
-    def next_legs(self, next_legs: List[Leg]):
+    def next_legs(self, next_legs: list[Leg]) -> None:
         self.__next_legs = next_legs
 
-    def assign_legs(self, legs: List[Leg]):
+    def assign_legs(self, legs: list[Leg]) -> None:
         self.__next_legs = legs
 
-    def finish_current_leg(self):
+    def finish_current_leg(self) -> None:
         self.__previous_legs.append(self.current_leg)
         self.current_leg = None
 
-    def start_next_leg(self):
+    def start_next_leg(self) -> None:
         if len(self.next_legs) > 0:
             self.current_leg = self.next_legs.pop(0)
         else:
             raise ValueError(
                 "Trip ({}) does not have any next leg.".format(self.id))
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> 'Trip':
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -236,7 +240,7 @@ class Trip(Request):
 
 class PassengerUpdate:
     def __init__(self, vehicle_id: str | int, request_id: str | int,
-                 next_legs: Optional[List[Leg]] = None):
+                 next_legs: Optional[list[Leg]] = None) -> None:
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
         self.next_legs = next_legs

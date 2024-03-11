@@ -1,9 +1,9 @@
 import logging
 import math
-from typing import List, Tuple, Optional
+from typing import Tuple, Optional
 
 import multimodalsim.optimization.optimization as optimization_module
-from multimodalsim.optimization.state import State
+import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.stop import Stop, LabelLocation
 from multimodalsim.simulator.vehicle import Route
@@ -13,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 class Dispatcher:
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def dispatch(self, state: State):
+    def dispatch(self, state: 'state_module.State') \
+            -> 'optimization_module.OptimizationResult':
         """Optimize the vehicle routing and the trip-route assignment. This
         method relies on three other methods:
             1. prepare_input
@@ -51,8 +52,8 @@ class Dispatcher:
 
         return optimization_result
 
-    def prepare_input(self, state: State) \
-            -> Tuple[List['request.Leg'], List[Route]]:
+    def prepare_input(self, state: 'state_module.State') \
+            -> Tuple[list['request.Leg'], list[Route]]:
         """Extract from the state the next legs and the routes that are sent as
         input to the optimize method (i.e. the legs and the routes that
         you want to optimize).
@@ -88,9 +89,9 @@ class Dispatcher:
 
         return selected_next_legs, selected_routes
 
-    def optimize(self, selected_next_legs: List['request.Leg'],
-                 selected_routes: List[Route], current_time: int,
-                 state: State) -> List['OptimizedRoutePlan']:
+    def optimize(self, selected_next_legs: list['request.Leg'],
+                 selected_routes: list[Route], current_time: float,
+                 state: 'state_module.State') -> list['OptimizedRoutePlan']:
         """Determine the vehicle routing and the trip-route assignment
         according to an optimization algorithm. The optimization algorithm
         should be coded in this method.
@@ -99,8 +100,8 @@ class Dispatcher:
         ShuttleSimpleNetworkDispatcher for simple examples).
 
         Input:
-          -selected_next_legs: List of the next legs to be optimized.
-          -selected_routes: List of the routes to be optimized.
+          -selected_next_legs: list of the next legs to be optimized.
+          -selected_routes: list of the routes to be optimized.
           -current_time: Integer equal to the current time of the State.
            The value of current_time is defined as follows:
               current_time = Environment.current_time
@@ -113,7 +114,7 @@ class Dispatcher:
            copy of the environment.
 
         Output:
-          -optimized_route_plans: List of the optimized route plans. Each route
+          -optimized_route_plans: list of the optimized route plans. Each route
            plan is an object of type OptimizedRoutePlan.
         """
 
@@ -121,15 +122,16 @@ class Dispatcher:
                                   format(self.__class__.__name__))
 
     def process_optimized_route_plans(
-            self, optimized_route_plans: List['OptimizedRoutePlan'],
-            state: State) -> 'optimization_module.OptimizationResult':
+            self, optimized_route_plans: list['OptimizedRoutePlan'],
+            state: 'state_module.State') \
+            -> 'optimization_module.OptimizationResult':
         """Create and modify the simulation objects that correspond to the
         optimized route plans returned by the optimize method. In other words,
         this method "translates" the results of optimization into the
         "language" of the simulator.
 
         Input:
-          -optimized_route_plans: List of objects of type OptimizedRoutePlan
+          -optimized_route_plans: list of objects of type OptimizedRoutePlan
            that correspond to the results of the optimization.
           -state: An object of type State that corresponds to a partial deep
            copy of the environment.
@@ -251,9 +253,9 @@ class OptimizedRoutePlan:
     """
 
     def __init__(self, route: Route,
-                 current_stop_departure_time: Optional[int] = None,
-                 next_stops: Optional[List[Stop]] = None,
-                 assigned_legs: Optional[List['request.Leg']] = None):
+                 current_stop_departure_time: Optional[float] = None,
+                 next_stops: Optional[list[Stop]] = None,
+                 assigned_legs: Optional[list['request.Leg']] = None) -> None:
         """
         Parameters:
             route: object of type Route
@@ -281,23 +283,23 @@ class OptimizedRoutePlan:
         return self.__route
 
     @property
-    def current_stop_departure_time(self) -> int:
+    def current_stop_departure_time(self) -> float:
         return self.__current_stop_departure_time
 
     @property
-    def next_stops(self) -> List[Stop]:
+    def next_stops(self) -> list[Stop]:
         return self.__next_stops
 
     @property
-    def assigned_legs(self) -> List['request.Leg']:
+    def assigned_legs(self) -> list['request.Leg']:
         return self.__assigned_legs
 
     @property
-    def already_onboard_legs(self) -> List['request.Leg']:
+    def already_onboard_legs(self) -> list['request.Leg']:
         return self.__already_onboard_legs
 
     @property
-    def legs_manually_assigned_to_stops(self) -> List['request.Leg']:
+    def legs_manually_assigned_to_stops(self) -> list['request.Leg']:
         return self.__legs_manually_assigned_to_stops
 
     def update_current_stop_departure_time(self, departure_time: int):
@@ -309,14 +311,14 @@ class OptimizedRoutePlan:
         """
         self.__current_stop_departure_time = departure_time
 
-    def append_next_stop(self, stop_id: str | int, arrival_time: int,
-                         departure_time: Optional[int] = None,
+    def append_next_stop(self, stop_id: str | int, arrival_time: float,
+                         departure_time: Optional[float] = None,
                          lon: Optional[float] = None,
                          lat: Optional[float] = None,
                          cumulative_distance: Optional[float] = None,
-                         legs_to_board: Optional[List['request.Leg']] = None,
-                         legs_to_alight: Optional[List['request.Leg']] = None)\
-            -> List[Stop]:
+                         legs_to_board: Optional[list['request.Leg']] = None,
+                         legs_to_alight: Optional[list['request.Leg']] = None)\
+            -> list[Stop]:
         """Append a stop to the list of next stops of the route plan.
             Parameters:
                 stop_id: string
@@ -366,7 +368,7 @@ class OptimizedRoutePlan:
 
         return self.__next_stops
 
-    def assign_leg(self, leg: 'request.Leg') -> List['request.Leg']:
+    def assign_leg(self, leg: 'request.Leg') -> list['request.Leg']:
         """Append a leg to the list of assigned legs of the route plan.
             Parameter:
                 leg: object of type Leg
@@ -380,7 +382,7 @@ class OptimizedRoutePlan:
 
         return self.__assigned_legs
 
-    def copy_route_stops(self):
+    def copy_route_stops(self) -> None:
         """Copy the current and next stops of the route to the current and
         next stops of OptimizedRoutePlan, respectively."""
 
@@ -390,7 +392,7 @@ class OptimizedRoutePlan:
 
         self.__next_stops = self.route.next_stops
 
-    def assign_already_onboard_legs(self):
+    def assign_already_onboard_legs(self) -> None:
         """The legs that are on board will automatically be alighted at the
         first stop corresponding to the destination location."""
         self.__already_onboard_legs.extend(self.route.onboard_legs)

@@ -1,5 +1,5 @@
 import copy
-from typing import Optional, List
+from typing import Optional
 import multimodalsim.simulator.request as request
 
 
@@ -7,12 +7,14 @@ class Stop:
     """A stop is located somewhere along the network.  New requests
     arrive at the stop.
     ----------
-    arrival_time: int
+    arrival_time: float
         Date and time at which the vehicle arrives the stop
-    departure_time: int
+    departure_time: float
         Date and time at which the vehicle leaves the stop
-    min_departure_time: int
+    min_departure_time: float
         Minimum time at which the vehicle is allowed to leave the stop
+    cumulative_distance: float
+        Cumulative distance travelled by the vehicle when arriving at the stop
     passengers_to_board: list of Trip objects
         list of passengers who need to board
     boarding_passengers: list of Trip objects
@@ -29,10 +31,10 @@ class Stop:
         (e.g., GPS coordinates)
     """
 
-    def __init__(self, arrival_time: int, departure_time: int,
+    def __init__(self, arrival_time: float, departure_time: float,
                  location: 'Location',
-                 cumulative_distance: Optional[int] = None,
-                 min_departure_time: Optional[int] = None):
+                 cumulative_distance: Optional[float] = None,
+                 min_departure_time: Optional[float] = None) -> None:
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -47,7 +49,7 @@ class Stop:
         self.__location = location
         self.__cumulative_distance = cumulative_distance
 
-    def __str__(self):
+    def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
             if "__passengers_to_board" in attribute:
@@ -76,19 +78,19 @@ class Stop:
         return class_string
 
     @property
-    def arrival_time(self) -> int:
+    def arrival_time(self) -> float:
         return self.__arrival_time
 
     @arrival_time.setter
-    def arrival_time(self, arrival_time: int):
+    def arrival_time(self, arrival_time: float):
         self.__arrival_time = arrival_time
 
     @property
-    def departure_time(self) -> int:
+    def departure_time(self) -> float:
         return self.__departure_time
 
     @departure_time.setter
-    def departure_time(self, departure_time: int):
+    def departure_time(self, departure_time: float):
         if self.__min_departure_time is not None \
                 and departure_time < self.__min_departure_time:
             raise ValueError(
@@ -98,47 +100,47 @@ class Stop:
         self.__departure_time = departure_time
 
     @property
-    def min_departure_time(self) -> int:
+    def min_departure_time(self) -> float:
         return self.__min_departure_time
 
     @property
-    def passengers_to_board(self) -> List['request.Trip']:
+    def passengers_to_board(self) -> list['request.Trip']:
         return self.__passengers_to_board
 
     @passengers_to_board.setter
-    def passengers_to_board(self, passengers_to_board: List['request.Trip']):
+    def passengers_to_board(self, passengers_to_board: list['request.Trip']):
         self.__passengers_to_board = passengers_to_board
 
     @property
-    def boarding_passengers(self) -> List['request.Trip']:
+    def boarding_passengers(self) -> list['request.Trip']:
         return self.__boarding_passengers
 
     @boarding_passengers.setter
-    def boarding_passengers(self, boarding_passengers: List['request.Trip']):
+    def boarding_passengers(self, boarding_passengers: list['request.Trip']):
         self.__boarding_passengers = boarding_passengers
 
     @property
-    def boarded_passengers(self) -> List['request.Trip']:
+    def boarded_passengers(self) -> list['request.Trip']:
         return self.__boarded_passengers
 
     @boarded_passengers.setter
-    def boarded_passengers(self, boarded_passengers: List['request.Trip']):
+    def boarded_passengers(self, boarded_passengers: list['request.Trip']):
         self.__boarded_passengers = boarded_passengers
 
     @property
-    def passengers_to_alight(self) -> List['request.Trip']:
+    def passengers_to_alight(self) -> list['request.Trip']:
         return self.__passengers_to_alight
 
     @passengers_to_alight.setter
-    def passengers_to_alight(self, passengers_to_alight: List['request.Trip']):
+    def passengers_to_alight(self, passengers_to_alight: list['request.Trip']):
         self.__passengers_to_alight = passengers_to_alight
 
     @property
-    def alighting_passengers(self) -> List['request.Trip']:
+    def alighting_passengers(self) -> list['request.Trip']:
         return self.__alighting_passengers
 
     @property
-    def alighted_passengers(self) -> List['request.Trip']:
+    def alighted_passengers(self) -> list['request.Trip']:
         return self.__alighted_passengers
 
     @property
@@ -146,7 +148,7 @@ class Stop:
         return self.__location
 
     @property
-    def cumulative_distance(self) -> int:
+    def cumulative_distance(self) -> float:
         return self.__cumulative_distance
 
     def initiate_boarding(self, trip: 'request.Trip'):
@@ -170,7 +172,7 @@ class Stop:
         self.alighting_passengers.remove(trip)
         self.alighted_passengers.append(trip)
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> 'Stop':
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -193,22 +195,22 @@ class Location:
     structure for storing basic information about the location of a vehicle
     or a passenger (i.e., Request). """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Location') -> bool:
         pass
 
 
 class LabelLocation(Location):
     def __init__(self, label: str, lon: Optional[float] = None,
-                 lat: Optional[float] = None):
+                 lat: Optional[float] = None) -> None:
         super().__init__()
         self.label = label
         self.lon = lon
         self.lat = lat
 
-    def __str__(self):
+    def __str__(self) -> str:
 
         if self.lon is not None or self.lat is not None:
             ret_str = "{}: ({},{})".format(self.label, self.lon, self.lat)
@@ -217,12 +219,12 @@ class LabelLocation(Location):
 
         return ret_str
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'LabelLocation') -> bool:
         if isinstance(other, LabelLocation):
             return self.label == other.label
         return False
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> 'LabelLocation':
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -232,22 +234,22 @@ class LabelLocation(Location):
 
 
 class TimeCoordinatesLocation(Location):
-    def __init__(self, time: int, lon: float, lat: float):
+    def __init__(self, time: float, lon: float, lat: float) -> None:
         super().__init__()
         self.time = time
         self.lon = lon
         self.lat = lat
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{}: ({},{})".format(self.time, self.lon, self.lat)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, TimeCoordinatesLocation):
             return self.time == other.time and self.lon == other.lon \
                    and self.lat == other.lat
         return False
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict) -> 'TimeCoordinatesLocation':
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result

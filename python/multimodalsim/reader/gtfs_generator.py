@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pandas as pd
 import os
 import logging
@@ -8,15 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 class GTFSGenerator:
-    def __init__(self, config=None):
+    def __init__(self,
+                 config: Optional[str | GTFSGeneratorConfig] = None) -> None:
         self.__load_config(config)
 
         self.__passage_arret_file_path_list = None
         self.__stop_times_df = None
         self.__stops_df = None
 
-    def build_calendar_dates(self, passage_arret_file_path_list,
-                             gtfs_folder=None):
+    def build_calendar_dates(self, passage_arret_file_path_list: list[str],
+                             gtfs_folder: Optional[str] = None):
 
         self.__passage_arret_file_path_list = passage_arret_file_path_list
 
@@ -41,7 +44,8 @@ class GTFSGenerator:
             self.__save_to_file(calendar_dates_df, "calendar_dates.txt",
                                 gtfs_folder)
 
-    def build_trips(self, passage_arret_file_path_list, gtfs_folder=None):
+    def build_trips(self, passage_arret_file_path_list: list[str],
+                    gtfs_folder: Optional[str] = None):
 
         self.__passage_arret_file_path_list = passage_arret_file_path_list
 
@@ -72,7 +76,8 @@ class GTFSGenerator:
 
         return trips_df
 
-    def build_stops(self, passage_arret_file_path_list, gtfs_folder=None):
+    def build_stops(self, passage_arret_file_path_list: list[str],
+                    gtfs_folder: Optional[str] = None):
 
         self.__passage_arret_file_path_list = passage_arret_file_path_list
 
@@ -96,8 +101,9 @@ class GTFSGenerator:
 
         return stops_df
 
-    def build_stop_times(self, passage_arret_file_path_list, gtfs_folder=None,
-                         shape_dist_traveled=False):
+    def build_stop_times(self, passage_arret_file_path_list: list[str],
+                         gtfs_folder: Optional[str] = None,
+                         shape_dist_traveled: bool = False):
 
         self.__passage_arret_file_path_list = passage_arret_file_path_list
 

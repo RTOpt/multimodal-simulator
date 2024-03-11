@@ -4,7 +4,7 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.reader.data_reader import ShuttleDataReader
-from multimodalsim.optimization.shuttle.shuttle_greedy_dispatcher import \
+from multimodalsim.optimization.shuttle.greedy_dispatcher.shuttle_greedy_dispatcher import \
     ShuttleGreedyDispatcher
 from multimodalsim.simulator.simulation import Simulation
 

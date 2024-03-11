@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class Optimize(ActionEvent):
-    def __init__(self, time: int, queue: 'event_queue.EventQueue',
+    def __init__(self, time: float, queue: 'event_queue.EventQueue',
                  multiple_optimize_events: Optional[bool] = None,
-                 batch: Optional[int] = None,
-                 max_optimization_time: Optional[int] = None,
-                 asynchronous: Optional[bool] = None):
+                 batch: Optional[float] = None,
+                 max_optimization_time: Optional[float] = None,
+                 asynchronous: Optional[bool] = None) -> None:
 
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
@@ -33,7 +33,7 @@ class Optimize(ActionEvent):
 
         if self.__batch is not None:
             # Round to the smallest integer greater than or equal to time that
-            # is also a multiple of batch.#
+            # is also a multiple of batch.
             time = time + (batch - (time % batch)) % batch
         super().__init__('Optimize', queue, time,
                          event_priority=self.VERY_LOW_PRIORITY,
@@ -68,7 +68,7 @@ class Optimize(ActionEvent):
 
         return 'Optimize process is implemented'
 
-    def add_to_queue(self):
+    def add_to_queue(self) -> None:
 
         if self.__multiple_optimize_events or not \
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
@@ -145,7 +145,8 @@ class Optimize(ActionEvent):
             hold_event.cv.notify()
 
     @staticmethod
-    def dispatch(dispatch_function: Callable, state: State):
+    def dispatch(dispatch_function: Callable,
+                 state: State) -> 'optimization_module.OptimizationResult':
         optimization_result = dispatch_function(state)
 
         return optimization_result
@@ -172,7 +173,7 @@ class Optimize(ActionEvent):
 class EnvironmentUpdate(ActionEvent):
     def __init__(self,
                  optimization_result: 'optimization_module.OptimizationResult',
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('EnvironmentUpdate', queue,
                          state_machine=queue.env.optimization.state_machine)
         self.__optimization_result = optimization_result
@@ -230,8 +231,8 @@ class EnvironmentIdle(ActionEvent):
 
 
 class Hold(TimeSyncEvent):
-    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
-                 cv: Condition, max_optimization_time: int):
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
+                 cv: Condition, max_optimization_time: float) -> None:
         super().__init__(queue, event_time,
                          max_waiting_time=max_optimization_time,
                          event_name='Hold')
@@ -257,7 +258,7 @@ class Hold(TimeSyncEvent):
     def optimization_process(self, optimization_process: 'DispatchProcess'):
         self.__optimization_process = optimization_process
 
-    def _synchronize(self):
+    def _synchronize(self) -> None:
         with self.__cv:
             if not self.cancelled:
                 wait_return = self.__cv.wait(timeout=self._waiting_time)
@@ -277,12 +278,12 @@ class Hold(TimeSyncEvent):
 
 
 class DispatchProcess(mp.Process):
-    def __init__(self, dispatch: Callable, process_dict: dict):
+    def __init__(self, dispatch: Callable, process_dict: dict) -> None:
         super().__init__()
         self.__dispatch = dispatch
         self.__process_dict = process_dict
 
-    def run(self):
+    def run(self) -> None:
         state = self.__process_dict["state"]
         dispatch_function = self.__process_dict["dispatch_function"]
 

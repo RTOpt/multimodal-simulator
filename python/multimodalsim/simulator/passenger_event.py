@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class PassengerRelease(Event):
-    def __init__(self, trip: 'request.Trip', queue: 'event_queue.EventQueue'):
+    def __init__(self, trip: 'request.Trip',
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('PassengerRelease', queue, trip.release_time)
         self.__trip = trip
 
@@ -37,7 +38,7 @@ class PassengerRelease(Event):
 
 class PassengerAssignment(ActionEvent):
     def __init__(self, passenger_update: 'request.PassengerUpdate',
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         self.__passenger_update = passenger_update
         self.__trip = queue.env.get_trip_by_id(
             self.__passenger_update.request_id)
@@ -50,9 +51,6 @@ class PassengerAssignment(ActionEvent):
             self.__passenger_update.assigned_vehicle_id)
 
         if self.__passenger_update.next_legs is not None:
-            # self.__trip.current_leg =\
-            #     self.__replace_copy_legs_with_actual_legs(
-            #         self.__passenger_update.current_leg)
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)
@@ -77,7 +75,8 @@ class PassengerAssignment(ActionEvent):
 
 
 class PassengerReady(ActionEvent):
-    def __init__(self, trip: 'request.Trip', queue: 'event_queue.EventQueue'):
+    def __init__(self, trip: 'request.Trip',
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('PassengerReady', queue,
                          max(trip.ready_time, queue.env.current_time),
                          state_machine=trip.state_machine,
@@ -89,7 +88,8 @@ class PassengerReady(ActionEvent):
 
 
 class PassengerToBoard(ActionEvent):
-    def __init__(self, trip: 'request.Trip', queue: 'event_queue.EventQueue'):
+    def __init__(self, trip: 'request.Trip',
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('PassengerToBoard', queue,
                          max(trip.ready_time, queue.env.current_time),
                          state_machine=trip.state_machine)
@@ -105,7 +105,8 @@ class PassengerToBoard(ActionEvent):
 
 
 class PassengerAlighting(ActionEvent):
-    def __init__(self, trip: 'request.Trip', queue: 'event_queue.EventQueue'):
+    def __init__(self, trip: 'request.Trip',
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('PassengerAlighting', queue,
                          state_machine=trip.state_machine)
         self.__trip = trip

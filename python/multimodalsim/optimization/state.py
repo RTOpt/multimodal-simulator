@@ -2,13 +2,15 @@ import logging
 
 import multimodalsim.simulator.request as request
 import multimodalsim.simulator.vehicle as vehicle_module
+import multimodalsim.simulator.environment as environment_module
 
 logger = logging.getLogger(__name__)
 
 
 class State:
 
-    def __init__(self, env_deep_copy):
+    def __init__(self,
+                 env_deep_copy: 'environment_module.Environment') -> None:
         """The ``State`` class is a partial deep copy of the environment where
         only the data necessary for optimization is copied.
                 Attributes:
@@ -88,13 +90,13 @@ class State:
 
         return found_leg
 
-    def freeze_routes_for_time_interval(self, time_interval: int):
+    def freeze_routes_for_time_interval(self, time_interval: float):
 
         self.current_time = self.current_time + time_interval
 
         self.__move_stops_backward()
 
-    def unfreeze_routes_for_time_interval(self, time_interval: int):
+    def unfreeze_routes_for_time_interval(self, time_interval: float):
 
         self.current_time = self.current_time - time_interval
 

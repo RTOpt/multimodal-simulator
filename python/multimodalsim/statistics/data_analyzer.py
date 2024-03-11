@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 import pandas as pd
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class DataAnalyzer:
 
-    def __init__(self, data_container: Optional[DataContainer] = None):
+    def __init__(self, data_container: Optional[DataContainer] = None) -> None:
         self.__data_container = data_container
 
         pd.set_option('display.max_rows', 50)
@@ -23,7 +23,7 @@ class DataAnalyzer:
         return self.__data_container
 
     @data_container.setter
-    def data_container(self, data_container: Optional[DataContainer]):
+    def data_container(self, data_container: Optional[DataContainer]) -> None:
         self.__data_container = data_container
 
     def get_description(self, table_name: str) -> pd.DataFrame:
@@ -32,12 +32,17 @@ class DataAnalyzer:
 
         return observations_df.describe(include='all')
 
-    def get_vehicles_statistics(self, mode: str):
+    @property
+    def modes(self) -> list[str]:
+        raise NotImplementedError("DataAnalyzer.modes has not been "
+                                  "implemented")
+
+    def get_vehicles_statistics(self, mode: Optional[str] = None) -> dict:
         raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
                                   "not been implemented")
 
-    def get_trips_statistics(self, mode: str):
-        raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
+    def get_trips_statistics(self, mode: Optional[str] = None) -> dict:
+        raise NotImplementedError("DataAnalyzer.get_trips_statistics has "
                                   "not been implemented")
 
 
@@ -67,7 +72,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
             self.__events_table_name)[name_col].value_counts().sort_index()
 
     @property
-    def modes(self) -> List[str]:
+    def modes(self) -> list[str]:
         modes = []
         if "vehicles" in self.data_container.observations_tables:
             vehicles_df = self.data_container.get_observations_table_df(
@@ -100,7 +105,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
 
         return nb_trips
 
-    def get_nb_active_trips(self, mode: Optional[str] = None):
+    def get_nb_active_trips(self, mode: Optional[str] = None) -> int:
         nb_trips = 0
         if "nb_active_trips_by_mode" \
                 in self.data_container.observations_tables:

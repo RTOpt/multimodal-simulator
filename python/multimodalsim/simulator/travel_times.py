@@ -8,23 +8,24 @@ logger = logging.getLogger(__name__)
 
 class TravelTimes:
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def get_expected_arrival_time(self, from_stop: Stop, to_stop: Stop,
-                                  vehicle: Vehicle) -> int:
+                                  vehicle: Vehicle) -> float:
         raise NotImplementedError('get_expected_arrival_time not implemented')
 
 
 class MatrixTravelTimes(TravelTimes):
 
-    def __init__(self, times_matrix: dict[str | int, dict[str | int, int]]):
+    def __init__(
+            self,
+            times_matrix: dict[str | int, dict[str | int, float]]) -> None:
         super().__init__()
         self.__times_matrix = times_matrix
 
     def get_expected_arrival_time(self, from_stop: Stop, to_stop: Stop,
-                                  vehicle: Vehicle) -> int:
-
+                                  vehicle: Vehicle) -> float:
         travel_time = \
             self.__times_matrix[vehicle.id][from_stop.location.label][
                 to_stop.location.label]

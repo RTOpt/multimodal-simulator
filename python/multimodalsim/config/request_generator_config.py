@@ -7,24 +7,24 @@ class RequestsGeneratorConfig(Config):
     def __init__(self,
                  config_file: str = os.path.join(
                      os.path.dirname(__file__),
-                     "ini/cap_requests_generator.ini")):
+                     "ini/cap_requests_generator.ini")) -> None:
         super().__init__(config_file)
 
     @property
-    def max_connection_time(self) -> int:
-        return int(self._config_parser["connections"]["max_connection_time"])
+    def max_connection_time(self) -> float:
+        return float(self._config_parser["connections"]["max_connection_time"])
 
     @property
-    def release_time_delta(self) -> int:
-        return int(self._config_parser["requests"]["release_time_delta"])
+    def release_time_delta(self) -> float:
+        return float(self._config_parser["requests"]["release_time_delta"])
 
     @property
-    def ready_time_delta(self) -> int:
-        return int(self._config_parser["requests"]["ready_time_delta"])
+    def ready_time_delta(self) -> float:
+        return float(self._config_parser["requests"]["ready_time_delta"])
 
     @property
-    def due_time_delta(self) -> int:
-        return int(self._config_parser["requests"]["due_time_delta"])
+    def due_time_delta(self) -> float:
+        return float(self._config_parser["requests"]["due_time_delta"])
 
     @property
     def id_col(self) -> str:

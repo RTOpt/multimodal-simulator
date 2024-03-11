@@ -4,14 +4,15 @@ import os
 
 
 class OptimizationConfig(Config):
-    def __init__(self,
-                 config_file: str = os.path.join(os.path.dirname(__file__),
-                                                 "ini/optimization.ini")):
+    def __init__(
+            self,
+            config_file: str = os.path.join(os.path.dirname(__file__),
+                                            "ini/optimization.ini")) -> None:
         super().__init__(config_file)
 
     @property
-    def freeze_interval(self) -> int:
-        return int(self._config_parser["general"]["freeze_interval"])
+    def freeze_interval(self) -> float:
+        return float(self._config_parser["general"]["freeze_interval"])
 
     @property
     def multiple_optimize_events(self) -> str:

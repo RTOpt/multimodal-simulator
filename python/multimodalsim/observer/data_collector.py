@@ -17,17 +17,20 @@ logger = logging.getLogger(__name__)
 
 class DataCollector:
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def collect(self, env: 'environment.Environment'):
+    def collect(self, env: 'environment.Environment',
+                current_event: Optional[Event] = None,
+                event_index: Optional[int] = None,
+                event_priority: Optional[int] = None) -> None:
         raise NotImplementedError('DataCollector.collect not implemented')
 
 
 class StandardDataCollector(DataCollector):
 
     def __init__(self, data_container: Optional['DataContainer'] = None,
-                 config: Optional[str | DataCollectorConfig] = None):
+                 config: Optional[str | DataCollectorConfig] = None) -> None:
         super().__init__()
 
         self.__data_container = DataContainer() if data_container is None \
@@ -48,7 +51,7 @@ class StandardDataCollector(DataCollector):
     def collect(self, env: 'environment.Environment',
                 current_event: Optional[Event] = None,
                 event_index: Optional[int] = None,
-                event_priority: Optional[int] = None):
+                event_priority: Optional[int] = None) -> None:
         self.__env = env
         self.__current_event = current_event
         self.__event_priority = event_priority
@@ -345,7 +348,7 @@ class StandardDataCollector(DataCollector):
 
 class DataContainer:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__observations_tables = {}
         self.__observations_tables_dfs = {}
         self.__dfs_columns = {}

@@ -7,7 +7,6 @@ import multimodalsim.simulator.vehicle as vehicle_module
 import multimodalsim.simulator.request as request
 from multimodalsim.state_machine.status import VehicleStatus, PassengerStatus
 
-
 import multimodalsim.simulator.optimization_event \
     as optimization_event
 import multimodalsim.simulator.passenger_event \
@@ -22,14 +21,14 @@ class VehicleReady(Event):
     def __init__(self, vehicle: vehicle_module.Vehicle,
                  route: vehicle_module.Route,
                  queue: 'event_queue.EventQueue',
-                 update_position_time_step: Optional[int] = None):
+                 update_position_time_step: Optional[float] = None) -> None:
         super().__init__('VehicleReady', queue, vehicle.release_time)
         self.__vehicle = vehicle
         self.__route = route
         self.__update_position_time_step = update_position_time_step
 
     @property
-    def vehicle(self):
+    def vehicle(self) -> 'vehicle_module.Vehicle':
         return self.__vehicle
 
     def _process(self, env: 'environment.Environment') -> str:
@@ -59,8 +58,10 @@ class VehicleReady(Event):
 
 
 class VehicleWaiting(ActionEvent):
-    def __init__(self, route: vehicle_module.Route,
-                 queue: 'event_queue.EventQueue', time: Optional[int] = None):
+    def __init__(
+            self, route: vehicle_module.Route,
+            queue: 'event_queue.EventQueue',
+            time: Optional[float] = None) -> None:
         time = time if time is not None else queue.env.current_time
         super().__init__('VehicleWaiting', queue, time,
                          state_machine=route.vehicle.state_machine,
@@ -95,7 +96,7 @@ class VehicleWaiting(ActionEvent):
 
         return 'Vehicle Waiting process is implemented'
 
-    def add_to_queue(self):
+    def add_to_queue(self) -> None:
         # Before adding the event, cancel all priorly added VehicleWaiting
         # events associated with the vehicle since they have now become
         # obsolete.
@@ -107,7 +108,7 @@ class VehicleWaiting(ActionEvent):
 
 class VehicleBoarding(ActionEvent):
     def __init__(self, route: vehicle_module.Route,
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('VehicleBoarding', queue,
                          queue.env.current_time,
                          state_machine=route.vehicle.state_machine,
@@ -131,11 +132,10 @@ class VehicleBoarding(ActionEvent):
 
 class VehicleDeparture(ActionEvent):
     def __init__(self, route: vehicle_module.Route,
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         super().__init__('Vehicle Departure', queue,
                          route.current_stop.departure_time,
-                         state_machine=route.vehicle.state_machine,
-                         # event_priority=Event.EXTREME_LOW_PRIORITY
+                         state_machine=route.vehicle.state_machine
                          )
         self.__route = route
 
@@ -161,7 +161,7 @@ class VehicleDeparture(ActionEvent):
 class VehicleArrival(ActionEvent):
     def __init__(self, route: vehicle_module.Route,
                  queue: 'event_queue.EventQueue',
-                 arrival_time: int):
+                 arrival_time: float) -> None:
         super().__init__('VehicleArrival', queue, arrival_time,
                          state_machine=route.vehicle.state_machine)
         self.__route = route
@@ -209,7 +209,7 @@ class VehicleArrival(ActionEvent):
 
 class VehicleNotification(Event):
     def __init__(self, route_update: vehicle_module.RouteUpdate,
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         self.__env = None
         self.__route_update = route_update
         self.__vehicle = queue.env.get_vehicle_by_id(
@@ -291,7 +291,7 @@ class VehicleNotification(Event):
 
 class VehicleBoarded(Event):
     def __init__(self, trip: 'request.Trip',
-                 queue: 'event_queue.EventQueue'):
+                 queue: 'event_queue.EventQueue') -> None:
         self.__trip = trip
         self.__route = queue.env.get_route_by_vehicle_id(
             self.__trip.current_leg.assigned_vehicle.id)
@@ -313,7 +313,8 @@ class VehicleBoarded(Event):
 
 
 class VehicleAlighted(Event):
-    def __init__(self, leg: 'request.Leg', queue: 'event_queue.EventQueue'):
+    def __init__(self, leg: 'request.Leg',
+                 queue: 'event_queue.EventQueue') -> None:
         self.__leg = leg
         self.__route = leg.assigned_vehicle
         self.__route = queue.env.get_route_by_vehicle_id(
@@ -334,8 +335,8 @@ class VehicleAlighted(Event):
 
 class VehicleUpdatePositionEvent(Event):
     def __init__(self, vehicle: vehicle_module.Vehicle,
-                 queue: 'event_queue.EventQueue', event_time: int,
-                 time_step: Optional[int] = None):
+                 queue: 'event_queue.EventQueue', event_time: float,
+                 time_step: Optional[float] = None):
         super().__init__("VehicleUpdatePositionEvent", queue, event_time)
 
         self.__vehicle = vehicle
@@ -365,7 +366,7 @@ class VehicleUpdatePositionEvent(Event):
 class VehicleComplete(ActionEvent):
     def __init__(self, route: vehicle_module.Route,
                  queue: 'event_queue.EventQueue',
-                 event_time: Optional[int] = None):
+                 event_time: Optional[float] = None):
         if event_time is None:
             event_time = max(route.vehicle.end_time, queue.env.current_time)
         super().__init__('VehicleComplete', queue, event_time,
@@ -377,8 +378,8 @@ class VehicleComplete(ActionEvent):
 
         return 'Vehicle Complete process is implemented'
 
-    def add_to_queue(self, forced_insertion: bool = False):
+    def add_to_queue(self, forced_insertion: bool = False) -> None:
         if not self.queue.is_event_type_in_queue(self.__class__,
-                                                 owner=self.__route.vehicle)\
+                                                 owner=self.__route.vehicle) \
                 or forced_insertion:
             super().add_to_queue()

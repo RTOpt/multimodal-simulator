@@ -1,15 +1,15 @@
 import logging
-from enum import Enum
-from typing import Optional, List
+from typing import Optional, Union
 
 from multimodalsim.config.optimization_config import OptimizationConfig
 import multimodalsim.optimization.dispatcher as dispatcher_module
 from multimodalsim.optimization.splitter import Splitter, OneLegSplitter
 import multimodalsim.state_machine.state_machine as state_machine
-from multimodalsim.optimization.state import State
+import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
 import multimodalsim.simulator.environment as environment_module
 import multimodalsim.simulator.vehicle as vehicle_module
+from multimodalsim.state_machine.status import OptimizationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class Optimization:
 
     def __init__(self, dispatcher: 'dispatcher_module.Dispatcher',
                  splitter: Optional[Splitter] = None,
-                 freeze_interval: Optional[int] = None,
-                 config: Optional[OptimizationConfig] = None):
+                 freeze_interval: Optional[float] = None,
+                 config: Optional[str | OptimizationConfig] = None) -> None:
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
 
@@ -29,9 +29,8 @@ class Optimization:
 
         self.__load_config(config, freeze_interval)
 
-
     @property
-    def status(self) -> Enum:
+    def status(self) -> OptimizationStatus:
         return self.__state_machine.current_state.status
 
     @property
@@ -39,21 +38,25 @@ class Optimization:
         return self.__state_machine
 
     @property
-    def freeze_interval(self) -> int:
+    def freeze_interval(self) -> float:
         return self.__freeze_interval
 
     @property
-    def state(self) -> State:
+    def state(self) -> 'state_module.State':
         return self.__state
 
     @state.setter
-    def state(self, state: State):
+    def state(self, state: 'state_module.State') -> None:
         self.__state = state
 
-    def split(self, trip: 'request.Trip', state: State):
+    def split(
+            self, trip: 'request.Trip',
+            state: Union[
+                'state_module.State', 'environment_module.Environment']) \
+            -> list['request.Leg']:
         return self.__splitter.split(trip, state)
 
-    def dispatch(self, state: State):
+    def dispatch(self, state: 'state_module.State') -> 'OptimizationResult':
         return self.__dispatcher.dispatch(state)
 
     def need_to_optimize(
@@ -88,8 +91,9 @@ class Optimization:
 
 class OptimizationResult:
 
-    def __init__(self, state: State, modified_requests: List['request.Trip'],
-                 modified_vehicles: List['vehicle_module.Vehicle']):
+    def __init__(self, state: 'state_module.State',
+                 modified_requests: list['request.Trip'],
+                 modified_vehicles: list['vehicle_module.Vehicle']):
         self.state = state
         self.modified_requests = modified_requests
         self.modified_vehicles = modified_vehicles

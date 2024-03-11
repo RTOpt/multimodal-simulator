@@ -1,4 +1,8 @@
 from enum import Enum
+from typing import TypeVar
+
+
+Status = TypeVar('Status', bound=Enum)
 
 
 class PassengerStatus(Enum):

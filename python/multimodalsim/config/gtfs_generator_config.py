@@ -4,9 +4,10 @@ import os
 
 
 class GTFSGeneratorConfig(Config):
-    def __init__(self,
-                 config_file: str = os.path.join(os.path.dirname(__file__),
-                                                 "ini/gtfs_generator.ini")):
+    def __init__(
+            self,
+            config_file: str = os.path.join(os.path.dirname(__file__),
+                                            "ini/gtfs_generator.ini")) -> None:
         super().__init__(config_file)
 
     @property

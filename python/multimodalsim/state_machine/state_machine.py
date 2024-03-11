@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Type, List, Optional, Any
+from typing import Type, Optional, Any
 
 import multimodalsim.simulator.optimization_event \
     as optimization_event_process
@@ -10,7 +10,7 @@ from multimodalsim.simulator.passenger_event \
     import PassengerAssignment, PassengerReady, PassengerToBoard, \
     PassengerAlighting
 from multimodalsim.state_machine.status import OptimizationStatus, \
-    PassengerStatus, VehicleStatus
+    PassengerStatus, VehicleStatus, Status
 from multimodalsim.simulator.vehicle_event import VehicleBoarding, \
     VehicleDeparture, VehicleArrival, VehicleWaiting, VehicleComplete
 from multimodalsim.state_machine.condition import TrivialCondition, \
@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 class State:
 
-    def __init__(self, status: Enum):
+    def __init__(self, status: Status) -> None:
         self.__status = status
 
     @property
-    def status(self) -> Enum:
+    def status(self) -> Status:
         return self.__status
 
     def __str__(self):
@@ -63,10 +63,10 @@ class Transition:
 
 class StateMachine:
 
-    def __init__(self, states: Optional[List[State]] = None,
+    def __init__(self, states: Optional[list[State]] = None,
                  initial_state: Optional[State] = None,
-                 transitions: Optional[List[Transition]] = None,
-                 owner: Optional[Any] = None):
+                 transitions: Optional[list[Transition]] = None,
+                 owner: Optional[Any] = None) -> None:
 
         if transitions is None:
             transitions = []
@@ -97,7 +97,7 @@ class StateMachine:
         return self.__transitions
 
     @current_state.setter
-    def current_state(self, current_state: State):
+    def current_state(self, current_state: State) -> None:
         if self.__current_state is not None:
             raise ValueError("You cannot modify the current state.")
         if isinstance(current_state, Enum):
@@ -126,14 +126,10 @@ class StateMachine:
         transition_possible = False
         if event.__name__ in self.__transitions:
             for transition in self.__transitions[event.__name__]:
-                # logger.debug("STATE: {} -> {} | check: {}".format(str(
-                # transition.current_state), str(transition.next_state),
-                # transition.condition.check()))
                 if transition.current_state == self.__current_state \
                         and transition.condition.check(env):
                     self.__current_state = transition.next_state
                     transition_possible = True
-                    # logger.debug("TRANSITION FOUND!")
                     break
 
         if not transition_possible:
@@ -176,7 +172,7 @@ class StateMachine:
 
 class OptimizationStateMachine(StateMachine):
 
-    def __init__(self, optimization: Optimization):
+    def __init__(self, optimization: Optimization) -> None:
         super().__init__(owner=optimization)
         self.add_transition(OptimizationStatus.IDLE,
                             OptimizationStatus.OPTIMIZING,
@@ -193,7 +189,7 @@ class OptimizationStateMachine(StateMachine):
 
 class PassengerStateMachine(StateMachine):
 
-    def __init__(self, trip: 'request.Trip'):
+    def __init__(self, trip: 'request.Trip') -> None:
         super().__init__(owner=trip)
 
         self.add_transition(PassengerStatus.RELEASE,
@@ -220,7 +216,7 @@ class PassengerStateMachine(StateMachine):
 
 class VehicleStateMachine(StateMachine):
 
-    def __init__(self, vehicle: 'vehicle_module.Vehicle'):
+    def __init__(self, vehicle: 'vehicle_module.Vehicle') -> None:
         super().__init__(owner=vehicle)
 
         self.add_transition(VehicleStatus.RELEASE, VehicleStatus.IDLE,

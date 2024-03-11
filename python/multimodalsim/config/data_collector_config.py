@@ -4,9 +4,10 @@ import os
 
 
 class DataCollectorConfig(Config):
-    def __init__(self,
-                 config_file: str = os.path.join(os.path.dirname(__file__),
-                                                 "ini/data_collector.ini")):
+    def __init__(
+            self,
+            config_file: str = os.path.join(os.path.dirname(__file__),
+                                            "ini/data_collector.ini")) -> None:
         super().__init__(config_file)
 
     def get_vehicles_columns(self) -> dict:

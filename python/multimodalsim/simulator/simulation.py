@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Any
+from typing import Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.observer.data_collector import DataCollector
@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 
 class Simulation:
 
-    def __init__(self, optimization: Optimization, trips: List[Trip],
-                 vehicles: List[Vehicle],
+    def __init__(self, optimization: Optimization, trips: list[Trip],
+                 vehicles: list[Vehicle],
                  routes_by_vehicle_id: dict[str | int, Route],
                  network: Optional[Any] = None,
                  environment_observer: Optional[EnvironmentObserver] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
-                 config: str | SimulationConfig = None):
+                 config: Optional[str | SimulationConfig] = None) -> None:
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
@@ -45,14 +45,14 @@ class Simulation:
         self.__initialize_time(vehicles, trips)
 
     @property
-    def data_collectors(self) -> Optional[List[DataCollector]]:
+    def data_collectors(self) -> Optional[list[DataCollector]]:
         if self.__environment_observer is not None:
             data_collectors = self.__environment_observer.data_collectors
         else:
             data_collectors = None
         return data_collectors
 
-    def simulate(self, max_time: Optional[int] = None):
+    def simulate(self, max_time: Optional[float] = None) -> None:
         max_time = self.__max_time if max_time is None else max_time
 
         # main loop of the simulation

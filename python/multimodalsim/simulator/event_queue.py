@@ -1,12 +1,12 @@
 from queue import PriorityQueue
-from typing import Type, Optional, Any, List
+from typing import Type, Optional, Any
 
 import multimodalsim.simulator.event as event_module
 import multimodalsim.simulator.environment as environment
 
 
 class EventQueue:
-    def __init__(self, env: 'environment.Environment'):
+    def __init__(self, env: 'environment.Environment') -> None:
         self.__queue = PriorityQueue()
 
         self.__index = 0
@@ -21,7 +21,7 @@ class EventQueue:
         """check if the queue is empty"""
         return self.__queue.empty()
 
-    def put(self, event: 'event_module.Event'):
+    def put(self, event: 'event_module.Event') -> None:
         """add an element in the queue"""
         event.index = self.__index
         self.__queue.put(event)
@@ -33,7 +33,7 @@ class EventQueue:
 
     def is_event_type_in_queue(
             self, event_type: Type['event_module.Event'],
-            time: Optional[int] = None, owner: Optional[Any] = None):
+            time: Optional[float] = None, owner: Optional[Any] = None) -> bool:
         is_in_queue = False
         for event in self.__queue.queue:
             if owner is not None \
@@ -50,8 +50,8 @@ class EventQueue:
         return is_in_queue
 
     def cancel_event_type(self, event_type: Type['event_module.Event'],
-                          time: Optional[int] = None,
-                          owner: Optional[Any] = None):
+                          time: Optional[float] = None,
+                          owner: Optional[Any] = None) -> None:
         events_to_be_cancelled = []
         for event in self.__queue.queue:
             if owner is not None \
@@ -65,7 +65,7 @@ class EventQueue:
 
         self.cancel_events(events_to_be_cancelled)
 
-    def cancel_events(self, events: List['event_module.Event']):
+    def cancel_events(self, events: list['event_module.Event']) -> None:
         for event in events:
             event.cancelled = True
 

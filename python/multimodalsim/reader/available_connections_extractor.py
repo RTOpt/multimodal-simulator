@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 import networkx as nx
 from geopy import distance
@@ -9,8 +10,10 @@ from multimodalsim.reader.requests_generator import CAPFormatter
 
 
 class AvailableConnectionsExtractor:
-    def __init__(self, cap_file_path, stop_times_file_path, config=None):
-        config = RequestsGeneratorConfig() if config is None else config
+    def __init__(
+            self, cap_file_path: str, stop_times_file_path: str,
+            config: Optional[str | RequestsGeneratorConfig] = None) -> None:
+
         self.__load_config(config)
 
         self.__cap_formatter = CAPFormatter(cap_file_path,
@@ -19,7 +22,7 @@ class AvailableConnectionsExtractor:
         self.__max_connection_time = config.max_connection_time
         self.__available_connections = None
 
-    def extract_available_connections(self, max_distance):
+    def extract_available_connections(self, max_distance: float) -> list[list]:
         formatted_cap_df = \
             self.__cap_formatter.format_cap(self.__max_connection_time)
 
@@ -36,7 +39,7 @@ class AvailableConnectionsExtractor:
 
         return self.__available_connections
 
-    def save_to_json(self, available_connections_file_path):
+    def save_to_json(self, available_connections_file_path: str) -> None:
         if self.__available_connections is None:
             raise ValueError("Available connections must be extracted first!")
 
@@ -44,6 +47,11 @@ class AvailableConnectionsExtractor:
             json.dump(self.__available_connections, f)
 
     def __load_config(self, config):
+        if isinstance(config, str):
+            config = RequestsGeneratorConfig(config)
+        elif not isinstance(config, RequestsGeneratorConfig):
+            config = RequestsGeneratorConfig()
+
         self.__max_connection_time = config.max_connection_time
         self.__id_col = config.id_col
         self.__arrival_time_col = config.arrival_time_col
@@ -105,7 +113,7 @@ class AvailableConnectionsExtractor:
         connections_different_stops_df[
             "stops_distance"] = connections_different_stops_df.apply(
             lambda x: distance.distance(
-                x["origin_stop_coord"], x["destination_stop_coord_lag"]).km, 
+                x["origin_stop_coord"], x["destination_stop_coord_lag"]).km,
             axis=1)
 
         connections_different_stops_max_dist_df = \

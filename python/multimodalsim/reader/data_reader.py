@@ -4,7 +4,7 @@ import logging
 from ast import literal_eval
 from datetime import datetime, timedelta
 import json
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from networkx.readwrite import json_graph
 
@@ -13,7 +13,7 @@ import networkx as nx
 import os.path
 
 from multimodalsim.config.data_reader_config import DataReaderConfig
-from multimodalsim.simulator.network import Node
+from multimodalsim.optimization.shuttle.greedy_dispatcher.network import Node
 from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.stop import LabelLocation, Stop
@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 class DataReader(object):
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
+    def get_vehicles(self) -> Tuple[list[Vehicle], dict[str | int, Route]]:
         raise NotImplementedError('get_vehicle_data not implemented')
 
-    def get_trips(self) -> List[Trip]:
+    def get_trips(self) -> list[Trip]:
         raise NotImplementedError('get_request_data not implemented')
 
 
@@ -36,7 +36,7 @@ class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path: str, vehicles_file_path: str,
                  graph_from_json_file_path: Optional[str] = None,
                  sim_end_time: Optional[str] = None,
-                 vehicles_end_time: Optional[int] = None):
+                 vehicles_end_time: Optional[int] = None) -> None:
         super().__init__()
         self.__network = None
         self.__requests_file_path = requests_file_path
@@ -48,7 +48,7 @@ class ShuttleDataReader(DataReader):
         self.__sim_end_time = sim_end_time
         self.__vehicles_end_time = vehicles_end_time
 
-    def get_trips(self) -> List[Trip]:
+    def get_trips(self) -> list[Trip]:
         """ read trip from a file
                    format:
                    requestId, origin, destination, nb_passengers, ready_date,
@@ -89,7 +89,7 @@ class ShuttleDataReader(DataReader):
 
         return trips
 
-    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
+    def get_vehicles(self) -> Tuple[list[Vehicle], dict[str | int, Route]]:
         vehicles = []
         routes_by_vehicle_id = {}  # Remains empty
 
@@ -142,7 +142,8 @@ class ShuttleDataReader(DataReader):
 
 
 class BusDataReader(DataReader):
-    def __init__(self, requests_file_path: str, vehicles_file_path: str):
+    def __init__(self, requests_file_path: str,
+                 vehicles_file_path: str) -> None:
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
@@ -152,7 +153,7 @@ class BusDataReader(DataReader):
         # The time required to travel from one stop to the next stop.
         self.__travel_time = 200
 
-    def get_trips(self) -> List[Trip]:
+    def get_trips(self) -> list[Trip]:
         trips_list = []
         with open(self.__requests_file_path, 'r') as file:
             reader = csv.reader(file, delimiter=';')
@@ -168,7 +169,7 @@ class BusDataReader(DataReader):
 
         return trips_list
 
-    def get_vehicles(self) -> Tuple[List[Vehicle], dict[str | int, Route]]:
+    def get_vehicles(self) -> Tuple[list[Vehicle], dict[str | int, Route]]:
 
         vehicles = []
         routes_by_vehicle_id = {}
@@ -226,7 +227,7 @@ class GTFSReader(DataReader):
                  calendar_dates_file_name: str = "calendar_dates.txt",
                  trips_file_name: str = "trips.txt",
                  routes_file_name: str = "routes.txt",
-                 config: Optional[str | DataReaderConfig] = None):
+                 config: Optional[str | DataReaderConfig] = None) -> None:
         super().__init__()
         self.__data_folder = data_folder
         self.__requests_file_path = requests_file_path
@@ -251,7 +252,7 @@ class GTFSReader(DataReader):
         self.__release_time_interval = None
         self.__min_departure_time_interval = None
 
-    def get_trips(self) -> List[Trip]:
+    def get_trips(self) -> list[Trip]:
         trips = []
         with open(self.__requests_file_path, 'r') as requests_file:
             requests_reader = csv.reader(requests_file, delimiter=';')
@@ -313,7 +314,7 @@ class GTFSReader(DataReader):
     def get_vehicles(
             self, release_time_interval: Optional[int] = None,
             min_departure_time_interval: Optional[int] = None) \
-            -> Tuple[List[Vehicle], dict[str | int, Route]]:
+            -> Tuple[list[Vehicle], dict[str | int, Route]]:
 
         self.__release_time_interval = self.RELEASE_TIME_INTERVAL \
             if release_time_interval is None else release_time_interval
@@ -341,7 +342,7 @@ class GTFSReader(DataReader):
         return vehicles, routes_by_vehicle_id
 
     def get_network_graph(self, available_connections: Optional[dict] = None,
-                          freeze_interval: int = 5) -> nx.DiGraph:
+                          freeze_interval: float = 5) -> nx.DiGraph:
 
         available_connections = {} if available_connections is None \
             else available_connections

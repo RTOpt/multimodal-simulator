@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Condition:
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.__name = name
 
     @property
@@ -22,7 +22,7 @@ class Condition:
 
 class TrivialCondition(Condition):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Trivial")
 
     def check(self, env: 'environment.Environment') -> bool:
@@ -31,7 +31,7 @@ class TrivialCondition(Condition):
 
 class PassengerNoConnectionCondition(Condition):
 
-    def __init__(self, trip: 'request.Trip'):
+    def __init__(self, trip: 'request.Trip') -> None:
         super().__init__("PassengerNoConnection")
         self.__trip = trip
 
@@ -45,7 +45,7 @@ class PassengerNoConnectionCondition(Condition):
 
 class PassengerConnectionCondition(Condition):
 
-    def __init__(self, trip: 'request.Trip'):
+    def __init__(self, trip: 'request.Trip') -> None:
         super().__init__("PassengerConnection")
         self.__trip = trip
 
@@ -60,7 +60,7 @@ class PassengerConnectionCondition(Condition):
 
 class VehicleNextStopCondition(Condition):
 
-    def __init__(self, route: 'vehicle_module.Route'):
+    def __init__(self, route: 'vehicle_module.Route') -> None:
         super().__init__("VehicleNextStop")
         self.__route = route
 
@@ -74,7 +74,7 @@ class VehicleNextStopCondition(Condition):
 
 class VehicleNoNextStopCondition(Condition):
 
-    def __init__(self, route: 'vehicle_module.Route'):
+    def __init__(self, route: 'vehicle_module.Route') -> None:
         super().__init__("VehicleNoNextStop")
         self.__route = route
 
@@ -88,7 +88,7 @@ class VehicleNoNextStopCondition(Condition):
 
 class VehicleEndTimeCondition(Condition):
 
-    def __init__(self, route: 'vehicle_module.Route'):
+    def __init__(self, route: 'vehicle_module.Route') -> None:
         super().__init__("VehicleEndTime")
         self.__route = route
 
@@ -105,7 +105,7 @@ class VehicleEndTimeCondition(Condition):
 
 class VehicleNotEndTimeCondition(Condition):
 
-    def __init__(self, route: 'vehicle_module.Route'):
+    def __init__(self, route: 'vehicle_module.Route') -> None:
         super().__init__("VehicleEndTime")
         self.__route = route
 

@@ -24,8 +24,8 @@ class Event:
     MAX_DELTA_TIME = 7 * 24 * 3600
 
     def __init__(self, event_name: str, queue: 'event_queue.EventQueue',
-                 event_time: Optional[int] = None, event_priority: int = 5,
-                 index: Optional[int] = None):
+                 event_time: Optional[float] = None, event_priority: int = 5,
+                 index: Optional[int] = None) -> None:
         self.__name = event_name
         self.__queue = queue
         self.__index = index
@@ -68,11 +68,11 @@ class Event:
         return self.__queue
 
     @property
-    def time(self) -> int:
+    def time(self) -> float:
         return self.__time
 
     @time.setter
-    def time(self, time: int):
+    def time(self, time: float) -> None:
         self.__time = time
 
     @property
@@ -84,7 +84,7 @@ class Event:
         return self.__index
 
     @index.setter
-    def index(self, index: int):
+    def index(self, index: int) -> None:
         self.__index = index
 
     @property
@@ -108,7 +108,7 @@ class Event:
         raise NotImplementedError('_process of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'Event') -> bool:
         """ Returns True if self.time < other.time or self.time == other.time
         and self.priority < other.priority"""
         result = False
@@ -119,7 +119,7 @@ class Event:
 
         return result
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Event') -> bool:
         """ Returns True if self.time + self.priority
         == other.time + other.priority"""
         # return self.time + self.priority == other.time + other.priority
@@ -129,16 +129,18 @@ class Event:
 
         return result
 
-    def add_to_queue(self):
+    def add_to_queue(self) -> None:
         self.queue.put(self)
 
 
 class ActionEvent(Event):
 
-    def __init__(self, event_name: str, queue: 'event_queue.EventQueue',
-                 event_time: Optional[int] = None,
-                 event_priority: int = Event.STANDARD_PRIORITY,
-                 state_machine: Optional['state_machine.StateMachine'] = None):
+    def __init__(
+            self, event_name: str, queue: 'event_queue.EventQueue',
+            event_time: Optional[float] = None,
+            event_priority: int = Event.STANDARD_PRIORITY,
+            state_machine: Optional[
+                'state_machine.StateMachine'] = None) -> None:
         super().__init__(event_name, queue, event_time, event_priority)
 
         if state_machine is not None \
@@ -168,11 +170,11 @@ class ActionEvent(Event):
 
 class TimeSyncEvent(Event):
 
-    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
-                 speed: Optional[int] = None,
-                 max_waiting_time: Optional[int] = None,
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
+                 speed: Optional[float] = None,
+                 max_waiting_time: Optional[float] = None,
                  event_priority: Optional[int] = None,
-                 event_name: Optional[str] = None):
+                 event_name: Optional[str] = None) -> None:
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         if event_name is None:
@@ -198,7 +200,7 @@ class TimeSyncEvent(Event):
         self._synchronize()
         return self._process(env)
 
-    def _synchronize(self):
+    def _synchronize(self) -> None:
         if self._waiting_time > 0:
             time.sleep(self._waiting_time)
 
@@ -208,7 +210,7 @@ class TimeSyncEvent(Event):
 
 class RecurrentTimeSyncEvent(TimeSyncEvent):
     def __init__(self, queue, event_time, speed,
-                 time_step, event_priority=None):
+                 time_step, event_priority=None) -> None:
         super().__init__(queue, event_time, speed=speed,
                          event_priority=event_priority,
                          event_name="RecurrentTimeSyncEvent")
@@ -230,8 +232,9 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
 
 
 class PauseEvent(Event):
-    def __init__(self, queue: 'event_queue.EventQueue',
-                 event_time: int, event_priority: Optional[int] = None):
+    def __init__(
+            self, queue: 'event_queue.EventQueue',
+            event_time: float, event_priority: Optional[int] = None) -> None:
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         super().__init__("PauseEvent", queue, event_time, event_priority)
@@ -241,8 +244,8 @@ class PauseEvent(Event):
 
 
 class ResumeEvent(Event):
-    def __init__(self, queue: 'event_queue.EventQueue', event_time: int,
-                 event_priority: Optional[int] = None):
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
+                 event_priority: Optional[int] = None) -> None:
         if event_priority is None:
             event_priority = self.MAX_PRIORITY
         super().__init__("ResumeEvent", queue, event_time, event_priority)

@@ -1,10 +1,10 @@
 import logging
-from typing import List, Any, Optional
+from typing import Any, Optional
 
 import networkx as nx
 
 import multimodalsim.simulator.request as request
-from multimodalsim.optimization.state import State
+import multimodalsim.optimization.state as state_module
 from multimodalsim.simulator.stop import LabelLocation
 
 logger = logging.getLogger(__name__)
@@ -12,19 +12,21 @@ logger = logging.getLogger(__name__)
 
 class Splitter:
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def split(self, trip, state):
+    def split(self, trip: 'request.Trip',
+              state: 'state_module.State') -> list['request.Leg']:
         raise NotImplementedError('Splitter.split not implemented')
 
 
 class OneLegSplitter(Splitter):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def split(self, trip: 'request.Trip', state: State) -> List['request.Leg']:
+    def split(self, trip: 'request.Trip',
+              state: 'state_module.State') -> list['request.Leg']:
         leg = request.Leg(trip.id, trip.origin, trip.destination,
                           trip.nb_passengers, trip.release_time,
                           trip.ready_time,
@@ -37,7 +39,7 @@ class MultimodalSplitter(Splitter):
 
     def __init__(self, network_graph: Any,
                  available_connections: Optional[dict] = None,
-                 freeze_interval: int = 5):
+                 freeze_interval: float = 5) -> None:
         super().__init__()
         self.__network_graph = network_graph
         self.__available_connections = available_connections \
@@ -46,7 +48,8 @@ class MultimodalSplitter(Splitter):
         self.__trip = None
         self.__state = None
 
-    def split(self, trip: 'request.Trip', state: State):
+    def split(self, trip: 'request.Trip',
+              state: 'state_module.State') -> list['request.Leg']:
 
         self.__state = state
         self.__trip = trip

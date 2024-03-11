@@ -1,10 +1,10 @@
 import copy
 import logging
 from threading import Condition
-from typing import Optional, Any, List
+from typing import Optional, Any
 
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.state import State
+import multimodalsim.optimization.state as state_module
 from multimodalsim.simulator.coordinates import Coordinates
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.travel_times import TravelTimes
@@ -46,7 +46,7 @@ class Environment:
     def __init__(self, optimization: Optimization,
                  network: Optional[Any] = None,
                  coordinates: Optional[Coordinates] = None,
-                 travel_times: Optional[TravelTimes] = None):
+                 travel_times: Optional[TravelTimes] = None) -> None:
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -62,11 +62,11 @@ class Environment:
         self.__optimize_cv = None
 
     @property
-    def current_time(self) -> int:
+    def current_time(self) -> float:
         return self.__current_time
 
     @current_time.setter
-    def current_time(self, current_time: int):
+    def current_time(self, current_time: float) -> None:
         if current_time < self.__current_time:
             logger.warning(
                 "{} < {}".format(current_time, self.__current_time))
@@ -75,7 +75,7 @@ class Environment:
         self.__current_time = current_time
 
     @property
-    def trips(self) -> List['request.Trip']:
+    def trips(self) -> list['request.Trip']:
         return self.__trips
 
     def get_trip_by_id(self, trip_id: str | int) -> 'request.Trip':
@@ -86,11 +86,11 @@ class Environment:
                 break
         return found_trip
 
-    def add_trip(self, trip: 'request.Trip'):
+    def add_trip(self, trip: 'request.Trip') -> None:
         """ Adds a new trip to the trips list"""
         self.__trips.append(trip)
 
-    def remove_trip(self, trip_id: str | int):
+    def remove_trip(self, trip_id: str | int) -> None:
         """ Removes a trip from the requests list based on its id"""
         self.__trips = [trip for trip in self.__trips if trip.id != trip_id]
 
@@ -114,38 +114,38 @@ class Environment:
         return found_leg
 
     @property
-    def assigned_trips(self) -> List['request.Trip']:
+    def assigned_trips(self) -> list['request.Trip']:
         return self.__assigned_trips
 
-    def add_assigned_trip(self, trip: 'request.Trip'):
+    def add_assigned_trip(self, trip: 'request.Trip') -> None:
         """ Adds a new trip to the list of assigned trips if it is not already
         there"""
         if trip not in self.__assigned_trips:
             self.__assigned_trips.append(trip)
 
-    def remove_assigned_trip(self, trip_id: str | int):
+    def remove_assigned_trip(self, trip_id: str | int) -> None:
         """ Removes a trip from the list of assigned trips based on its id"""
         self.__assigned_trips = [trip for trip in self.__assigned_trips
                                  if trip.id != trip_id]
 
     @property
-    def non_assigned_trips(self) -> List['request.Trip']:
+    def non_assigned_trips(self) -> list['request.Trip']:
         return self.__non_assigned_trips
 
-    def add_non_assigned_trip(self, trip: 'request.Trip'):
+    def add_non_assigned_trip(self, trip: 'request.Trip') -> None:
         """ Adds a new trip to the list of non-assigned trips it is not already
         there"""
         if trip not in self.__non_assigned_trips:
             self.__non_assigned_trips.append(trip)
 
-    def remove_non_assigned_trip(self, trip_id: str | int):
+    def remove_non_assigned_trip(self, trip_id: str | int) -> None:
         """ Removes a trip from the list of non-assigned trips based on its
         id """
         self.__non_assigned_trips = [trip for trip in self.__non_assigned_trips
                                      if trip.id != trip_id]
 
     @property
-    def vehicles(self) -> List[Vehicle]:
+    def vehicles(self) -> list[Vehicle]:
         return self.__vehicles
 
     def get_vehicle_by_id(self, vehicle_id: str | int) -> Vehicle:
@@ -155,11 +155,11 @@ class Environment:
                 found_vehicle = vehicle
         return found_vehicle
 
-    def add_vehicle(self, vehicle: Vehicle):
+    def add_vehicle(self, vehicle: Vehicle) -> None:
         """ Adds a new vehicle to the vehicles list"""
         self.__vehicles.append(vehicle)
 
-    def remove_vehicle(self, vehicle_id: str | int):
+    def remove_vehicle(self, vehicle_id: str | int) -> None:
         """ Removes a vehicle from the vehicles list based on its id"""
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
@@ -175,7 +175,7 @@ class Environment:
 
         return route
 
-    def add_route(self, route: Route, vehicle_id: str | int):
+    def add_route(self, route: Route, vehicle_id: str | int) -> None:
         self.__routes_by_vehicle_id[vehicle_id] = route
 
     def get_environment_statistics(self) -> 'EnvironmentStatistics':
@@ -184,7 +184,7 @@ class Environment:
 
         return env_stats
 
-    def get_new_state(self) -> State:
+    def get_new_state(self) -> 'state_module.State':
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
@@ -199,7 +199,7 @@ class Environment:
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = State(copy.deepcopy(state_copy))
+        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
 
         return state_deepcopy
 
@@ -240,13 +240,13 @@ class Environment:
         return self.__optimize_cv
 
     @optimize_cv.setter
-    def optimize_cv(self, optimize_cv: Optional[Condition]):
+    def optimize_cv(self, optimize_cv: Optional[Condition]) -> None:
         self.__optimize_cv = optimize_cv
 
 
 class EnvironmentStatistics:
 
-    def __init__(self, env: Environment):
+    def __init__(self, env: Environment) -> None:
         self.__nb_vehicles = len(env.vehicles)
         self.__nb_trips = len(env.trips)
 
