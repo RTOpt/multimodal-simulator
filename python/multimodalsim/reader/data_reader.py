@@ -13,7 +13,6 @@ import networkx as nx
 import os.path
 
 from multimodalsim.config.data_reader_config import DataReaderConfig
-from multimodalsim.optimization.shuttle.greedy_dispatcher.network import Node
 from multimodalsim.simulator.request import Trip, Leg
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.stop import LabelLocation, Stop
@@ -136,7 +135,6 @@ class ShuttleDataReader(DataReader):
                 node[1]['lat'] = node[1]['pos'][1]
                 coord = (node[1]['pos'][0], node[1]['pos'][1])
                 node[1]['pos'] = coord
-                node[1]['Node'] = Node(node[1]['Node']['id'], coord)
 
         return self.__network
 
