@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
 small=True
+only_transfers=True
 main_trip_id="2790970"
+max_distance = 0.5 #connection max distance in km
 if small:
-    nb_transfers=1
+    nb_transfers=3
     small_name="_small"
     small_folder="-small"
 else: 
@@ -68,7 +70,8 @@ with open(cap_file_path_old, 'r') as file:
         line_split=line.split(";")
         trip_id=line_split[trip_id_index]
         if trip_id==main_trip_id:
-            written_lines.append(lines[i][1])
+            if (not only_transfers) and (lines[i][1] in written_lines)==False:
+                written_lines.append(lines[i][1])
             passenger_id=line_split[passenger_id_index]
             validation_time=int(line_split[validation_time_index])
             lign_number=line_split[lign_numer_index]
@@ -82,6 +85,8 @@ with open(cap_file_path_old, 'r') as file:
                     print('trip_id_prev:',trip_id_prev)
                     written_lines.append(lines[i-1][1])
                     transfers+=1
+                    if only_transfers and (lines[i][1] in written_lines)==False:
+                        written_lines.append(lines[i][1])
             if i+1<len(lines) and (lines[i+1][1] in written_lines)==False:
                 passenger_id_next=lines[i+1][0].split(";")[passenger_id_index]
                 validation_time_next=int(lines[i+1][0].split(";")[validation_time_index])
@@ -92,6 +97,8 @@ with open(cap_file_path_old, 'r') as file:
                     relevant_trips.append(trip_id_next)
                     written_lines.append(lines[i+1][1])
                     transfers+=1
+                    if only_transfers and (lines[i][1] in written_lines)==False:
+                        written_lines.append(lines[i][1])
 print('Number of transfers:',transfers)
 # Write the relevant lines into a new file
 lines_to_write=[lines[i] for i in range(len(lines)) if lines[i][1] in written_lines]
@@ -214,7 +221,6 @@ logger.info("AvailableConnectionsExtractor ")
 available_connections_extractor = \
     AvailableConnectionsExtractor(args.cap, args.stoptimes)
 
-max_distance = 0.5
 available_connections = available_connections_extractor.extract_available_connections(max_distance)
 
 # # Save to file
