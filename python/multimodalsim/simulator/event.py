@@ -209,8 +209,10 @@ class TimeSyncEvent(Event):
 
 
 class RecurrentTimeSyncEvent(TimeSyncEvent):
-    def __init__(self, queue, event_time, speed,
-                 time_step, event_priority=None) -> None:
+    def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
+                 time_step: float, speed: Optional[float] = None,
+                 event_priority: Optional[int] = None) -> None:
+        speed = 1 if speed is None else speed
         super().__init__(queue, event_time, speed=speed,
                          event_priority=event_priority,
                          event_name="RecurrentTimeSyncEvent")
@@ -225,8 +227,8 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
         if not self.__queue.is_empty():
             RecurrentTimeSyncEvent(
                 self.__queue, self.__event_time + self.__time_step,
-                self.__speed,
-                self.__time_step, self.__event_priority).add_to_queue()
+                self.__time_step, self.__speed,
+                self.__event_priority).add_to_queue()
 
         return super()._process(env)
 

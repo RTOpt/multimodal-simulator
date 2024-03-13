@@ -106,10 +106,10 @@ class Simulation:
 
         self.__env.current_time = first_event_time
 
-        if self.__time_step is not None and self.__speed is not None:
+        if self.__time_step is not None:
             RecurrentTimeSyncEvent(self.__queue, first_event_time,
-                                   self.__speed,
-                                   self.__time_step).add_to_queue()
+                                   self.__time_step,
+                                   self.__speed).add_to_queue()
 
     def __find_smallest_release_time(self, objects_list,
                                      smallest_release_time=None):
