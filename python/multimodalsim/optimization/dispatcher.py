@@ -23,8 +23,8 @@ class Dispatcher:
             1. prepare_input
             2. optimize
             3. process_optimized_route_plans
-        The optimize method must be overriden. The other two methods can be
-        overriden to modify some specific behaviors of the dispatching process.
+        The optimize method must be overridden. The other two methods can be
+        overridden to modify some specific behaviors of the dispatching process.
 
         Input:
             -state: An object of type State that corresponds to a partial deep
@@ -61,9 +61,10 @@ class Dispatcher:
         By default, all next legs and all routes existing in the environment at
         the time of optimization will be optimized.
 
-        This method can be overriden to return only the legs and the routes
+        This method can be overridden to return only the legs and the routes
         that should be optimized based on your needs (see, for example,
-        ShuttleSimpleDispatcher).
+        ShuttleSimpleDispatcher). It is possible to return empty lists if we do
+        not want to optimize for this event.
 
         Input:
           -state: An object of type State that corresponds to a partial deep
@@ -96,7 +97,7 @@ class Dispatcher:
         according to an optimization algorithm. The optimization algorithm
         should be coded in this method.
 
-        Must be overriden (see ShuttleSimpleDispatcher and
+        Must be overridden (see ShuttleSimpleDispatcher and
         ShuttleSimpleNetworkDispatcher for simple examples).
 
         Input:
