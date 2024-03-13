@@ -1,5 +1,5 @@
 import logging  # Required to modify the log level
-
+from multimodalsim.__main__ import extract_simulation_output
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
@@ -10,11 +10,13 @@ from multimodalsim.optimization.splitter import MultimodalSplitter, \
 from multimodalsim.reader.data_reader import GTFSReader, os
 from multimodalsim.simulator.coordinates import CoordinatesFromFile, CoordinatesOSRM
 from multimodalsim.simulator.simulation import Simulation
+import json
 
 def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
                        requests_file_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small","requests.csv"),
                        coordinates_file_path=None,
                        freeze_interval=5,
+                       output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated-small"),
                        logger=logging.getLogger(__name__),
                        loggin_level=logging.INFO):
     # To modify the log level (at INFO, by default)
@@ -34,8 +36,12 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
+    # Get available connections saved in a .json file in the data folder
+    available_connections_path = os.path.join(gtfs_folder_path, "available_connections.json")
+    available_connections = data_reader.get_available_connections(available_connections_path)
+
     # Generate the network from GTFS files.
-    g = data_reader.get_network_graph()
+    g = data_reader.get_network_graph(available_connections=available_connections)
 
     # Initialize the optimizer.
     splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
@@ -55,3 +61,6 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
 
     # Execute the simulation.
     simulation.simulate()
+
+    # Extract the simulation output
+    extract_simulation_output(simulation, output_folder_path)

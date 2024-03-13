@@ -3,6 +3,7 @@ import logging
 import cProfile
 import pstats
 import json
+import os
 
 import networkx as nx
 from networkx.readwrite import json_graph
@@ -144,13 +145,13 @@ def extract_simulation_output(simulation, output_folder):
     if data_container is not None and output_folder is not None:
         if "vehicles" in data_container.observations_tables:
             data_container.save_observations_to_csv(
-                "vehicles", output_folder + "vehicles_observations_df.csv")
+                "vehicles", os.path.join(output_folder,"vehicles_observations_df.csv"))
         if "trips" in data_container.observations_tables:
             data_container.save_observations_to_csv(
-                "trips", output_folder + "trips_observations_df.csv")
+                "trips", os.path.join(output_folder, "trips_observations_df.csv"))
         if "events" in data_container.observations_tables:
             data_container.save_observations_to_csv(
-                "events", output_folder + "events_observations_df.csv")
+                "events", os.path.join(output_folder, "events_observations_df.csv"))
 
 
 def main():
