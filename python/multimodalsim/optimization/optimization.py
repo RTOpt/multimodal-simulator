@@ -15,6 +15,21 @@ logger = logging.getLogger(__name__)
 
 
 class Optimization:
+    """The ``Optimization`` class specifies the optimization algorithm that
+    will be used during the simulation.
+            Properties
+            ----------
+            dispatcher: Dispatcher
+                Unique id
+            splitter: Splitter
+                Time at which the vehicle is ready to start
+            freeze_interval: float
+                Time interval during which the current state of the environment
+                 is frozen.
+            config: OptimizationConfig or str
+                Path to the config file or the OptimizationConfig object
+                 itself.
+        """
 
     def __init__(self, dispatcher: 'dispatcher_module.Dispatcher',
                  splitter: Optional[Splitter] = None,

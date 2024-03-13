@@ -38,6 +38,9 @@ if __name__ == '__main__':
     # Generate the network from GTFS files.
     g = data_reader.get_network_graph()
 
+    # Time interval during which the current state of the environment is frozen
+    # at each optimization. It prevents the optimization from making decisions
+    # that would have an impact too near in the future.
     freeze_interval = 5
     # Initialize the optimizer.
     splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
