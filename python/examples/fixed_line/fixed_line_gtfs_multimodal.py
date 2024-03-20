@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
     gtfs_folder_path = "../../../data/fixed_line/gtfs/gtfs/"
-    requests_file_path = "../../../data/fixed_line/gtfs/requests_gtfs_v2.csv"
+    requests_file_path = "../../../data/fixed_line/gtfs/requests_gtfs_v1.csv"
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
     # Set to None if coordinates of the vehicles are not available.
@@ -35,12 +35,17 @@ if __name__ == '__main__':
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
+    # Generate the network from GTFS files. This is necessary for the
+    # MultimodalSplitter.
+    g = data_reader.get_network_graph()
+
     # Time interval during which the current state of the environment is frozen
     # at each optimization. It prevents the optimization from making decisions
     # that would have an impact too near in the future.
     freeze_interval = 5
+
     # Initialize the optimizer.
-    splitter = OneLegSplitter()
+    splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 

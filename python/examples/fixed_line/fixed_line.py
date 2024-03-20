@@ -5,7 +5,8 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import MultimodalSplitter
+from multimodalsim.optimization.splitter import MultimodalSplitter, \
+    OneLegSplitter
 from multimodalsim.reader.data_reader import BusDataReader
 from multimodalsim.simulator.simulation import Simulation
 
@@ -21,11 +22,11 @@ if __name__ == '__main__':
 
     data_reader = BusDataReader(requests_file_path, vehicles_file_path)
 
-    vehicles = data_reader.get_vehicles()
+    vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
     # Initialize the optimizer.
-    splitter = MultimodalSplitter()
+    splitter = OneLegSplitter()
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter)
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
-    simulation = Simulation(opt, trips, vehicles,
+    simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
                             environment_observer=environment_observer)
 
     # Execute the simulation.

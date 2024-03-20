@@ -35,7 +35,7 @@ if __name__ == '__main__':
     coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_5s.csv"
     coordinates = CoordinatesFromFile(coordinates_file_path)
 
-    # Read travel times
+    # Read the actual travel times.
     travel_times_file_path = \
         "../../../data/fixed_line/gtfs/actual_travel_times_late.csv"
     matrix_travel_times_reader = \

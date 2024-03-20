@@ -11,21 +11,21 @@ class SimulationConfig(Config):
         super().__init__(config_file)
 
     @property
+    def time_step(self) -> float:
+        if len(self._config_parser["time_sync_event"]["time_step"]) == 0:
+            time_step = None
+        else:
+            time_step = float(self._config_parser[
+                                  "time_sync_event"]["time_step"])
+        return time_step
+
+    @property
     def speed(self) -> float:
         if len(self._config_parser["time_sync_event"]["speed"]) == 0:
             speed = None
         else:
             speed = float(self._config_parser["time_sync_event"]["speed"])
         return speed
-
-    @property
-    def time_step(self) -> float:
-        if len(self._config_parser["time_sync_event"]["time_step"]) == 0:
-            time_step = None
-        else:
-            time_step = float(self._config_parser[
-                                "time_sync_event"]["time_step"])
-        return time_step
 
     @property
     def update_position_time_step(self) -> float:

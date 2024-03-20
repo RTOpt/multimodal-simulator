@@ -44,17 +44,27 @@ then it is said to be multimodal; otherwise, it is unimodal.
 
 #### Vehicles
 
-Each vehicle is associated with an object of type Vehicle. 
-
-* Route
-* Stop
-* Location
+Each vehicle is represented by an object of type Vehicle. Each vehicle is 
+associated with a route, which is represented by an object of type Route. A 
+route essentially corresponds to a list of stops (Stop objects) 
+through which the vehicle has already passed (see Route.previous_stops and 
+Route.current_stop) or is expected to pass in the future (see Route.
+next_stops). The location of a stop is described by an object of type 
+Location, which contains at least a label, but may also contain 
+additional information, such as coordinates (i.e., longitude and latitude).
 
 ### Environment
 
-
+The simulation environment is represented by an object of type Environment. 
+It is essentially a structure that contains all the important objects of 
+the simulation. It includes, among other things, the current time, the list of 
+trips, the list of vehicles, the network and the optimization algorithm.
 
 ### State
+
+An object of type State is a partial deep copy of the environment that is 
+shared with the optimization algorithm. It precisely contains the 
+information that the optimization algorithm is allowed to see.
 
 ### Events
 
@@ -68,15 +78,18 @@ events and vehicle events.
 A flow chart illustrating the relationship between the different events can 
 be found on page 2 of multimodal-simulator/docs/flow_charts.pdf.
 
-#### 
+#### Optimize event
 
-#### Passenger events
+Optimization takes place whenever an Optimize event is processed. In 
+general, an Optimize event is created when one of the following conditions 
+is met:
+* A new vehicle is released in the environment. (See event **VehicleReady**.)
+* A new trip is released in the environment. (See event **PassengerRelease**.)
+* A vehicle is waiting at a stop. (See event **VehicleWaiting**.)
+* A passenger completes a leg and is waiting to start a new leg. (See 
+  event **PassengerAlighting**.) 
 
-
-
-#### Vehicle events
-
-### Events queue
+### Event queue
 
 The events of the simulation are stored in a priority queue. The priority 
 of the queue is determined by the time of the event (i.e., Event.time), as 
@@ -87,8 +100,12 @@ the lowest priority are processed first.
 
 ### Main loop
 
-
-### Optimize event
+At each iteration of the simulation the next event of the event queue is 
+processed. (See **Simulation.simulate** in simulation.py.) Moreover, at each 
+iteration, the methods **Visualizer.visualize_environment** and 
+**DataCollector.collect** of the visualizers and the data collectors 
+associated with the simulation are called. (See section **Environment 
+observer** below.)
 
 
 ## Setup
@@ -388,50 +405,19 @@ three methods:
 
 A few examples of dispatchers are provided with the package, but in general,
 users will probably want to create their own Dispatcher object, whether by 
-using or not the default **dispatch** method.
+using or not the default **dispatch** method. 
 
-##### Example 1: ShuttleHubSimpleDispatcher
-
-The ShuttleHubSimpleDispatcher 
-(/multimodalsim/shuttle/shuttle_hub_simple_dispatcher.
-py) is a simple example that demonstrates how to use the ShuttleDispatcher.
-It is based on a simple optimization algorithm that assigns to the vehicles 
-available at the hub the trips of the environment that have not been 
-assigned yet. Moreover, each vehicle serves at most one trip at a time.
-
-This example does not make use of a network (e.g., a graph that indicates 
-the distance/travel time between the different locations). The travel time 
-between any pair of nodes is considered constant.
-
-For more details, see the comments in 
-/multimodalsim/shuttle/shuttle_simple_dispatcher.py.
-
-##### Example 2: ShuttleHubSimpleNetworkDispatcher
-
-The ShuttleHubSimpleNetworkDispatcher 
-(/multimodalsim/shuttle/shuttle_hub_simple_network_dispatcher.py) is a 
-simple example that demonstrates how to use the 
-ShuttleDispatcher with a network (e.g., a graph that indicates the 
-distance/travel time between the different locations). It is based on 
-the same simple optimization algorithm as the ShuttleHubSimpleDispatcher. The 
-only difference is that the travel time between any pair of nodes is now 
-given by the network.
-
-For more details, see the comments in 
-/multimodalsim/shuttle/shuttle_hub_simple_network_dispatcher.py.
-
-##### Example 3: ShuttleGreedyDispatcher
-
-The ShuttleGreedyDispatcher 
-(/multimodalsim/shuttle/shuttle_greedy_dispatcher.py) is a more complex 
-example. It is based on an 
-optimization algorithm that assigns the trips to the vehicles in a greedy way.
-
-##### Example 4: FixedLineDispatcher
+A description of each dispatcher can be found in their respective folders:
+* ShuttleHubSimpleDispatcher: 
+  python/multimodalsim/shuttle/shuttle_simple_dispatcher.py
+* ShuttleHubSimpleNetworkDispatcher: 
+  python/multimodalsim/shuttle/shuttle_hub_simple_network_dispatcher.py
+* FixedLineDispatcher: 
+  python/multimodalsim/fixed_line/fixed_line_dispatcher.py
 
 ## Examples
  
-Example programs can be found in the folder *examples*.
+Example programs can be found in the folder /python/examples/.
 
 
 ## Log level

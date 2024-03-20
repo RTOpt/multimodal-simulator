@@ -20,6 +20,7 @@ if __name__ == '__main__':
     data_reader = ShuttleDataReader(requests_file_path, vehicles_file_path,
                                     vehicles_end_time=100000)
 
+    # Read the vehicles from a file.
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
 
