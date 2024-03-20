@@ -54,7 +54,8 @@ class Optimize(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
 
-        env_stats = env.get_environment_statistics()
+        stats_extractor = env.optimization.environment_statistics_extractor
+        env_stats = stats_extractor.extract_environment_statistics(env)
 
         if env.optimization.need_to_optimize(env_stats):
             env.optimize_cv = Condition()
@@ -65,6 +66,10 @@ class Optimize(ActionEvent):
                 self.__optimize_asynchronously(env)
             else:
                 self.__optimize_synchronously(env)
+        else:
+            optimization_result = optimization_module.OptimizationResult(
+                None, [], [])
+            EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
 

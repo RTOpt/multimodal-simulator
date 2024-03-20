@@ -9,6 +9,8 @@ import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
 import multimodalsim.simulator.environment as environment_module
 import multimodalsim.simulator.vehicle as vehicle_module
+from multimodalsim.simulator.environment_statistics import \
+    EnvironmentStatisticsExtractor, EnvironmentStatistics
 from multimodalsim.state_machine.status import OptimizationStatus
 
 logger = logging.getLogger(__name__)
@@ -34,9 +36,19 @@ class Optimization:
     def __init__(self, dispatcher: 'dispatcher_module.Dispatcher',
                  splitter: Optional[Splitter] = None,
                  freeze_interval: Optional[float] = None,
+                 environment_statistics_extractor:
+                 Optional[EnvironmentStatisticsExtractor] = None,
                  config: Optional[str | OptimizationConfig] = None) -> None:
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
+
+        if environment_statistics_extractor is None:
+            # Use default EnvironmentStatisticsExtractor
+            self.__environment_statistics_extractor = \
+                EnvironmentStatisticsExtractor()
+        else:
+            self.__environment_statistics_extractor = \
+                environment_statistics_extractor
 
         self.__state_machine = state_machine.OptimizationStateMachine(self)
 
@@ -75,7 +87,7 @@ class Optimization:
         return self.__dispatcher.dispatch(state)
 
     def need_to_optimize(
-            self, env_stats: 'environment_module.EnvironmentStatistics') \
+            self, env_stats: EnvironmentStatistics) \
             -> bool:
         # By default, reoptimize every time the Optimize event is processed.
         return True
@@ -87,6 +99,11 @@ class Optimization:
     @property
     def dispatcher(self) -> 'dispatcher_module.Dispatcher':
         return self.__dispatcher
+
+    @property
+    def environment_statistics_extractor(self) \
+            -> EnvironmentStatisticsExtractor:
+        return self.__environment_statistics_extractor
 
     @property
     def config(self) -> OptimizationConfig:
@@ -106,7 +123,7 @@ class Optimization:
 
 class OptimizationResult:
 
-    def __init__(self, state: 'state_module.State',
+    def __init__(self, state: Optional['state_module.State'],
                  modified_requests: list['request.Trip'],
                  modified_vehicles: list['vehicle_module.Vehicle']):
         self.state = state

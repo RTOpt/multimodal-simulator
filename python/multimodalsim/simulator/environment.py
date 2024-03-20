@@ -178,12 +178,6 @@ class Environment:
     def add_route(self, route: Route, vehicle_id: str | int) -> None:
         self.__routes_by_vehicle_id[vehicle_id] = route
 
-    def get_environment_statistics(self) -> 'EnvironmentStatistics':
-
-        env_stats = EnvironmentStatistics(self)
-
-        return env_stats
-
     def get_new_state(self) -> 'state_module.State':
         state_copy = copy.copy(self)
         state_copy.__network = None
@@ -242,19 +236,3 @@ class Environment:
     @optimize_cv.setter
     def optimize_cv(self, optimize_cv: Optional[Condition]) -> None:
         self.__optimize_cv = optimize_cv
-
-
-class EnvironmentStatistics:
-
-    def __init__(self, env: Environment) -> None:
-        self.__nb_vehicles = len(env.vehicles)
-        self.__nb_trips = len(env.trips)
-
-    @property
-    def nb_vehicles(self) -> int:
-        return self.__nb_vehicles
-
-    @property
-    def nb_trips(self) -> int:
-        return self.__nb_trips
-
