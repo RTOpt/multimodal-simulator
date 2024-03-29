@@ -16,11 +16,11 @@ class Simulation(object):
 
     def __init__(self, optimization, trips, vehicles, routes_by_vehicle_id,
                  network=None, environment_observer=None, coordinates=None,
-                 travel_times=None, config=None):
+                 travel_times=None, config=None, main_line=None, next_main_line=None):
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
-                                 travel_times=travel_times)
+                                 travel_times=travel_times, main_line=main_line,next_main_line=next_main_line)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
 

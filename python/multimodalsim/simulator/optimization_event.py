@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 class Optimize(ActionEvent):
     def __init__(self, time, queue, multiple_optimize_events=None,
-                 batch=None, max_optimization_time=None, asynchronous=None):
-
+                 batch=None, max_optimization_time=None, asynchronous=None, bus=False, event_priority=Event.LOW_PRIORITY):
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
                                            max_optimization_time, asynchronous)
@@ -27,12 +26,13 @@ class Optimize(ActionEvent):
             # Round to the smallest integer greater than or equal to time that
             # is also a multiple of batch.#
             time = time + (batch - (time % batch)) % batch
+        self.__bus = bus
         super().__init__('Optimize', queue, time,
-                         event_priority=self.VERY_LOW_PRIORITY,
+                         event_priority=event_priority,
                          state_machine=queue.env.optimization.state_machine)
+        self.__bus = bus
 
     def process(self, env):
-
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
             with env.optimize_cv:
@@ -45,7 +45,6 @@ class Optimize(ActionEvent):
         return process_message
 
     def _process(self, env):
-
         env_stats = env.get_environment_statistics()
 
         if env.optimization.need_to_optimize(env_stats):
@@ -61,7 +60,6 @@ class Optimize(ActionEvent):
         return 'Optimize process is implemented'
 
     def add_to_queue(self):
-
         if self.__multiple_optimize_events or not \
                 self.queue.is_event_type_in_queue(self.__class__, self.time):
             super().add_to_queue()
@@ -69,9 +67,13 @@ class Optimize(ActionEvent):
     def __optimize_synchronously(self, env):
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
-
-        optimization_result = env.optimization.dispatch(
-            env.optimization.state)
+        if self.__bus:
+            input('Bus Optimization dispatch synchronous')
+            optimization_result = env.optimization.bus_dispatch(
+                env.optimization.state)
+        else:
+            optimization_result = env.optimization.dispatch(
+                env.optimization.state)
 
         env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
@@ -135,11 +137,14 @@ class Optimize(ActionEvent):
             EnvironmentUpdate(optimization_result,
                               self.queue).add_to_queue()
             hold_event.cv.notify()
-
+    
+    @property
+    def bus(self):
+        return self.__bus
+    
     @staticmethod
     def dispatch(dispatch_function, state):
         optimization_result = dispatch_function(state)
-
         return optimization_result
 
     def __load_parameters_from_config(self, optimization,

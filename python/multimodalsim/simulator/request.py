@@ -97,6 +97,7 @@ class Leg(Request):
                          ready_time, due_time)
         self.__assigned_vehicle = None
         self.__trip = trip
+        self.__cap_vehicle = None
 
         self.__boarding_time = None
         self.__alighting_time = None

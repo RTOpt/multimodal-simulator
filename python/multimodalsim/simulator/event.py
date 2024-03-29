@@ -18,7 +18,7 @@ class Event(object):
     HIGH_PRIORITY = 4
     MAX_DELTA_TIME = 7 * 24 * 3600
 
-    def __init__(self, event_name, queue, event_time=None, event_priority=5,
+    def __init__(self, event_name, queue, event_time=None, event_priority=STANDARD_PRIORITY,
                  index=None):
         self.__name = event_name
         self.__queue = queue
@@ -156,7 +156,6 @@ class ActionEvent(Event):
             return_message = "The event was cancelled."
 
         return return_message
-
 
 class TimeSyncEvent(Event):
 

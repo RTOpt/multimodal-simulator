@@ -47,6 +47,8 @@ class State:
         self.next_legs = self.__get_next_legs(self.trips)
         self.non_assigned_next_legs = self.__get_next_legs(
             self.non_assigned_trips)
+        self.main_line = env_deep_copy.main_line
+        self.next_main_line = env_deep_copy.next_main_line
 
     def get_trip_by_id(self, trip_id):
         found_trip = None

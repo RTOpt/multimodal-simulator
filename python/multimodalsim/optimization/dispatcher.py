@@ -204,7 +204,7 @@ class Dispatcher:
                 alighting_stop_found = True
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
-
+        ### Passenger does not alight at current stop, he would already have alighted before the opt.
         for stop in route.next_stops:
             if leg.destination == stop.location:
                 stop.passengers_to_alight.append(leg.trip)

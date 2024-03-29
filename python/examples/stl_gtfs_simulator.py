@@ -4,6 +4,8 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
+from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
+    FixedLineSynchroDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter, \
     OneLegSplitter
@@ -18,7 +20,8 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
                        freeze_interval=5,
                        output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated-small"),
                        logger=logging.getLogger(__name__),
-                       loggin_level=logging.INFO):
+                       loggin_level=logging.INFO,
+                       main_line=None):
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(loggin_level)
     logger.info(" Start simulation for small instance")
@@ -44,7 +47,7 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     g = data_reader.get_network_graph(available_connections=available_connections)
 
     # Initialize the optimizer.
-    splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
+    splitter = MultimodalSplitter(g, available_connections=available_connections, freeze_interval=freeze_interval)
     dispatcher = FixedLineDispatcher()
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 
@@ -57,7 +60,8 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
                             vehicles,
                             routes_by_vehicle_id,
                             environment_observer=environment_observer,
-                            coordinates=coordinates)
+                            coordinates=coordinates,
+                            main_line=main_line)
 
     # Execute the simulation.
     simulation.simulate()

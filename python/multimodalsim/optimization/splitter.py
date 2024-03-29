@@ -47,7 +47,6 @@ class MultimodalSplitter(Splitter):
 
         self.__state = state
         self.__trip = trip
-
         optimal_legs = []
 
         potential_source_nodes = self.__find_potential_source_nodes(trip)
@@ -60,7 +59,6 @@ class MultimodalSplitter(Splitter):
             if len(feasible_paths) > 0:
                 optimal_path = min(feasible_paths, key=lambda x: x[-1][2])
                 optimal_legs = self.__get_legs_from_path(optimal_path)
-
         self.__state = None
         self.__trip = None
 
@@ -106,7 +104,6 @@ class MultimodalSplitter(Splitter):
                 path_feasible = False
             if node[2] > min_arrival_time:
                 min_arrival_time = node[2]
-
         return path_feasible
 
     def __get_legs_from_path(self, path):
@@ -126,6 +123,7 @@ class MultimodalSplitter(Splitter):
                           self.__trip.nb_passengers, self.__trip.release_time,
                           self.__trip.ready_time, self.__trip.due_time,
                           self.__trip)
+                leg.__cap_vehicle = node[1]
                 legs.append(leg)
 
                 leg_vehicle_id = node[1]
@@ -143,6 +141,7 @@ class MultimodalSplitter(Splitter):
                        self.__trip.nb_passengers, self.__trip.release_time,
                        self.__trip.ready_time, self.__trip.due_time,
                        self.__trip)
+        last_leg.__cap_vehicle = path[-1][1]
         legs.append(last_leg)
 
         filtered_legs = self.__filter_legs(legs)
@@ -154,9 +153,9 @@ class MultimodalSplitter(Splitter):
         filtered_legs = []
         for leg in legs:
             if str(leg.origin) != str(leg.destination) and \
-                    (str(leg.origin) not in self.__available_connections
-                     or (str(leg.destination) not in
-                         self.__available_connections[str(leg.origin)])):
+                    (int(str(leg.origin)) not in self.__available_connections
+                     or (int(str(leg.destination)) not in
+                         self.__available_connections[int(str(leg.origin))])):
                 filtered_legs.append(leg)
 
         return filtered_legs

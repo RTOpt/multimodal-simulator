@@ -5,7 +5,6 @@ from multimodalsim.simulator.event import Event, ActionEvent
 import multimodalsim.simulator.vehicle
 from multimodalsim.state_machine.status import VehicleStatus, PassengersStatus
 
-
 import multimodalsim.simulator.optimization_event \
     as optimization_event
 import multimodalsim.simulator.passenger_event \
@@ -78,7 +77,12 @@ class VehicleWaiting(ActionEvent):
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
             else:
-                VehicleDeparture(self.__route, self.queue).add_to_queue()
+                if env.main_line == self.__route.vehicle.id:
+                    event_priority=Event.HIGH_PRIORITY
+                    print('Bus departure from main line stop, high event priority')
+                else:
+                    event_priority=Event.LOW_PRIORITY
+                VehicleDeparture(self.__route, self.queue, event_priority=event_priority).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
             # modified, its status will remain IDLE until Vehicle.end_time,
@@ -121,16 +125,16 @@ class VehicleBoarding(ActionEvent):
 
 
 class VehicleDeparture(ActionEvent):
-    def __init__(self, route, queue):
+    def __init__(self, route, queue, event_priority=Event.STANDARD_PRIORITY):
         super().__init__('Vehicle Departure', queue,
                          route.current_stop.departure_time,
                          state_machine=route.vehicle.state_machine,
-                         # event_priority=Event.EXTREME_LOW_PRIORITY
+                         event_priority=event_priority
                          )
         self.__route = route
+        self.__event_priority = event_priority
 
     def _process(self, env):
-
         if env.travel_times is not None:
             from_stop = copy.deepcopy(self.__route.current_stop)
             to_stop = copy.deepcopy(self.__route.next_stops[0])
@@ -141,7 +145,12 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
-
+        if self.__event_priority == Event.HIGH_PRIORITY:
+            print('Bus departure from main line stop')
+            optimization_event.Optimize(env.current_time,
+                                        self.queue,
+                                        bus=True,
+                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
         VehicleArrival(self.__route, self.queue,
                        actual_arrival_time).add_to_queue()
 

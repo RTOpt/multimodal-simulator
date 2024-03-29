@@ -373,11 +373,10 @@ class GTFSReader(DataReader):
                     previous_node, current_node,
                     weight=current_node[2] - previous_node[2])
                 previous_node = current_node
-
         for node1 in self.__network_graph.nodes:
             for node2 in self.__network_graph.nodes:
-                if (node1[0] == node2[0] or node1[0] in available_connections
-                    and node2[0] in available_connections[node1[0]]) \
+                if (node1[0] == node2[0] or int(node1[0]) in available_connections
+                    and int(node2[0]) in available_connections[int(node1[0])]) \
                         and node1[1] != node2[1]:
                     # Nodes correspond to same stop but different vehicles
                     if (node2[3] - node1[2]) >= freeze_interval:
@@ -404,7 +403,6 @@ class GTFSReader(DataReader):
                 locations_cc_set = set(locations_cc)
                 for location in locations_cc:
                     available_connections[location] = locations_cc_set
-
         return available_connections
 
     def __get_vehicle_and_next_stops(self, trip_id, stop_time_list):
