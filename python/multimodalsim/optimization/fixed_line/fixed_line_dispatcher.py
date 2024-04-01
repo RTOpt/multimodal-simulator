@@ -113,12 +113,13 @@ class FixedLineDispatcher(Dispatcher):
         # All the routes
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
         print("selected_routes: ", [route.vehicle.id for route in selected_routes])
+        # Get the next ten stops on the main line
+        main_line = state.route_by_vehicle_id[main_line_id]
+        main_line_stops = main_line.next_stops[0:10]
         # The next legs assigned and onboard the selected routes
-        potential_next_legs = [leg for route in selected_routes for leg in route.onboard_legs + route.assigned_legs]
-        print(len(potential_next_legs))
-        selected_next_legs = [leg for route in selected_routes for leg in route.onboard_legs + route.assigned_legs if (leg.trip.ready_time < state.current_time + state.optimization_horizon+600 and leg.trip.ready_time>state.current_time-600)]
-        input("selected_next_legs: ", [selected_next_legs])
-        input('bus_prepare_input')
+        selected_next_legs = [leg for route in selected_routes for leg in route.onboard_legs + route.assigned_legs if leg.origin.location in main_line_stops or leg.destination.location in main_line_stops]
+        print(selected_next_legs)
+        input("selected_next_legs: ")
         return selected_next_legs, selected_routes
     
     def bus_optimize(self, selected_next_legs, selected_routes, current_time,

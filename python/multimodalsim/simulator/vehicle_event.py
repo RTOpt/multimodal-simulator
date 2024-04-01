@@ -33,6 +33,9 @@ class VehicleReady(Event):
 
         env.add_route(self.__route, self.__vehicle.id)
 
+        optimization_event.Optimize(env.current_time, self.queue). \
+            add_to_queue()
+
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
@@ -59,9 +62,9 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
+        # if (env.main_line == self.__route.vehicle.id): 
+        #     optimization_event.Optimize(env.current_time, self.queue, event_priority=Event.HIGH_PRIORITY, bus=True). \
+        #             add_to_queue()
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -78,11 +81,12 @@ class VehicleWaiting(ActionEvent):
                     self.__route.current_stop.departure_time).add_to_queue()
             else:
                 if env.main_line == self.__route.vehicle.id:
-                    event_priority=Event.HIGH_PRIORITY
-                    print('Bus departure from main line stop, high event priority')
-                else:
-                    event_priority=Event.LOW_PRIORITY
-                VehicleDeparture(self.__route, self.queue, event_priority=event_priority).add_to_queue()
+                    # input('Bus departure from main line stop')
+                    optimization_event.Optimize(env.current_time,
+                                                self.queue,
+                                                bus=True,
+                                                event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
+                VehicleDeparture(self.__route, self.queue).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
             # modified, its status will remain IDLE until Vehicle.end_time,
@@ -132,7 +136,6 @@ class VehicleDeparture(ActionEvent):
                          event_priority=event_priority
                          )
         self.__route = route
-        self.__event_priority = event_priority
 
     def _process(self, env):
         if env.travel_times is not None:
@@ -145,12 +148,6 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
-        if self.__event_priority == Event.HIGH_PRIORITY:
-            print('Bus departure from main line stop')
-            optimization_event.Optimize(env.current_time,
-                                        self.queue,
-                                        bus=True,
-                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
         VehicleArrival(self.__route, self.queue,
                        actual_arrival_time).add_to_queue()
 

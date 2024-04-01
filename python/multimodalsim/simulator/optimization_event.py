@@ -17,11 +17,10 @@ logger = logging.getLogger(__name__)
 
 class Optimize(ActionEvent):
     def __init__(self, time, queue, multiple_optimize_events=None,
-                 batch=None, max_optimization_time=None, asynchronous=None, bus=False, event_priority=Event.LOW_PRIORITY):
+                 batch=None, max_optimization_time=None, asynchronous=None, bus=False, event_priority=Event.STANDARD_PRIORITY):
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
                                            max_optimization_time, asynchronous)
-
         if self.__batch is not None:
             # Round to the smallest integer greater than or equal to time that
             # is also a multiple of batch.#
@@ -41,7 +40,6 @@ class Optimize(ActionEvent):
             process_message = 'Optimize process is put back in the event queue'
         else:
             process_message = super().process(env)
-
         return process_message
 
     def _process(self, env):
@@ -67,8 +65,7 @@ class Optimize(ActionEvent):
     def __optimize_synchronously(self, env):
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
-        if self.__bus:
-            input('Bus Optimization dispatch synchronous')
+        if self.bus:
             optimization_result = env.optimization.bus_dispatch(
                 env.optimization.state)
         else:
