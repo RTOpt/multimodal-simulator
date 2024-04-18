@@ -49,6 +49,16 @@ class DataCollectorConfig(Config):
         }
 
         return trips_columns
+    
+    def get_trips_details_columns(self):
+        trips_details_columns = {
+            "id": self._config_parser["trips_details"]["id"],
+            "wait_before_boarding": self._config_parser["trips_details"]["wait_before_boarding"],
+            "onboard_time": self._config_parser["trips_details"]["onboard_time"],
+            "transfer_time": self._config_parser["trips_details"]["transfer_time"],
+        }
+
+        return trips_details_columns
 
     def get_events_columns(self):
         events_columns = {

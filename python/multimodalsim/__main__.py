@@ -151,6 +151,9 @@ def extract_simulation_output(simulation, output_folder):
         if "trips" in data_container.observations_tables:
             data_container.save_observations_to_csv(
                 "trips", os.path.join(output_folder, "trips_observations_df.csv"))
+        if 'trips_details' in data_container.observations_tables:
+            data_container.save_observations_to_csv(
+                "trips_details", os.path.join(output_folder, "trips_details_observations_df.csv"))            
         if "events" in data_container.observations_tables:
             data_container.save_observations_to_csv(
                 "events", os.path.join(output_folder, "events_observations_df.csv"))

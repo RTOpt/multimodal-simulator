@@ -20,7 +20,9 @@ class Simulation(object):
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
-                                 travel_times=travel_times, main_line=main_line,next_main_line=next_main_line)
+                                 travel_times=travel_times,
+                                 main_line=main_line,
+                                 next_main_line=next_main_line)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
 
@@ -33,10 +35,8 @@ class Simulation(object):
 
             VehicleReady(vehicle, route, self.__queue,
                          self.__update_position_time_step).add_to_queue()
-
         for trip in trips:
             PassengerRelease(trip, self.__queue).add_to_queue()
-
         first_vehicle_event_time = self.__find_smallest_release_time(vehicles)
         first_event_time = self.__find_smallest_release_time(
             trips, first_vehicle_event_time)

@@ -97,7 +97,7 @@ class Leg(Request):
                          ready_time, due_time)
         self.__assigned_vehicle = None
         self.__trip = trip
-        self.__cap_vehicle = None
+        self.__cap_vehicle_id = None
 
         self.__boarding_time = None
         self.__alighting_time = None
@@ -110,6 +110,16 @@ class Leg(Request):
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
         self.__assigned_vehicle = vehicle
+        if self.__cap_vehicle_id is None or self.__cap_vehicle_id != vehicle.id:
+            logger.info("Leg did not have assigned cap vehicle id or it was different. Setting it to the vehicle id number {}".format(vehicle.id))
+            self.__cap_vehicle_id = vehicle.id
+    
+    @property
+    def cap_vehicle_id(self):
+        return self.__cap_vehicle_id
+    
+    def set_cap_vehicle_id(self, vehicle_id):
+        self.__cap_vehicle_id = vehicle_id
 
     @property
     def trip(self):
@@ -151,7 +161,7 @@ class Trip(Request):
             the trip (PassengersStatus(Enum)).
         previous_legs: list of Leg objects
             the previous legs of the trip.
-        previous_legs: Leg
+        current_leg: Leg
             the current leg of the trip.
         next_legs: Leg
             the next legs of the trip.

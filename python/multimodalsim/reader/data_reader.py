@@ -295,18 +295,19 @@ class GTFSReader(DataReader):
                         leg_id = trip_id + "_" + str(leg_number)
                         first_stop_id = str(stops_pair[0])
                         second_stop_id = str(stops_pair[1])
+                        cap_vehicle_id = str(stops_pair[2])
 
                         leg = Leg(leg_id, LabelLocation(first_stop_id),
                                   LabelLocation(second_stop_id),
                                   nb_passengers, release_time,
                                   ready_time, due_time, trip)
+                        leg.set_cap_vehicle_id(cap_vehicle_id)
                         legs.append(leg)
                         leg_number += 1
                     trip.assign_legs(legs)
 
                 trips.append(trip)
                 nb_requests += 1
-
         return trips
 
     def get_vehicles(self, release_time_interval=None,

@@ -32,9 +32,14 @@ class VehicleReady(Event):
                 self.__vehicle)
 
         env.add_route(self.__route, self.__vehicle.id)
-
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
+        if env.main_line == self.__route.vehicle.id:
+            logger.info('Main line vehicle is ready, optimize before leaving the depot...')
+            optimization_event.Optimize(env.current_time,
+                                        self.queue,
+                                        bus=True,
+                                        event_priority=Event.HIGH_PRIORITY).add_to_queue()
+        else:
+            optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
 
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 
@@ -80,12 +85,6 @@ class VehicleWaiting(ActionEvent):
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
             else:
-                if env.main_line == self.__route.vehicle.id:
-                    # input('Bus departure from main line stop')
-                    optimization_event.Optimize(env.current_time,
-                                                self.queue,
-                                                bus=True,
-                                                event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
                 VehicleDeparture(self.__route, self.queue).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
@@ -148,6 +147,11 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
+        if env.main_line == self.__route.vehicle.id:
+            optimization_event.Optimize(env.current_time,
+                                        self.queue,
+                                        bus=True,
+                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
         VehicleArrival(self.__route, self.queue,
                        actual_arrival_time).add_to_queue()
 

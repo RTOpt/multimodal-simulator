@@ -82,13 +82,16 @@ class Dispatcher:
         selected_routes = state.route_by_vehicle_id.values()
 
         return selected_next_legs, selected_routes
+    
     def bus_prepare_input(self, state):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
+    
     def bus_optimize(self, selected_next_legs, selected_routes, current_time,
                     state):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
+    
     def optimize(self, selected_next_legs, selected_routes, current_time,
                  state):
         """Determine the vehicle routing and the trip-route assignment

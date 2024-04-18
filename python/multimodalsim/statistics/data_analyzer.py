@@ -211,13 +211,13 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         nb_active_trips = self.get_nb_active_trips(mode)
         total_distance_travelled = self.get_trips_distance_travelled(mode)
 
-        vehicles_statistics = {
+        trips_statistics = {
             "Total number of trips": nb_trips,
             "Number of active trips": nb_active_trips,
             "Distance travelled": total_distance_travelled
         }
 
-        return vehicles_statistics
+        return trips_statistics
 
     def get_vehicle_status_duration_statistics(self):
         vehicles_df = self.data_container.get_observations_table_df(
@@ -227,6 +227,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def get_trip_status_duration_statistics(self):
         trips_df = self.data_container.get_observations_table_df(
                 self.__trips_table_name)
+        self.__create_trip_details_df(trips_df, "trips")
         return self.__generate_status_duration_stats(trips_df, "trips")
 
     def get_boardings_alightings_stats(self):
@@ -344,6 +345,45 @@ class FixedLineDataAnalyzer(DataAnalyzer):
 
         return observations_df.groupby(status_col, sort=False)["duration"]. \
             describe()
+    
+    def __create_trip_details_df(self, observations_df, table_name):
+        id_col = self.data_container.get_columns(table_name)["id"]
+        status_col = self.data_container.get_columns(table_name)["status"]
+        time_col = self.data_container.get_columns(table_name)["time"]
+
+        ## first clean data of all rows for which 'status' is 'PassengersStatus.ASSIGNED'
+        observations_sorted = observations_df[observations_df[status_col] != PassengersStatus.ASSIGNED]
+        observations_sorted = observations_sorted.sort_values(by=[id_col, time_col], ascending =[True, True], inplace=False)
+        # if previous row has same id_col and same status_col, then remove the row
+        observations_sorted = observations_sorted[observations_sorted[status_col] != observations_sorted[status_col].shift(1)]
+        print(observations_sorted)
+        ### group by id_col
+        observations_grouped_by_id = observations_sorted.groupby(id_col)
+        observations_sorted["duration"] = observations_sorted[time_col]. \
+            transform(lambda s: s.shift(-1) - s)
+        ### if status is 'PassengersStatus.COMPLETE' the 'duration' should be equal to 0
+        observations_sorted.loc[observations_sorted[status_col] == PassengersStatus.COMPLETE, 'duration'] = 0
+        table_name = 'trips_details'
+        ### For each group, wait before boarding is the duration of the first row with status 'PassengersStatus.Ready' before the first row with status 'PassengersStatus.ONBOARD'
+        all_id_values = observations_sorted[id_col].unique()
+        print(observations_sorted)
+        for id in all_id_values:
+            group = observations_sorted[observations_sorted[id_col] == id]
+            print(id)
+            print(group)
+            input()
+            ready_row = group[group[status_col] == PassengersStatus.READY].head(1)
+            wait_before_boarding = ready_row['duration'].iat[0]
+            onboard_time = sum(group[group[status_col] == PassengersStatus.ONBOARD]['duration'])
+            transfer_time = sum(group[group[status_col] == PassengersStatus.READY]['duration']) - wait_before_boarding
+            observation = {
+                "id" : group[id_col].iat[0],
+                "wait_before_boarding" : wait_before_boarding,
+                "onboard_time" : onboard_time,
+                "transfer_time" : transfer_time
+            }
+            self.data_container.add_observation(table_name, observation)
+        return()
 
     def __get_nb_boardings_by_stop(self, trip_legs, nb_boardings_by_stop):
         for leg_pair in trip_legs:

@@ -123,7 +123,7 @@ class MultimodalSplitter(Splitter):
                           self.__trip.nb_passengers, self.__trip.release_time,
                           self.__trip.ready_time, self.__trip.due_time,
                           self.__trip)
-                leg.__cap_vehicle = node[1]
+                leg.set_cap_vehicle_id(node[1])
                 legs.append(leg)
 
                 leg_vehicle_id = node[1]
@@ -141,7 +141,8 @@ class MultimodalSplitter(Splitter):
                        self.__trip.nb_passengers, self.__trip.release_time,
                        self.__trip.ready_time, self.__trip.due_time,
                        self.__trip)
-        last_leg.__cap_vehicle = path[-1][1]
+        last_leg.set_cap_vehicle_id(path[-1][1])
+
         legs.append(last_leg)
 
         filtered_legs = self.__filter_legs(legs)

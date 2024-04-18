@@ -56,7 +56,7 @@ if __name__ == '__main__':
         stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes)
 
         requests_df = stl_cap_requests_generator.generate_requests(max_connection_time=5400,
-                          release_time_delta=900, ready_time_delta=300,
+                          release_time_delta=900, ready_time_delta=60,
                           due_time_delta=3600)
 
         # Save to file

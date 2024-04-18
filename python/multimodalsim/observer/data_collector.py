@@ -74,6 +74,8 @@ class StandardDataCollector(DataCollector):
                                           config.get_vehicles_columns())
         self.__data_container.set_columns("trips",
                                           config.get_trips_columns())
+        self.__data_container.set_columns("trips_details",
+                                          config.get_trips_details_columns())
         self.__data_container.set_columns("events",
                                           config.get_events_columns())
 

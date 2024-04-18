@@ -219,6 +219,7 @@ with open(cap_file_path_generated, 'r') as file:
     destination_stop_lat_index=header_split.index("D_LAT_STOP_DESC")
     destination_stop_lon_index=header_split.index("D_LON_STOP_DESC")
     arrival_time_at_destination_index=header_split.index("D_H_ARR_REEL28_DESC")
+    
     # Read all remaining lines
     lines=file.readlines()
     # For each line, check if the stop_id is relevant and write the line in the new file if so
@@ -358,7 +359,7 @@ logger.info("CAPRequestsGenerator")
 stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes)
 
 requests_df = stl_cap_requests_generator.generate_requests(max_connection_time=5400,
-                    release_time_delta=900, ready_time_delta=300,
+                    release_time_delta=600, ready_time_delta=60,
                     due_time_delta=3600)
 
 # Save to file
