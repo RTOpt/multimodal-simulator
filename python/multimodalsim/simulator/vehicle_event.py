@@ -67,9 +67,8 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-        # if (env.main_line == self.__route.vehicle.id): 
-        #     optimization_event.Optimize(env.current_time, self.queue, event_priority=Event.HIGH_PRIORITY, bus=True). \
-        #             add_to_queue()
+        optimization_event.Optimize(env.current_time, self.queue). \
+            add_to_queue()
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -137,21 +136,32 @@ class VehicleDeparture(ActionEvent):
         self.__route = route
 
     def _process(self, env):
+        # if env.travel_times is not None:
+        #     from_stop = copy.deepcopy(self.__route.current_stop)
+        #     to_stop = copy.deepcopy(self.__route.next_stops[0])
+        #     vehicle = copy.deepcopy(self.__route.vehicle)
+        #     actual_arrival_time = env.travel_times.get_expected_arrival_time(
+        #         from_stop, to_stop, vehicle)
+        # else:
+        #     actual_arrival_time = self.__route.next_stops[0].arrival_time
+
+        self.__route.depart()
+
+        if env.main_line == self.__route.vehicle.id:
+            optimization_event.Optimize(env.current_time,
+                                        self.queue,
+                                        bus=True,
+                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
+        
+        ### Use optimized route for the arrival time
         if env.travel_times is not None:
-            from_stop = copy.deepcopy(self.__route.current_stop)
+            from_stop = copy.deepcopy(self.__route.__previous_stops[-1])
             to_stop = copy.deepcopy(self.__route.next_stops[0])
             vehicle = copy.deepcopy(self.__route.vehicle)
             actual_arrival_time = env.travel_times.get_expected_arrival_time(
                 from_stop, to_stop, vehicle)
         else:
             actual_arrival_time = self.__route.next_stops[0].arrival_time
-
-        self.__route.depart()
-        if env.main_line == self.__route.vehicle.id:
-            optimization_event.Optimize(env.current_time,
-                                        self.queue,
-                                        bus=True,
-                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
         VehicleArrival(self.__route, self.queue,
                        actual_arrival_time).add_to_queue()
 
