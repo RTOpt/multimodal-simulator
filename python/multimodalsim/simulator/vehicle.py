@@ -218,6 +218,10 @@ class Route(object):
     @property
     def onboard_legs(self):
         return self.__onboard_legs
+    
+    @onboard_legs.setter
+    def onboard_legs(self, onboard_legs):
+        self.__onboard_legs = onboard_legs
 
     @property
     def assigned_legs(self):

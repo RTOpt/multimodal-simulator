@@ -44,11 +44,12 @@ class PassengerAssignment(ActionEvent):
         self.__env = env
         vehicle = env.get_vehicle_by_id(
             self.__passenger_update.assigned_vehicle_id)
-
-        if self.__passenger_update.next_legs is not None:
+        
+        if self.__passenger_update.current_leg is not None:
             self.__trip.current_leg =\
-                self.__replace_copy_legs_with_actual_legs(
-                    self.__passenger_update.current_leg)
+                self.__env.get_leg_by_id(self.__passenger_update.current_leg.id)
+            
+        if self.__passenger_update.next_legs is not None:
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)

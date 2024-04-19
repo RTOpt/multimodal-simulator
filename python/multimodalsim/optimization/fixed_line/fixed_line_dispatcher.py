@@ -294,7 +294,7 @@ class FixedLineDispatcher(Dispatcher):
         main_route = state.route_by_vehicle_id[main_line_id]
         print('previous stops: ', [stop.location.label for stop in main_route.previous_stops if stop != None])            
         # Update the main line route based on the OSO algorithm results.
-        updated_main_route, walking_route , skipped_legs, updated_legs= self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
+        updated_main_route, walking_route, skipped_legs, updated_legs = self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
         # # Update the route in the state
         state.route_by_vehicle_id[main_line_id] = updated_main_route
         # Update the selected_legs
@@ -305,7 +305,7 @@ class FixedLineDispatcher(Dispatcher):
         optimized_route_plans = []
         if walking_route != -1:
             selected_routes.append(walking_route)
-            
+
         ### Process OSO algorithm results and assign passengers to buses
         if ss and len(selected_next_legs) ==0: #no passengers to assign
             print('Skip-stop but no passengers to assign')
@@ -371,9 +371,9 @@ class FixedLineDispatcher(Dispatcher):
         h = h_and_time[0] #hold tactic boolean
         
         if route.current_stop is not None: # bus departing from depot (Vehicle.READY event), no optimization needed
-            return route
+            return route, -1, -1, -1
         elif (not h) and (not ss) and (not sp): # no tactics
-            return route
+            return route, -1, -1, -1
         
         # Get the planned arrival and departure times, and the dwell time at the next stop
         planned_arrival_time = route.next_stops[0].arrival_time
@@ -422,7 +422,7 @@ class FixedLineDispatcher(Dispatcher):
             walking_route = self.create_walk_vehicle(state, route, walking_time, event_queue)
             
             # Update the legs for passengers alighting at the skipped stop
-            route, skipped_legs, new_legs = self.update_legs_for_passengers_alighting_at_skipped_stop(self, route, walking_route)
+            route, skipped_legs, new_legs = self.update_legs_for_passengers_alighting_at_skipped_stop(route, walking_route)
             # Skip stop
             route = self.skip_stop(route)
         else:
