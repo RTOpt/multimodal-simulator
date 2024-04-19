@@ -369,10 +369,9 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         print(observations_sorted)
         for id in all_id_values:
             group = observations_sorted[observations_sorted[id_col] == id]
-            print(id)
-            print(group)
-            input()
             ready_row = group[group[status_col] == PassengersStatus.READY].head(1)
+            if ready_row.empty:
+                continue
             wait_before_boarding = ready_row['duration'].iat[0]
             onboard_time = sum(group[group[status_col] == PassengersStatus.ONBOARD]['duration'])
             transfer_time = sum(group[group[status_col] == PassengersStatus.READY]['duration']) - wait_before_boarding

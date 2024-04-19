@@ -20,10 +20,10 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
                        freeze_interval=5,
                        output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated-small"),
                        logger=logging.getLogger(__name__),
-                       loggin_level=logging.INFO,
+                       logging_level=logging.INFO,
                        main_line=None):
     # To modify the log level (at INFO, by default)
-    logging.getLogger().setLevel(loggin_level)
+    logging.getLogger().setLevel(logging_level)
     logger.info(" Start simulation for small instance")
 
     # Read input data from files with a DataReader. The DataReader returns a

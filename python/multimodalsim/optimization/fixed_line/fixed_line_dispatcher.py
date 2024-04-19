@@ -3,16 +3,23 @@ import logging
 from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, \
     Dispatcher
+from multimodalsim.config.fixed_line_dispatcher_config \
+    import FixedLineDispatcherConfig
 import geopy.distance
-
+import random 
 logger = logging.getLogger(__name__)
-
 
 class FixedLineDispatcher(Dispatcher):
 
-    def __init__(self):
+    def __init__(self, config=None, speedup_factor=None):
         super().__init__()
+        self.__config = FixedLineDispatcherConfig() if config is None else config
+        self.__speedup_factor = 1 if speedup_factor is not None else self.__config.speedup_factor
 
+    @property
+    def speedup_factor(self):
+        return self.__speedup_factor
+    
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
         to be considered by the optimization algorithm. For the
@@ -115,10 +122,16 @@ class FixedLineDispatcher(Dispatcher):
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
         # print("selected_routes: ", [route.vehicle.id for route in selected_routes])
 
+        print("selected_routes: ", [route.vehicle.id for route in selected_routes])
+
         # Get the next ten stops on the main line
         main_line = state.route_by_vehicle_id[main_line_id]
         main_line_stops = main_line.next_stops[0:10]
-        print('selected stops: ', main_line_stops)
+        # print('selected stops: ', [stop.location.label for stop in main_line_stops])
+        # print('previous stops: ', [stop.location.label for stop in main_line.previous_stops if stop != None])
+        # print('current stop: ', main_line.current_stop.location.label if main_line.current_stop != None else None)
+        # print('next stops: ', [stop.location.label for stop in main_line.next_stops if stop != None])
+        
         # The next legs assigned and onboard the selected routes
         selected_next_legs = [leg for route in selected_routes for leg in route.onboard_legs]
         selected_next_legs += [leg for route in selected_routes for leg in route.assigned_legs if leg.origin in [stop.location for stop in main_line_stops] or leg.destination in [stop.location for stop in main_line_stops]]
@@ -240,7 +253,6 @@ class FixedLineDispatcher(Dispatcher):
 
                 optimized_route_plan.assign_leg(leg)
                 optimized_route_plans.append(optimized_route_plan)
-
         return optimized_route_plans
 
     def bus_dispatch(self, state, bus=False):
@@ -265,25 +277,30 @@ class FixedLineDispatcher(Dispatcher):
         selected_next_legs, selected_routes = self.bus_prepare_input(state)
         
         ### OSO algorithm
-        sp, ss, hp, ht_and_time = OSO_algorithm(selected_next_legs, selected_routes, state)
+        sp, ss, h_and_time = self.OSO_algorithm(selected_next_legs, selected_routes, state)
         main_line_id = state.main_line
-        main_route = get_route_by_vehicle_id(state, main_line_id)
+        main_route = state.route_by_vehicle_id[main_line_id]
+        print('previous stops: ', [stop.location.label for stop in main_route.previous_stops if stop != None])
         if ss: # add a 'walking' vehicle from the following stop to the skipped stop
-            time=get_walk_time(main_route)
-        # Update the main line route based on the OSO algorithm results.
-        main_route = update_main_line(self, main_route, sp, ss, hp, ht_and_time)
-        # Update the route in the state
-        state.route_by_vehicle_id[main_line_id] = main_route
+            walking_time = self.get_walk_time(main_route)
+        # # Update the main line route based on the OSO algorithm results.
+        updated_main_route = self.update_main_line(main_route, sp, ss, h_and_time)
+        # # Update the route in the state
+        state.route_by_vehicle_id[main_line_id] = updated_main_route
 
         
         ### Process OSO algorithm results and assign passengers to buses
-        if len(selected_next_legs) > 0 or len(selected_routes) > 0:
+        if ss and len(selected_next_legs) ==0: #no passengers to assign
+            print('Skip-stop but no passengers to assign')
+        if len(selected_next_legs) > 0 and len(selected_routes) > 0:
             # The optimize method is called only if there is at least one leg
             # or one route to optimize.
             optimized_route_plans = self.bus_optimize(selected_next_legs,
                                                     selected_routes,
                                                     state.current_time, state)
-
+            if ss or sp or h_and_time[0]: #if any tactic is used, we need to update the route
+                optimized_route_plan = OptimizedRoutePlan(updated_main_route, next_stops = updated_main_route.next_stops)
+                optimized_route_plans.append(optimized_route_plan)
             optimization_result = self.process_optimized_route_plans(
                 optimized_route_plans, state)
         else:
@@ -291,116 +308,130 @@ class FixedLineDispatcher(Dispatcher):
 
         return optimization_result
 
-def get_route_by_vehicle_id(state, vehicle_id):
-    """Get the route object corresponding to the vehicle_id."""
-    route = next(iter([route for route in state.route_by_vehicle_id.values() if route.vehicle.id == vehicle_id]), None)
-    return route
-
-def OSO_algorithm(selected_next_legs, selected_routes, state):
-    """Online stochastic optimization algorithm for the bus dispatcher.
-    Inputs:
-        - selected_next_legs: list, the next legs that are assigned to the main line or onboard the main line.
-        - selected_routes: list, current and next routes on the main line as well as connecting bus lines.
-        - state: State object, the current state of the environment.
-    
-    Outputs:
-        - sp: boolean, the result of the OSO algorithm for the speedup tactic.
-        - ss: boolean, the result of the OSO algorithm for the skip-stop tactic.
-        - h_and_time: tuple, the result of the OSO algorithm for the hold tactic the corresponding end of hold time (hold for planned time or transfer, the output hold time is already treated in the OSO algorithm)"""
-    
-    main_route = get_route_by_vehicle_id(state, state.main_line)
-
-    if (main_route is None) or (main_route.current_stop is not None):
-        return(False, False, (False, -1))
-    
-    sp = False
-    ss = False
-    h_and_time = (False, -1)
-    return sp, ss, h_and_time
-
-def update_main_line(self, route, sp, ss, h_and_time):
-    """Update the main line route based on the OSO algorithm results.
-    Inputs: 
-        - route: Route object, the main line route.
-        - sp: boolean, the result of the OSO algorithm for the speedup tactic.
-        - ss: boolean, the result of the OSO algorithm for the skip-stop tactic.
-        - h_and_time: boolean, the result of the OSO algorithm for the hold tactic if we hold for the planned arrival time and the corresponding end of hold time
-
-    Outputs:
-        - updated_route: Route object, the updated main line route.
-    """
-    h = h_and_time[0]
-    planned_arrival_time = route.next_stops[0].arrival_time
-    planned_departure_time = route.next_stops[0].departure_time
-    dwell_time = max(0, planned_departure_time - planned_arrival_time)
-
-    if route.current_stop is not None: # bus departing from depot (vehicle ready event.)
+    def get_route_by_vehicle_id(self, state, vehicle_id):
+        """Get the route object corresponding to the vehicle_id."""
+        route = next(iter([route for route in state.route_by_vehicle_id.values() if route.vehicle.id == vehicle_id]), None)
         return route
-    else: 
-        prev_departure_time = route.previous_stops[-1].departure_time ### since the bus just departed form stop
-    
-    # Find the arrival time at the next stop
-    if sp:
-        travel_time = int((planned_arrival_time - prev_departure_time)*self.__speedup_factor)
-    else: #also true for ss = True
-        travel_time = planned_arrival_time - prev_departure_time
-    arrival_time = prev_departure_time + travel_time
 
-    # Find the departure time at the next stop
-    if ss:
-        dwell_time = 0
-    elif h: # wait for planned departure time)
-        dwell_time = max(h_and_time[1] - arrival_time, dwell_time)
-    departure_time = arrival_time + dwell_time
+    def OSO_algorithm(self, selected_next_legs, selected_routes, state):
+        """Online stochastic optimization algorithm for the bus dispatcher.
+        Inputs:
+            - selected_next_legs: list, the next legs that are assigned to the main line or onboard the main line.
+            - selected_routes: list, current and next routes on the main line as well as connecting bus lines.
+            - state: State object, the current state of the environment.
+        
+        Outputs:
+            - sp: boolean, the result of the OSO algorithm for the speedup tactic.
+            - ss: boolean, the result of the OSO algorithm for the skip-stop tactic.
+            - h_and_time: tuple, the result of the OSO algorithm for the hold tactic the corresponding end of hold time (hold for planned time or transfer, the output hold time is already treated in the OSO algorithm)"""
+        
+        main_route = self.get_route_by_vehicle_id(state, state.main_line)
 
-    # Update the arrival and departure times of the next stop
-    next_stop = route.next_stops[0]
-    next_stop.arrival_time = arrival_time
-    next_stop.departure_time = departure_time
+        if (main_route is None) or (main_route.current_stop is not None):
+            return(False, False, (False, -1))
+        
+        sp = False
+        ss = False
+        if len(main_route.next_stops)>0:
+            random_number = random.randint(1, 10)
+            sp = random_number == 1
+        # next_stop_departure_time = main_route.next_stops[0].departure_time
+        # h_and_time = (True, next_stop_departure_time)
+        h_and_time = (False, -1)
+        return sp, ss, h_and_time
 
-    # Update the arrival and departure times of the following stops
-    delta_time = departure_time - planned_departure_time
+    def update_main_line(self, route, sp, ss, h_and_time):
+        """Update the main line route based on the OSO algorithm results.
+        Inputs: 
+            - route: Route object, the main line route.
+            - sp: boolean, the result of the OSO algorithm for the speedup tactic.
+            - ss: boolean, the result of the OSO algorithm for the skip-stop tactic.
+            - h_and_time: (bool, int) tuple, the result of the OSO algorithm for the hold tactic and the corresponding end of hold time
 
-    for stop in route.next_stops[1:]:
-        stop.arrival_time += delta_time
-        if stop.min_departure_time is None:
-            new_departure_time = stop.departure_time + delta_time
+        Outputs:
+            - updated_route: Route object, the updated main line route.
+        """
+        h = h_and_time[0] #hold tactic boolean
+        
+        if route.current_stop is not None: # bus departing from depot (Vehicle.READY event), no optimization needed
+            return route
+        elif (not h) and (not ss) and (not sp): # no tactics
+            return route
+        
+        # Get the planned arrival and departure times, and the dwell time at the next stop
+        planned_arrival_time = route.next_stops[0].arrival_time
+        planned_departure_time = route.next_stops[0].departure_time
+        dwell_time = max(0, planned_departure_time - planned_arrival_time)
+        prev_departure_time = route.previous_stops[-1].departure_time ### since the bus just departed from a stop
+        
+        # Find the arrival time at the next stop after tactics
+        if sp:
+            logger.info('Speedup implemented...')
+            travel_time = int((planned_arrival_time - prev_departure_time) * self.speedup_factor)
+        else: #also true for ss = True
+            travel_time = planned_arrival_time - prev_departure_time
+        arrival_time = prev_departure_time + travel_time
+
+        # Find the dwell and departures time at the next stop after tactics
+        if ss:
+            dwell_time = 0
+        elif h: # add additional dwell time for hold tactic
+            dwell_time = max(h_and_time[1] - arrival_time, dwell_time)
+            logger.info('Hold time implemented...')
+        departure_time = arrival_time + dwell_time
+
+        # Update the arrival and departure times of the next stop
+        next_stop = route.next_stops[0]
+        next_stop.arrival_time = arrival_time
+        next_stop.departure_time = departure_time
+
+        # Update the arrival and departure times of the following stops
+        delta_time = departure_time - planned_departure_time
+        for stop in route.next_stops[1:]:
+            stop.arrival_time += delta_time
+            if stop.min_departure_time is None:
+                new_departure_time = stop.departure_time + delta_time
+            else:
+                new_departure_time = max(stop.departure_time + delta_time,
+                                            stop.min_departure_time)
+            delta_time = new_departure_time - stop.departure_time
+            stop.departure_time = new_departure_time
+        if ss: 
+            logger.info('Skip-stop implemented at stop '+str(route.next_stops[0].location.label)+'...')
+            route.next_stops = route.next_stops[1:]
+        return route
+
+    def get_walk_time(self, main_route):
+        """Get the walking time between the skipped stop and the following stop.
+        Inputs:
+            - main_route: Route object, the main line route.
+
+        Outputs:
+            - walking_time: int, the walking time in seconds between the skipped stop and the closest stop."""
+        if len(main_route.next_stops)>1:
+            following_stop_location = main_route.next_stops[1].location
+        else: 
+            following_stop_location = None
+        if len(main_route.previous_stops)>0:
+            previous_stop_location = main_route.previous_stops[-1].location
+        else: 
+            previous_stop_location = None
+
+        # get skipped stop location 
+        skipped_stop_location = main_route.next_stops[0].location
+        coordinates_skipped = (skipped_stop_location.lat, skipped_stop_location.lon)
+        #get distance between skipped stop and following stop
+        if following_stop_location != None:
+            coordinates_following = (following_stop_location.lat, following_stop_location.lon)
+            distance_to_following = geopy.distance.geodesic(coordinates_skipped, coordinates_following).km
         else:
-            new_departure_time = max(stop.departure_time + delta_time,
-                                        stop.min_departure_time)
-        delta_time = new_departure_time - stop.departure_time
-        stop.departure_time = new_departure_time
-    if ss: 
-        route.next_stops = route.next_stops[1:]
-    return route
-
-def get_walk_time(main_route):
-    if len(main_route.next_stops)>1:
-        second_next_stop = main_route.next_stops[1].location
-    else: 
-        second_next_stop = None
-    if len(main_route.previous_stops)>0: 
-        previous_stop = main_route.previous_stops[-1].location
-    else: 
-        previous_stop = None
-    # get skipped stop location 
-    next_stop = main_route.next_stops[0].location
-    coordinates_skipped = (next_stop.lat, next_stop.lon)
-    #get distance between skipped stop and following stop
-    if second_next_stop != None:
-        second_next_location = second_next_stop.location
-        coordinates_next= (second_next_location.lat, second_next_location.lon)
-        next_distance = geopy.distance.geodesic(coordinates_skipped, coordinates_next).km
-    else:
-        next_distance = 1000000000
-    if previous_stop != None:
-        previous_location = previous_stop.location
-        coordinates_previous= (previous_location.lat, previous_location.lon)
-        previous_distance = geopy.distance.geodesic(coordinates_skipped, coordinates_previous).km
-    else:   
-        previous_distance = 1000000000
-    distance = min(next_distance, previous_distance)
-    print('distance: ', distance)
-    # we assume someones walks with a speed of 4km per hour
-    time = distance/4*3600 #time in seconds
-    return time
+            distance_to_following = 1000000000
+        if previous_stop_location != None:
+            coordinates_previous= (previous_stop_location.lat, previous_stop_location.lon)
+            distance_to_previous = geopy.distance.geodesic(coordinates_skipped, coordinates_previous).km
+        else:   
+            distance_to_previous = 1000000000
+        walking_distance = min(distance_to_following, distance_to_previous)
+        # we assume someones walks with a speed of 4km per hour
+        walking_time = int(walking_distance/4*3600) #time in seconds
+        return walking_time

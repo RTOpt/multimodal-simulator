@@ -7,7 +7,7 @@ small=True
 ## This file runs the Multimodal Simulator for the whole month of November 2019 day by day with real STL Data.
 if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
-    loggin_level=logging.INFO
+    logging_level=logging.INFO
     logger.info(" Start simulation for small instance")
     if small:
         gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs-generated-small")
@@ -27,5 +27,5 @@ if __name__ == '__main__':
                        freeze_interval=freeze_interval,
                        output_folder_path=output_folder_path,
                        logger=logger,
-                       loggin_level=loggin_level,
+                       logging_level=logging_level,
                        main_line="2790970")

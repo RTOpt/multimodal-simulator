@@ -247,7 +247,13 @@ class Route(object):
     def depart(self):
         """Departs the vehicle"""
         if self.__current_stop is not None:
+            print('Route id: ', self.__vehicle.id)
+            print("Departing from stop: ", self.__current_stop.location.label)
+            print("Next stop: ", self.__next_stops[0].location.label)
             self.__previous_stops.append(self.current_stop)
+        else:
+            print('Route id: ', self.__vehicle.id)
+            print("Departing from stop: None")
         self.__current_stop = None
 
     def arrive(self):
@@ -289,9 +295,9 @@ class Route(object):
         memo[id(self)] = result
         for k, v in self.__dict__.items():
             if k == "_Route__previous_stops":
-                setattr(result, k, [])
+                setattr(result, k, copy.deepcopy(v, memo))
             elif k == "_Route__alighted_legs":
-                setattr(result, k, [])
+                setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
         return result

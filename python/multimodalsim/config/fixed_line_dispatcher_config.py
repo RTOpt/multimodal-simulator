@@ -2,9 +2,9 @@ from multimodalsim.config.config import Config
 
 import os
 
-class DispatcherConfig(Config):
+class FixedLineDispatcherConfig(Config):
     def __init__(self, config_file=os.path.join(os.path.dirname(__file__),
-                                                "ini/dispatcher.ini")):
+                                                "ini/fixed_line_dispatcher.ini")):
         super().__init__(config_file)
 
     @property
