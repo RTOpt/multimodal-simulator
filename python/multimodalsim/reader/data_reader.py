@@ -237,7 +237,7 @@ class GTFSReader(DataReader):
         config = DataReaderConfig() if config is None else config
         self.__trips_columns = config.get_trips_columns()
 
-        self.__CAPACITY = 10
+        self.__CAPACITY = 80
 
         self.__stop_by_stop_id_dict = None
         self.__stop_times_by_trip_id_dict = None
@@ -249,6 +249,13 @@ class GTFSReader(DataReader):
 
         self.__release_time_interval = None
         self.__min_departure_time_interval = None
+
+    def save_stop_by_stop_id_dict(self, data_folder):
+        """ Save the stop_by_stop_id_dict to a .scv file. """
+        savepath = os.path.join(data_folder, "stop_by_stop_id_dict.csv")
+        with open(savepath, 'w') as f:
+            for key in self.__stop_by_stop_id_dict.keys():
+                f.write("%s,%s\n" % (key, self.__stop_by_stop_id_dict[key]))
 
     def get_trips(self):
         trips = []
@@ -488,6 +495,8 @@ class GTFSReader(DataReader):
             for stops_row in stops_reader:
                 stop = self.GTFSStop(*stops_row)
                 self.__stop_by_stop_id_dict[stop.stop_id] = stop
+        # data_folder = os.path.join("data","fixed_line","gtfs","gtfs-generated-small")
+        # self.save_stop_by_stop_id_dict(data_folder)
 
     def __read_stop_times(self):
         self.__stop_times_by_trip_id_dict = {}

@@ -446,6 +446,10 @@ class Stop(object):
     @property
     def cumulative_distance(self):
         return self.__cumulative_distance
+    
+    @cumulative_distance.setter
+    def cumulative_distance(self, cumulative_distance):
+        self.__cumulative_distance = cumulative_distance
 
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the

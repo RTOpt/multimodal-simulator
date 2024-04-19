@@ -9,4 +9,10 @@ class FixedLineDispatcherConfig(Config):
 
     @property
     def speedup_factor(self):
-        return int(self._config_parser["speedup"]["speedup_factor"])
+        # Return the speedup factor (float)
+        return float(self._config_parser["speedup"]["speedup_factor"])
+    
+    @property
+    def walking_speed(self):
+        # Return the speedup factor (float)
+        return float(self._config_parser["skip-stop"]["walking_speed"])

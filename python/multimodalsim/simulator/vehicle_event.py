@@ -19,6 +19,7 @@ class VehicleReady(Event):
         self.__vehicle = vehicle
         self.__route = route
         self.__update_position_time_step = update_position_time_step
+        input('VehicleReady')
 
     @property
     def vehicle(self):
