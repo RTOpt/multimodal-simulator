@@ -398,6 +398,10 @@ class Stop(object):
     @property
     def min_departure_time(self):
         return self.__min_departure_time
+    
+    @min_departure_time.setter
+    def min_departure_time(self, min_departure_time):
+        self.__min_departure_time = min_departure_time
 
     @property
     def passengers_to_board(self):

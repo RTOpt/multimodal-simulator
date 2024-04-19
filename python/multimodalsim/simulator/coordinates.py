@@ -103,18 +103,21 @@ class CoordinatesOSRM(Coordinates):
             current_position = route.current_stop.location
         elif len(route.previous_stops) > 0 \
                 and vehicle.polylines is not None:
-            # Current position is between two stops
-            stop1 = route.previous_stops[-1]
-            stop2 = route.next_stops[0]
-            stop_id = str(len(route.previous_stops) - 1)
+            try:
+                # Current position is between two stops
+                stop1 = route.previous_stops[-1]
+                stop2 = route.next_stops[0]
+                stop_id = str(len(route.previous_stops) - 1)
 
-            current_coordinates = self.__extract_coordinates_from_polyline(
-                vehicle, current_time, stop1, stop2, stop_id)
+                current_coordinates = self.__extract_coordinates_from_polyline(
+                    vehicle, current_time, stop1, stop2, stop_id)
 
-            current_position = TimeCoordinatesLocation(current_time,
-                                                       current_coordinates[0],
-                                                       current_coordinates[1])
-
+                current_position = TimeCoordinatesLocation(current_time,
+                                                        current_coordinates[0],
+                                                        current_coordinates[1])
+            except Exception as e:
+                logger.warning("Error while updating position for vehicle {}".format(vehicle.id))
+                current_position = route.previous_stops[-1].location
         return current_position
 
     def update_polylines(self, route):

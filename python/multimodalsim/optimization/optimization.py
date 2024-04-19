@@ -48,8 +48,8 @@ class Optimization(object):
     def dispatch(self, state):
         return self.__dispatcher.dispatch(state)
     
-    def bus_dispatch(self, state):
-        return self.__dispatcher.bus_dispatch(state)
+    def bus_dispatch(self, state, queue=None):
+        return self.__dispatcher.bus_dispatch(state, queue)
 
     def need_to_optimize(self, env_stats):
         # By default, reoptimize every time the Optimize event is processed.

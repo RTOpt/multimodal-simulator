@@ -5,6 +5,7 @@ from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, Dispatcher
 from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatcherConfig
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.vehicle_event import VehicleReady
+from multimodalsim.simulator.request import Trip, Leg
 
 import geopy.distance
 import random 
@@ -266,7 +267,7 @@ class FixedLineDispatcher(Dispatcher):
                 optimized_route_plans.append(optimized_route_plan)
         return optimized_route_plans
 
-    def bus_dispatch(self, state, bus=False):
+    def bus_dispatch(self, state, queue=None):
         """Decide tactics to use on main line after every departure from a bus stop.
         method relies on three other methods:
             1. prepare_input
@@ -293,11 +294,18 @@ class FixedLineDispatcher(Dispatcher):
         main_route = state.route_by_vehicle_id[main_line_id]
         print('previous stops: ', [stop.location.label for stop in main_route.previous_stops if stop != None])            
         # Update the main line route based on the OSO algorithm results.
-        updated_main_route = self.update_main_line(state, main_route, sp, ss, h_and_time)
+        updated_main_route, walking_route , skipped_legs, updated_legs= self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
         # # Update the route in the state
         state.route_by_vehicle_id[main_line_id] = updated_main_route
-
-        
+        # Update the selected_legs
+        if skipped_legs != -1:
+            selected_next_legs = [leg for leg in selected_next_legs if leg not in skipped_legs]
+        if updated_legs != -1:
+            selected_next_legs += updated_legs
+        optimized_route_plans = []
+        if walking_route != -1:
+            selected_routes.append(walking_route)
+            
         ### Process OSO algorithm results and assign passengers to buses
         if ss and len(selected_next_legs) ==0: #no passengers to assign
             print('Skip-stop but no passengers to assign')
@@ -349,7 +357,7 @@ class FixedLineDispatcher(Dispatcher):
         h_and_time = (False, -1)
         return sp, ss, h_and_time
 
-    def update_main_line(self, state, route, sp, ss, h_and_time):
+    def update_main_line(self, state, route, sp, ss, h_and_time, event_queue):
         """Update the main line route based on the OSO algorithm results.
         Inputs: 
             - route: Route object, the main line route.
@@ -411,10 +419,17 @@ class FixedLineDispatcher(Dispatcher):
         if ss: 
             logger.info('Skip-stop implemented at stop '+str(route.next_stops[0].location.label)+'...')
             #Add walking vehicle to the skipped stop
-            vehicle = self.create_walk_vehicle(state, route, walking_time)
+            walking_route = self.create_walk_vehicle(state, route, walking_time, event_queue)
+            
+            # Update the legs for passengers alighting at the skipped stop
+            route, skipped_legs, new_legs = self.update_legs_for_passengers_alighting_at_skipped_stop(self, route, walking_route)
             # Skip stop
             route = self.skip_stop(route)
-        return route
+        else:
+            walking_route = -1
+            skipped_legs = -1
+            new_legs = -1
+        return route, walking_route, skipped_legs, new_legs
 
     def  skip_stop(self, route):
         """Skip the next stop on the main line route.
@@ -462,7 +477,7 @@ class FixedLineDispatcher(Dispatcher):
         walking_time = int(walking_distance/4*3600) #time in seconds
         return walking_time
     
-    def create_walk_vehicle(self, state, main_route, walking_time):
+    def create_walk_vehicle(self, state, main_route, walking_time, event_queue):
         """Create a walk vehicle that will travel between the skipped stop and the following stop.
         Inputs:
             - main_route: Route object, the main line route.
@@ -480,7 +495,7 @@ class FixedLineDispatcher(Dispatcher):
         #find the passengers ALIGHTING at this stop
         legs = [leg for leg in main_route.onboard_legs if leg.destination == end_stop.location]
         trips = [leg.trip for leg in legs]
-        release_time = end_stop.arrival_time
+        release_time = event_queue.env.current_time + 1
         end_stop.arrival_time = start_stop.departure_time + walking_time
         end_stop.departure_time = end_stop.arrival_time
         end_stop.cumulative_distance = walking_time*4/3600
@@ -488,7 +503,7 @@ class FixedLineDispatcher(Dispatcher):
 
         next_stops = [end_stop]
 
-        end_time = next_stops[-1].arrival_time
+        end_time = next_stops[-1].arrival_time+10
 
         vehicle_id = 'walking_vehicle_'+str(self.__walking_vehicle_counter)
         self.__walking_vehicle_counter += 1
@@ -498,6 +513,69 @@ class FixedLineDispatcher(Dispatcher):
                           self.__CAPACITY, release_time, end_time, mode)
         # Create route
         route = Route(vehicle, next_stops)
-        VehicleReady(vehicle, route, state.__queue, 5).add_to_queue()
+        VehicleReady(vehicle, route, event_queue, 5).add_to_queue()
+        return (route)
 
+    def update_legs_for_passengers_alighting_at_skipped_stop(self, route, walking_route):
+        """Update the legs for passengers alighting at the skipped stop.
+        Inputs:
+            - route: Route object, the main line route.
+            - skipped_legs: list, the legs for passengers alighting at the skipped stop that are onboard the main line.
 
+        Outputs:
+            - route: Route object, the updated main line route."""
+        skipped_stop = route.next_stops[0]
+        next_stop = route.next_stops[1]
+
+        # Find passengers alighting at the skipped stop
+        skipped_legs = [leg for leg in route.onboard_legs if leg.destination == skipped_stop.location]
+        trips = [leg.trip for leg in skipped_legs]
+        # remove alighting legs from the destination stop
+        for trip in trips:
+            skipped_stop.passengers_to_alight.remove(trip)
+        
+        # remove the alighting legs from the onboard legs
+        route.onboard_legs = [leg for leg in route.onboard_legs if leg not in skipped_legs]
+
+        # prepare input data for walking
+        new_legs = []
+        walk_origin = walking_route.current_stop.location
+        walk_destination = walking_route.next_stops[0].location
+        walk_release_time = walking_route.vehicle.release_time-1
+        walk_ready_time = walking_route.vehicle.release_time
+        walk_due_time = walking_route.vehicle.end_time+10
+        walk_cap_vehicle_id = walking_route.vehicle.id
+        # replace the onboard legs with new legs with destination next_stop
+        for leg in skipped_legs:
+            leg_id = leg.id
+            origin = leg.origin
+            destination = next_stop.location
+            nb_passengers = leg.nb_passengers
+            release_time = leg.release_time
+            ready_time = leg.ready_time
+            due_time = leg.due_time
+            trip = leg.trip
+            cap_vehicle_id = leg.cap_vehicle_id
+            new_leg = Leg(leg_id, origin,
+                        destination,
+                        nb_passengers, release_time,
+                        ready_time, due_time, trip)
+            new_leg.set_cap_vehicle_id(cap_vehicle_id)
+            route.onboard_legs.append(new_leg) # passengers onboard are automatically reassigned to their destination stop in __process_route_plan if they are in RoutePlan()
+            new_legs.append(new_leg)
+
+            # get the trip of the leg
+            trip = leg.trip
+            # replace the current leg of the trip
+            trip.current_leg = new_leg
+
+            # add walk leg to the trip
+            walk_leg_id = leg_id + '_walk'
+            walk_leg = Leg(walk_leg_id, walk_origin,
+                           walk_destination, 
+                           nb_passengers, walk_release_time,
+                           walk_ready_time, walk_due_time, trip)
+            walk_leg.set_cap_vehicle_id(walk_cap_vehicle_id)
+            trip.next_legs = [walk_leg] + trip.next_legs
+            new_legs.append(walk_leg)
+        return route, skipped_legs, new_legs

@@ -238,7 +238,8 @@ class Trip(Request):
 
 
 class PassengerUpdate(object):
-    def __init__(self, vehicle_id, request_id, next_legs=None):
+    def __init__(self, vehicle_id, request_id, next_legs=None, current_leg=None):
         self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
         self.next_legs = next_legs
+        self.current_leg = current_leg

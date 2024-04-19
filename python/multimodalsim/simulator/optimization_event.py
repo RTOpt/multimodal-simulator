@@ -67,7 +67,7 @@ class Optimize(ActionEvent):
             env.optimization.freeze_interval)
         if self.bus:
             optimization_result = env.optimization.bus_dispatch(
-                env.optimization.state)
+                env.optimization.state, self.queue)
         else:
             optimization_result = env.optimization.dispatch(
                 env.optimization.state)
@@ -174,9 +174,10 @@ class EnvironmentUpdate(ActionEvent):
         for trip in self.__optimization_result.modified_requests:
             next_legs = trip.next_legs
             next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
+            current_leg = trip.current_leg
 
             passenger_update = request.PassengerUpdate(
-                next_leg_assigned_vehicle.id, trip.id, next_legs)
+                next_leg_assigned_vehicle.id, trip.id, next_legs, current_leg = current_leg)
             passenger_event_process.PassengerAssignment(
                 passenger_update, self.queue).add_to_queue()
 
