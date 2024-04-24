@@ -130,7 +130,7 @@ class FixedLineDispatcher(Dispatcher):
         main_line_id = state.main_line
         next_main_line_id = state.next_main_line
 
-        # Main line route and next routes
+        # All the routes
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
         # print("selected_routes: ", [route.vehicle.id for route in selected_routes])
 
