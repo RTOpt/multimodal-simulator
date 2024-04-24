@@ -5,6 +5,7 @@ from typing import Optional, Any
 
 import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
+from multimodalsim.optimization.partition import PartitionSubset
 from multimodalsim.simulator.coordinates import Coordinates
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.travel_times import TravelTimes
@@ -178,7 +179,9 @@ class Environment:
     def add_route(self, route: Route, vehicle_id: str | int) -> None:
         self.__routes_by_vehicle_id[vehicle_id] = route
 
-    def get_new_state(self) -> 'state_module.State':
+    def get_new_state(self,
+                      partition_subset: Optional[PartitionSubset] = None) \
+            -> 'state_module.State':
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
@@ -193,7 +196,11 @@ class Environment:
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
+        state_deepcopy = state_module.State(copy.deepcopy(state_copy),
+                                            partition_subset)
+
+        # self.__filter_state_copy_according_to_partition(state_deepcopy,
+        #                                                 partition_subset)
 
         return state_deepcopy
 
@@ -209,9 +216,44 @@ class Environment:
     def __get_non_complete_trips(self, trips):
         non_complete_trips = []
         for trip in trips:
+            trip_next_leg = trip.next_legs[0] if len(trip.next_legs) > 0 \
+                else None
             if trip.status != PassengerStatus.COMPLETE:
                 non_complete_trips.append(trip)
         return non_complete_trips
+
+    def __filter_state_copy_according_to_partition(self, state_copy,
+                                                   partition_subset):
+        state_copy.trips = self.__filter_trips_according_to_partition(
+            state_copy.trips, partition_subset)
+
+        logger.warning([trip.next_legs[0].id for trip in state_copy.trips])
+
+        state_copy.assigned_trips = self.__filter_trips_according_to_partition(
+            state_copy.assigned_trips, partition_subset)
+
+        state_copy.non_assigned_trips = \
+            self.__filter_trips_according_to_partition(
+                state_copy.non_assigned_trips, partition_subset)
+
+        state_copy.vehicles = self.__filter_vehicles_according_to_partition(
+            state_copy.vehicles, partition_subset)
+
+    def __filter_trips_according_to_partition(self, trips, partition_subset):
+        filtered_trips = []
+        for trip in trips:
+            if len(trip.next_legs) > 0 \
+                    and trip.next_legs[0].id in partition_subset.leg_ids:
+                filtered_trips.append(trip)
+        return filtered_trips
+
+    def __filter_vehicles_according_to_partition(self, vehicles,
+                                                 partition_subset):
+        filtered_vehicles = []
+        for vehicle in vehicles:
+            if vehicle.id in partition_subset.vehicle_ids:
+                filtered_vehicles.append(vehicle)
+        return filtered_vehicles
 
     @property
     def network(self) -> Optional[Any]:
@@ -230,7 +272,7 @@ class Environment:
         return self.__travel_times
 
     @property
-    def optimize_cv(self) -> Optional[Condition]:
+    def optimize_cv(self) -> Optional[Condition] | dict[Condition]:
         return self.__optimize_cv
 
     @optimize_cv.setter

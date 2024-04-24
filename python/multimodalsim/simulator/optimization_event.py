@@ -4,6 +4,7 @@ from threading import Thread, Condition
 import multiprocessing as mp
 from typing import Optional, Callable
 
+from multimodalsim.optimization.partition import PartitionSubset
 from multimodalsim.optimization.state import State
 from multimodalsim.simulator.event import ActionEvent, TimeSyncEvent
 import multimodalsim.simulator.vehicle as vehicle_module
@@ -16,6 +17,7 @@ from multimodalsim.state_machine.status import OptimizationStatus
 import multimodalsim.simulator.event_queue as event_queue
 import multimodalsim.simulator.environment as environment
 import multimodalsim.optimization.optimization as optimization_module
+import multimodalsim.state_machine.state_machine as state_machine_module
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +27,61 @@ class Optimize(ActionEvent):
                  multiple_optimize_events: Optional[bool] = None,
                  batch: Optional[float] = None,
                  max_optimization_time: Optional[float] = None,
-                 asynchronous: Optional[bool] = None) -> None:
+                 asynchronous: Optional[bool] = None,
+                 partition_subset: Optional[PartitionSubset] = None) -> None:
 
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
                                            max_optimization_time, asynchronous)
 
-        if self.__batch is not None:
-            # Round to the smallest integer greater than or equal to time that
-            # is also a multiple of batch.
-            time = time + (batch - (time % batch)) % batch
-        super().__init__('Optimize', queue, time,
-                         event_priority=self.VERY_LOW_PRIORITY,
-                         state_machine=queue.env.optimization.state_machine)
+        self.__partition_subset = partition_subset
+
+        self.__state = None
+
+        optimization = queue.env.optimization
+        state_machine = None
+
+        self.__other_optimize_events = None
+        if self.__partition_subset is None and optimization.partition is not None:
+            # Main Optimize event of the partition (Creates Optimize event of
+            # the partition subsets, but this event is never actually
+            # processed).
+            self.__other_optimize_events = []
+            for subset in optimization.partition.subsets:
+                self.__other_optimize_events.append(
+                    Optimize(time, queue, partition_subset=subset))
+        elif self.__partition_subset is not None:
+            # Optimize event of the partition subset
+            state_machine = optimization.state_machine[
+                self.__partition_subset.id]
+        else:
+            # No partition
+            state_machine = optimization.state_machine
+
+        if state_machine is not None:
+            if self.__batch is not None:
+                # Round to the smallest integer greater than or equal to time
+                # that is also a multiple of batch.
+                time = time + (batch - (time % batch)) % batch
+
+            event_name = 'Optimize ({})'.format(self.__partition_subset.id) \
+                if self.__partition_subset is not None else 'Optimize'
+            super().__init__(event_name, queue, time,
+                             event_priority=self.VERY_LOW_PRIORITY,
+                             state_machine=state_machine)
+        else:
+            super().__init__('Optimize (Partition)', queue, time)
 
     def process(self, env: 'environment.Environment') -> str:
 
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
-            with env.optimize_cv:
-                env.optimize_cv.wait()
+            if self.__partition_subset is None:
+                optimize_cv = env.optimize_cv
+            else:
+                optimize_cv = env.optimize_cv[self.__partition_subset.id]
+            with optimize_cv:
+                optimize_cv.wait()
             self.add_to_queue()
             process_message = 'Optimize process is put back in the event queue'
         else:
@@ -54,13 +91,24 @@ class Optimize(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
 
+        logger.warning(self.name)
+
         stats_extractor = env.optimization.environment_statistics_extractor
         env_stats = stats_extractor.extract_environment_statistics(env)
 
         if env.optimization.need_to_optimize(env_stats):
-            env.optimize_cv = Condition()
+            if self.__partition_subset is None:
+                env.optimize_cv = Condition()
+                self.__state = env.get_new_state()
 
-            env.optimization.state = env.get_new_state()
+                env.optimization.update_state(self.__state)
+            else:
+                if env.optimize_cv is None:
+                    env.optimize_cv = {}
+                env.optimize_cv[self.__partition_subset.id] = Condition()
+                self.__state = env.get_new_state(self.__partition_subset)
+                env.optimization.update_state(self.__state,
+                                              self.__partition_subset)
 
             if self.__asynchronous:
                 self.__optimize_asynchronously(env)
@@ -69,14 +117,22 @@ class Optimize(ActionEvent):
         else:
             optimization_result = optimization_module.OptimizationResult(
                 None, [], [])
-            EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+            EnvironmentUpdate(optimization_result, self.queue,
+                              self.state_machine).add_to_queue()
 
         return 'Optimize process is implemented'
 
     def add_to_queue(self) -> None:
 
-        if self.__multiple_optimize_events or not \
-                self.queue.is_event_type_in_queue(self.__class__, self.time):
+        if self.__partition_subset is None:
+            if self.__multiple_optimize_events or not \
+                    self.queue.is_event_type_in_queue(self.__class__, self.time):
+                if self.__other_optimize_events is not None:
+                    for optimize_events in self.__other_optimize_events:
+                        optimize_events.add_to_queue()
+                else:
+                    super().add_to_queue()
+        else:
             super().add_to_queue()
 
     def __optimize_synchronously(self, env):
@@ -89,7 +145,8 @@ class Optimize(ActionEvent):
         env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+        EnvironmentUpdate(optimization_result, self.queue,
+                          self.state_machine).add_to_queue()
 
     def __optimize_asynchronously(self, env):
         hold_cv = Condition()
@@ -100,34 +157,36 @@ class Optimize(ActionEvent):
         hold_event.add_to_queue()
 
         optimize_thread = Thread(target=self.__optimize_in_new_thread,
-                                 args=(env, hold_cv, hold_event))
+                                 args=(env, hold_event))
         optimize_thread.start()
 
-    def __optimize_in_new_thread(self, env, hold_cv, hold_event):
+    def __optimize_in_new_thread(self, env, hold_event):
 
-        env.optimization.state.freeze_routes_for_time_interval(
+        self.__state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
         with mp.Manager() as manager:
             process_dict = self.__create_process_dict(env, manager)
-
             opt_process = self.__create_optimize_process(process_dict,
                                                          hold_event)
             opt_process.start()
             opt_process.join()
-
             self.__create_environment_update(process_dict, hold_event)
 
-        env.optimization.state.unfreeze_routes_for_time_interval(
+        self.__state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        with env.optimize_cv:
-            env.optimize_cv.notify()
+        if self.__partition_subset is None:
+            optimize_cv = env.optimize_cv
+        else:
+            optimize_cv = env.optimize_cv[self.__partition_subset.id]
+        with optimize_cv:
+            optimize_cv.notify()
 
     def __create_process_dict(self, env, manager):
 
         process_dict = manager.dict()
-        process_dict["state"] = env.optimization.state
+        process_dict["state"] = self.__state
         process_dict["dispatch_function"] = env.optimization.dispatch
         process_dict["optimization_result"] = None
 
@@ -146,7 +205,7 @@ class Optimize(ActionEvent):
             hold_event.cancelled = True
             optimization_result = process_dict["optimization_result"]
             EnvironmentUpdate(optimization_result,
-                              self.queue).add_to_queue()
+                              self.queue, self.state_machine).add_to_queue()
             hold_event.cv.notify()
 
     @staticmethod
@@ -178,9 +237,11 @@ class Optimize(ActionEvent):
 class EnvironmentUpdate(ActionEvent):
     def __init__(self,
                  optimization_result: 'optimization_module.OptimizationResult',
-                 queue: 'event_queue.EventQueue') -> None:
+                 queue: 'event_queue.EventQueue',
+                 state_machine:
+                 'state_machine_module.StateMachine') -> None:
         super().__init__('EnvironmentUpdate', queue,
-                         state_machine=queue.env.optimization.state_machine)
+                         state_machine=state_machine)
         self.__optimization_result = optimization_result
 
     def _process(self, env: 'environment.Environment') -> str:
@@ -221,15 +282,18 @@ class EnvironmentUpdate(ActionEvent):
             vehicle_event_process.VehicleNotification(
                 route_update, self.queue).add_to_queue()
 
-        EnvironmentIdle(self.queue).add_to_queue()
+        EnvironmentIdle(self.queue, self.state_machine).add_to_queue()
 
         return 'Environment Update process is implemented'
 
 
 class EnvironmentIdle(ActionEvent):
-    def __init__(self, queue: 'event_queue.EventQueue'):
+    def __init__(self, queue: 'event_queue.EventQueue',
+                 state_machine:
+                 'state_machine_module.StateMachine'
+                 ) -> None:
         super().__init__('EnvironmentIdle', queue,
-                         state_machine=queue.env.optimization.state_machine)
+                         state_machine=state_machine)
 
     def _process(self, env: 'environment.Environment') -> str:
         return 'Environment Idle process is implemented'
@@ -290,6 +354,7 @@ class DispatchProcess(mp.Process):
 
     def run(self) -> None:
         state = self.__process_dict["state"]
+
         dispatch_function = self.__process_dict["dispatch_function"]
 
         optimization_result = self.__dispatch(dispatch_function, state)

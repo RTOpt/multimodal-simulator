@@ -1,8 +1,10 @@
 import logging
+from typing import Optional
 
 import multimodalsim.simulator.request as request
 import multimodalsim.simulator.vehicle as vehicle_module
 import multimodalsim.simulator.environment as environment_module
+from multimodalsim.optimization.partition import PartitionSubset
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +12,8 @@ logger = logging.getLogger(__name__)
 class State:
 
     def __init__(self,
-                 env_deep_copy: 'environment_module.Environment') -> None:
+                 env_deep_copy: 'environment_module.Environment',
+                 partition_subset: Optional[PartitionSubset] = None) -> None:
         """The ``State`` class is a partial deep copy of the environment where
         only the data necessary for optimization is copied.
                 Attributes:
@@ -42,10 +45,23 @@ class State:
                 """
 
         self.current_time = env_deep_copy.current_time
-        self.trips = env_deep_copy.trips
-        self.assigned_trips = env_deep_copy.assigned_trips
-        self.non_assigned_trips = env_deep_copy.non_assigned_trips
-        self.vehicles = env_deep_copy.vehicles
+
+        if partition_subset is not None:
+            self.trips = self.__filter_trips_according_to_partition(
+                env_deep_copy.trips, partition_subset)
+            self.assigned_trips = self.__filter_trips_according_to_partition(
+                env_deep_copy.assigned_trips, partition_subset)
+            self.non_assigned_trips = self.__filter_trips_according_to_partition(
+                env_deep_copy.non_assigned_trips, partition_subset)
+
+            self.vehicles = self.__filter_vehicles_according_to_partition(
+                env_deep_copy.vehicles, partition_subset)
+        else:
+            self.trips = env_deep_copy.trips
+            self.assigned_trips = env_deep_copy.assigned_trips
+            self.non_assigned_trips = env_deep_copy.non_assigned_trips
+            self.vehicles = env_deep_copy.vehicles
+
         self.route_by_vehicle_id = \
             {veh.id: env_deep_copy.route_by_vehicle_id[veh.id]
              for veh in self.vehicles}
@@ -174,3 +190,19 @@ class State:
 
         for stop in stops_to_be_removed:
             route.previous_stops.remove(stop)
+
+    def __filter_trips_according_to_partition(self, trips, partition_subset):
+        filtered_trips = []
+        for trip in trips:
+            if len(trip.next_legs) > 0 \
+                    and trip.next_legs[0].id in partition_subset.leg_ids:
+                filtered_trips.append(trip)
+        return filtered_trips
+
+    def __filter_vehicles_according_to_partition(self, vehicles,
+                                                 partition_subset):
+        filtered_vehicles = []
+        for vehicle in vehicles:
+            if vehicle.id in partition_subset.vehicle_ids:
+                filtered_vehicles.append(vehicle)
+        return filtered_vehicles

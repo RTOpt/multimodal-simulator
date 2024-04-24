@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from multimodalsim.config.optimization_config import OptimizationConfig
 import multimodalsim.optimization.dispatcher as dispatcher_module
+from multimodalsim.optimization.partition import Partition, PartitionSubset
 from multimodalsim.optimization.splitter import Splitter, OneLegSplitter
 import multimodalsim.state_machine.state_machine as state_machine
 import multimodalsim.optimization.state as state_module
@@ -38,6 +39,7 @@ class Optimization:
                  freeze_interval: Optional[float] = None,
                  environment_statistics_extractor:
                  Optional[EnvironmentStatisticsExtractor] = None,
+                 partition: Optional[Partition] = None,
                  config: Optional[str | OptimizationConfig] = None) -> None:
         self.__dispatcher = dispatcher
         self.__splitter = OneLegSplitter() if splitter is None else splitter
@@ -50,18 +52,25 @@ class Optimization:
             self.__environment_statistics_extractor = \
                 environment_statistics_extractor
 
-        self.__state_machine = state_machine.OptimizationStateMachine(self)
-
-        self.__state = None
+        self.__partition = partition
+        self.__create_state_machines()
+        self.__create_state_variable()
 
         self.__load_config(config, freeze_interval)
 
     @property
-    def status(self) -> OptimizationStatus:
-        return self.__state_machine.current_state.status
+    def status(self) -> Union[OptimizationStatus, dict[OptimizationStatus]]:
+        if isinstance(self.__state_machine, dict):
+            ret = {}
+            for name, subset_state_machine in self.__state_machine.items():
+                ret[name] = subset_state_machine.current_state.status
+        else:
+            ret = self.__state_machine.current_state.status
+        return ret
 
     @property
-    def state_machine(self) -> 'state_machine.StateMachine':
+    def state_machine(self) -> Union['state_machine.StateMachine',
+                                     dict['state_machine.StateMachine']]:
         return self.__state_machine
 
     @property
@@ -69,12 +78,27 @@ class Optimization:
         return self.__freeze_interval
 
     @property
-    def state(self) -> 'state_module.State':
+    def state(self) -> Union['state_module.State', dict['state_module.State']]:
         return self.__state
 
     @state.setter
     def state(self, state: 'state_module.State') -> None:
         self.__state = state
+
+    def get_state(self, partition_subset: Optional[PartitionSubset] = None):
+        if partition_subset is not None:
+            state = self.__state[partition_subset.id]
+        else:
+            state = self.__state
+
+        return state
+
+    def update_state(self, state: 'state_module.State',
+                     partition_subset: Optional[PartitionSubset] = None):
+        if partition_subset is not None:
+            self.__state[partition_subset.id] = state
+        else:
+            self.__state = state
 
     def split(
             self, trip: 'request.Trip',
@@ -106,8 +130,28 @@ class Optimization:
         return self.__environment_statistics_extractor
 
     @property
+    def partition(self) -> Partition:
+        return self.__partition
+
+    @property
     def config(self) -> OptimizationConfig:
         return self.__config
+
+    def __create_state_machines(self):
+        if self.__partition is None:
+            self.__state_machine = \
+                state_machine.OptimizationStateMachine(self)
+        else:
+            self.__state_machine = {}
+            for subset in self.__partition.subsets:
+                self.__state_machine[subset.id] = \
+                    state_machine.OptimizationStateMachine(subset)
+
+    def __create_state_variable(self):
+        if self.__partition is None:
+            self.__state = None
+        else:
+            self.__state = {}
 
     def __load_config(self, config, freeze_interval):
         if isinstance(config, str):
