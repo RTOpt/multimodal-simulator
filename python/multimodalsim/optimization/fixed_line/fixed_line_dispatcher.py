@@ -86,6 +86,7 @@ class FixedLineDispatcher(Dispatcher):
             origin_departure_time, destination_arrival_time = \
                 self.__get_origin_departure_time_and_destination_arrival_time(
                     route, origin_stop_id, destination_stop_id)
+            print('leg:', leg.id,'origin',leg.origin.label,'destination',leg.destination.label, 'origin departure time: ', origin_departure_time, 'destination arrival time: ', destination_arrival_time)
             if origin_departure_time is not None \
                     and origin_departure_time > current_time \
                     and origin_departure_time >= leg.trip.ready_time \

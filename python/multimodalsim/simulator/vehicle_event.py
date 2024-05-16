@@ -75,7 +75,7 @@ class VehicleWaiting(ActionEvent):
         print('Vehicle Waiting route id:', self.__route.vehicle.id)
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
-            print('on est la request to pickup:', self.__route.requests_to_pickup())
+            print('requests to pickup', [trip.id for trip in self.__route.requests_to_pickup()])
             VehicleBoarding(self.__route, self.queue).add_to_queue()
             if self.__route.current_stop.departure_time > env.current_time:
                 VehicleWaiting(

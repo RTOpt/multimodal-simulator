@@ -181,7 +181,8 @@ class Dispatcher:
             self.__process_route_plan(route_plan)
 
             trips = [leg.trip for leg in route_plan.assigned_legs+route_plan.already_onboard_legs]
-            # for trip in trips:
+            for trip in trips:
+                print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
             #     if trip.next_legs is not None and len(trip.next_legs) > 0:
             #         if 'walk' in trip.next_legs[0].id:
             #             input('walk leg added and is in route plan. Press Enter to continue...')

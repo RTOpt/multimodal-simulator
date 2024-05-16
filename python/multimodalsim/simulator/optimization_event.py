@@ -185,7 +185,8 @@ class EnvironmentUpdate(ActionEvent):
                 next_legs = trip.next_legs
                 next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
                 current_leg = trip.current_leg
-
+                print('trip id is ASSIGNED: ', trip.id)
+                input('Press Enter to continue...')
                 passenger_update = request.PassengerUpdate(
                     next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
                 passenger_event_process.PassengerAssignment(
