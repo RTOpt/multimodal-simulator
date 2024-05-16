@@ -39,6 +39,9 @@ class VehicleReady(Event):
                                         bus=True,
                                         event_priority=Event.HIGH_PRIORITY).add_to_queue()
         else:
+            # if 'walk' in self.__vehicle.id:
+            #     print('Walk vehicle is ready, optimize before leaving the depot...')
+            #     input('Walking vehicle is ready, press Enter to continue...')
             optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
 
         VehicleWaiting(self.__route, self.queue).add_to_queue()
@@ -69,26 +72,30 @@ class VehicleWaiting(ActionEvent):
     def _process(self, env):
         # optimization_event.Optimize(env.current_time, self.queue). \
         #     add_to_queue()
-
+        print('Vehicle Waiting route id:', self.__route.vehicle.id)
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
+            print('on est la request to pickup:', self.__route.requests_to_pickup())
             VehicleBoarding(self.__route, self.queue).add_to_queue()
             if self.__route.current_stop.departure_time > env.current_time:
                 VehicleWaiting(
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
+                print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
         elif len(self.__route.next_stops) > 0:
             # No passengers to board
             if self.__route.current_stop.departure_time > env.current_time:
                 VehicleWaiting(
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
+                print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
             else:
                 VehicleDeparture(self.__route, self.queue).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
             # modified, its status will remain IDLE until Vehicle.end_time,
             # at which point the VehicleComplete event will be processed.
+            print('Vehicle Waiting: No next stops for now. Vehicle status:', self.__route.vehicle.status)
             VehicleComplete(self.__route, self.queue).add_to_queue()
 
         return 'Vehicle Waiting process is implemented'
@@ -146,7 +153,7 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
-        print('previous stops:', [self.__route.previous_stops[i].location.label for i in range(len(self.__route.previous_stops))])
+        # print('previous stops:', [self.__route.previous_stops[i].location.label for i in range(len(self.__route.previous_stops))])
 
         if env.main_line == self.__route.vehicle.id:
             print('Main line vehicle is departing, optimize ...')
@@ -181,23 +188,28 @@ class VehicleArrival(ActionEvent):
         self.__update_stop_times(env.current_time)
 
         self.__route.arrive()
-
-        if len(self.__route.next_stops) == 0 \
-                and not self.__route.vehicle.reusable:
-            VehicleComplete(self.__route, self.queue,
-                            self.queue.env.current_time).add_to_queue(
-                forced_insertion=True)
-
+        print('route id: ', self.__route.vehicle.id)
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
+        print('Passengers to alight:', [trip.id for trip in passengers_to_alight_copy])
+        print('current route onboard legs:', [leg.id for leg in self.__route.onboard_legs])
         for trip in passengers_to_alight_copy:
+            print('current leg', trip.current_leg.id, 'assigned vehicle:', trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle is not None else None, 'vehicle status:', trip.current_leg.assigned_vehicle.status if trip.current_leg.assigned_vehicle is not None else None)
             if trip.current_leg in self.__route.onboard_legs:
                 self.__route.initiate_alighting(trip)
+                print('Passenger alighting for vehicle:', self.__route.vehicle.id)
                 passenger_event.PassengerAlighting(
                     trip, self.queue).add_to_queue()
 
         if len(passengers_to_alight_copy) == 0:
+            print('Vehicle Arrival: No passengers to alight. Vehicle id: ',self.__route.vehicle.id, 'Vehicle status:', self.__route.vehicle.status)
             VehicleWaiting(self.__route, self.queue).add_to_queue()
+        
+        if len(self.__route.next_stops) == 0 \
+                and not self.__route.vehicle.reusable:
+            print('Vehicle Arrival: No next stops for now. Vehicle id: ',self.__route.vehicle.id, 'Vehicle status:', self.__route.vehicle.status)
+            VehicleComplete(self.__route, self.queue,
+                            self.queue.env.current_time).add_to_queue()
 
         return 'Vehicle Arrival process is implemented'
 
@@ -218,16 +230,16 @@ class VehicleArrival(ActionEvent):
 
 
 class VehicleNotification(Event):
-    def __init__(self, route_update, queue):
+    def __init__(self, route_update, queue, bus=False):
         self.__env = None
         self.__route_update = route_update
         self.__vehicle = queue.env.get_vehicle_by_id(
             self.__route_update.vehicle_id)
         self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
+        self.__bus = bus
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env):
-
         self.__env = env
 
         if self.__route_update.next_stops is not None:
@@ -235,6 +247,11 @@ class VehicleNotification(Event):
                 copy.deepcopy(self.__route_update.next_stops)
             for stop in self.__route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
+                if len(stop.passengers_to_board) > 0 or len(stop.passengers_to_alight) > 0:
+                    print('stop:', stop.location.label)
+                    print('passengers to board:', [trip.id for trip in stop.passengers_to_board])
+                    print('passengers to alight:', [trip.id for trip in stop.passengers_to_alight])
+                    print('boarding passengers:', [trip.id for trip in stop.boarding_passengers])
 
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
@@ -246,6 +263,10 @@ class VehicleNotification(Event):
                     current_stop_modified_passengers_to_board)
             self.__route.current_stop.passengers_to_board = \
                 actual_modified_passengers_to_board
+            for trip in self.__route.current_stop.passengers_to_board:
+                if 'walk' in trip.next_legs[0].id if trip.next_legs is not None else False:
+                    print('Update vehicle modified passengers to board and there is a walking passenger:', self.__route_update.current_stop_modified_passengers_to_board)
+                    print('Update vehicle actual modified passengers to board and there is a walking passenger: ', actual_modified_passengers_to_board)
 
         if self.__route_update.current_stop_departure_time is not None \
                 and self.__route.current_stop is not None:
@@ -260,6 +281,8 @@ class VehicleNotification(Event):
                 self.__route.current_stop.departure_time \
                     = self.__route_update.current_stop_departure_time
                 VehicleWaiting(self.__route, self.queue).add_to_queue()
+            if 'walk' in self.__vehicle.id:
+                print('Update walk vehicle, modified departure time:', self.__route_update.current_stop_departure_time)
 
         if self.__route_update.modified_assigned_legs is not None:
             # Add the assigned legs that were modified by optimization and
@@ -267,9 +290,17 @@ class VehicleNotification(Event):
             actual_modified_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.modified_assigned_legs)
-            for leg in actual_modified_assigned_legs:
-                if leg not in self.__route.assigned_legs:
-                    self.__route.assigned_legs.append(leg)
+            if self.__bus: #only onboard legs have changed.
+                for leg in actual_modified_assigned_legs:
+                    leg_id = leg.id
+                    #First remove old versions of legs
+                    self.__route.onboard_legs[:] = [l for l in self.__route.onboard_legs if l.id != leg_id]
+                    #Then add new version.
+                    self.__route.onboard_legs.append(leg)
+            else:
+                for leg in actual_modified_assigned_legs:
+                    if leg not in self.__route.assigned_legs:
+                        self.__route.assigned_legs.append(leg)
 
         # Update polylines
         if env.coordinates is not None:
@@ -279,7 +310,6 @@ class VehicleNotification(Event):
         return 'Notify Vehicle process is implemented'
 
     def __update_stop_with_actual_trips(self, stop):
-
         stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(
             stop.passengers_to_board)
         stop.boarding_passengers = self.__replace_copy_trips_with_actual_trips(
@@ -378,7 +408,7 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-
+        print('Vehicle Complete: Vehicle status:', self.__route.vehicle.status)
         return 'Vehicle Complete process is implemented'
 
     def add_to_queue(self, forced_insertion=False):

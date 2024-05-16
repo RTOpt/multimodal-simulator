@@ -6,7 +6,8 @@ logger = logging.getLogger(__name__)
 small=True
 ## This file runs the Multimodal Simulator for the whole month of November 2019 day by day with real STL Data.
 if __name__ == '__main__':
-    # To modify the log level (at INFO, by default)
+    # To modify 
+    # the log level (at INFO, by default)
     logging_level=logging.INFO
     logger.info(" Start simulation for small instance")
     if small:

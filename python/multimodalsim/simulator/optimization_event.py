@@ -75,7 +75,7 @@ class Optimize(ActionEvent):
         env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
+        EnvironmentUpdate(optimization_result, self.queue, self.bus).add_to_queue()
 
     def __optimize_asynchronously(self, env):
         hold_cv = Condition()
@@ -164,26 +164,37 @@ class Optimize(ActionEvent):
 
 
 class EnvironmentUpdate(ActionEvent):
-    def __init__(self, optimization_result, queue):
+    def __init__(self, optimization_result, queue, bus=False):
         super().__init__('EnvironmentUpdate', queue,
                          state_machine=queue.env.optimization.state_machine)
         self.__optimization_result = optimization_result
+        self.__bus = bus
 
     def _process(self, env):
+        if self.__bus:
+            print('number of modified requests: ', len(self.__optimization_result.modified_requests))
+            for trip in self.__optimization_result.modified_requests:
+                env.update_trip(trip.id, trip)
+            # if len(self.__optimization_result.modified_requests) > 0:
+            #     for trip in env.trips:
+            #         print(trip)
+            #     input('environment updated trips. Press Enter to continue...')
 
-        for trip in self.__optimization_result.modified_requests:
-            next_legs = trip.next_legs
-            next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
-            current_leg = trip.current_leg
+        else: 
+            for trip in self.__optimization_result.modified_requests:
+                next_legs = trip.next_legs
+                next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
+                current_leg = trip.current_leg
 
-            passenger_update = request.PassengerUpdate(
-                next_leg_assigned_vehicle.id, trip.id, next_legs, current_leg = current_leg)
-            passenger_event_process.PassengerAssignment(
-                passenger_update, self.queue).add_to_queue()
+                passenger_update = request.PassengerUpdate(
+                    next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
+                passenger_event_process.PassengerAssignment(
+                    passenger_update, self.queue).add_to_queue()
 
         for veh in self.__optimization_result.modified_vehicles:
+            print("Vehicle ID: ", veh.id)
             route = \
-                self.__optimization_result.state.route_by_vehicle_id[veh.id]
+                self.__optimization_result.state.route_by_vehicle_id[veh.id]#optimized route
             if route.current_stop is not None:
                 # Copy passengers_to_board and departure time of current_stop.
                 current_stop_modified_passengers_to_board = \
@@ -198,15 +209,25 @@ class EnvironmentUpdate(ActionEvent):
             # optimization.
             modified_trips_ids = [modified_trip.id for modified_trip in
                                   self.__optimization_result.modified_requests]
+            # for trip in self.__optimization_result.modified_requests:
+            #     if trip.next_legs is not None and len(trip.next_legs) > 0:
+            #         if 'walk' in trip.next_legs[0].id:
+            #             input('walk leg is in optimization_result.modified requests. Press Enter to continue...')
             modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
+            if self.__bus:
+                modified_assigned_legs = [leg for leg in route.onboard_legs
+                                          if leg.trip.id in modified_trips_ids]
+            # for leg in modified_assigned_legs:
+            #     if 'walk' in leg.id:
+            #         input('walk leg is in modified_assigned_legs. Press Enter to continue...')
 
             next_stops = route.next_stops
             route_update = RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
                 current_stop_departure_time, modified_assigned_legs)
             vehicle_event_process.VehicleNotification(
-                route_update, self.queue).add_to_queue()
+                route_update, self.queue, self.__bus).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
 

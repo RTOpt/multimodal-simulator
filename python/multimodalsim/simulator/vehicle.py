@@ -237,11 +237,16 @@ class Route(object):
 
     def initiate_boarding(self, trip):
         """Initiate boarding of the passengers who are ready to be picked up"""
+        print('Initiate boarding at current stop: ', self.__current_stop.location.label)
         self.current_stop.initiate_boarding(trip)
 
     def board(self, trip):
         """Boards passengers who are ready to be picked up"""
         if trip is not None:
+            print('Boarding Route id: ', self.__vehicle.id)
+            # if 'walk' in trip.current_leg.id: 
+            #     print('boarding walk leg: ', trip.current_leg.id)
+            #     input('Press Enter to continue...')
             self.__assigned_legs.remove(trip.current_leg)
             self.__onboard_legs.append(trip.current_leg)
             self.current_stop.board(trip)
@@ -251,25 +256,29 @@ class Route(object):
     def depart(self):
         """Departs the vehicle"""
         if self.__current_stop is not None:
-            print('Route id: ', self.__vehicle.id)
+            print('Depart Route id: ', self.__vehicle.id)
             print("Departing from stop: ", self.__current_stop.location.label)
             print("Next stop: ", self.__next_stops[0].location.label)
             self.__previous_stops.append(self.current_stop)
         else:
-            print('Route id: ', self.__vehicle.id)
+            print('Depart Route id: ', self.__vehicle.id)
             print("Departing from stop: None")
         self.__current_stop = None
 
     def arrive(self):
         """Arrives the vehicle"""
+        print('Arrive Route id: ', self.__vehicle.id)
+        print("Arriving at stop: ", self.__next_stops[0].location.label)
         self.__current_stop = self.__next_stops.pop(0)
 
     def initiate_alighting(self, trip):
         """Initiate alighting of the passengers who are ready to alight"""
+        print('Initiate alighting at current stop: ', self.__current_stop.location.label)
         self.current_stop.initiate_alighting(trip)
 
     def alight(self, leg):
         """Alights passengers who reached their destination from the vehicle"""
+        print('Alighting Route id: ', self.__vehicle.id)
         self.__onboard_legs.remove(leg)
         self.__alighted_legs.append(leg)
         self.__current_stop.alight(leg.trip)

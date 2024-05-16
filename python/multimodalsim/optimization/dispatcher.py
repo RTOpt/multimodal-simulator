@@ -180,8 +180,11 @@ class Dispatcher:
         for route_plan in optimized_route_plans:
             self.__process_route_plan(route_plan)
 
-            trips = [leg.trip for leg in route_plan.assigned_legs]
-
+            trips = [leg.trip for leg in route_plan.assigned_legs+route_plan.already_onboard_legs]
+            # for trip in trips:
+            #     if trip.next_legs is not None and len(trip.next_legs) > 0:
+            #         if 'walk' in trip.next_legs[0].id:
+            #             input('walk leg added and is in route plan. Press Enter to continue...')
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
@@ -201,7 +204,6 @@ class Dispatcher:
             # Assign the trip associated with leg that was already on board
             # before optimization took place to the stops of the route
             self.__assign_already_onboard_trip_to_stop(leg, route_plan.route)
-
         for leg in route_plan.assigned_legs:
             # Assign leg to route
             route_plan.route.assign_leg(leg)
@@ -245,6 +247,11 @@ class Dispatcher:
                     and not alighting_stop_found:
                 self.__add_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
+        # if 'walk' in leg.id:
+        #     print('Walking passenger assigned to vehicle: ', leg.trip.id)
+        #     print('boarding stop found: ', boarding_stop_found)
+        #     print('alighting stop found: ', alighting_stop_found)
+        #     input('Press Enter to continue...')
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
         ### Passenger does not alight at current stop, he would already have alighted before the opt.
@@ -422,6 +429,11 @@ class OptimizedRoutePlan:
         """The legs that are on board will automatically be alighted at the
         first stop corresponding to the destination location."""
         self.__already_onboard_legs.extend(self.route.onboard_legs)
+    
+    def add_already_onboard_legs(self, leg):
+        """The legs that are on board will automatically be alighted at the
+        first stop corresponding to the destination location."""
+        self.__already_onboard_legs.append(leg)
 
     def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:

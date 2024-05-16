@@ -89,6 +89,25 @@ class Environment(object):
         """ Removes a trip from the requests list based on its id"""
         self.__trips = [trip for trip in self.__trips if trip.id != trip_id]
 
+    def update_trip(self, trip_id, new_trip):
+        """ Updates the trip in the trips list"""
+        old_trip = self.get_trip_by_id(trip_id)
+        if old_trip is not None:
+            self.remove_trip(trip_id)
+            self.add_trip(new_trip)
+            if old_trip in self.non_assigned_trips:
+                self.remove_non_assigned_trip(trip_id)
+                self.add_non_assigned_trip(new_trip)
+            elif old_trip in self.assigned_trips:
+                self.remove_assigned_trip(trip_id)
+                self.add_assigned_trip(new_trip)
+        else:
+            logger.warning("Trip with id {} not found in the environment."
+                           .format(trip_id))
+            #Add trip to the environment
+            self.add_trip(new_trip)
+            self.add_non_assigned_trip(new_trip)
+    
     def get_leg_by_id(self, leg_id):
         # Look for the leg in the legs of all trips.
         found_leg = None
