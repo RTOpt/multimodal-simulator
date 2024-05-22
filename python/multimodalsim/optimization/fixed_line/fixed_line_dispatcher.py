@@ -124,15 +124,17 @@ class FixedLineDispatcher(Dispatcher):
 
         return found_stop
 
-    def bus_prepare_input(self, state):
+    def bus_prepare_input(self, state, main_line_id = None, next_main_line_id = None):
         """Before optimizing, we extract the legs and the routes that we want
         to be considered by the optimization algorithm. For the
         FixedLineSynchroDispatcher, we want to keep only the legs that will cross the main line in
         the stops in the optimization horizon (assigned to the main line, onboard the main line, or potentially boarding the main line).
         Moreover, we keep the current route on the main line and the next route on the main line. 
         """
-        main_line_id = state.main_line
-        next_main_line_id = state.next_main_line
+        state.main_line = main_line_id
+        state.next_main_line = next_main_line_id
+        # main_line_id = state.main_line
+        # next_main_line_id = state.next_main_line
         # print('all legs in state: ', [leg.id for leg in state.non_assigned_next_legs+state.next_legs])
         # All the routes
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
@@ -270,7 +272,7 @@ class FixedLineDispatcher(Dispatcher):
                 optimized_route_plans.append(optimized_route_plan)
         return optimized_route_plans
 
-    def bus_dispatch(self, state, queue=None):
+    def bus_dispatch(self, state, queue=None, main_line_id=None, next_main_line_id=None):
         """Decide tactics to use on main line after every departure from a bus stop.
         method relies on three other methods:
             1. prepare_input
@@ -282,6 +284,10 @@ class FixedLineDispatcher(Dispatcher):
         Input:
             -state: An object of type State that corresponds to a partial deep
                 copy of the environment.
+            -queue: An object of type EventQueue that contains the events to process in the envrionment
+            -main_line_id: str, the id of the main line vehicle.
+            -next_main_line_id: str, the id of the next main line vehicle.
+
 
         Output:
             -optimization_result: An object of type OptimizationResult, that
@@ -289,22 +295,13 @@ class FixedLineDispatcher(Dispatcher):
                 environment should be modified.
         """
 
-        selected_next_legs, selected_routes = self.bus_prepare_input(state)
+        selected_next_legs, selected_routes = self.bus_prepare_input(state, main_line_id, next_main_line_id)
         
         ### OSO algorithm
         sp, ss, h_and_time = self.OSO_algorithm(selected_next_legs, selected_routes, state)
-        main_line_id = state.main_line
-        main_route = state.route_by_vehicle_id[main_line_id]
-        # print('previous stops: ', [stop.location.label for stop in main_route.previous_stops if stop != None])            
+        main_route = state.route_by_vehicle_id[main_line_id]          
         # Update the main line route based on the OSO algorithm results.
         updated_main_route, skipped_legs, updated_legs = self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
-        
-        #  Update the selected_legs
-        # if skipped_legs != -1:
-        #     selected_next_legs = [leg for leg in selected_next_legs if leg not in skipped_legs]
-        # if updated_legs != -1: #we do not add the walking legs to the selected_next_legs. They will be reassigned when passengers
-        #                        # alight after the skipped stop. The walking vehicle will be ready and the legs will be reassigned to it.
-        #     selected_next_legs += updated_legs['onboard']
 
         # Walking route is added automatically by the VehicleReady event, DO NOT ADD MANUALLY
         optimized_route_plans = []
@@ -322,10 +319,6 @@ class FixedLineDispatcher(Dispatcher):
             optimized_route_plans.append(optimized_route_plan)
             # Update the route in the state
             state.route_by_vehicle_id[main_line_id] = updated_main_route
-            # # Remove old route from selected_routes
-            # selected_routes = [route for route in selected_routes if route.vehicle.id != main_line_id]
-            # # Add updated route to selected_routes
-            # selected_routes.append(updated_main_route)
         
         ### Process OSO algorithm results
         if len(optimized_route_plans) > 0:
@@ -362,7 +355,7 @@ class FixedLineDispatcher(Dispatcher):
         sp = False
         ss = False
         next_stop=main_route.next_stops[0]
-        if next_stop is not None and str(next_stop.location.label) == '41391':
+        if next_stop is not None and str(next_stop.location.label) == '41391' and state.main_line == '2790970':
             ss = True
             input('on est la skip-stop implemented')
         # if len(main_route.next_stops)>0:
@@ -631,8 +624,8 @@ class FixedLineDispatcher(Dispatcher):
         boarding_legs = [leg for leg in route.assigned_legs if leg.origin == route.next_stops[0].location]
         # Add 'boarding_legs_to_remove' to the new legs
         new_legs['boarding'] = boarding_legs
-        # Remove the boarding legs from the stop (this stop is skipped so not modified later on)
-        route.next_stops[0].passengers_to_board = []
+        # # Remove the boarding legs from the stop (this stop is skipped so not modified later on)
+        # route.next_stops[0].passengers_to_board = []
         return new_legs
     
     def contains_walk(self, input_string):

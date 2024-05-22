@@ -122,40 +122,10 @@ class Dispatcher:
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def bus_dispatch(self, state, bus=False):
-        """Decide tactics to use on main line after every departure from a bus stop.
-        method relies on three other methods:
-            1. prepare_input
-            2. optimize
-            3. process_optimized_route_plans
-        The optimize method must be overriden. The other two methods can be
-        overriden to modify some specific behaviors of the dispatching process.
+    def bus_dispatch(self, state, queue, main_line_id, next_main_line_id):
+        raise NotImplementedError('optimize of {} not implemented'.
+                                  format(self.__class__.__name__))
 
-        Input:
-            -state: An object of type State that corresponds to a partial deep
-                copy of the environment.
-
-        Output:
-            -optimization_result: An object of type OptimizationResult, that
-                specifies, based on the results of the optimization, how the
-                environment should be modified.
-        """
-
-        selected_next_legs, selected_routes = self.bus_prepare_input(state)
-
-        if len(selected_next_legs) > 0 and len(selected_routes) > 0:
-            # The optimize method is called only if there is at least one leg
-            # and one route to optimize.
-            optimized_route_plans = self.bus_optimize(selected_next_legs,
-                                                    selected_routes,
-                                                    state.current_time, state)
-
-            optimization_result = self.process_optimized_route_plans(
-                optimized_route_plans, state)
-        else:
-            optimization_result = OptimizationResult(state, [], [])
-
-        return optimization_result
     
     def process_optimized_route_plans(self, optimized_route_plans, state):
         """Create and modify the simulation objects that correspond to the

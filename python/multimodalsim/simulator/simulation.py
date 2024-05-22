@@ -21,8 +21,9 @@ class Simulation(object):
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
-                                 main_line=main_line,
-                                 next_main_line=next_main_line)
+                                #  main_line=main_line,
+                                #  next_main_line=next_main_line
+                                 )
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
 

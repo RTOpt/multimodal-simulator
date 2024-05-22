@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 class Optimize(ActionEvent):
     def __init__(self, time, queue, multiple_optimize_events=None,
-                 batch=None, max_optimization_time=None, asynchronous=None, bus=False, event_priority=Event.STANDARD_PRIORITY):
+                 batch=None, max_optimization_time=None, asynchronous=None,
+                 bus=False,
+                 event_priority=Event.STANDARD_PRIORITY,
+                 main_line=None, next_main_line=None):
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
                                            max_optimization_time, asynchronous)
@@ -30,6 +33,8 @@ class Optimize(ActionEvent):
                          event_priority=event_priority,
                          state_machine=queue.env.optimization.state_machine)
         self.__bus = bus
+        self.__main_line = main_line
+        self.__next_main_line = next_main_line
 
     def process(self, env):
         if self.state_machine.current_state.status \
@@ -67,7 +72,7 @@ class Optimize(ActionEvent):
             env.optimization.freeze_interval)
         if self.bus:
             optimization_result = env.optimization.bus_dispatch(
-                env.optimization.state, self.queue)
+                env.optimization.state, self.queue, self.__main_line, self.__next_main_line)
         else:
             optimization_result = env.optimization.dispatch(
                 env.optimization.state)

@@ -32,17 +32,19 @@ class VehicleReady(Event):
                 self.__vehicle)
 
         env.add_route(self.__route, self.__vehicle.id)
-        if env.main_line == self.__route.vehicle.id:
-            logger.info('Main line vehicle is ready, optimize before leaving the depot...')
-            optimization_event.Optimize(env.current_time,
-                                        self.queue,
-                                        bus=True,
-                                        event_priority=Event.HIGH_PRIORITY).add_to_queue()
-        else:
-            # if 'walk' in self.__vehicle.id:
-            #     print('Walk vehicle is ready, optimize before leaving the depot...')
-            #     input('Walking vehicle is ready, press Enter to continue...')
-            optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+        # if env.main_line == self.__route.vehicle.id:
+        # env.main_line == self.__route.vehicle.id
+        logger.info('Main line vehicle is ready, optimize before leaving the depot...')
+        optimization_event.Optimize(env.current_time,
+                                    self.queue,
+                                    bus=True,
+                                    event_priority=Event.HIGH_PRIORITY,
+                                    main_line = self.__route.vehicle.id).add_to_queue()
+        # else:
+        #     # if 'walk' in self.__vehicle.id:
+        #     #     print('Walk vehicle is ready, optimize before leaving the depot...')
+        #     #     input('Walking vehicle is ready, press Enter to continue...')
+        #     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
 
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 
@@ -70,8 +72,8 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-        # optimization_event.Optimize(env.current_time, self.queue). \
-        #     add_to_queue()
+        if len(env.non_assigned_trips)>0:
+            optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         print('Vehicle Waiting route id:', self.__route.vehicle.id)
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -157,12 +159,13 @@ class VehicleDeparture(ActionEvent):
         self.__route.depart()
         # print('previous stops:', [self.__route.previous_stops[i].location.label for i in range(len(self.__route.previous_stops))])
 
-        if env.main_line == self.__route.vehicle.id:
-            print('Main line vehicle is departing, optimize ...')
-            optimization_event.Optimize(env.current_time,
-                                        self.queue,
-                                        bus=True,
-                                        event_priority=Event.HIGH_PRIORITY).add_to_queue() ## reoptimize after all departures from main line stops
+        # if env.main_line == self.__route.vehicle.id:
+        print('Main line vehicle is departing, optimize ...')
+        optimization_event.Optimize(env.current_time,
+                                    self.queue,
+                                    bus=True,
+                                    event_priority=Event.HIGH_PRIORITY,
+                                    main_line = self.__route.vehicle.id).add_to_queue() ## reoptimize after all departures from main line stops
         
         # ### Use optimized route for the arrival time
         # if env.travel_times is not None:
