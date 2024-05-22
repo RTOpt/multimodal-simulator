@@ -133,7 +133,7 @@ class FixedLineDispatcher(Dispatcher):
         """
         main_line_id = state.main_line
         next_main_line_id = state.next_main_line
-        print('all legs in state: ', [leg.id for leg in state.non_assigned_next_legs+state.next_legs])
+        # print('all legs in state: ', [leg.id for leg in state.non_assigned_next_legs+state.next_legs])
         # All the routes
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
         # print("selected_routes: ", [route.vehicle.id for route in selected_routes])
@@ -298,13 +298,15 @@ class FixedLineDispatcher(Dispatcher):
         # print('previous stops: ', [stop.location.label for stop in main_route.previous_stops if stop != None])            
         # Update the main line route based on the OSO algorithm results.
         updated_main_route, skipped_legs, updated_legs = self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
-        # Update the selected_legs
-        if skipped_legs != -1:
-            selected_next_legs = [leg for leg in selected_next_legs if leg not in skipped_legs]
-        if updated_legs != -1: #we do not add the walking legs to the selected_next_legs. They will be reassigned when passengers
-                               # alight after the skipped stop. The walking vehicle will be ready and the legs will be reassigned to it.
-            selected_next_legs += updated_legs['onboard']
-        ### Walking route is added automatically by the VehicleReady event, DO NOT ADD MANUALLY
+        
+        #  Update the selected_legs
+        # if skipped_legs != -1:
+        #     selected_next_legs = [leg for leg in selected_next_legs if leg not in skipped_legs]
+        # if updated_legs != -1: #we do not add the walking legs to the selected_next_legs. They will be reassigned when passengers
+        #                        # alight after the skipped stop. The walking vehicle will be ready and the legs will be reassigned to it.
+        #     selected_next_legs += updated_legs['onboard']
+
+        # Walking route is added automatically by the VehicleReady event, DO NOT ADD MANUALLY
         optimized_route_plans = []
         if ss or sp or h_and_time[0]: #if any tactic is used, we need to update the route
             optimized_route_plan = OptimizedRoutePlan(updated_main_route)
@@ -314,6 +316,8 @@ class FixedLineDispatcher(Dispatcher):
             if updated_legs != -1:
                 for leg in updated_legs['onboard']:
                     optimized_route_plan.add_already_onboard_legs(leg)
+                for leg in updated_legs['boarding']:
+                    optimized_route_plan.add_leg_to_remove(leg)
                     # input('adding ss onboard leg to optimized route plan...')
             optimized_route_plans.append(optimized_route_plan)
             # Update the route in the state
@@ -325,7 +329,7 @@ class FixedLineDispatcher(Dispatcher):
         
         ### Process OSO algorithm results
         if len(optimized_route_plans) > 0:
-            # input('processing optimized route plans...')
+            print('processing optimized route plans for ss...')
             optimization_result = self.process_optimized_route_plans(
                 optimized_route_plans, state)
         else:
@@ -435,6 +439,9 @@ class FixedLineDispatcher(Dispatcher):
             
             # Update the legs for passengers alighting at the skipped stop
             route, skipped_legs, new_legs = self.update_legs_for_passengers_alighting_at_skipped_stop(route, walking_route)
+            
+            # Get the legs for passengers boarding at the skipped stop
+            new_legs = self.get_legs_for_passengers_boarding_at_skipped_stop(route, new_legs)
             # Skip stop
             route = self.skip_stop(route)
         else:
@@ -556,6 +563,7 @@ class FixedLineDispatcher(Dispatcher):
         new_legs = {}
         new_legs['walk'] = []
         new_legs['onboard'] = []
+        new_legs['boarding'] = []
         walk_origin = walking_route.current_stop.location.label
         walk_destination = walking_route.next_stops[0].location.label
         walk_release_time = walking_route.vehicle.release_time-1
@@ -601,5 +609,21 @@ class FixedLineDispatcher(Dispatcher):
             new_legs['walk'].append(walk_leg)
         return route, skipped_legs, new_legs
 
+    def get_legs_for_passengers_boarding_at_skipped_stop(self, route, new_legs):
+        """Update the legs for passengers boarding at the skipped stop.
+        Inputs:
+            - route: Route object, the main line route.
+            - new_legs: dict, the new legs for passengers boarding at the skipped stop.
+
+        Outputs:
+            - new_legs: dict, the updated new legs."""
+        # Find legs supposed to board at the skipped stop
+        boarding_legs = [leg for leg in route.assigned_legs if leg.origin == route.next_stops[0].location]
+        # Add 'boarding_legs_to_remove' to the new legs
+        new_legs['boarding'] = boarding_legs
+        # Remove the boarding legs from the stop
+        ### Done in process route plans
+        return new_legs
+    
     def contains_walk(self, input_string):
         return 'walk' in input_string

@@ -278,7 +278,7 @@ class Route(object):
 
     def alight(self, leg):
         """Alights passengers who reached their destination from the vehicle"""
-        print('Alighting Route id: ', self.__vehicle.id)
+        print('Alighting Route id: ', self.__vehicle.id,'passenger', leg.trip.id, 'at stop: ', self.__current_stop.location.label)
         self.__onboard_legs.remove(leg)
         self.__alighted_legs.append(leg)
         self.__current_stop.alight(leg.trip)
@@ -297,6 +297,7 @@ class Route(object):
         """Returns the list of requests ready to be picked up by the vehicle"""
         requests_to_pickup = []
         for trip in self.__current_stop.passengers_to_board:
+            print('Passenger to board: ', trip.id)
             if trip.status == PassengersStatus.READY:
                 requests_to_pickup.append(trip)
 
@@ -471,11 +472,13 @@ class Stop(object):
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the
         vehicle """
+        print('Initiate boarding passenger', trip.id, ' at stop: ', self.__location.label)
         self.passengers_to_board.remove(trip)
         self.boarding_passengers.append(trip)
 
     def board(self, trip):
         """Passenger who is boarding becomes boarded"""
+        print('Boarded passenger: ', trip.id, 'at stop: ', self.__location.label)
         self.boarding_passengers.remove(trip)
         self.boarded_passengers.append(trip)
 

@@ -180,7 +180,7 @@ class Dispatcher:
         for route_plan in optimized_route_plans:
             self.__process_route_plan(route_plan)
 
-            trips = [leg.trip for leg in route_plan.assigned_legs+route_plan.already_onboard_legs]
+            trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
             for trip in trips:
                 print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
             #     if trip.next_legs is not None and len(trip.next_legs) > 0:
@@ -205,6 +205,7 @@ class Dispatcher:
             # Assign the trip associated with leg that was already on board
             # before optimization took place to the stops of the route
             self.__assign_already_onboard_trip_to_stop(leg, route_plan.route)
+            
         for leg in route_plan.assigned_legs:
             # Assign leg to route
             route_plan.route.assign_leg(leg)
@@ -214,6 +215,16 @@ class Dispatcher:
                     and leg not in route_plan.already_onboard_legs:
                 self.__automatically_assign_trip_to_stops(leg,
                                                           route_plan.route)
+        
+        for leg in route_plan.legs_to_remove:
+            # Remove leg from route : on en a besoin pour que ce soit update dans le environment
+            # Fait dans VehicleNotification.process
+            # route_plan.route.unassign_leg(leg)
+
+            # Remove the trip associated with leg from the stops of the route
+            if leg not in route_plan.already_onboard_legs:
+                self.__remove_trip_from_stops(leg, route_plan.route)
+
 
     def __update_route_next_stops(self, route_plan):
         # Update current stop departure time
@@ -232,27 +243,63 @@ class Dispatcher:
 
         boarding_stop_found = False
         alighting_stop_found = False
+        boarding_stop = None
+        alighting_stop = None
 
         if route.current_stop is not None:
             current_location = route.current_stop.location
 
             if leg.origin == current_location:
-                self.__add_passenger_to_board(leg.trip, route.current_stop)
+                # self.__add_passenger_to_board(leg.trip, route.current_stop)
                 boarding_stop_found = True
+                boarding_stop = route.current_stop
 
         for stop in route.next_stops:
             if leg.origin == stop.location and not boarding_stop_found:
-                self.__add_passenger_to_board(leg.trip, stop)
+                # self.__add_passenger_to_board(leg.trip, stop)
                 boarding_stop_found = True
+                boarding_stop = stop
             elif leg.destination == stop.location and boarding_stop_found \
                     and not alighting_stop_found:
-                self.__add_passenger_to_alight(leg.trip, stop)
+                # self.__add_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
+                alighting_stop = stop
+        if not (boarding_stop_found and alighting_stop_found):
+            logger.warning("Trip {} could not be assigned to stops of route {}.".format(leg.trip.id, route.vehicle.id))
+        else:
+            self.__add_passenger_to_board(leg.trip, boarding_stop)
+            self.__add_passenger_to_alight(leg.trip, alighting_stop)
         # if 'walk' in leg.id:
         #     print('Walking passenger assigned to vehicle: ', leg.trip.id)
         #     print('boarding stop found: ', boarding_stop_found)
         #     print('alighting stop found: ', alighting_stop_found)
         #     input('Press Enter to continue...')
+
+    def __remove_trip_from_stops(self, leg, route):
+        """Remove the trip associated with leg from the stops of the route.
+           The trip origin has already been removed from the stops of the route.
+           We only need to find the trip destination and remove the alighting passenger.
+           Input:
+               -leg: object of type Leg: The leg to be removed from the alighting passengers from the destination stops of the route.
+               -route: object of type Route: The route from which the trip should be removed from the stops.
+        """
+        alighting_stop_found = False
+
+        if route.current_stop is not None:
+            current_location = route.current_stop.location
+
+            if leg.destination == current_location:
+                self.__remove_passenger_to_alight(leg.trip, route.current_stop)
+                alighting_stop_found = True
+                input('We should never be here...')
+        for stop in route.next_stops:
+            if leg.destination == stop.location and not alighting_stop_found:
+                self.__remove_passenger_to_alight(leg.trip, stop)
+                alighting_stop_found = True
+        if not alighting_stop_found:
+            logger.warning("Trip {} could not be removed from stops of route {}."
+                           .format(leg.trip.id, route.vehicle.id))
+            input()
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
         ### Passenger does not alight at current stop, he would already have alighted before the opt.
@@ -262,15 +309,26 @@ class Dispatcher:
                 break
 
     def __add_passenger_to_board(self, trip, stop):
+        print('on est la, on ajoute le passenger_to_board ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_board]
         if trip.id not in trip_ids_list:
             stop.passengers_to_board.append(trip)
 
     def __add_passenger_to_alight(self, trip, stop):
+        print('on est la, on ajoute le passenger_to_alight ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
 
+    def __remove_passenger_to_board(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_board]
+        if trip.id in trip_ids_list:
+            stop.passengers_to_board.remove(trip)
+    
+    def __remove_passenger_to_alight(self, trip, stop):
+        trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
+        if trip.id in trip_ids_list:
+            stop.passengers_to_alight.remove(trip)
 
 class OptimizedRoutePlan:
     """Structure to store the optimization results of one route.
@@ -317,6 +375,8 @@ class OptimizedRoutePlan:
 
         self.__legs_manually_assigned_to_stops = []
 
+        self.__legs_to_remove = []
+
     @property
     def route(self):
         return self.__route
@@ -341,6 +401,13 @@ class OptimizedRoutePlan:
     def legs_manually_assigned_to_stops(self):
         return self.__legs_manually_assigned_to_stops
 
+    @property
+    def legs_to_remove(self):
+        return self.__legs_to_remove
+    
+    def add_leg_to_remove(self, leg):
+        self.__legs_to_remove.append(leg)
+    
     def update_current_stop_departure_time(self, departure_time):
         """Modify the departure time of the current stop of the route plan
         (i.e., the stop at which the vehicle is at the time of optimization).
@@ -402,6 +469,21 @@ class OptimizedRoutePlan:
 
         return self.__next_stops
 
+    def unassign_leg(self, leg):
+        """Remove a leg from the list of assigned legs of the route plan.
+            Parameter:
+                leg: object of type Leg
+                    The leg to be removed from the list of assigned legs of the
+                    route plan.
+        """
+        if leg.assigned_vehicle is not None and leg.assigned_vehicle == self.route.vehicle:
+            leg.assigned_vehicle = None
+
+        if leg in self.__assigned_legs:
+            self.__assigned_legs.remove(leg)
+
+        return self.__assigned_legs
+    
     def assign_leg(self, leg):
         """Append a leg to the list of assigned legs of the route plan.
             Parameter:
@@ -438,6 +520,7 @@ class OptimizedRoutePlan:
 
     def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:
+            print('Route id: ', self.__route.vehicle.id, 'on ajoute le passager', leg.trip.id,' au stop: ', stop.location.label)
             stop.passengers_to_board.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)

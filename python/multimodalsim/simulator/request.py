@@ -110,7 +110,9 @@ class Leg(Request):
     def assigned_vehicle(self, vehicle):
         """Assigns a vehicle to the leg"""
         self.__assigned_vehicle = vehicle
-        if self.__cap_vehicle_id is None or self.__cap_vehicle_id != vehicle.id:
+        if vehicle is None:
+            self.__cap_vehicle_id = None
+        elif self.__cap_vehicle_id is None or self.__cap_vehicle_id != vehicle.id:
             logger.info("Leg did not have assigned cap vehicle id or it was different. Setting it to the vehicle id number {}".format(vehicle.id))
             self.__cap_vehicle_id = vehicle.id
     

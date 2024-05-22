@@ -92,6 +92,7 @@ class Environment(object):
     def update_trip(self, trip_id, new_trip):
         """ Updates the trip in the trips list"""
         old_trip = self.get_trip_by_id(trip_id)
+        assigned = False
         if old_trip is not None:
             self.remove_trip(trip_id)
             self.add_trip(new_trip)

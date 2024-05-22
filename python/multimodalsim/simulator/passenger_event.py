@@ -108,6 +108,7 @@ class PassengerToBoard(ActionEvent):
         self.__trip = trip
 
     def _process(self, env):
+        # input('Passenger to board: ' + self.__trip.id)
         self.__trip.start_next_leg()
         self.__trip.current_leg.boarding_time = env.current_time
 
@@ -142,6 +143,8 @@ class PassengerAlighting(ActionEvent):
             # The trip is considered as non-assigned again
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
+            print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
+            input()
 
             # if 'walk' in self.__trip.next_legs[0].id: 
             #     print('Next leg is WALKING: ', self.__trip.next_legs[0].id)
