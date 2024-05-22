@@ -57,12 +57,12 @@ class FixedLineDispatcher(Dispatcher):
         (i.e. leg.destination)."""
         optimized_route_plans = []
         for leg in selected_next_legs:
-            # if 'walk' in leg.id:
-            #     input('walk leg found and is going to be optimized...')
+            print('leg:', leg.id, 'origin:', leg.origin.label, 'destination:', leg.destination.label)
             optimal_route = self.__find_optimal_route_for_leg(
                 leg, selected_routes, current_time)
 
             if optimal_route is not None:
+                print('optimal route:', optimal_route.vehicle.id, 'current stop:', optimal_route.current_stop.location.label if optimal_route.current_stop is not None else None)
                 # if 'walk' in optimal_route.vehicle.id:
                 #     input('optimal walk vehicle found...')
                 optimized_route_plan = OptimizedRoutePlan(optimal_route)
@@ -86,7 +86,6 @@ class FixedLineDispatcher(Dispatcher):
             origin_departure_time, destination_arrival_time = \
                 self.__get_origin_departure_time_and_destination_arrival_time(
                     route, origin_stop_id, destination_stop_id)
-            print('leg:', leg.id,'origin',leg.origin.label,'destination',leg.destination.label, 'origin departure time: ', origin_departure_time, 'destination arrival time: ', destination_arrival_time)
             if origin_departure_time is not None \
                     and origin_departure_time > current_time \
                     and origin_departure_time >= leg.trip.ready_time \
@@ -96,6 +95,7 @@ class FixedLineDispatcher(Dispatcher):
                          or destination_arrival_time < earliest_arrival_time):
                 earliest_arrival_time = destination_arrival_time
                 optimal_route = route
+        print('leg:', leg.id,'origin',leg.origin.label,'destination',leg.destination.label, 'origin departure time: ', origin_departure_time, 'destination arrival time: ', destination_arrival_time,'optimal route:', optimal_route.vehicle.id if optimal_route is not None else None)
         return optimal_route
 
     def __get_origin_departure_time_and_destination_arrival_time(
@@ -513,6 +513,11 @@ class FixedLineDispatcher(Dispatcher):
         start_stop.departure_time = start_stop.arrival_time + 5
         start_stop.cumulative_distance = 0
         start_stop.min_departure_time = None
+        start_stop.passengers_to_board = []
+        start_stop.boarding_passengers = []
+        start_stop.boarded_passengers = []
+        start_stop.passengers_to_alight = []
+        start_stop.alighted_passengers = []
 
         end_stop = copy.deepcopy(main_route.next_stops[0])
         #find the passengers ALIGHTING at this stop
@@ -521,6 +526,11 @@ class FixedLineDispatcher(Dispatcher):
         end_stop.departure_time = end_stop.arrival_time
         end_stop.cumulative_distance = walking_time*4/3600
         end_stop.min_departure_time = None
+        end_stop.passengers_to_board = []
+        end_stop.boarding_passengers = []
+        end_stop.boarded_passengers = []
+        end_stop.passengers_to_alight = []
+        end_stop.alighted_passengers = []
 
         next_stops = [end_stop]
 
@@ -621,8 +631,8 @@ class FixedLineDispatcher(Dispatcher):
         boarding_legs = [leg for leg in route.assigned_legs if leg.origin == route.next_stops[0].location]
         # Add 'boarding_legs_to_remove' to the new legs
         new_legs['boarding'] = boarding_legs
-        # Remove the boarding legs from the stop
-        ### Done in process route plans
+        # Remove the boarding legs from the stop (this stop is skipped so not modified later on)
+        route.next_stops[0].passengers_to_board = []
         return new_legs
     
     def contains_walk(self, input_string):

@@ -186,7 +186,7 @@ class EnvironmentUpdate(ActionEvent):
                 next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
                 current_leg = trip.current_leg
                 print('trip id is ASSIGNED: ', trip.id)
-                input('Press Enter to continue...')
+                # input('Press Enter to continue...')
                 passenger_update = request.PassengerUpdate(
                     next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
                 passenger_event_process.PassengerAssignment(
@@ -201,7 +201,7 @@ class EnvironmentUpdate(ActionEvent):
                 current_stop_modified_passengers_to_board = \
                     route.current_stop.passengers_to_board
                 print('current_stop_modified_passengers_to_board: ', [passenger.id for passenger in current_stop_modified_passengers_to_board])
-                input('Press Enter to continue...')
+                # input('Press Enter to continue...')
                 current_stop_departure_time = \
                     route.current_stop.departure_time
             else:
@@ -219,8 +219,8 @@ class EnvironmentUpdate(ActionEvent):
             modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
             if self.__bus:
-                modified_assigned_legs = [leg for leg in route.assigned_legs + route.onboard_legs
-                                          if leg.trip.id in modified_trips_ids]
+                modified_assigned_legs = list(set([leg for leg in route.assigned_legs + route.onboard_legs
+                                          if leg.trip.id in modified_trips_ids]))
             print('modified_assigned_legs: ', [leg.id for leg in modified_assigned_legs])
             # for leg in modified_assigned_legs:
             #     if 'walk' in leg.id:

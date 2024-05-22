@@ -144,7 +144,7 @@ class PassengerAlighting(ActionEvent):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
             print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
-            input()
+            # input()
 
             # if 'walk' in self.__trip.next_legs[0].id: 
             #     print('Next leg is WALKING: ', self.__trip.next_legs[0].id)

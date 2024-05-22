@@ -122,11 +122,11 @@ class VehicleBoarding(ActionEvent):
         passengers_to_board_copy = self.__route.current_stop. \
             passengers_to_board.copy()
         print('Boarding vehicle:', self.__route.vehicle.id, 'current stop:', self.__route.current_stop.location.label)
-        print('Passengers to board:', [trip.id for trip in passengers_to_board_copy])
+        # print('Passengers to board:', [trip.id for trip in passengers_to_board_copy])
         passengers_ready = [trip for trip in passengers_to_board_copy
                             if trip.status == PassengersStatus.READY]
         print('Passengers ready to board:', [trip.id for trip in passengers_ready])
-        input('Press Enter to continue...')
+        # input('Press Enter to continue...')
         for req in passengers_ready:
             self.__route.initiate_boarding(req)
             passenger_event.PassengerToBoard(
@@ -190,7 +190,7 @@ class VehicleArrival(ActionEvent):
         self.__update_stop_times(env.current_time)
 
         self.__route.arrive()
-        print('route id: ', self.__route.vehicle.id)
+        print('Arriving route id: ', self.__route.vehicle.id)
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
         print('Passengers to alight:', [trip.id for trip in passengers_to_alight_copy])
@@ -244,8 +244,25 @@ class VehicleNotification(Event):
     def _process(self, env):
         self.__env = env
         print('Modifying route for vehicle:', self.__route.vehicle.id)
-        input('Press Enter to continue...')
+        # input('Press Enter to continue...')
         if self.__route_update.next_stops is not None:
+            print('route old next stops for route ',self.__route.vehicle.id)
+            for stop in self.__route.next_stops:
+                if len(stop.passengers_to_board) > 0 or len(stop.passengers_to_alight) > 0 or len(stop.boarding_passengers) > 0 or len(stop.boarded_passengers) > 0:
+                    print('stop:', stop.location.label)
+                    print('passengers to board:', [trip.id for trip in stop.passengers_to_board])
+                    print('passengers to alight:', [trip.id for trip in stop.passengers_to_alight])
+                    print('boarding passengers:', [trip.id for trip in stop.boarding_passengers])
+                    print('boarded passengers:', [trip.id for trip in stop.boarded_passengers])
+            print('route update next stops for route ',self.__route.vehicle.id)
+            for stop in self.__route_update.next_stops:
+                if len(stop.passengers_to_board) > 0 or len(stop.passengers_to_alight) > 0 or len(stop.boarding_passengers) > 0 or len(stop.boarded_passengers) > 0:
+                    print('stop:', stop.location.label)
+                    print('passengers to board:', [trip.id for trip in stop.passengers_to_board])
+                    print('passengers to alight:', [trip.id for trip in stop.passengers_to_alight])
+                    print('boarding passengers:', [trip.id for trip in stop.boarding_passengers])
+                    print('boarded passengers:', [trip.id for trip in stop.boarded_passengers])
+            # input('Press Enter to continue...')    
             self.__route.next_stops = \
                 copy.deepcopy(self.__route_update.next_stops)
             for stop in self.__route.next_stops:
@@ -270,6 +287,7 @@ class VehicleNotification(Event):
                 actual_modified_passengers_to_board
             for trip in self.__route.current_stop.passengers_to_board:
                 print('trip:', trip.id, 'current leg:', trip.current_leg.id if trip.current_leg is not None else None)
+            # input('Press Enter to continue...')
 
         if self.__route_update.current_stop_departure_time is not None \
                 and self.__route.current_stop is not None:
@@ -293,6 +311,7 @@ class VehicleNotification(Event):
             actual_modified_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.modified_assigned_legs)
+            print('modified assigned legs:', [leg.id for leg in actual_modified_assigned_legs])
             if self.__bus: #only onboard legs that have to get off at the skipped stop and legs that have to board at the skipped stop have changed.
                 # self.__route.onboard_legs[:] = [l for l in self.__route.onboard_legs if l.id not in [leg.id for leg in actual_modified_assigned_legs]]
                 need_to_optimize = False
@@ -305,18 +324,22 @@ class VehicleNotification(Event):
                     #check if assigned leg
                     assigned_leg_to_remove = next((l for l in self.__route.assigned_legs if l.id == leg.id), None)
                     if assigned_leg_to_remove is not None:
+                        print('removing leg:', assigned_leg_to_remove.id, 'from route:', self.__route.vehicle.id, 'boarding at stop:', assigned_leg_to_remove.origin.label, 'alighting at stop:', assigned_leg_to_remove.destination.label) 
+                        boarding_stop = next(iter([stop for stop in self.__route.next_stops if stop.location.label == assigned_leg_to_remove.origin.label]), None)
+                        alighting_stop = next(iter([stop for stop in self.__route.next_stops if stop.location.label == assigned_leg_to_remove.destination.label]), None)
+                        # print('boarding stop remaining passengers:', [trip.id for trip in boarding_stop.passengers_to_board if boarding_stop != None])
+                        print('alighting stop remaining passengers:', [trip.id for trip in alighting_stop.passengers_to_alight])
                         self.__route.assigned_legs.remove(assigned_leg_to_remove)
                         leg.assigned_vehicle = None
                         self.__env.remove_assigned_trip(assigned_leg_to_remove.trip.id)
-                        self.__env.add_non_assigned_trip(assigned_leg_to_remove.trip)
+                        self.__env.add_non_assigned_trip(leg.trip)
                         need_to_optimize = True
-                        print('trip id: ', assigned_leg_to_remove.trip.id, ' is added to non_assigned_trips.')
-                        print(leg.trip)
-                        input()
+                        print('trip id: ', leg.trip.id, ' is added to non_assigned_trips.')
+                        # input()
                     if assigned_leg_to_remove is None and onboard_leg_to_remove is None:
                         print('leg_id:', leg.id)
                         logger.warning('Leg not found in onboard or assigned legs')
-                        input()
+                        # input()
                 if need_to_optimize:
                     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
             else:

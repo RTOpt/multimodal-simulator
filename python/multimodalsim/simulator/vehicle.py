@@ -297,7 +297,6 @@ class Route(object):
         """Returns the list of requests ready to be picked up by the vehicle"""
         requests_to_pickup = []
         for trip in self.__current_stop.passengers_to_board:
-            print('Passenger to board: ', trip.id)
             if trip.status == PassengersStatus.READY:
                 requests_to_pickup.append(trip)
 
@@ -456,6 +455,10 @@ class Stop(object):
     @property
     def alighted_passengers(self):
         return self.__alighted_passengers
+
+    @alighted_passengers.setter
+    def alighted_passengers(self, alighted_passengers):
+        self.__alighted_passengers = alighted_passengers
 
     @property
     def location(self):
