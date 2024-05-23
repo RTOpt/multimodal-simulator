@@ -131,3 +131,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+output/fixed_line/gtfs/gtfs-generated-small/events_observations_df.csv
+output/fixed_line/gtfs/gtfs-generated-small/trips_details_observations_df.csv
+output/fixed_line/gtfs/gtfs-generated-small/trips_observations_df.csv
+output/fixed_line/gtfs/gtfs-generated-small/vehicles_observations_df.csv
