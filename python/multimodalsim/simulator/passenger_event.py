@@ -125,9 +125,9 @@ class PassengerAlighting(ActionEvent):
 
     def _process(self, env):
         ### Show trip information
-        print('Alighting trip: ', self.__trip.id)
-        print('Alighting current leg: ', self.__trip.current_leg.id if self.__trip.current_leg is not None else None)
-        print('Alighting next legs: ', [leg.id for leg in self.__trip.next_legs] if self.__trip.next_legs is not None else None)
+        # print('Alighting trip: ', self.__trip.id)
+        # print('Alighting current leg: ', self.__trip.current_leg.id if self.__trip.current_leg is not None else None)
+        # print('Alighting next legs: ', [leg.id for leg in self.__trip.next_legs] if self.__trip.next_legs is not None else None)
         self.__trip.current_leg.alighting_time = env.current_time
         VehicleAlighted(self.__trip.current_leg, self.queue).add_to_queue()
 

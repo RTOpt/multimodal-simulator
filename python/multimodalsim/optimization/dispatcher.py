@@ -283,13 +283,13 @@ class Dispatcher:
                 break
 
     def __add_passenger_to_board(self, trip, stop):
-        print('on est la, on ajoute le passenger_to_board ', trip.id,' au stop: ', stop.location.label)
+        # print('on est la, on ajoute le passenger_to_board ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_board]
         if trip.id not in trip_ids_list:
             stop.passengers_to_board.append(trip)
 
     def __add_passenger_to_alight(self, trip, stop):
-        print('on est la, on ajoute le passenger_to_alight ', trip.id,' au stop: ', stop.location.label)
+        # print('on est la, on ajoute le passenger_to_alight ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
@@ -494,7 +494,7 @@ class OptimizedRoutePlan:
 
     def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:
-            print('Route id: ', self.__route.vehicle.id, 'on ajoute le passager', leg.trip.id,' au stop: ', stop.location.label)
+            # print('Route id: ', self.__route.vehicle.id, 'on ajoute le passager', leg.trip.id,' au stop: ', stop.location.label)
             stop.passengers_to_board.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)

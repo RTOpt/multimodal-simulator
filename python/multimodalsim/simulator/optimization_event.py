@@ -40,6 +40,7 @@ class Optimize(ActionEvent):
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
             with env.optimize_cv:
+                logger.info("Optimize is waiting...")
                 env.optimize_cv.wait()
             self.add_to_queue()
             process_message = 'Optimize process is put back in the event queue'
@@ -177,7 +178,7 @@ class EnvironmentUpdate(ActionEvent):
 
     def _process(self, env):
         if self.__bus:
-            print('number of modified requests: ', len(self.__optimization_result.modified_requests))
+            # print('number of modified requests: ', len(self.__optimization_result.modified_requests))
             for trip in self.__optimization_result.modified_requests:
                 env.update_trip(trip.id, trip)
             # if len(self.__optimization_result.modified_requests) > 0:
@@ -190,7 +191,7 @@ class EnvironmentUpdate(ActionEvent):
                 next_legs = trip.next_legs
                 next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
                 current_leg = trip.current_leg
-                print('trip id is ASSIGNED: ', trip.id)
+                # print('trip id is ASSIGNED: ', trip.id)
                 # input('Press Enter to continue...')
                 passenger_update = request.PassengerUpdate(
                     next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
@@ -205,7 +206,7 @@ class EnvironmentUpdate(ActionEvent):
                 # Copy passengers_to_board and departure time of current_stop.
                 current_stop_modified_passengers_to_board = \
                     route.current_stop.passengers_to_board
-                print('current_stop_modified_passengers_to_board: ', [passenger.id for passenger in current_stop_modified_passengers_to_board])
+                # print('current_stop_modified_passengers_to_board: ', [passenger.id for passenger in current_stop_modified_passengers_to_board])
                 # input('Press Enter to continue...')
                 current_stop_departure_time = \
                     route.current_stop.departure_time

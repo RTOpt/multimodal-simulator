@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 ### This file generates partial data of the day November 1st 2019 to allow for testing on a medium size real instance.
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
-small=True
-only_transfers=True
+small=False
+only_transfers=False
 main_trip_id="2790970"
 max_distance = 0.5 #connection max distance in km
 if small:
@@ -26,7 +26,7 @@ if small:
     small_name="_small"
     small_folder="-small"
 else: 
-    nb_transfers=10000000
+    nb_transfers=5
     small_name=""
     small_folder=""
 ###CAP files
@@ -82,7 +82,7 @@ with open(cap_file_path_old, 'r') as file:
                 trip_id_prev=lines[i-1][0].strip().split(";")[trip_id_index]
                 if (trip_id_prev!="") and (transfers<nb_transfers) and passenger_id==passenger_id_prev and (validation_time-validation_time_prev<5400) and lign_number!=lign_number_prev: #transfer so need to keep the transferring trip
                     relevant_trips.append(trip_id_prev)
-                    print('trip_id_prev:',trip_id_prev)
+                    # print('trip_id_prev:',trip_id_prev)
                     written_lines.append(lines[i-1][1])
                     transfers+=1
                     if only_transfers and (lines[i][1] in written_lines)==False:
@@ -93,7 +93,7 @@ with open(cap_file_path_old, 'r') as file:
                 lign_number_next=lines[i+1][0].strip().split(";")[lign_numer_index]
                 trip_id_next=lines[i+1][0].strip().split(";")[trip_id_index]
                 if (trip_id_next!="") and (transfers<nb_transfers) and passenger_id==passenger_id_next and (validation_time_next-validation_time<5400) and lign_number!=lign_number_next: #transfer so need to keep the transferring trip
-                    print('trip_id_next:',trip_id_next)
+                    # print('trip_id_next:',trip_id_next)
                     relevant_trips.append(trip_id_next)
                     written_lines.append(lines[i+1][1])
                     transfers+=1

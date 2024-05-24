@@ -55,14 +55,15 @@ class FixedLineDispatcher(Dispatcher):
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""
+        logger.info('STARTING NORMAL OPTIMIZE...')
         optimized_route_plans = []
         for leg in selected_next_legs:
-            print('leg:', leg.id, 'origin:', leg.origin.label, 'destination:', leg.destination.label)
+            # print('leg:', leg.id, 'origin:', leg.origin.label, 'destination:', leg.destination.label)
             optimal_route = self.__find_optimal_route_for_leg(
                 leg, selected_routes, current_time)
 
             if optimal_route is not None:
-                print('optimal route:', optimal_route.vehicle.id, 'current stop:', optimal_route.current_stop.location.label if optimal_route.current_stop is not None else None)
+                # print('optimal route:', optimal_route.vehicle.id, 'current stop:', optimal_route.current_stop.location.label if optimal_route.current_stop is not None else None)
                 # if 'walk' in optimal_route.vehicle.id:
                 #     input('optimal walk vehicle found...')
                 optimized_route_plan = OptimizedRoutePlan(optimal_route)
@@ -95,7 +96,7 @@ class FixedLineDispatcher(Dispatcher):
                          or destination_arrival_time < earliest_arrival_time):
                 earliest_arrival_time = destination_arrival_time
                 optimal_route = route
-        print('leg:', leg.id,'origin',leg.origin.label,'destination',leg.destination.label, 'origin departure time: ', origin_departure_time, 'destination arrival time: ', destination_arrival_time,'optimal route:', optimal_route.vehicle.id if optimal_route is not None else None)
+        # print('leg:', leg.id,'origin',leg.origin.label,'destination',leg.destination.label, 'origin departure time: ', origin_departure_time, 'destination arrival time: ', destination_arrival_time,'optimal route:', optimal_route.vehicle.id if optimal_route is not None else None)
         return optimal_route
 
     def __get_origin_departure_time_and_destination_arrival_time(
@@ -131,6 +132,7 @@ class FixedLineDispatcher(Dispatcher):
         the stops in the optimization horizon (assigned to the main line, onboard the main line, or potentially boarding the main line).
         Moreover, we keep the current route on the main line and the next route on the main line. 
         """
+        logger.info('STARTING BUS OPTIMIZE...')
         state.main_line = main_line_id
         state.next_main_line = next_main_line_id
         # main_line_id = state.main_line
@@ -140,7 +142,7 @@ class FixedLineDispatcher(Dispatcher):
         selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
         # print("selected_routes: ", [route.vehicle.id for route in selected_routes])
 
-        print("selected_routes: ", [route.vehicle.id for route in selected_routes])
+        # print("selected_routes: ", [route.vehicle.id for route in selected_routes])
 
         # Get the next ten stops on the main line
         main_line = state.route_by_vehicle_id[main_line_id]
@@ -157,21 +159,21 @@ class FixedLineDispatcher(Dispatcher):
         # Get trips associated with the selected legs
         selected_trips = [leg.trip for leg in selected_next_legs]
         print('selected_trips: ', len(selected_trips))
-        for trip in selected_trips:
-            print("trip: ", trip.id)
-            print('Previous legs: ', len(trip.previous_legs),'Previous legs assigned vehicles: ', [leg.cap_vehicle_id for leg in trip.previous_legs if leg != None])
-            print('Current leg vehicle: ', trip.current_leg.cap_vehicle_id if trip.current_leg != None else None, ' type', type(trip.current_leg.cap_vehicle_id if trip.current_leg != None else None))
-            print('Next legs: ', len(trip.next_legs),' Next legs assigned vehicles: ', [leg.cap_vehicle_id for leg in trip.next_legs if leg != None], 'types: ', [type(leg.cap_vehicle_id) for leg in trip.next_legs if leg != None])
+        # for trip in selected_trips:
+        #     print("trip: ", trip.id)
+        #     print('Previous legs: ', len(trip.previous_legs),'Previous legs assigned vehicles: ', [leg.cap_vehicle_id for leg in trip.previous_legs if leg != None])
+        #     print('Current leg vehicle: ', trip.current_leg.cap_vehicle_id if trip.current_leg != None else None, ' type', type(trip.current_leg.cap_vehicle_id if trip.current_leg != None else None))
+        #     print('Next legs: ', len(trip.next_legs),' Next legs assigned vehicles: ', [leg.cap_vehicle_id for leg in trip.next_legs if leg != None], 'types: ', [type(leg.cap_vehicle_id) for leg in trip.next_legs if leg != None])
         for trip in selected_trips:
             route=None
             second_next_route=None
             if trip.current_leg is not None: #Onboard legs
                 current_vehicle_id=trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle != None else trip.current_leg.cap_vehicle_id
                 if current_vehicle_id == main_line_id: #passenger on board main line, check if transfer to other lines
-                    print('ligne 139 on est la')
-                    print('current leg destination: ', trip.current_leg.destination)
+                    # print('ligne 139 on est la')
+                    # print('current leg destination: ', trip.current_leg.destination)
                     if len(trip.next_legs)>0 and trip.current_leg.destination in [stop.location for stop in main_line_stops]: #transfer to other line in the horizon
-                        print('ligne 142 add transfer main-> feeder')
+                        # print('ligne 142 add transfer main-> feeder')
                         next_leg = trip.next_legs[0]
                         next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                         route = self.get_route_by_vehicle_id(state, next_vehicle_id)
@@ -179,7 +181,7 @@ class FixedLineDispatcher(Dispatcher):
                     #if passenger transferred from another bus to main line, it is already done so we don't need the info
                 else: #passenger on board other line, transfer to main line
                     if len(trip.next_legs)>0:
-                        print('ligne 147 passenger has next legs')
+                        # print('ligne 147 passenger has next legs')
                         next_leg = trip.next_legs[0]
                         next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                         previous_vehicle_id = current_vehicle_id
@@ -190,10 +192,10 @@ class FixedLineDispatcher(Dispatcher):
                             next_leg = trip.next_legs[i]
                             next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                         if next_vehicle_id == main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]: #passenger boards main line bus in the horizon
-                            print('ligne 161, transfer feeder -> main')
+                            # print('ligne 161, transfer feeder -> main')
                             route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
                         if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]: #passenger also transfers to another bus in the horizon
-                            print('ligne 164 transfer feeder->main->feeder')
+                            # print('ligne 164 transfer feeder->main->feeder')
                             second_next_leg = trip.next_legs[i+1]
                             second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
                             second_next_route = self.get_route_by_vehicle_id(state,second_next_vehicle_id)
@@ -215,41 +217,41 @@ class FixedLineDispatcher(Dispatcher):
                                 next_leg = trip.next_legs[i]
                                 next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                             if next_vehicle_id == main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]:
-                                print('ligne 186 transfer feeder->main')
+                                # print('ligne 186 transfer feeder->main')
                                 route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
                             if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]:
-                                print('ligne 189 transfer feeder->main->feeder ')
+                                # print('ligne 189 transfer feeder->main->feeder ')
                                 second_next_leg = trip.next_legs[i+1]
                                 second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
                                 second_next_route = self.get_route_by_vehicle_id(state, second_next_vehicle_id)
                 elif len(trip.next_legs)>0: #Passenger starting their trip
-                    print('on est la ligne 194')
+                    # print('on est la ligne 194')
                     next_leg = trip.next_legs[0]
                     next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                     previous_vehicle_id = next_vehicle_id
                     i=0
                     while next_vehicle_id != main_line_id and i<len(trip.next_legs)-1: #find the next leg that is on the main line
-                        print('on rentre dans la boucle ligne 199')
+                        # print('on rentre dans la boucle ligne 199')
                         previous_vehicle_id = next_vehicle_id
                         i+=1
                         next_leg = trip.next_legs[i]
                         next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
                     if next_vehicle_id == main_line_id and previous_vehicle_id != main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]:
-                        print('ligne 201 tranfser feeder->main')
+                        # print('ligne 201 tranfser feeder->main')
                         route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
                     if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]:
-                        print('ligne 204 tranfser feeder->main->feeder')
+                        # print('ligne 204 tranfser feeder->main->feeder')
                         second_next_leg = trip.next_legs[i+1]
                         second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
-                        print('next vehicle id', second_next_vehicle_id, 'route by vehicle id dict', [route.vehicle.id for route in state.route_by_vehicle_id.values()])
+                        # print('next vehicle id', second_next_vehicle_id, 'route by vehicle id dict', [route.vehicle.id for route in state.route_by_vehicle_id.values()])
                         second_next_route = self.get_route_by_vehicle_id(state, second_next_vehicle_id)
             if route is not None:
                 selected_routes.append(route)
             if second_next_route is not None:
                 selected_routes.append(second_next_route)            
-        if len(selected_trips)>0:
-            print('selected routes: ', [route.vehicle.id for route in selected_routes])
-            # input('Press enter to continue...')
+        # if len(selected_trips)>0:
+        #     print('selected routes: ', [route.vehicle.id for route in selected_routes])
+        #     # input('Press enter to continue...')
         return selected_next_legs, selected_routes
     
     def bus_optimize(self, selected_next_legs, selected_routes, current_time,
@@ -358,9 +360,6 @@ class FixedLineDispatcher(Dispatcher):
         if next_stop is not None and str(next_stop.location.label) == '41391' and state.main_line == '2790970':
             ss = True
             input('on est la skip-stop implemented')
-        # if len(main_route.next_stops)>0:
-        #     random_number = random.randint(1, 10)
-        #     ss = random_number == 1
         # next_stop_departure_time = main_route.next_stops[0].departure_time
         # h_and_time = (True, next_stop_departure_time)
         h_and_time = (False, -1)

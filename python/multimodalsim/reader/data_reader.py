@@ -495,7 +495,7 @@ class GTFSReader(DataReader):
             for stops_row in stops_reader:
                 stop = self.GTFSStop(*stops_row)
                 self.__stop_by_stop_id_dict[stop.stop_id] = stop
-        # data_folder = os.path.join("data","fixed_line","gtfs","gtfs-generated-small")
+        # data_folder = os.path.join("data","fixed_line","gtfs","gtfs-generated")
         # self.save_stop_by_stop_id_dict(data_folder)
 
     def __read_stop_times(self):
