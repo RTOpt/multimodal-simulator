@@ -20,8 +20,8 @@ if __name__ == '__main__':
         coordinates_file_path = None
         freeze_interval = 20
         stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
-                       requests_file_path=requests_file_path,
-                       coordinates_file_path=coordinates_file_path,
-                       freeze_interval=freeze_interval,
-                       logger=logger,
-                       loggin_level=loggin_level)
+                           requests_file_path=requests_file_path,
+                           coordinates_file_path=coordinates_file_path,
+                           freeze_interval=freeze_interval,
+                           logger=logger,
+                           loggin_level=loggin_level)

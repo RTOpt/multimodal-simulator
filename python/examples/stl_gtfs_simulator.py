@@ -17,8 +17,11 @@ import json
 def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
                        requests_file_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small","requests.csv"),
                        coordinates_file_path=None,
+                       ss = False,
+                       sp = False,
+                       algo = 0,
                        freeze_interval=5,
-                       output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated-small"),
+                       output_folder_name="gtfs-generated-small",
                        logger=logging.getLogger(__name__),
                        logging_level=logging.INFO,
                        main_line=None):
@@ -48,7 +51,9 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
 
     # Initialize the optimizer.
     splitter = MultimodalSplitter(g, available_connections=available_connections, freeze_interval=freeze_interval)
-    dispatcher = FixedLineDispatcher()
+    dispatcher = FixedLineDispatcher(ss = ss,
+                                     sp = sp,
+                                     algo = algo)
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 
     # Initialize the observer.
@@ -67,4 +72,18 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     simulation.simulate()
 
     # Extract the simulation output
+    output_folder_path = os.path.join("output","fixed_line","gtfs",output_folder_name)
+    output_folder_path = get_output_subfolder(output_folder_path, ss, sp)
     extract_simulation_output(simulation, output_folder_path)
+
+def get_output_subfolder(output_folder_path, ss, sp):
+    if ss and sp:
+        add = 'SS_SP'
+    elif ss:
+        add = 'SS'
+    elif sp:
+        add = 'SP'
+    else:
+        add = 'H'
+    output_folder_path = os.path.join(output_folder_path, add)
+    return output_folder_path

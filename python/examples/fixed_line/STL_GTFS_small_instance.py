@@ -13,20 +13,25 @@ if __name__ == '__main__':
     if small:
         gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs-generated-small")
         requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
-        output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated-small")
-        coordinates_file_path=None
-        freeze_interval=1
+        output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs-generated-small")
+        output_folder_name = "gtfs-generated-small"
+        coordinates_file_path = None
+        freeze_interval = 1
     else:
         gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs-generated")
         requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
-        output_folder_path=os.path.join("output","fixed_line","gtfs","gtfs-generated")
-        coordinates_file_path=None
-        freeze_interval=1
+        output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs-generated")
+        output_folder_name = "gtfs-generated"
+        coordinates_file_path = None
+        freeze_interval = 1
     stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                        requests_file_path=requests_file_path,
                        coordinates_file_path=coordinates_file_path,
+                       ss = False,
+                       sp = False,
+                       algo = 0,
                        freeze_interval=freeze_interval,
-                       output_folder_path=output_folder_path,
+                       output_folder_name=output_folder_name,
                        logger=logger,
                        logging_level=logging_level,
                     #    main_line="2790970",
