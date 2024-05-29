@@ -34,7 +34,6 @@ class VehicleReady(Event):
         env.add_route(self.__route, self.__vehicle.id)
         # if env.main_line == self.__route.vehicle.id:
         # env.main_line == self.__route.vehicle.id
-        logger.info('Main line vehicle is ready, optimize before leaving the depot...')
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
@@ -76,6 +75,7 @@ class VehicleWaiting(ActionEvent):
         if len(env.non_assigned_trips)>0:
             logger.info('Vehicle Waiting: There are non assigned trips, optimize ...')
             optimize = True
+            # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         # print('Vehicle Waiting route id:', self.__route.vehicle.id)
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -98,8 +98,8 @@ class VehicleWaiting(ActionEvent):
                     self.__route.current_stop.departure_time).add_to_queue()
                 # print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
             else:
+                print('No passengers to board. Vehicle status:', self.__route.vehicle.status, 'adding VehicleDeparture event.')
                 VehicleDeparture(self.__route, self.queue).add_to_queue()
-                optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
             # modified, its status will remain IDLE until Vehicle.end_time,
@@ -169,7 +169,7 @@ class VehicleDeparture(ActionEvent):
         # print('previous stops:', [self.__route.previous_stops[i].location.label for i in range(len(self.__route.previous_stops))])
 
         # if env.main_line == self.__route.vehicle.id:
-        print('Main line vehicle is departing, optimize ...')
+        # print('Main line vehicle is departing, optimize ...')
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
@@ -216,8 +216,9 @@ class VehicleArrival(ActionEvent):
                     trip, self.queue).add_to_queue()
 
         if len(passengers_to_alight_copy) == 0:
-            # print('Vehicle Arrival: No passengers to alight. Vehicle id: ',self.__route.vehicle.id, 'Vehicle status:', self.__route.vehicle.status)
+            print('Vehicle Arrival: No passengers to alight. Vehicle id: ',self.__route.vehicle.id, 'Vehicle status:', self.__route.vehicle.status)
             VehicleWaiting(self.__route, self.queue).add_to_queue()
+            optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         
         if len(self.__route.next_stops) == 0 \
                 and not self.__route.vehicle.reusable:

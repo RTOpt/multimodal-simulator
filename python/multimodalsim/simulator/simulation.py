@@ -59,7 +59,7 @@ class Simulation(object):
         while not self.__queue.is_empty():
 
             current_event = self.__queue.pop()
-            logger.info("Processing current_event: {}".format(current_event.name))
+            # logger.info("Processing current_event: {}".format(current_event.name))
             self.__env.current_time = current_event.time
 
             if max_time is not None and self.__env.current_time > max_time:
@@ -69,7 +69,7 @@ class Simulation(object):
                                          current_event.priority)
 
             process_event = current_event.process(self.__env)
-            logger.info("process_event: {}".format(process_event))
+            # logger.info("process_event: {}".format(process_event))
             self.__collect_data(current_event, current_event.index,
                                 current_event.priority)
 

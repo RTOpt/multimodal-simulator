@@ -38,7 +38,7 @@ class FixedLineDispatcher(Dispatcher):
         FixedLineDispatcher, we want to keep only the legs that have not
         been assigned to any route yet.
         """
-
+        logger.info('STARTING NORMAL OPTIMIZE...')
         # The next legs that have not been assigned to any route yet.
         selected_next_legs = state.non_assigned_next_legs
 
@@ -55,7 +55,6 @@ class FixedLineDispatcher(Dispatcher):
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""
-        logger.info('STARTING NORMAL OPTIMIZE...')
         optimized_route_plans = []
         for leg in selected_next_legs:
             # print('leg:', leg.id, 'origin:', leg.origin.label, 'destination:', leg.destination.label)
