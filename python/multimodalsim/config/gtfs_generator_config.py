@@ -60,5 +60,25 @@ class GTFSGeneratorConfig(Config):
     @property
     def stop_lat_col(self):
         return self._config_parser["input_columns"]["stop_lat"]
+    @property 
+    def stop_passenger_count_col(self):
+        return self._config_parser["input_columns"]["passenger_count"]
+    
+    @property
+    def nb_boarding_col(self):
+        return self._config_parser["input_columns"]["nb_boarding"]
+    
+    @property
+    def nb_alighting_col(self):
+        return self._config_parser["input_columns"]["nb_alighting"]
+    
+    @property
+    def planned_arrival_time_col(self):
+        return self._config_parser["input_columns"]["planned_arrival_time"]
+    
+    @property
+    def planned_departure_time_from_origin_col(self):
+        return self._config_parser["input_columns"]["planned_departure_time_from_origin"]
+    
 
 

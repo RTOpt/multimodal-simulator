@@ -220,7 +220,7 @@ class GTFSReader(DataReader):
 
     def __init__(self, data_folder, requests_file_path,
                  stops_file_name="stops.txt",
-                 stop_times_file_name="stop_times.txt",
+                 stop_times_file_name="stop_times_upgrade.txt",
                  calendar_dates_file_name="calendar_dates.txt",
                  trips_file_name="trips.txt",
                  routes_file_name="routes.txt",
@@ -421,6 +421,10 @@ class GTFSReader(DataReader):
 
         start_stop_arrival_time = int(start_stop_time.arrival_time)
         start_stop_departure_time = int(start_stop_time.departure_time)
+        start_stop_planned_arrival_time = int(start_stop_time.planned_arrival_time) \
+            if start_stop_time.planned_arrival_time is not None else None
+        start_stop_planned_departure_time_from_origin = int(start_stop_time.planned_departure_time_from_origin)\
+            if start_stop_time.planned_departure_time_from_origin is not None else None
         start_stop_min_departure_time = \
             start_stop_departure_time - self.__min_departure_time_interval \
                 if self.__min_departure_time_interval is not None else None
@@ -435,7 +439,9 @@ class GTFSReader(DataReader):
 
         start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
                           start_stop_location, start_stop_shape_dist_traveled,
-                          min_departure_time=start_stop_min_departure_time)
+                          min_departure_time=start_stop_min_departure_time,
+                          planned_arrival_time=start_stop_planned_arrival_time,
+                          planned_departure_time_from_origin=start_stop_planned_departure_time_from_origin)
 
         next_stops = self.__get_next_stops(stop_time_list)
 
@@ -458,6 +464,10 @@ class GTFSReader(DataReader):
         for stop_time in stop_time_list[1:]:
             arrival_time = int(stop_time.arrival_time)
             departure_time = int(stop_time.departure_time)
+            planned_arrival_time = int(stop_time.planned_arrival_time) \
+                if stop_time.planned_arrival_time is not None else None
+            planned_departure_time_from_origin = int(stop_time.planned_departure_time_from_origin) \
+                if stop_time.planned_departure_time_from_origin is not None else None
             min_departure_time = \
                 departure_time - self.__min_departure_time_interval \
                     if self.__min_departure_time_interval is not None else None
@@ -471,7 +481,9 @@ class GTFSReader(DataReader):
                                            stop_gtfs.stop_lon,
                                            stop_gtfs.stop_lat),
                              shape_dist_traveled,
-                             min_departure_time=min_departure_time)
+                             min_departure_time=min_departure_time,
+                             planned_arrival_time=planned_arrival_time,
+                             planned_departure_time_from_origin=planned_departure_time_from_origin)
             next_stops.append(next_stop)
 
         return next_stops
@@ -560,7 +572,9 @@ class GTFSReader(DataReader):
     class GTFSStopTime:
         def __init__(self, trip_id, arrival_time, departure_time, stop_id,
                      stop_sequence, pickup_type, drop_off_type,
-                     shape_dist_traveled=None):
+                     shape_dist_traveled=None,
+                     planned_arrival_time=None,
+                     planned_departure_time_from_origin=None):
             self.trip_id = trip_id
             self.arrival_time = int(arrival_time)
             self.departure_time = int(departure_time)
@@ -569,3 +583,6 @@ class GTFSReader(DataReader):
             self.pickup_type = pickup_type
             self.drop_off_type = drop_off_type
             self.shape_dist_traveled = shape_dist_traveled
+            self.planned_arrival_time = planned_arrival_time
+            self.planned_departure_time_from_origin = \
+                planned_departure_time_from_origin

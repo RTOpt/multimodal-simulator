@@ -142,8 +142,8 @@ with open(trips_file_path, 'r') as file:
 
 # Create stops_times.txt file
 # We need to keep stops only stop_times if they are used by the relevant trips
-stop_times_file_path=os.path.join(gtfs_folder_old,"stop_times.txt")
-stop_times_file_path_generated=os.path.join(gtfs_folder_generated,"stop_times.txt")
+stop_times_file_path=os.path.join(gtfs_folder_old,"stop_times_upgrade.txt")
+stop_times_file_path_generated=os.path.join(gtfs_folder_generated,"stop_times_upgrade.txt")
 relevant_stops=[]
 with open(stop_times_file_path, 'r') as file:
     #Read the header
@@ -186,21 +186,25 @@ with open(stop_times_file_path_generated, 'r') as file:
     stop_id_index=header_split.index("stop_id")
     stop_sequence_index=header_split.index("stop_sequence")
     #pickup and dropoff are always 0
+    planned_arrival_time_index=header_split.index("planned_arrival_time")
+    planned_departure_time_from_origin_index=header_split.index("planned_departure_time_from_origin")
 
     #Read all remaining lines
     lines=file.readlines()
     #For each line, check if the trip_id is relevant and write the line in the new file if so
     for line in lines:
-        line_split=line.strip().split(",")
-        trip_id=line_split[trip_id_index]
-        arrival_time=line_split[arrival_time_index]
-        departure_time=line_split[departure_time_index]
-        stop_id=line_split[stop_id_index]
-        stop_sequence=line_split[stop_sequence_index]
+        line_split = line.strip().split(",")
+        trip_id = line_split[trip_id_index]
+        arrival_time = line_split[arrival_time_index]
+        departure_time = line_split[departure_time_index]
+        stop_id = line_split[stop_id_index]
+        stop_sequence = line_split[stop_sequence_index]
+        planned_arrival_time = line_split[planned_arrival_time_index]
+        planned_departure_time_from_origin = line_split[planned_departure_time_from_origin_index]
         if trip_id in stop_times_dict:
-            stop_times_dict[trip_id].append([arrival_time,departure_time,stop_id,stop_sequence])
+            stop_times_dict[trip_id].append([arrival_time, departure_time, stop_id,stop_sequence, planned_arrival_time, planned_departure_time_from_origin])
         else:
-            stop_times_dict[trip_id]=[[arrival_time,departure_time,stop_id,stop_sequence],]
+            stop_times_dict[trip_id]=[[arrival_time,departure_time, stop_id,stop_sequence, planned_arrival_time, planned_departure_time_from_origin],]
 add_stops=[]
 with open(cap_file_path_generated, 'r') as file:
     # Read the header

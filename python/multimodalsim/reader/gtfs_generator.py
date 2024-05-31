@@ -157,6 +157,71 @@ class GTFSGenerator:
                                 gtfs_folder)
 
         return stop_times_with_date_df
+    
+    def build_stop_times_upgrade(self, passage_arret_file_path_list, gtfs_folder=None,
+                         shape_dist_traveled=True):
+
+        self.__passage_arret_file_path_list = passage_arret_file_path_list
+
+        passage_arret_df = self.__get_passage_arret_upgrade_df()
+
+        stop_times_columns = [self.__date_col, self.__line_col,
+                              self.__direction_col, self.__trip_id_col,
+                              self.__arrival_time_col,
+                              self.__departure_time_col, self.__stop_id_col,
+                              self.__stop_sequence_col,
+                              self.__shape_dist_traveled_col,
+                              self.__planned_arrival_time_col,
+                              self.__planned_departure_time_from_origin_col]
+
+        self.__stop_times_df = passage_arret_df[
+            stop_times_columns].sort_values(
+            [self.__date_col, self.__trip_id_col,
+             self.__stop_sequence_col]).dropna()
+        stop_times_with_orig_time_df = \
+            self.__get_stop_times_with_orig_time_df()
+
+        trip_id_set = self.__get_trip_id_set()
+
+        stop_times_with_orig_time_filtered_df = stop_times_with_orig_time_df[
+            stop_times_with_orig_time_df[self.__trip_id_col].isin(trip_id_set)]
+
+        full_stop_times_df = self.__get_full_stop_times_df(
+            stop_times_with_orig_time_filtered_df)
+
+        gtfs_stop_times_df = self.__get_stop_times_df(full_stop_times_df,
+                                                      shape_dist_traveled=True)
+
+        date_by_trip_id_series = \
+            self.__stop_times_df.groupby(self.__trip_id_col)[
+                self.__date_col].apply(
+                lambda x: list(set(x))[0])
+
+        stop_times_with_date_df = gtfs_stop_times_df.merge(
+            date_by_trip_id_series, left_on="trip_id", right_index=True)
+
+        stop_times_with_date_df["arrival_time"] = stop_times_with_date_df[
+            "arrival_time"].dropna()
+        stop_times_with_date_df["departure_time"] = stop_times_with_date_df[
+            "departure_time"].dropna()
+
+        stop_times_with_date_df["arrival_time"] = \
+            stop_times_with_date_df["arrival_time"].astype(int)
+        stop_times_with_date_df["departure_time"] = \
+            stop_times_with_date_df["departure_time"].astype(int)
+        stop_times_with_date_df["planned_arrival_time"] = \
+            stop_times_with_date_df["planned_arrival_time"].astype(int)
+        stop_times_with_date_df["planned_departure_time_from_origin"] = \
+            stop_times_with_date_df["planned_departure_time_from_origin"].astype(int)
+
+        stop_times_with_date_df = \
+            self.__correct_stop_times_df(stop_times_with_date_df)
+
+        if gtfs_folder is not None:
+            self.__save_to_file(stop_times_with_date_df, "stop_times_upgrade.txt",
+                                gtfs_folder, upgrade=True)
+
+        return stop_times_with_date_df
 
     def __load_config(self, config):
         self.__trip_id_col = config.trip_id_col
@@ -172,8 +237,13 @@ class GTFSGenerator:
         self.__stop_name_col = config.stop_name_col
         self.__stop_lon_col = config.stop_lon_col
         self.__stop_lat_col = config.stop_lat_col
+        self.__stop_passenger_count_col = config.stop_passenger_count_col
+        self.__nb_boarding_col = config.nb_boarding_col
+        self.__nb_alighting_col = config.nb_alighting_col
+        self.__planned_arrival_time_col = config.planned_arrival_time_col
+        self.__planned_departure_time_from_origin_col = config.planned_departure_time_from_origin_col
 
-    def __save_to_file(self, gtfs_df, file_name, gtfs_folder):
+    def __save_to_file(self, gtfs_df, file_name, gtfs_folder, upgrade = False):
         if not os.path.exists(gtfs_folder):
             os.makedirs(gtfs_folder)
 
@@ -206,6 +276,37 @@ class GTFSGenerator:
             self.__stop_lon_col: float,
             self.__stop_lat_col: float}
 
+        passage_arret_df_list = []
+        for passage_arret_file_path in self.__passage_arret_file_path_list:
+            passage_arret_df_temp = pd.read_csv(passage_arret_file_path,
+                                                usecols=columns_type_dict.keys(),
+                                                delimiter=",",
+                                                dtype=columns_type_dict)
+            passage_arret_df_list.append(passage_arret_df_temp)
+        passage_arret_df = pd.concat(passage_arret_df_list).reset_index(
+            drop=True)
+
+        return passage_arret_df
+    
+    def __get_passage_arret_upgrade_df(self):
+
+        columns_type_dict = {
+            self.__trip_id_col: str,
+            self.__direction_col: str,
+            self.__line_col: str,
+            self.__service_id_col: str,
+            self.__arrival_time_col: float,
+            self.__departure_time_col: float,
+            self.__stop_id_col: str,
+            self.__stop_sequence_col: int,
+            self.__shape_dist_traveled_col: float,
+            self.__date_col: str,
+            self.__stop_name_col: str,
+            self.__stop_lon_col: float,
+            self.__stop_lat_col: float,
+            self.__planned_arrival_time_col: int,
+            self.__planned_departure_time_from_origin_col: int
+            }
         passage_arret_df_list = []
         for passage_arret_file_path in self.__passage_arret_file_path_list:
             passage_arret_df_temp = pd.read_csv(passage_arret_file_path,
@@ -327,6 +428,15 @@ class GTFSGenerator:
             lambda x: x[self.__arrival_time_col] if not pd.isnull(
                 x[self.__arrival_time_col])
             else x["arr_time_from_orig"] + x["arr_orig"], axis=1)
+        if shape_dist_traveled:
+            full_stop_times_df["planned_arrival_time"] = full_stop_times_df.apply(
+                lambda x: x[self.__planned_arrival_time_col] if not pd.isnull(
+                    x[self.__planned_arrival_time_col])
+                else x["arr_time_from_orig"] + x["arr_orig"], axis=1)
+            full_stop_times_df["planned_departure_time_from_origin"] = full_stop_times_df.apply(
+                lambda x: x[self.__planned_departure_time_from_origin_col] if not pd.isnull(
+                    x[self.__planned_departure_time_from_origin_col])
+                else x["arr_orig"], axis=1)
         full_stop_times_df["departure_time"] = full_stop_times_df.apply(
             lambda x: x[self.__departure_time_col] if not pd.isnull(
                 x[self.__departure_time_col])
@@ -386,6 +496,8 @@ class GTFSGenerator:
                         "stop_sequence", "pickup_type", "drop_off_type"]
         if shape_dist_traveled:
             gtfs_columns.append("shape_dist_traveled")
+            gtfs_columns.append("planned_arrival_time")
+            gtfs_columns.append("planned_departure_time_from_origin")
 
         stop_times_all_dates_df = full_stop_times_df[gtfs_columns]
 

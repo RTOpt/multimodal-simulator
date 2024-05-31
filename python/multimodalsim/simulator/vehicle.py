@@ -340,10 +340,18 @@ class Stop(object):
     location: Location
         Object of type Location referring to the location of the stop
         (e.g., GPS coordinates)
+    planned_arrival_time: int
+        Planned arrival time at the stop for vehicle
+    planned_departure_time_from_origin: int
+        Planned departure time from the origin stop for vehicle
+    shape_distance_traveled: float
+        Distance traveled by the vehicle from the origin stop to the current
+        stop.
     """
 
     def __init__(self, arrival_time, departure_time, location,
-                 cumulative_distance=None, min_departure_time=None):
+                 cumulative_distance=None, min_departure_time=None,
+                 planned_arrival_time=None, planned_departure_time_from_origin=None):
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -357,6 +365,8 @@ class Stop(object):
         self.__alighted_passengers = []
         self.__location = location
         self.__cumulative_distance = cumulative_distance
+        self.__planned_arrival_time = planned_arrival_time
+        self.__planned_departure_time_from_origin = planned_departure_time_from_origin
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -472,6 +482,22 @@ class Stop(object):
     def cumulative_distance(self, cumulative_distance):
         self.__cumulative_distance = cumulative_distance
 
+    @property
+    def planned_arrival_time(self):
+        return self.__planned_arrival_time
+    
+    @planned_arrival_time.setter
+    def planned_arrival_time(self, planned_arrival_time):
+        self.__planned_arrival_time = planned_arrival_time
+
+    @property
+    def planned_departure_time_from_origin(self):
+        return self.__planned_departure_time_from_origin
+    
+    @planned_departure_time_from_origin.setter
+    def planned_departure_time_from_origin(self, planned_departure_time_from_origin):
+        self.__planned_departure_time_from_origin = planned_departure_time_from_origin
+        
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the
         vehicle """
