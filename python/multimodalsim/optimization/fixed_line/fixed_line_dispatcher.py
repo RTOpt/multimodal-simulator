@@ -29,11 +29,6 @@ class FixedLineDispatcher(Dispatcher):
         # All the routes
         selected_routes = state.route_by_vehicle_id.values()
 
-        logger.error("selected_next_legs: {}".format([leg.id for leg
-                                                      in selected_next_legs]))
-        logger.error("selected_routes: {}".format([route.vehicle.id for route
-                                                   in selected_routes]))
-
         return selected_next_legs, selected_routes
 
     def optimize(self, selected_next_legs: list['request.Leg'],

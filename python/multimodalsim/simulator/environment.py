@@ -196,11 +196,11 @@ class Environment:
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = state_module.State(copy.deepcopy(state_copy),
-                                            partition_subset)
+        if partition_subset is not None:
+            self.__filter_state_copy_according_to_partition(state_copy,
+                                                            partition_subset)
 
-        # self.__filter_state_copy_according_to_partition(state_deepcopy,
-        #                                                 partition_subset)
+        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
 
         return state_deepcopy
 
@@ -216,34 +216,31 @@ class Environment:
     def __get_non_complete_trips(self, trips):
         non_complete_trips = []
         for trip in trips:
-            trip_next_leg = trip.next_legs[0] if len(trip.next_legs) > 0 \
-                else None
             if trip.status != PassengerStatus.COMPLETE:
                 non_complete_trips.append(trip)
         return non_complete_trips
 
     def __filter_state_copy_according_to_partition(self, state_copy,
                                                    partition_subset):
-        state_copy.trips = self.__filter_trips_according_to_partition(
-            state_copy.trips, partition_subset)
+        state_copy.__trips = self.__filter_trips_according_to_partition(
+            state_copy.__trips, partition_subset)
 
-        logger.warning([trip.next_legs[0].id for trip in state_copy.trips])
-
-        state_copy.assigned_trips = self.__filter_trips_according_to_partition(
-            state_copy.assigned_trips, partition_subset)
-
-        state_copy.non_assigned_trips = \
+        state_copy.__assigned_trips = \
             self.__filter_trips_according_to_partition(
-                state_copy.non_assigned_trips, partition_subset)
+                state_copy.__assigned_trips, partition_subset)
 
-        state_copy.vehicles = self.__filter_vehicles_according_to_partition(
-            state_copy.vehicles, partition_subset)
+        state_copy.__non_assigned_trips = \
+            self.__filter_trips_according_to_partition(
+                state_copy.__non_assigned_trips, partition_subset)
+
+        state_copy.__vehicles = self.__filter_vehicles_according_to_partition(
+            state_copy.__vehicles, partition_subset)
 
     def __filter_trips_according_to_partition(self, trips, partition_subset):
         filtered_trips = []
         for trip in trips:
             if len(trip.next_legs) > 0 \
-                    and trip.next_legs[0].id in partition_subset.leg_ids:
+                    and partition_subset.is_leg_in(trip.next_legs[0]):
                 filtered_trips.append(trip)
         return filtered_trips
 
@@ -251,7 +248,7 @@ class Environment:
                                                  partition_subset):
         filtered_vehicles = []
         for vehicle in vehicles:
-            if vehicle.id in partition_subset.vehicle_ids:
+            if partition_subset.is_vehicle_in(vehicle):
                 filtered_vehicles.append(vehicle)
         return filtered_vehicles
 

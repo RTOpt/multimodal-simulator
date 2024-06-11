@@ -29,6 +29,12 @@ class Optimization:
             freeze_interval: float
                 Time interval during which the current state of the environment
                  is frozen.
+            environment_statistics_extractor: EnvironmentStatisticsExtractor
+                Object that extracts statistics from the environment. Used by
+                the Optimize event to determine if an optimization is required.
+            partition: Partition
+                A partition of all the legs and all the vehicles. Used mainly
+                in asyncrhonous simulations.
             config: OptimizationConfig or str
                 Path to the config file or the OptimizationConfig object
                  itself.
@@ -79,6 +85,8 @@ class Optimization:
 
     @property
     def state(self) -> Union['state_module.State', dict['state_module.State']]:
+        """Returns the State (of the environment) or, if a Partition is used,
+        a dictionary with the State associated with each PartitionSubset."""
         return self.__state
 
     @state.setter
@@ -95,6 +103,8 @@ class Optimization:
 
     def update_state(self, state: 'state_module.State',
                      partition_subset: Optional[PartitionSubset] = None):
+        # Update the __state attribute with the state variable passed as
+        # argument.
         if partition_subset is not None:
             self.__state[partition_subset.id] = state
         else:
@@ -142,6 +152,8 @@ class Optimization:
             self.__state_machine = \
                 state_machine.OptimizationStateMachine(self)
         else:
+            # If a Partition is used, one StateMachine by PartitionSubset is
+            # created.
             self.__state_machine = {}
             for subset in self.__partition.subsets:
                 self.__state_machine[subset.id] = \

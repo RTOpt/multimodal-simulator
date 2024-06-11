@@ -35,30 +35,20 @@ class Optimize(ActionEvent):
                                            max_optimization_time, asynchronous)
 
         self.__partition_subset = partition_subset
-
         self.__state = None
 
-        optimization = queue.env.optimization
-        state_machine = None
+        other_events_created = self.__create_other_optimize_events_if_needed(
+            queue.env.optimization, time, queue)
 
-        self.__other_optimize_events = None
-        if self.__partition_subset is None and optimization.partition is not None:
-            # Main Optimize event of the partition (Creates Optimize event of
-            # the partition subsets, but this event is never actually
-            # processed).
-            self.__other_optimize_events = []
-            for subset in optimization.partition.subsets:
-                self.__other_optimize_events.append(
-                    Optimize(time, queue, partition_subset=subset))
-        elif self.__partition_subset is not None:
-            # Optimize event of the partition subset
-            state_machine = optimization.state_machine[
-                self.__partition_subset.id]
+        if other_events_created:
+            # This Optimize event is only used to create the Optimize events
+            # related to the partition, but it will never be processed in
+            # practice.
+            super().__init__('Optimize (Partition)', queue, time)
         else:
-            # No partition
-            state_machine = optimization.state_machine
-
-        if state_machine is not None:
+            # Optimize event corresponding to a partition subset or normal
+            # Optimize event if no partition is used.
+            state_machine = self.__get_state_machine(queue.env.optimization)
             if self.__batch is not None:
                 # Round to the smallest integer greater than or equal to time
                 # that is also a multiple of batch.
@@ -69,17 +59,13 @@ class Optimize(ActionEvent):
             super().__init__(event_name, queue, time,
                              event_priority=self.VERY_LOW_PRIORITY,
                              state_machine=state_machine)
-        else:
-            super().__init__('Optimize (Partition)', queue, time)
 
     def process(self, env: 'environment.Environment') -> str:
 
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
-            if self.__partition_subset is None:
-                optimize_cv = env.optimize_cv
-            else:
-                optimize_cv = env.optimize_cv[self.__partition_subset.id]
+            optimize_cv = env.optimize_cv[self.__partition_subset.id] \
+                if self.__partition_subset is not None else env.optimize_cv
             with optimize_cv:
                 optimize_cv.wait()
             self.add_to_queue()
@@ -91,26 +77,14 @@ class Optimize(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
 
-        logger.warning(self.name)
-
         stats_extractor = env.optimization.environment_statistics_extractor
         env_stats = stats_extractor.extract_environment_statistics(env)
 
         if env.optimization.need_to_optimize(env_stats):
-            if self.__partition_subset is None:
-                env.optimize_cv = Condition()
-                self.__state = env.get_new_state()
-
-                env.optimization.update_state(self.__state)
-            else:
-                if env.optimize_cv is None:
-                    env.optimize_cv = {}
-                env.optimize_cv[self.__partition_subset.id] = Condition()
-                self.__state = env.get_new_state(self.__partition_subset)
-                env.optimization.update_state(self.__state,
-                                              self.__partition_subset)
+            self.__update_state(env)
 
             if self.__asynchronous:
+                self.__update_optimize_cv(env)
                 self.__optimize_asynchronously(env)
             else:
                 self.__optimize_synchronously(env)
@@ -126,23 +100,76 @@ class Optimize(ActionEvent):
 
         if self.__partition_subset is None:
             if self.__multiple_optimize_events or not \
-                    self.queue.is_event_type_in_queue(self.__class__, self.time):
+                    self.queue.is_event_type_in_queue(self.__class__,
+                                                      self.time):
                 if self.__other_optimize_events is not None:
+                    # Case 1: Maine Optimize event of the Partition.
+                    # Add all the Optimize events corresponding to a
+                    # PartitionSubset to the queue. The main Optimize event of
+                    # the Partition is not added to the queue.
                     for optimize_events in self.__other_optimize_events:
                         optimize_events.add_to_queue()
                 else:
+                    # Case 2: No Partition is used.
+                    # The Optimize event is added to the queue.
                     super().add_to_queue()
         else:
+            # Case 3: Optimize event of a PartitionSubset.
+            # The Optimize event is added to the queue.
             super().add_to_queue()
 
+    def __get_state_machine(self, optimization):
+        if self.__partition_subset is not None:
+            state_machine = optimization.state_machine[
+                self.__partition_subset.id]
+        else:
+            state_machine = optimization.state_machine
+
+        return state_machine
+
+    def __create_other_optimize_events_if_needed(self, optimization, time,
+                                                 queue):
+        """If a Partition is used and the current Optimize event corresponds
+        to the main Optimize event, then creates one Optimize event for each
+        PartitionSubset of the Partition."""
+        other_events_created = False
+        if self.__partition_subset is None \
+                and optimization.partition is not None:
+            # Main Optimize event of the partition (it creates the Optimize
+            # events of the partition subsets).
+            self.__other_optimize_events = []
+            for subset in optimization.partition.subsets:
+                self.__other_optimize_events.append(
+                    Optimize(time, queue, partition_subset=subset))
+            other_events_created = True
+
+        return other_events_created
+
+    def __update_state(self, env):
+        if self.__partition_subset is None:
+            self.__state = env.get_new_state()
+            env.optimization.update_state(self.__state)
+        else:
+            self.__state = env.get_new_state(self.__partition_subset)
+            env.optimization.update_state(self.__state,
+                                          self.__partition_subset)
+
+    def __update_optimize_cv(self, env):
+        if self.__partition_subset is None:
+            env.optimize_cv = Condition()
+        else:
+            if env.optimize_cv is None:
+                env.optimize_cv = {}
+            env.optimize_cv[self.__partition_subset.id] = Condition()
+
     def __optimize_synchronously(self, env):
-        env.optimization.state.freeze_routes_for_time_interval(
+        self.__state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
         optimization_result = env.optimization.dispatch(
-            env.optimization.state)
+            self.__state)
 
-        env.optimization.state.unfreeze_routes_for_time_interval(
+        self.__state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
         EnvironmentUpdate(optimization_result, self.queue,

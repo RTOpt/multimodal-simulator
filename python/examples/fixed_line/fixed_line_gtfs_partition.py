@@ -5,16 +5,14 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.partition import PartitionSubset, Partition
+from multimodalsim.optimization.partition import PartitionSubset, Partition, \
+    VehiclesLegsPartitionSubset
 from multimodalsim.optimization.splitter import MultimodalSplitter, \
     OneLegSplitter
 from multimodalsim.reader.data_reader import GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile, \
-    CoordinatesOSRM
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
-
 
 if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
@@ -44,16 +42,17 @@ if __name__ == '__main__':
     splitter = OneLegSplitter()
     dispatcher = FixedLineDispatcher()
 
-    # Create partition
-    partition_subset_1 = PartitionSubset("1", leg_ids=["1", "2", "3"],
-                                         vehicle_ids=["1", "2"])
-    partition_subset_2 = PartitionSubset("2", leg_ids=["4", "5"],
-                                         vehicle_ids=["3"])
+    # Create a Partition object made up of disjoint PartitionSubset objects.
+    partition_subset_1 = VehiclesLegsPartitionSubset("1",
+                                                     vehicle_ids=["1", "2"],
+                                                     leg_ids=["1", "2", "3"])
+    partition_subset_2 = VehiclesLegsPartitionSubset("2", vehicle_ids=["3"],
+                                                     leg_ids=["4", "5"])
     partition = Partition([partition_subset_1, partition_subset_2])
 
-    opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
-    # opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval,
-    #                    partition=partition)
+    # opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
+    opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval,
+                       partition=partition)
 
     # Initialize the observer.
     environment_observer = StandardEnvironmentObserver()
