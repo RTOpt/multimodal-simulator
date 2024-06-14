@@ -49,6 +49,14 @@ class State:
             self.non_assigned_trips)
         self.__main_line = None
         self.__next_main_line = None
+        self.__available_connections = env_deep_copy.available_connections
+
+    @property
+    def current_time(self):
+        return self.__current_time
+    @property
+    def available_connections(self):
+        return self.__available_connections
 
     @property
     def main_line(self):

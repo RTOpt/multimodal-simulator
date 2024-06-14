@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # logger.info("build_stops")
     # gtfs_generator.build_stops(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
     # logger.info("build_stop_times")
-    # gtfs_generator.build_stop_times(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=True)
+    gtfs_generator.build_stop_times(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=False)
     logger.info("build_stop_times_upgrade")
     gtfs_generator.build_stop_times_upgrade(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=True)
     logger.info("Done importing GTFS files")
@@ -37,9 +37,11 @@ if __name__ == '__main__':
         logger.info("Date: "+dateshort)
         cap_filepath=os.path.join("D:","donnees","New donnees",dateshort+".csv")
         date=dateshort[0:4]+"-"+dateshort[4:6]+"-"+dateshort[6:8]
+        date_folder=os.path.join("data", "fixed_line", "gtfs", "gtfs"+date)
         stop_times_filepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"stop_times.txt")
         requests_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"requests.csv")
         connections_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"available_connections.json")
+        gtfs_generator.fill_missing_stop_times(date_folder)
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--cap", help="path to the file containing CAP "

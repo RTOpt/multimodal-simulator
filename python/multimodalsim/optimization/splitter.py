@@ -42,6 +42,10 @@ class MultimodalSplitter(Splitter):
         self.__freeze_interval = freeze_interval
         self.__trip = None
         self.__state = None
+    
+    @property
+    def available_connections(self):
+        return self.__available_connections
 
     def split(self, trip, state):
 
@@ -152,7 +156,7 @@ class MultimodalSplitter(Splitter):
     def __filter_legs(self, legs):
 
         filtered_legs = []
-        for leg in legs:
+        for leg in legs: #make sure start and end stop are different
             if str(leg.origin) != str(leg.destination) and \
                     (int(str(leg.origin)) not in self.__available_connections
                      or (int(str(leg.destination)) not in

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 ### This file generates partial data of the day November 1st 2019 to allow for testing on a medium size real instance.
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
-small=False
+small=True
 only_transfers=False
 main_trip_id="2790970"
 max_distance = 0.5 #connection max distance in km
@@ -186,6 +186,7 @@ with open(stop_times_file_path_generated, 'r') as file:
     stop_id_index=header_split.index("stop_id")
     stop_sequence_index=header_split.index("stop_sequence")
     #pickup and dropoff are always 0
+    shape_dist_traveled_index=header_split.index("shape_dist_traveled")
     planned_arrival_time_index=header_split.index("planned_arrival_time")
     planned_departure_time_from_origin_index=header_split.index("planned_departure_time_from_origin")
 
@@ -199,12 +200,13 @@ with open(stop_times_file_path_generated, 'r') as file:
         departure_time = line_split[departure_time_index]
         stop_id = line_split[stop_id_index]
         stop_sequence = line_split[stop_sequence_index]
+        shape_dist_traveled = line_split[shape_dist_traveled_index]
         planned_arrival_time = line_split[planned_arrival_time_index]
         planned_departure_time_from_origin = line_split[planned_departure_time_from_origin_index]
         if trip_id in stop_times_dict:
-            stop_times_dict[trip_id].append([arrival_time, departure_time, stop_id,stop_sequence, planned_arrival_time, planned_departure_time_from_origin])
+            stop_times_dict[trip_id].append([arrival_time, departure_time, stop_id,stop_sequence, shape_dist_traveled, planned_arrival_time, planned_departure_time_from_origin])
         else:
-            stop_times_dict[trip_id]=[[arrival_time,departure_time, stop_id,stop_sequence, planned_arrival_time, planned_departure_time_from_origin],]
+            stop_times_dict[trip_id]=[[arrival_time,departure_time, stop_id,stop_sequence,shape_dist_traveled, planned_arrival_time, planned_departure_time_from_origin],]
 add_stops=[]
 with open(cap_file_path_generated, 'r') as file:
     # Read the header
@@ -217,12 +219,19 @@ with open(cap_file_path_generated, 'r') as file:
     origin_stop_lat_index=header_split.index("L_LAT_ARRET")
     origin_stop_lon_index=header_split.index("L_LON_ARRET")
     departure_time_at_origin_index=header_split.index("S_H_DEP_REEL28")
+    shape_dist_traveled_at_origin_index=header_split.index("L_DISTCUMULKM")
+    planned_arrival_time_at_origin_index=header_split.index("S_H_ARR_PLANIF28")
+    planned_departure_time_from_origin_index=header_split.index("DEPART28_BOOKING")
 
     destination_stop_id_index=header_split.index("D_CHRONOBUS_DESC")
     destination_stop_name_index=header_split.index("D_CHRONOBUS_DESCRIPTION_DESC")
     destination_stop_lat_index=header_split.index("D_LAT_STOP_DESC")
     destination_stop_lon_index=header_split.index("D_LON_STOP_DESC")
     arrival_time_at_destination_index=header_split.index("D_H_ARR_REEL28_DESC")
+    shape_dist_traveled_at_destination_index=header_split.index("D_DISTCUMULKM_DESC")
+    #No known planned arrival time at destination
+    #departure from origin is the same as it is the same bus trip
+
     
     # Read all remaining lines
     lines=file.readlines()
@@ -238,49 +247,73 @@ with open(cap_file_path_generated, 'r') as file:
                 stop_times_dict[trip_id].append([line_split[departure_time_at_origin_index],
                                                 line_split[departure_time_at_origin_index],
                                                 origin_stop_id,
-                                                -1])
+                                                -1,#stop sequence is not known
+                                                line_split[shape_dist_traveled_at_origin_index],
+                                                line_split[planned_arrival_time_at_origin_index],
+                                                line_split[planned_departure_time_from_origin_index],])
                 add_stops.append([trip_id,
                                 origin_stop_id,
                                 line_split[origin_stop_name_index],
                                 line_split[origin_stop_lat_index],
                                 line_split[origin_stop_lon_index],
-                                line_split[departure_time_at_origin_index]])
+                                line_split[departure_time_at_origin_index],
+                                ])
         if destination_stop_id not in [stop_info[2] for stop_info in stop_times_dict[trip_id]]:
-            if (destination_stop_id=='' or destination_stop_id==' ' or line_split[arrival_time_at_destination_index]=='' or line_split[arrival_time_at_destination_index]==' ')==False: #stop_id is empty
+            if (destination_stop_id == '' or destination_stop_id == ' ' or line_split[arrival_time_at_destination_index] == '' or line_split[arrival_time_at_destination_index]==' ')==False: #stop_id is empty
                 relevant_stops.append(destination_stop_id)
                 stop_times_dict[trip_id].append([line_split[arrival_time_at_destination_index],
                                                 line_split[arrival_time_at_destination_index],
                                                 destination_stop_id,
-                                                -1])
+                                                -1,
+                                                line_split[shape_dist_traveled_at_destination_index],
+                                                -1,#no known planned arrival time
+                                                line_split[planned_departure_time_from_origin_index],])
                 add_stops.append([trip_id,
                                 destination_stop_id,
                                 line_split[destination_stop_name_index],
                                 line_split[destination_stop_lat_index],
                                 line_split[destination_stop_lon_index],
-                                line_split[arrival_time_at_destination_index]])
+                                line_split[arrival_time_at_destination_index],])
 relevant_stops = list(set(relevant_stops))
 
 #Sort the stops by trip_id and arrival time
 for trip_id in stop_times_dict:
-    stop_times_dict[trip_id]=sorted(stop_times_dict[trip_id], key=itemgetter(0))
-    prev=0
-    stop_times=stop_times_dict[trip_id]
+    stop_times_dict[trip_id] = sorted(stop_times_dict[trip_id], key=itemgetter(0))
+    stop_times = stop_times_dict[trip_id]
+    prev=[0, stop_times[0][5]]
     for i in range(len(stop_times)):
         sequence=int(stop_times[i][3])
-        if sequence==-1:
-            sequence=prev+1
-        elif sequence==prev:
+        if sequence == -1:
+            sequence = prev[0]+1
+        elif sequence == prev[0]:
             sequence+=1
-        stop_times[i][3]=str(sequence)
-        prev=sequence
-    stop_times_dict[trip_id]=stop_times
+        stop_times[i][3] = str(sequence)
+        prev[0]=sequence
+        planned_arrival_time = int(float(stop_times[i][5]))
+        if planned_arrival_time == -1:
+            if i>0 and i<len(stop_times)-1:
+                stop_prev = stop_times[i-1]
+                stop_next = stop_times[i+1]
+                current_distance = float(stop_times[i][4])
+                planned_arrival_time_prev = int(stop_prev[5])
+                planned_arrival_time_next = int(stop_next[5])
+                distance = float(stop_next[4]) - float(stop_prev[4])
+                travelled_distance = current_distance - float(stop_prev[4])
+                planned_arrival_time = planned_arrival_time_prev + (planned_arrival_time_next - planned_arrival_time_prev) * (travelled_distance) / distance
+            elif i==0:
+                planned_arrival_time = int(stop_times[i][6])
+            else:
+                planned_arrival_time = int(stop_times[i-1][5])
+        stop_times[i][5] = str(planned_arrival_time)
+        prev[1] = planned_arrival_time
+    stop_times_dict[trip_id] = stop_times
 
 #Rewrite the stop_times file
 with open(stop_times_file_path_generated, 'w') as file:
     file.write(header)
     for trip_id in stop_times_dict:
         for stop_info in stop_times_dict[trip_id]:
-            file.write(trip_id+","+stop_info[0]+","+stop_info[1]+","+stop_info[2]+","+str(stop_info[3])+",0,0\n")
+            file.write(trip_id+","+stop_info[0]+","+stop_info[1]+","+stop_info[2]+","+str(stop_info[3])+",0,0," + str(stop_info[4])+','+str(stop_info[5])+','+str(stop_info[6])+"\n")
 
 # Create stops.txt file
 stops_file_path=os.path.join(gtfs_folder_old,"stops.txt")
@@ -378,3 +411,23 @@ available_connections = available_connections_extractor.extract_available_connec
 # # Save to file
 available_connections_extractor.save_to_json(args.connections)
 logger.info("Done extracting available connections for generated instance.")
+
+def get_planned_arrival_time(stop_prev, stop_next, current_distance):
+    """
+    Calculates the planned arrival time at a given distance between two stops.
+
+    Args:
+        stop_prev (list): Information about the previous stop, including distance and planned arrival time.
+        stop_next (list): Information about the next stop, including distance and planned arrival time.
+        current_distance (float): The current distance between the previous stop and the current position.
+
+    Returns:
+        float: The planned arrival time at the current distance.
+
+    """
+    planned_arrival_time_prev = int(stop_prev[5])
+    planned_arrival_time_next = int(stop_next[5])
+    distance = float(stop_next[4]) - float(stop_prev[4])
+    travelled_distance = current_distance - float(stop_prev[4])
+    planned_arrival_time = planned_arrival_time_prev + (planned_arrival_time_next - planned_arrival_time_prev) * (travelled_distance) / distance
+    return planned_arrival_time
