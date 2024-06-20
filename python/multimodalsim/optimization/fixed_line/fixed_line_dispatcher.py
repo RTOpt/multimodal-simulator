@@ -30,6 +30,8 @@ class FixedLineDispatcher(Dispatcher):
         self.__algo_parameters = self.__config.get_algo_parameters(algo)
         self.__walking_vehicle_counter = 0
         self.__CAPACITY = 80
+        self.__Data = None
+
 
     @property
     def speedup_factor(self):
@@ -58,6 +60,14 @@ class FixedLineDispatcher(Dispatcher):
     @property
     def horizon(self):
         return self.__horizon
+    
+    @property
+    def Data(self):
+        return self.__Data
+    
+    @Data.setter
+    def Data(self, data):
+        self.__Data = data
     
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
@@ -168,6 +178,9 @@ class FixedLineDispatcher(Dispatcher):
 
         # Get the next stops in the horizon on the main line
         main_line = state.route_by_vehicle_id[main_line_id]
+        if main_line.vehicle.route_name == 'Walking_route':
+            return [], []
+        
         main_line_stops = main_line.next_stops[0:self.horizon]
         
         # The next legs assigned and onboard the selected routes
@@ -547,7 +560,7 @@ class FixedLineDispatcher(Dispatcher):
         mode = None
         # Create vehicle
         vehicle = Vehicle(vehicle_id, start_stop.arrival_time, start_stop,
-                          self.__CAPACITY, release_time, end_time, mode)
+                          self.__CAPACITY, release_time, end_time, mode, route_name='Walking_route')
         # Create route
         route = Route(vehicle, next_stops)
         VehicleReady(vehicle, route, event_queue).add_to_queue()
@@ -664,247 +677,116 @@ class FixedLineDispatcher(Dispatcher):
             i=0
             j_try=0
             succes = False
-        return(False, False, (False, -1))
-        #     while i<self.algo_parameters["nbr_simulations"]:
-        #         if j_try<int(self.algo_parameters["j_try"]):
-        #             try: # Bias because the scenarios which work are those where m/d are possible.
-        #                 j_try+=1
-        #                 # Step a: Generate instance for scenario j_try for the Regret algorithm
-        #                 passages,last=NewGenerateur(lign,
-        #                                             dir, 
-        #                                             self.general_parameters['nbr_bus'], 
-        #                                             Data,
-        #                                             type_intervalles=self.algo_parameters['type_intervalles'],
-        #                                             type_dwell=self.algo_parameters['type_dwell'],
-        #                                             type_tps_parcours=self.algo_parameters['type_tps_parcours'],
-        #                                             type_m=self.algo_parameters['type_m'],
-        #                                             type_d=self.algo_parameters['type_d'],
-        #                                             type_tm=self.algo_parameters['type_tm'],
-        #                                             type_td=self.algo_parameters['type_td'],
-        #                                             type_ttime=self.algo_parameters['type_ttime'],
-        #                                             Real_passages=passages_multiple,
-        #                                             initial_flows=initial_flows,
-        #                                             plan_times=planned_times,
-        #                                             dimension=self.general_parameters["dimension"],
-        #                                             last=last,
-        #                                             horizon=self.horizon,
-        #                                             transfer_times=transfer_times
-        #                                             )
-        #                 runtime_start_regret=time.time()
-        #                 # Step b: Create graph from generated instance
-        #                 G_gen, bus,od,stats_od,extras=build_multiple_buses_hash(passages_multiple=passages,
-        #                                                                         flot_initial=initial_flows,
-        #                                                                         pas=self.general_parameters["pas"],
-        #                                                                         price=self.general_parameters["price"],
-        #                                                                         speedup_gen=self.speedup_factor,
-        #                                                                         ss_gen=self.skip_stop,
-        #                                                                         od_dict={}, 
-        #                                                                         simu=True,
-        #                                                                         last_stop=last_stop)
-        #                 # nb_noeuds.append(nb_nodes(G_gen))
-        #                 # nb_arcs.append(nb_edges(G_gen))
+        # return(False, False, (False, -1))
+            while i<self.algo_parameters["nbr_simulations"]:
+                if j_try<int(self.algo_parameters["j_try"]):
+                    try: # Bias because the scenarios which work are those where m/d are possible.
+                        j_try+=1
+                        # Step a: Generate instance for scenario j_try for the Regret algorithm
+                        passages,last=NewGenerateur(lign,
+                                                    dir, 
+                                                    self.general_parameters['nbr_bus'], 
+                                                    Data,
+                                                    type_intervalles=self.algo_parameters['type_intervalles'],
+                                                    type_dwell=self.algo_parameters['type_dwell'],
+                                                    type_tps_parcours=self.algo_parameters['type_tps_parcours'],
+                                                    type_m=self.algo_parameters['type_m'],
+                                                    type_d=self.algo_parameters['type_d'],
+                                                    type_tm=self.algo_parameters['type_tm'],
+                                                    type_td=self.algo_parameters['type_td'],
+                                                    type_ttime=self.algo_parameters['type_ttime'],
+                                                    Real_passages=passages_multiple,
+                                                    initial_flows=initial_flows,
+                                                    plan_times=planned_times,
+                                                    dimension=self.general_parameters["dimension"],
+                                                    last=last,
+                                                    horizon=self.horizon,
+                                                    transfer_times=transfer_times
+                                                    )
+                        runtime_start_regret=time.time()
+                        # Step b: Create graph from generated instance
+                        G_gen, bus,od,stats_od,extras=build_multiple_buses_hash(passages_multiple=passages,
+                                                                                flot_initial=initial_flows,
+                                                                                pas=self.general_parameters["pas"],
+                                                                                price=self.general_parameters["price"],
+                                                                                speedup_gen=self.speedup_factor,
+                                                                                ss_gen=self.skip_stop,
+                                                                                od_dict={}, 
+                                                                                simu=True,
+                                                                                last_stop=last_stop)
+                        # nb_noeuds.append(nb_nodes(G_gen))
+                        # nb_arcs.append(nb_edges(G_gen))
 
-        #                 # Step c: Get Data on optimization results
-        #                 passage_gen_id=[p for p in passages[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
-        #                 dwell_gen=get_passage_dwell_time(passage_gen_id)
-        #                 last_dwell_real=route.previous_stops[-1].departure_time - route.previous_stops[-1].arrival_time
-        #                 last_dist_real=real_prev_dists[stop_id]
-        #                 simu_last_temps_parcours=get_simu_last_temps_parcours(passages,
-        #                                                                       trip_id,
-        #                                                                       passage_gen_id,
-        #                                                                       last_regret)
-        #                 time_max, wait, speedup, ss, bus_flows, opt_val, runtime=get_gen_data(G_gen,stop_id,
-        #                                                                                       trip_id,
-        #                                                                                       self.general_parameters["price"],
-        #                                                                                       affichage=False, 
-        #                                                                                       global_savepath=global_savepath,
-        #                                                                                       simu_last_temps_parcours=simu_last_temps_parcours,
-        #                                                                                       j_try=str(j_try)+'regret')
+                        # Step c: Get Data on optimization results
+                        passage_gen_id=[p for p in passages[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
+                        dwell_gen=get_passage_dwell_time(passage_gen_id)
+                        last_dwell_real=route.previous_stops[-1].departure_time - route.previous_stops[-1].arrival_time
+                        last_dist_real=real_prev_dists[stop_id]
+                        simu_last_temps_parcours=get_simu_last_temps_parcours(passages,
+                                                                              trip_id,
+                                                                              passage_gen_id,
+                                                                              last_regret)
+                        time_max, wait, speedup, ss, bus_flows, opt_val, runtime=get_gen_data(G_gen,stop_id,
+                                                                                              trip_id,
+                                                                                              self.general_parameters["price"],
+                                                                                              affichage=False, 
+                                                                                              global_savepath=global_savepath,
+                                                                                              simu_last_temps_parcours=simu_last_temps_parcours,
+                                                                                              j_try=str(j_try)+'regret')
 
-        #                 # Step d: Update tactics dictionary
-        #                 T_regret=update_tactics_dict_regret(T_regret, 
-        #                                                     time_max, wait, speedup, ss,
-        #                                                     bus_flows,
-        #                                                     stop_id, trip_id,
-        #                                                     passages_gen=passages_regret,
-        #                                                     opt_cost=opt_val,
-        #                                                     initial_flows=initial_flows,
-        #                                                     pas=self.general_parameters["pas"],
-        #                                                     price=self.general_parameters["price"],
-        #                                                     speedup_gen=self.speedup_factor,
-        #                                                     ss_gen=self.skip_stop,
-        #                                                     prix_hors_bus=self.general_parameters["prix_hors_bus"],
-        #                                                     global_savepath=global_savepath,
-        #                                                     affichage=affichage,
-        #                                                     j_try=j_try)
-        #                 runtime_regret=time.time()-runtime_start_regret
-        #                 # runtimes_regret.append(runtime_regret)
-        #                 i+=1
-        #                 if self.algo == 1 or self.algo ==0:
-        #                     j_try = int(self.algo_parameters["j_try"]) + 1
+                        # Step d: Update tactics dictionary
+                        T_regret=update_tactics_dict_regret(T_regret, 
+                                                            time_max, wait, speedup, ss,
+                                                            bus_flows,
+                                                            stop_id, trip_id,
+                                                            passages_gen=passages_regret,
+                                                            opt_cost=opt_val,
+                                                            initial_flows=initial_flows,
+                                                            pas=self.general_parameters["pas"],
+                                                            price=self.general_parameters["price"],
+                                                            speedup_gen=self.speedup_factor,
+                                                            ss_gen=self.skip_stop,
+                                                            prix_hors_bus=self.general_parameters["prix_hors_bus"],
+                                                            global_savepath=global_savepath,
+                                                            affichage=affichage,
+                                                            j_try=j_try)
+                        runtime_regret=time.time()-runtime_start_regret
+                        # runtimes_regret.append(runtime_regret)
+                        i+=1
+                        if self.algo == 1 or self.algo ==0:
+                            j_try = int(self.algo_parameters["j_try"]) + 1
 
-        #             except Exception as e:
-        #                 traceback.print_exc()
-        #                 print('probleme dans simulation numero:',j_try, 'stop_id =', stop_id)
-        #         else: 
-        #             print('on a depasse le nombre possible de simus sans reuissir')
-        #             input("Press enter to continue...")
-        #             return(False, False, (False, -1))
-        #     # Step 5: Apply tactics
-        #     if self.algo == 2: # Regret
-        #         time_max_regret, wait_regret, speedup_regret, ss_regret=choose_tactic(T_regret,
-        #                                                                               self.skip_stop,
-        #                                                                               self.speedup_factor,
-        #                                                                               last_stop)
-
-        #     # Step 6: Apply tactics
-        #     passages_multiple_real,last, initial_flows,final_passages,h_prev,h_final=apply_tactics(passages_multiple,
-        #                                                                                         stop_id,trip_id,
-        #                                                                                         last,
-        #                                                                                         initial_flows,
-        #                                                                                         dwell_gen,
-        #                                                                                         h_prev,
-        #                                                                                         h_final,
-        #                                                                                         last_dwell_real,
-        #                                                                                         time_max_regret,
-        #                                                                                         wait_regret,
-        #                                                                                         speedup_regret,
-        #                                                                                         ss_regret,
-        #                                                                                         final_passages=final_passages,
-        #                                                                                         last_dist_real=last_dist_real)
-        # transfer_time_to_use=[p for p in Real_passages_gen[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
-        # transfer_ha=get_passage_heure_act(transfer_time_to_use)
-
-    def get_transfer_times(self, transfer_data, transfer_ha, type_ttime):
-        """Get the transfer times for the passengers.
-        Inputs:
-            - transfer_data: dict, the transfer data.
-            - transfer_ha: int, the current time.
-            - type_ttime: int, the type of transfer time generation.
-            
-        Outputs:
-            - transfer_times: dict, the transfer times for the passengers"""
-        transfer_times={}
-        for trip in transfer_data: 
-            transfer_times[trip]={}
-            for stop in transfer_data[trip]:
-                transfer_times[trip][stop]=[]
-                for heure in transfer_data[str(trip)][stop]:
-                    times=transfer_data[str(trip)][stop][heure]
-                    if type_ttime==2:### real
-                        transfer_times[trip][stop].append(times[0][1])
-                    else:
-                        e=next((x for x in times if x[1] <transfer_ha),-1)
-                        if e==-1: 
-                            #ce bus n'est pas parti a l'heure actuelle, notre meilleure estimation est hp a l'arret
-                            transfer_times[trip][stop].append(times[0][0])
-                        else: 
-                            # 0: heure planifiée +retard actuel
-                            if type_ttime==0: #heure planifiee +retard actuel
-                                retard=int(e[1])-int(e[0])
-                                transfer_times[trip][stop].append(times[0][0]+retard)
-                            # 1: temps de parcours proportionnel à la distance restante actuelle (référence=tps parcours planifié)
-                            elif type_ttime==1:#same as type_ttime=0 car pas plus d'infos
-                                h_reel_passage=e[1]
-                                temps_parcours_plan=times[0][0]-e[0]
-                                heure_act=h_reel_passage+temps_parcours_plan
-                                transfer_times[trip][stop].append(heure_act)
-        return(transfer_times)
-
-    def get_transfer_data(self, stop_times, passages, transfer_stops, horizon, lign, dir):
-        """ 
-        """
-        # 0-trip_id
-        # 1-arrival_time-heure d'arrivee a l'arret
-        # 2-departure_time-heure de depart depuis l'arret
-        # 3-stop_id-id de l'arret
-        # 4-stop_sequence- ordre de l'arret dans la sequence 
-        # 5-shape_dist_traveled-distance parcourue depuis l'origine
-        # 6-nb_passengers-nb de passagers en bus
-        # 7-nb_montants-nbr de passagers montants a cet arret
-        # 8-nb_descendants-nbr de passagers descendants a cet arret
-        # 9-ligne-nom complet de la ligne "nom"+"dir"(format N,S,O,E)
-        # 10-h_plan-heure d'arrivee planifiee a l'arret
-        # 11-dep_ori-heure de depart depuis l'origine pour ce trajet 
-        if len(stop_times)==0:
-            return({})
-        #Get all stops
-        ligne_direction = lign+dir
-        completename=os.path.join("stl","Data",'route_stops_'+lign+dir+'_month.txt')
-        alltype=np.dtype([('f0', 'i8'), ('f1', 'U12'),('f2','float16'),('f3','i8')])
-        stops=self.genfromtxt_with_lock(completename,delimiter=",",dtype=alltype, usecols=[0,1,2,3], names=True)
-        # 0-stop_order
-        # 1-stop_id
-        # 2-dist_cum
-        # 3-number of times stop was registered in the month
-        stop_passages={}
-        transfer_data={}
-        tmp={}
-        stop_times=sorted(stop_times, key=itemgetter(11,4))
-        order=sorted([(passages[trip][0].ha-passages[trip][0].cost,trip) for trip in passages],key=itemgetter(0))
-        normaux=[p for p in passages[order[-1][1]] if get_passage_transfer(p)==False] 
-        for stop_time in stop_times:
-            transfer_data[trip]={}
-            stop=int(get_passage_stop_id(p))
-            if stop in stop_passages:
-                stop_passages[stop].append((get_passage_heure_act(p),trip))
-            else: 
-                stop_passages[stop]=[(get_passage_heure_act(p),trip)]
-
-        for stop in stop_passages: 
-            new=[]
-            stop_passages[stop]=sorted(stop_passages[stop],key=itemgetter(0))
-            tmp=stop_passages[stop].pop(0)
-            new_tmp=(tmp[0]-900,tmp[1])
-            new.append(new_tmp)
-            prev=new[0][0]+900
-            for i in range(1,len(stop_passages[stop])):
-                intervalle = stop_passages[stop][i][0]-prev
-                if intervalle>1200:
-                    new.append((stop_passages[stop][i][0]-600,stop_passages[stop][i][1]))
+                    except Exception as e:
+                        traceback.print_exc()
+                        print('probleme dans simulation numero:',j_try, 'stop_id =', stop_id)
                 else: 
-                    new.append((stop_passages[stop][i][0]-int(intervalle/2),stop_passages[stop][i][1]))
-                prev=stop_passages[stop][i][0]
-            stop_passages[stop]=new
-            stop_passages[stop].append((stop_passages[stop][-1][0]+1200,-1))
-        for (temps_depart,trip) in order:
-            transfer_data[trip]={}
-            normaux=[(p, get_passage_dist(p)) for p in passages[trip] if get_passage_transfer(p)==False]
-            normaux=sorted(normaux, key=itemgetter(1))
-            first=int(get_passage_stop_id(normaux[0][0]))
-            start = [k for k, x in enumerate(stops) if int(x[1]) == first][0]
-            for j in range(start,min(start+1+horizon, len(stops))): 
-                stop=int(stops[j][1])
-                if stop in stop_passages:
-                    index=next((i for i, (v, w) in enumerate(stop_passages[stop]) if w == trip),-1)
-                    if index!=-1:
-                        time_max=stop_passages[stop][index+1][0]
-                        min_time=stop_passages[stop][index][0]
-                if stop in transfer_stops:
-                    for (stop_corr, ligne_dir_corr) in transfer_stops[stop]:
-                        i=0
-                        x=stop_times[i]
-                        while int(x[11])<time_max and i<len(stop_times)-1: 
-                            info=( int(stop_times[i][3]), str(stop_times[i][9]))
-                            if info ==(stop_corr,ligne_dir_corr): 
-                                heure_corr=int(x[1])
-                                if heure_corr>min_time and heure_corr<time_max:
-                                    if stop in transfer_data[trip]:
-                                        transfer_data[trip][stop][heure_corr]=[]
-                                    else: 
-                                        transfer_data[trip][stop]={}
-                                        transfer_data[trip][stop][heure_corr]=[]
-                                    trip_id=str(stop_times[i][0])
-                                    jt=i
-                                    while stop_times[jt][0]==trip_id and jt>=0: #ordre inversement chronologique
-                                        hp=int(stop_times[jt][10])
-                                        arr_time=int(stop_times[jt][1])#actual arrival time
-                                        dist=float(stop_times[jt][5])
-                                        transfer_data[trip][stop][heure_corr].append( (hp, arr_time,dist ))
-                                        jt-=1
-                            i+=1
-                            x=stop_times[i]
-        return(transfer_data)
+                    print('on a depasse le nombre possible de simus sans reuissir')
+                    input("Press enter to continue...")
+                    return(False, False, (False, -1))
+            # Step 5: Apply tactics
+            if self.algo == 2: # Regret
+                time_max_regret, wait_regret, speedup_regret, ss_regret=choose_tactic(T_regret,
+                                                                                      self.skip_stop,
+                                                                                      self.speedup_factor,
+                                                                                      last_stop)
+
+            # Step 6: Apply tactics
+            passages_multiple_real,last, initial_flows,final_passages,h_prev,h_final=apply_tactics(passages_multiple,
+                                                                                                stop_id,trip_id,
+                                                                                                last,
+                                                                                                initial_flows,
+                                                                                                dwell_gen,
+                                                                                                h_prev,
+                                                                                                h_final,
+                                                                                                last_dwell_real,
+                                                                                                time_max_regret,
+                                                                                                wait_regret,
+                                                                                                speedup_regret,
+                                                                                                ss_regret,
+                                                                                                final_passages=final_passages,
+                                                                                                last_dist_real=last_dist_real)
+        transfer_time_to_use=[p for p in Real_passages_gen[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
+        transfer_ha=get_passage_heure_act(transfer_time_to_use)
 
     def genfromtxt_with_lock(filename, dtype, delimiter=",", usecols=None, names=True,encoding='bytes',skip_header=0):
         lock = multiprocessing.Lock()
@@ -1021,3 +903,730 @@ class FixedLineDispatcher(Dispatcher):
             T['sp_t'][0]=0
             T['sp_t'][1]=[]
         return(T)
+    
+    def NewGenerateur(self, 
+                      lign:str,
+                      dir:str,
+                      Real_passages,
+                      initial_flows,
+                      plan_times,
+                      last={},
+                      transfer_times={}):
+        """"
+        Fonction qui génère des passages de bus.
+        On a besoin des statistiques sur les lignes de bus pour pouvoir lancer cette fonction ! À générer auparavant. 
+
+        Entrées: 
+        lign-numéro de ligne 
+        dir-direction de la ligne 
+        date
+        nbr_bus-nombre de trajets à générer
+        h_debut-heure du premier départ à générer. Bien vérifier que le dernier départ n'est pas après la fin de service. 
+        # k nombre de clusters pour le clustering
+        StopClusters-clusters sur les temps de parcours
+        DwellClusters-clusters sur les dwells times
+        Intervalles-clusters des intevralles 
+        Montants-clusters sur le nombre de passagers montants
+        Descendants-clusters sur le nombre de passagers montants
+        TMontants-clusters sur le nombre de passagers en correspondance montants
+        TDescendants-clusters sur le nombre de passagers en correspondance montants
+        type_xxx: type de génération de données 
+            0: tirage dans cluster 
+            1: moyenne du cluster 
+            2: donnée réelle 
+            3: planifié
+        type_ttime: type de génération de données 
+            0: heure planifiée +retard actuel
+            1: temps de parcours proportionnel à la distance restante actuelle (référence=tps parcours planifié)
+            2: donnée réelle 
+            3: planifié
+        Passages: passages reels dans la simulation
+        dimension: dimension des clusters 
+        # pathtofile: dossier par defaut ou chercher les donnees necessaires 
+        cost_attente: cout de rater le dernier bus dans l'horizon 
+        # affichage: bool qui indique si on affiche les clusters
+        last: dict qui pour chaque trip donne le dernier arret visite, l'heure actuelle de DEPART depuis l'arret, le dwell a l'arret, et l'heure planifiee d'arrivee a l'arret
+
+        Sorties: 
+        passages-liste de passages aux arrets. Les passages sont ordonnés dans l'ordre de passage (passages normaux et transferts)
+        last: dict qui pour chaque trip donne le dernier arret visite, l'heure actuelle de DEPART depuis l'arret, le dwell a l'arret, et l'heure planifiee d'arrivee a l'arret
+        """
+        nbr_bus = self.general_parameters['nbr_bus']
+        type_intervalles = self.algo_parameters['type_intervalles']
+        type_dwell = self.algo_parameters['type_dwell']
+        type_tps_parcours = self.algo_parameters['type_tps_parcours']
+        type_m = self.algo_parameters['type_m']
+        type_d = self.algo_parameters['type_d']
+        type_tm = self.algo_parameters['type_tm']
+        type_td = self.algo_parameters['type_td']
+        type_ttime = self.algo_parameters['type_ttime']
+        initial_flows = initial_flows
+        dimension = self.general_parameters["dimension"]
+        horizon = self.horizon
+        Data = self.Data[lign+dir]
+
+        ###Get Data 
+        pairs, frequence, dwells,montants,descendants,transferts,new_pairs,new_dwells,new_frequence,new_m,new_d,new_tm,new_td,StopClusters,DwellClusters,Intervalles,Montants,Descendants,TMontants,TDescendants=Data
+
+        #Get all stops
+        completename=os.path.join("stl","Data",'route_stops_'+lign+dir+'_month.txt')
+        alltype=np.dtype([('f0', 'i8'), ('f1', 'U12'),('f2','float16'),('f3','i8')])
+        stops=np.genfromtxt(completename,delimiter=",",dtype=alltype, usecols=[0,1,2,3], names=True)
+        # 0-stop_order
+        # 1-stop_id
+        # 2-dist_cum
+        # 3-number of times stop was registered in the month
+        stop_dict={}
+        stop_list=[]
+        for stop in stops:
+            stop_list.append(int(stop[1]))
+            stop_dict[int(stop[1])]={}
+            stop_dict[int(stop[1])]['order']=int(stop[0])
+            stop_dict[int(stop[1])]['dist']=float(stop[2])
+            stop_dict[int(stop[1])]['f']=int(stop[3])
+        if lign=='70': 
+            if dir=='O':
+                all=746 #nombre de trip_ids dans le mois 
+            else: 
+                all=702 ### a revoir
+        else:### ligne 42
+            if dir=='O':
+                all=1188
+            else: 
+                all=1297
+        ### Partie 2: Génération de passages 
+        ### Infos sur les passages reels\planifies 
+        if type_intervalles==2:
+            order=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
+        elif type_intervalles==3: 
+            order=sorted([(Real_passages[trip][0].hp-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
+        else:
+            order=[]
+        
+        #le premier passage de chaque bus est adapte pour ne plus prendre en compte le dwell time a l'arret prec
+        debut=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))[0][0]
+        intervalles=gen_intervalle(Intervalles,new_frequence,frequence,nbr_bus,debut,dimension,type_intervalles,order)
+        order=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
+        
+        if last=={}:
+            for trip in Real_passages:
+                last[trip]=(-1,Real_passages[trip][0].ha-Real_passages[trip][0].cost,0,Real_passages[trip][0].ha-Real_passages[trip][0].cost)
+
+        if initial_flows=={}:
+            for trip in Real_passages:
+                initial_flows[trip]=0
+        # print('flot initial', initial_flows)
+        #get info: 
+        dwell_data={}
+        m_data={}
+        d_data={}
+        tm={}
+        td={}
+        tdwell={}
+        ttime={}
+        tps={}
+        trip=0
+        trips={}
+        # print(order)
+        for (h,trip_id) in order:
+            # print('h', h, 'trip_id', trip_id)
+            trips[trip]=trip_id
+            first=True
+            prec_dwell=0 #car on prend l'heure de depart depuis le dernier arret
+            prev=last[trip_id][1]#heure de depart reelle post tactiques depuis le dernier arret pour ce bus
+            tmp=Real_passages[trip_id]
+            dwell_data[trip]={}
+            m_data[trip]={}
+            d_data[trip]={}
+            tm[trip_id]={}
+            td[trip_id]={}
+            tdwell[trip_id]={}
+            ttime[trip_id]={}
+            tps[trip]={}
+            for p in tmp:
+                dwell=int(get_passage_dwell_time(p))
+                stop=int(get_passage_stop_id(p))
+                m=int(get_passage_nb_montant(p))
+                d=int(get_passage_nb_desc(p))
+                if get_passage_transfer(p)==False:
+                    dwell_data[trip][stop]=dwell #dwell reel 
+                    m_data[trip][stop]=m
+                    d_data[trip][stop]=d
+                    if type_tps_parcours==2:#reel
+                        if first==False:
+                            tps[trip][(stop_prev,stop)]=get_passage_cost(p)-prec_dwell#tps de parcours reel
+                            stop_prev=stop
+                            prec_dwell=dwell
+                        else:
+                            first=False
+                            tps[trip][(-1,stop)]=get_passage_cost(p)-last[trips[trip]][2]#tps de parcours reel
+                            stop_prev=stop
+                            prec_dwell=dwell
+                    elif type_tps_parcours==3:#planifie
+                        if first==False:
+                            tps[trip][(stop_prev,stop)]=get_passage_heure_plan(p)-prev-10
+                            prev=get_passage_heure_plan(p)
+                            stop_prev=stop
+                        else:#premier arret pour ces passages
+                            first=False
+                            stop_prev=stop
+                            # tps[trip][(last[trip][0],stop)]=get_passage_heure_plan(p)-prev-10 #10 is general dwell time
+                            prev=get_passage_heure_plan(p)
+                    prec_dwell=dwell
+                else:
+                    trip_tmp=copy.deepcopy(trip)
+                    trip=trip_id
+                    tdwell[trip][stop]=dwell
+                    if stop in tm[trip]:
+                        tm[trip][stop].append(m)
+                    else: 
+                        tm[trip][stop]=[m]
+                    if stop in td[trip]: 
+                        td[trip][stop].append(d)
+                    else: 
+                        td[trip][stop]=[d]
+                    if stop in ttime[trip]:
+                        if type_ttime==2: #reel 
+                            ttime[trip][stop].append(get_passage_heure_act(p))
+                        elif type_ttime==3: #planifie
+                            ttime[trip][stop].append(get_passage_heure_plan(p))
+                    else: 
+                        if type_ttime==2: #reel 
+                            ttime[trip][stop]=[get_passage_heure_act(p)]
+                        elif type_ttime==3: #planifie
+                            ttime[trip][stop]=[get_passage_heure_plan(p)]
+                    trip=trip_tmp
+            trip+=1
+        # print('trips dict', trips)
+        if type_ttime==0 or type_ttime==1 or type_ttime==3: #translation, estimation ou reel 
+            ttime=transfer_times
+        if ttime=={}:
+            for (h,trip_id) in order:
+                ttime[trip_id]={}
+        # print(ttime)
+        passages={}
+        # time=h_debut
+        for i in range(nbr_bus):
+            trip_id=i
+            passages[trips[trip_id]]=[]
+            if i==0:
+                h_debut=debut
+            if i==1: 
+                h_debut=get_passage_heure_act(Real_passages[trips[1]][0])-Real_passages[trips[1]][0].cost
+            # h_debut=debut+sum([intervalles[j] for j in range(i+1)])
+            old_dwell=last[trips[trip_id]][2]
+            hp=h_debut
+            # hp=debut+sum([intervalles[j] for j in range(i+1)])
+            # print('total',initial_flows[trips[trip_id]])
+            total=initial_flows[trips[trip_id]] #nombre de passagers dans le bus 
+            stop=get_passage_stop_id(Real_passages[trips[trip_id]][0])
+            l=get_passage_level(Real_passages[trips[trip_id]][0])
+            start = [k for k, x in enumerate(stops) if int(x[1]) == stop][0]
+            if i==0: 
+                end=min(start+1+horizon, len(stops))
+            #dwell time
+            if type_dwell==2:
+                if stop in dwell_data[trip_id]:
+                    dwell=dwell_data[trip_id][stop]
+                    # print('on est la dwell 1')
+                else:
+                    dwell=0#le stop est skip dans le cas reel 
+            elif stop in dwells:
+                real=len(dwells[stop])
+                win_dwell=real/all
+                (C, clusters)=DwellClusters[stop]
+                dwells_stop=dwells[stop]
+                new_dwells_stop=new_dwells[stop]
+                dwell=gen_dwell(C, clusters,dwells_stop, new_dwells_stop, dimension,h_debut,type_dwell,win_dwell,dwell)
+            else:
+                dwell=0 #on ne s'arrete pas a l'arret.
+
+            #nombre descendants:
+            #calculer avant le nombre de montants (sinon le total peut etre negatif!)
+            if type_d==2: #reel
+                if int(stop) in d_data[trip_id]:
+                    d=d_data[trip_id][int(stop)]
+                    # print('on est la d 1')
+                    if total-d<0:
+                        if total>0:
+                            d=total-1
+                        else: d=0
+                else:#the bus did not stop here in real life
+                    d=0
+            elif stop in descendants:
+                real_d=len([x for x in descendants[stop]])
+                win=real_d/all
+                (C, clusters)=Descendants[stop]
+                descendants_stop=descendants[stop]
+                new_descendants_stop=new_d[stop]
+                d=gen_d(C, clusters,descendants_stop, new_descendants_stop, dimension,h_debut,type_d,win)
+                if total-d<0:
+                    if total>0:
+                        d=total-1
+                    else: d=0
+            else: 
+                d=0
+            total-=d
+            # print('total',total,'d',d,'stop',stop)
+
+            #nbr montants
+            if type_m==2: #reel
+                if int(stop) in m_data[trip_id]:
+                    # print('on est la m 1')
+                    m=m_data[trip_id][int(stop)]
+                else:#the bus did not stop here in real life
+                    m=0
+            elif stop in montants:
+                real_m=len([x for x in montants[stop]])
+                win=real_m/all
+                (C, clusters)=Montants[stop]
+                montants_stop=montants[stop]
+                new_montants_stop=new_m[stop]
+                m=gen_m(C, clusters,montants_stop, new_montants_stop, dimension,h_debut,type_m,win)
+            else:
+                m=0
+            total+=m
+            # print('total',total)
+
+            #tps parcours
+            prec=last[trips[trip_id]][0]#dernier arret visite par ce bus avant la simulation 
+            if prec==-1:
+                if start==0:
+                    temps_parcours=0
+                elif type_tps_parcours==2 or type_tps_parcours==3:
+                    # print('on est la tmps parcours 1')
+                    temps_parcours=get_passage_cost(Real_passages[trips[trip_id]][0])
+                else: 
+                    prec1=int(stops[start-1][1])
+                    (C, clusters)=StopClusters[(prec1,stop)]
+                    pairs_stop=pairs[(prec1,stop)]
+                    new_pairs_stop=new_pairs[(prec1,stop)]
+                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
+            ### le temps de parcours prends en compte le dwell a l'arret prec
+            elif type_tps_parcours==2:#reel
+                temps_parcours=get_passage_cost(Real_passages[trips[trip_id]][0])-last[trips[trip_id]][2]
+            elif type_tps_parcours==3:#planifie
+                prev=last[trips[trip_id]][3]#heure d'arrivee planifiee au dernier arret 
+                temps_parcours=max(1,get_passage_heure_plan(Real_passages[trips[trip_id]][0])-prev-5)
+            else:
+                if (prec,stop) in StopClusters:
+                    (C, clusters)=StopClusters[(prec,stop)]
+                    pairs_stop=pairs[(prec,stop)]
+                    new_pairs_stop=new_pairs[(prec,stop)]
+                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
+                else:
+                    if start>0:
+                        prec1=int(stops[start-1][1])
+                        (C, clusters)=StopClusters[(prec1,stop)]
+                        pairs_stop=pairs[(prec1,stop)]
+                        new_pairs_stop=new_pairs[(prec1,stop)]
+                        temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
+                        dist_prec=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec][0])
+                        dist1=float(stops[start][2])-float(stops[start-1][2])
+                        dist2=float(stops[start][2])-dist_prec
+                        temps_parcours=max(1,int(temps_parcours*dist2/dist1))
+                    else:
+                        temps_parcours=0
+
+            ##pas besoin car ici old_dwell=0 
+            if type_tps_parcours!=3:
+                temps_parcours+=old_dwell 
+            hp=hp+temps_parcours
+            dist=float(stops[start][2])
+            if int(stop) in plan_times[trips[trip_id]]:
+                h_plan=plan_times[trips[trip_id]][int(stop)]
+            else:
+                # print('stop', stop, 'trip', trips[trip_id], 'plan_time',plan_times[trips[trip_id]])
+                h_plan=hp
+            # print(stop, h_plan, hp, dwell, m, d,temps_parcours, l,total)
+            passages[trips[trip_id]].append(Passage(int(stop),h_plan,hp,dwell,m,d,temps_parcours,False,l,dist))
+            old_dwell=dwell
+            prec=stop
+            q=0
+            # for j in range(start+1,min(start+1+horizon, len(stops))):
+            for j in range(start+1,end):
+                # print('iter', q)
+                q+=1
+                l+=1
+                stop=int(stops[j][1])
+
+                #temps parcours 
+                if type_tps_parcours==2 or type_tps_parcours==3:#reel ou planifie
+                    if (prec,stop) in tps[trip_id]:
+                        temps_parcours=tps[trip_id][(prec,stop)]#ce dict est deja remplie avec les infos correspondantes en fonction de type
+                    else:
+                        prec1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if stop2==int(stop)]
+                        if len(prec1)!=0:
+                            prec1=prec1[0][0]#dernier arret ou s'est arrete le bus avant stop dans le cas reel
+                            dist_prec1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec1][0])
+                            dist_prec=float(stops[j-1][2])
+                            dist=float(stops[j][2])
+                            dist1=dist-dist_prec
+                            dist2=dist-dist_prec1
+                            temps_parcours_tmp=tps[trip_id][(prec1,stop)]
+                            temps_parcours=max(1,int(temps_parcours_tmp*dist1/dist2))
+                        else: 
+                            stop1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if prec2==int(prec)]
+                            if len(stop1)!=0:
+                                stop1=stop1[0][1]
+                                dist_stop1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == stop1][0])
+                                dist_stop=float(stops[j][2])
+                                dist_prec=float(stops[j-1][2])
+                                dist1=dist_stop-dist_prec
+                                dist2=dist_stop1-dist_prec
+                                temps_parcours_tmp=tps[trip_id][(prec,stop1)]
+                                temps_parcours=max(1,int(temps_parcours_tmp*dist1/dist2))
+                            else:
+                                indice_tmp=j
+                                while len(prec1)==0 and indice_tmp<len(stops)-1:
+                                    indice_tmp+=1
+                                    stop_tmp=int(stops[indice_tmp][1])
+                                    prec1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if stop2==int(stop_tmp)]
+                                if indice_tmp>=len(stops)-1:#on est au dernier passage
+                                    (C, clusters)=StopClusters[(prec,stop)]
+                                    pairs_stop=pairs[(prec,stop)]
+                                    new_pairs_stop=new_pairs[(prec,stop)]
+                                    ### le temps de parcours prends en compte le dwell a l'arret prec
+                                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,1)
+                                else:
+                                    prec1=prec1[0][0]#premier arret ou s'arrete le bus apres stop dans le cas reel
+                                    dist_prec1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec1][0])
+                                    dist_stop_tmp=float(stops[indice_tmp][2])
+                                    dist=float(stops[j][2])
+                                    dist_prec=float(stops[j-1][2])
+                                    dist1=dist_stop_tmp-dist_prec1
+                                    dist2=dist-dist_prec
+                                    temps_parcours_tmp=tps[trip_id][(prec1,stop_tmp)]
+                                    temps_parcours=max(1,int(temps_parcours_tmp*dist2/dist1))
+                        ### si on a pas la valeur exacte on trouve la valeur proportionnelle par rapport
+                        ### a la distance parcourue
+                else:
+                    (C, clusters)=StopClusters[(prec,stop)]
+                    pairs_stop=pairs[(prec,stop)]
+                    new_pairs_stop=new_pairs[(prec,stop)]
+                    ### le temps de parcours prends en compte le dwell a l'arret prec
+                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
+                    # print(stop,'  ',temps_parcours)
+                if type_tps_parcours!=3:
+                    temps_parcours+=old_dwell 
+                
+                #dwell time
+                if type_dwell==2:#reel 
+                    if int(stop) in dwell_data[trip_id]:
+                        # print('on est la dwell 2')
+                        dwell=dwell_data[trip_id][int(stop)]
+                    else:
+                        dwell=0
+                elif stop in dwells: 
+                    real=len(dwells[stop])
+                    win_dwell=real/all
+                    (C, clusters)=DwellClusters[stop]
+                    dwells_stop=dwells[stop]
+                    new_dwells_stop=new_dwells[stop]
+                    dwell=gen_dwell(C, clusters,dwells_stop, new_dwells_stop, dimension,h_debut,type_dwell,win_dwell,dwell)
+                else: 
+                    dwell=0 #on ne s'arrete pas a l'arret. Pas de SS pour l'instant
+
+                #nombre descendants
+                if type_d==2: #reel
+                    if int(stop) in d_data[trip_id]:
+                        d=d_data[trip_id][int(stop)]
+                        if total-d<0:
+                            if total>0:
+                                d=total-1
+                            else: d=0
+                    else:#the bus did not stop here in real life
+                        d=0
+                elif stop in descendants:
+                    real_d=len([x for x in descendants[stop]])
+                    win=real_d/all
+                    (C, clusters)=Descendants[stop]
+                    descendants_stop=descendants[stop]
+                    new_descendants_stop=new_d[stop]
+                    d=gen_d(C, clusters,descendants_stop, new_descendants_stop, dimension,h_debut,type_d,win)
+                    if total-d<0:
+                        if total>0:
+                            d=total-1
+                        else: d=0
+                else: 
+                    d=0
+                # print('total',total,'d',d,'stop',stop)
+                #nbr montants
+                if type_m==2: #reel
+                    if int(stop) in m_data[trip_id]:
+                        m=m_data[trip_id][int(stop)]
+                    else:#the bus did not stop here in real life
+                        m=0
+                elif stop in montants:
+                    real_m=len([x for x in montants[stop]])
+                    win=real_m/all
+                    (C, clusters)=Montants[stop]
+                    montants_stop=montants[stop]
+                    new_montants_stop=new_m[stop]
+                    m=gen_m(C, clusters,montants_stop, new_montants_stop, dimension,h_debut,type_m,win)
+                else:
+                    m=0
+                
+                # print('total',total)
+                dist=float(stops[j][2])
+                # print(stop, hp, dwell, m, d,temps_parcours, l,total)
+                hp=hp+temps_parcours
+                if int(stop) in plan_times[trips[trip_id]]:
+                    h_plan=plan_times[trips[trip_id]][int(stop)]
+                else:
+                    # print('stop', stop, 'trip', trips[trip_id], 'plan_time',plan_times[trips[trip_id]])
+                    h_plan=hp
+                # print(stop, h_plan, hp, dwell, m, d,temps_parcours, l,total)
+                
+                ### Transferts?
+                tmp_trip_id=copy.deepcopy(trip_id)
+                trip_id=trips[trip_id]
+                maxd=0
+                d=0
+                dreal=False
+                tdreal=False
+                if type_d==2: 
+                    maxd=copy.deepcopy(d)
+                    dreal=True
+                elif type_td==2:
+                    tdreal=True
+                    if (int(stop) in ttime[trip_id]):
+                        for transfer_time in ttime[trip_id][int(stop)]:
+                            if int(stop) in td[trip_id]:
+                                maxd=sum(k for k in  td[trip_id][int(stop)])
+                                # print('on est la maxd')
+                else:
+                    maxd=copy.deepcopy(d)
+                #dans tous les cas ttime represente deja l'heure de passage du bus de transfert comme on souhaite
+                # la modeliser 
+                # NON: if type_ttime==2 or type_ttime==3: #si on a les vrais  temps de transferts
+                if (int(stop) in ttime[trip_id]):
+                    for transfer_time in ttime[trip_id][int(stop)]:
+                        m_tmp=0
+                        d_tmp=0
+                        transfer=False
+                        #transfert descendant
+                        if type_td==2:#real 
+                            if int(stop) in td[trip_id] and len(td[trip_id][int(stop)])>0:
+                                d_tmp=td[trip_id][int(stop)].pop(0)
+                                if maxd-d_tmp<0:#normalement pas besoin de ce test... 
+                                    if dreal: #dreal et tdreal ...pas normal
+                                        if maxd>0:
+                                            d_tmp=maxd
+                                        else: d_tmp=0
+                                    else: 
+                                        # print('on est la bis maxd')
+                                        maxd=maxd+(d_tmp-maxd)
+                                    # else: d=0
+                            #else: d=0#pas de transferts descendants a cet arret 
+                        elif stop in transferts['d']:
+                            real_d=len(transferts['d'][stop])
+                            win_td=real_d/all
+                            (C, clusters)=TDescendants[stop]
+                            tdescendants_stop=transferts['d'][stop]
+                            new_tdescendants_stop=new_td[stop]
+                            d_tmp=gen_td(C, clusters,tdescendants_stop, new_tdescendants_stop, dimension,h_debut,type_td,win_td)
+                            if maxd-d_tmp<0:
+                                if dreal:
+                                    if maxd>0:
+                                        d_tmp=maxd
+                                    else: d_tmp=0
+                                else: 
+                                    maxd=maxd+(d_tmp-maxd)
+                        #Transfert montant
+                        if type_tm==2:#real
+                            if int(stop) in tm[trip_id] and len(tm[trip_id][int(stop)])>0:
+                                m_tmp=tm[trip_id][int(stop)].pop(0)
+                            # else:  m=0
+                        elif stop in transferts['m']:
+                            real_m=len(transferts['m'][stop])
+                            win_tm=real_m/all
+                            transfer=True
+                            (C, clusters)=TMontants[stop]
+                            tmontants_stop=transferts['m'][stop]
+                            new_tmontants_stop=new_tm[stop]
+                            m_tmp=gen_tm(C, clusters,tmontants_stop, new_tmontants_stop, dimension,h_debut,type_tm,win_tm)
+                        if m_tmp>0 or d_tmp>0:
+                            transfer=True
+                        if transfer:
+                            maxd=maxd-d_tmp
+                            passages[trips[tmp_trip_id]].append(Passage(int(stop),transfer_time,transfer_time,10,m_tmp,d_tmp,1800,True,l,dist))
+                tmp_passage_transfer=[p for p in passages[trips[tmp_trip_id]] if get_passage_stop_id(p)==int(stop) and get_passage_transfer(p)==True and get_passage_nb_desc(p)>0]
+                tdtot=sum([get_passage_nb_desc(p) for p in tmp_passage_transfer])
+                if tdtot>d: #probleme !
+                    if dreal: 
+                        # if tdreal:
+                        #     print('il y a un pb on ne devrait pas etre la')
+                        while d-tdtot<0:
+                            trans=np.random.choice(tmp_passage_transfer)
+                            if get_passage_nb_desc(trans)>0:
+                                trans.nb_d-=1
+                                tdtot-=1
+                    else: 
+                        if total-tdtot>=0:
+                            d=tdtot
+                        else: 
+                            maxtd=total
+                            while maxtd-tdtot<0:
+                                trans=np.random.choice(tmp_passage_transfer)
+                                if get_passage_nb_desc(trans)>0:
+                                    trans.nb_d-=1
+                                    tdtot-=1
+                            d=tdtot
+                passages[trips[tmp_trip_id]].append(Passage(int(stop),h_plan,hp,dwell,m,d,temps_parcours,False,l,dist))
+                total=total-d
+                total+=m
+                m=0
+                d=0
+                old_dwell=dwell
+                # time+=temps_parcours
+                prec=stop
+                trip_id=tmp_trip_id
+        i=0
+        return(passages, last)
+
+
+    def get_data(self, route_name :str, dimension =1, affichage=False):
+        k = 3
+        pathtofile = r'C:\Users\kklau\Desktop\Final_Recherche\stl\Data'
+        # Get historical data for the route
+        pairs, frequence, dwells = self.get_route_and_stop_historical_data(route_name, pathtofile=pathtofile)
+        boarding, alighting, transfers_m, transfers_d = self.get_passenger_historical_data(route_name, pathtofile=pathtofile)
+
+        ## Clustering 
+        StopClusters = self.cluster_stops(route_name, pairs, pathtofile = pathtofile)
+        DwellClusters=cluster_dwells(route_name, dwells, pathtofile = pathtofile)
+        Intervalles=cluster_intervalles(route_name, frequence, pathtofile = pathtofile)
+        Montants=cluster_passengers(route_name, k, boarding,'m',pathtofile=pathtofile)
+        Descendants=cluster_passengers(route_name, k, alighting,'d',pathtofile=pathtofile)
+        TMontants=cluster_passengers(route_name, k, transfers_m,'transM',pathtofile=pathtofile)
+        TDescendants=cluster_passengers(route_name, k, transfers_d,'transD',pathtofile=pathtofile)
+        self.Data=(pairs, frequence, dwells, boarding, alighting, transfers_m, transfers_d, StopClusters, DwellClusters, Intervalles, Montants, Descendants, TMontants, TDescendants)
+
+    def get_route_and_stop_historical_data(self, route_name, pathtofile):
+        completename_frequence = os.path.join(pathtofile, route_name + "_frequence_month.csv")
+        alltype=np.dtype([('f0', 'i8'), ('f1' 'i8'), ('f2', 'i8')])
+        frequence=np.genfromtxt(completename_frequence, delimiter=",", dtype=alltype , usecols = [0,1,2])
+        
+        completename_dwells = os.path.join(pathtofile, route_name + "_dwells_month.csv")
+        dwells_dict = self.create_data_dict(completename_dwells, passengers = False)
+        
+        completename_pairs = os.path.join( pathtofile, route_name + "_pairs_month.csv")
+        alltype = np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8'), ('f3', 'i8'), ('f4', 'i8')])
+        pairs = np.genfromtxt(completename_pairs, delimiter = ',', dtype = alltype, usecols = [0,1,2,3,4])
+        pairs_dict = {}
+        headers = list(set([(x[0],x[1]) for x in pairs]))
+        for (o,d) in headers:
+            pairs_dict[(o,d)]=[]
+        for x in pairs: 
+            if x[2]<0: 
+                pairs_dict[(x[0],x[1])].append((-x[2],x[3],x[4]))
+            else: 
+                pairs_dict[(x[0],x[1])].append((x[2],x[3],x[4]))
+        return(pairs_dict, frequence, dwells_dict)
+
+    def get_passenger_historical_data(self, route_name, pathtofile):
+        # Boarding passengers
+        completename_montants = os.path.join(pathtofile, route_name + "_m_month.csv")
+        m_dict = self.create_data_dict(completename_montants)
+
+        # Alighting passengers
+        completename_d = os.path.join(pathtofile, route_name + "_d_month.csv")
+        d_dict = self.create_data_dict(completename_d)
+
+        # Boarding transferring passengers
+        completename_tmontants=os.path.join(pathtofile, route_name + "_tm_month.csv")
+        tm_dict = self.create_data_dict(completename_tmontants)
+
+        # Alighting transferring passengers
+        completename_td=os.path.join(pathtofile, route_name + "_td_month.csv")
+        td_dict = self.create_data_dict(completename_td)
+        return(m_dict, d_dict, tm_dict, td_dict)
+
+    def create_data_dict(self, completename, passengers = True):
+        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8'),('f3','i8')])
+        data = np.genfromtxt(completename, delimiter = ',', dtype = alltype, usecols = [0,1,2,3])
+        data_dict = {}
+        headers = np.unique([x[0] for x in data])
+        for stop in headers:
+            data_dict[stop] = []
+        for row in data: 
+            if row[1] != 0:
+                data_dict[row[0]].append([row[1]],)
+        empty=[]
+        for key in data_dict: 
+            if data_dict[key] == []:
+                empty.append(key)
+        if passengers: 
+            for key in empty:
+                data_dict[key].append(0)
+        else:
+            for key in empty:
+                data_dict.pop(key, None)
+        for key in data_dict:
+            data_dict[key] = np.array(data_dict[key])
+        return(data_dict)
+    
+    def cluster_stops(self, route_name : str,
+                      consecutive_stop_pairs : dict,
+                      pathtofile = r'C:\Users\kklau\Desktop\Final_Recherche\stl\Data'):
+        k = 3
+        completename = os.path.join(pathtofile, 'route_stops_' + route_name + '_month.txt')
+        alltype=np.dtype([('f0','i8'),('f1','i8'),('f2','i8')])
+        stops=np.genfromtxt(completename, delimiter = ',', dtype=alltype, usecols=[0,1,2], names=True)
+        # Names = stop_order, stop_id, dist_cum, count
+        count=0
+        KClusters={}
+        for i in range(len(stops)-1):
+            current_stop_id = stops[i][1]
+            next_stop_id = stops[i+1][1]
+            if (current_stop_id, next_stop_id) in consecutive_stop_pairs:
+                pair = (current_stop_id, next_stop_id)
+                U = consecutive_stop_pairs[pair]
+                (n, m) = U.shape
+                if n<k:
+                    C, clusters=self.kmeans(U, n) # If there are less than k points, we cluster them in n clusters
+                else: 
+                    C, clusters=self.kmeans(U, k)
+                KClusters[pair]=(C, clusters)
+            else:
+                count+=1
+        print('Number of non-existant pairs: ', count)
+        return(KClusters)
+    
+    def kmeans(self, U,k): # U is a matrix with n rows and m columns, m>k. n points, m coordinates.
+        """Performs the k-means algorithm on a set of points U in R^m.
+        Returns the k clusters and the indices of the clusters to which each point belongs.
+        Inputs: 
+            - U: np.array, shape (n,m)
+            - k: int
+        Outputs:
+            - C: np.array, shape (k,m)
+            - clusters: np.array, shape (n,)
+        """
+        (n,m) = U.shape
+        tmp = np.random.choice(range(n), k, replace=False) # Assigns k random points to the centers of the clusters
+        C = np.zeros((k, m)) # k points with m coordinates
+        for i in np.arange(k):
+            C[i] = U[tmp[i]] # C[i] is the center of the i-th cluster
+        C_old = np.zeros(C.shape) # Initialized to zeros and updated at each iteration
+        clusters = np.zeros(n) # n points, each point is assigned to a cluster: cluster[n] = index of the cluster
+        diff = self.dist(C, C_old, None) # Difference between the old and new centers
+        while diff != 0: # Stops when the centers do not change anymore
+            for i in range(n):
+                distances = np.zeros(k)
+                for j in range(k):
+                    distances[j] = self.dist(U[i], C[j], None) # distance between U[i] and each center of cluster, distances has k values
+                clusters[i] = np.argmin(distances) # assigns the point U[i] to the closest center
+            C_old = copy.deepcopy(C) # updates the old centers
+            for i in range(k):
+                points = [U[j] for j in range(n) if clusters[j] == i]
+                if len(points) > 0:
+                    C[i] = np.mean(points, axis = 0) # updates the center of the cluster
+            diff = self.dist(C, C_old, None)
+        return(C, clusters)
+
+    def dist(self, a, b, ax=1):
+        """Calculates the distance between two points in a space of dimension ax."""
+        return np.linalg.norm(a - b, axis=ax)
+    

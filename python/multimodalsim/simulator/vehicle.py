@@ -37,12 +37,14 @@ class Vehicle(object):
         status: int
             Represents the different status of the vehicle
             (VehicleStatus(Enum)).
+        route_name: str 
+            Route name for the vehicle (line id + direction, example: 33S)
     """
 
     MAX_TIME = 7*24*3600
 
     def __init__(self, veh_id, start_time, start_stop, capacity, release_time,
-                 end_time=None, mode=None, reusable=False):
+                 end_time=None, mode=None, reusable=False, route_name=None):
         self.__id = veh_id
         self.__start_time = start_time
         self.__end_time = end_time if end_time is not None else self.MAX_TIME
@@ -54,6 +56,7 @@ class Vehicle(object):
         self.__position = None
         self.__polylines = None
         self.__state_machine = state_machine.VehicleStateMachine(self)
+        self.__route_name = route_name
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -117,6 +120,10 @@ class Vehicle(object):
     @property
     def state_machine(self):
         return self.__state_machine
+    
+    @property
+    def route_name(self):
+        return self.__route_name
 
     def __deepcopy__(self, memo):
         cls = self.__class__

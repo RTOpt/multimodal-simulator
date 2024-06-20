@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import logging
 import numpy as np
+from operator import itemgetter
 
 from multimodalsim.config.gtfs_generator_config import GTFSGeneratorConfig
 
@@ -254,18 +255,24 @@ class GTFSGenerator:
             stop_id_index = header_split.index("stop_id")
             arrival_time_index = header_split.index("arrival_time")
             departure_time_index = header_split.index("departure_time")
+            sequence_index = header_split.index("stop_sequence")
             shape_dist_traveled_index = header_split.index("shape_dist_traveled")
             planned_arrival_time_index = header_split.index("planned_arrival_time")
             planned_departure_time_from_origin_index = header_split.index("planned_departure_time_from_origin")
             #Real all remaining lines
             lines = file.readlines()
-            ligne_direction = -1
+            prev_trip_id = -1
+            all_stops = []
+            i=0
             for line in lines:
                 line_split = line.strip().split(",")
                 trip_id = line_split[trip_id_index]
                 stop_id = int(str(line_split[stop_id_index]))
-                if ligne_direction != trips_per_line_dict[trip_id]:
-                    logger.info("Start filling missing stops for trip "+trip_id)
+                if trip_id != prev_trip_id:
+                    if i < len(all_stops)-1:
+                        number_of_missing_stops = len(all_stops) - (i+1)
+                        logger.warning("Trip "+trip_id+" did not stop at all stops in the line. "+str(number_of_missing_stops)+" stops are missing.")
+                    prev_trip_id = trip_id
                     ligne_direction = trips_per_line_dict[trip_id]
                     all_stops = stops_per_line_dict[ligne_direction]
                     i = 0
@@ -275,20 +282,23 @@ class GTFSGenerator:
                     time_plan_prev = int(float(line_split[planned_departure_time_from_origin_index]))
                     stop_sequence = 1
                     depart_plan_from_origin = int(line_split[planned_departure_time_from_origin_index])
+                    # logger.info("Start filling missing stops for trip "+trip_id+" on line "+ligne_direction)
                 travel_distance = float(line_split[shape_dist_traveled_index]) - dist_prev
                 travel_time = int(line_split[arrival_time_index]) - time_prev
                 planned_travel_time = int(line_split[planned_arrival_time_index]) - time_plan_prev
+                # print("Stop id ", stop_id, "and first remaining stop ", int(str(stop[0])))
                 while stop_id != int(str(stop[0])): ### bus did not stop at all stops in the line, we add them artificially
-                    add_stop_dist = stop[1]
-                    add_stop_travel_time = travel_time * (add_stop_dist - dist_prev) / travel_distance
+                    add_stop_dist = stop[2]
+                    add_stop_travel_time = int(travel_time * (add_stop_dist - dist_prev) / travel_distance)
                     add_stop_arrival_time = time_prev + add_stop_travel_time
                     add_stop_departure_time = add_stop_arrival_time
-                    add_stop_planned_travel_time = planned_travel_time * (add_stop_dist - dist_prev) / travel_distance
+                    add_stop_planned_travel_time = int(planned_travel_time * (add_stop_dist - dist_prev) / travel_distance)
                     add_stop_planned_arrival_time = time_plan_prev + add_stop_planned_travel_time
                     
                     # Add new stop to the list
-                    new_line =[trip_id, add_stop_arrival_time, add_stop_departure_time, stop_id, stop_sequence, 0, 0, add_stop_dist, add_stop_planned_arrival_time, depart_plan_from_origin] 
+                    new_line =[str(trip_id), str(add_stop_arrival_time), str(add_stop_departure_time), str(stop[0]), str(stop_sequence), str(0), str(0), str(add_stop_dist), str(add_stop_planned_arrival_time), str(depart_plan_from_origin)] 
                     new_lines.append(new_line)
+                    # print('New stop added: ', new_line)
 
                     # Update variables
                     dist_prev = add_stop_dist
@@ -299,19 +309,21 @@ class GTFSGenerator:
                         i += 1
                         stop = all_stops[i]
                     else:
+                        input('On ne devrait jamais etre la...')
                         break
                 # Add line to the list
+                # print('Caught up with the real instance stop')
                 new_line = [trip_id, line_split[arrival_time_index], int(line_split[departure_time_index]), stop_id, stop_sequence, 0, 0, line_split[shape_dist_traveled_index], line_split[planned_arrival_time_index], line_split[planned_departure_time_from_origin_index]]
                 new_lines.append(line_split)
+                # print('Real stop added: ', new_line)
                 # Update variables
                 dist_prev = float(line_split[shape_dist_traveled_index])
                 time_prev = int(line_split[arrival_time_index])
                 time_plan_prev = int(line_split[planned_arrival_time_index])
                 stop_sequence += 1
-                i += 1
-                if i < len(all_stops):
-                    number_of_missing_stops = len(all_stops) - i
-                    logger.warning("Trip "+trip_id+" did not stop at all stops in the line. "+str(number_of_missing_stops)+" stops are missing.")        
+                if i<len(all_stops) - 1:
+                    i += 1
+                    stop = all_stops[i]
 
         # Save the new stop_times file
         with open(stop_times_file_path, 'w') as file:
@@ -345,38 +357,47 @@ class GTFSGenerator:
             #Real all remaining lines
             lines=file.readlines()
             for line in lines:
-                line_split=line.strip().split(",")
-                trip_id=line_split[trip_id_index]
-                ligne_direction=line_split[ligne_direction_index]
-                trips_per_line_dict[trip_id]=ligne_direction
+                line_split = line.strip().split(",")
+                trip_id = line_split[trip_id_index]
+                ligne_direction = line_split[ligne_direction_index]
+                trips_per_line_dict[trip_id] = ligne_direction
         with open(stop_times_file_path, 'r') as file:
             #Read the header
-            header=file.readline()
+            header = file.readline()
             #Find at which position the trip_id is
-            header_split=header.strip().split(",")
-            trip_id_index=header_split.index("trip_id")
-            stop_shape_dist_traveled_index=header_split.index("shape_dist_traveled")
-            stop_id_index=header_split.index("stop_id")
+            header_split = header.strip().split(",")
+            trip_id_index = header_split.index("trip_id")
+            sequence_index = header_split.index("stop_sequence")
+            stop_shape_dist_traveled_index = header_split.index("shape_dist_traveled")
+            stop_id_index = header_split.index("stop_id")
             #Real all remaining lines
             lines=file.readlines()
             for line in lines:
-                line_split=line.strip().split(",")
-                trip_id=line_split[trip_id_index]
-                stop_shape_dist_traveled=float(line_split[stop_shape_dist_traveled_index])
-                stop_id=line_split[stop_id_index]
-                ligne_direction=trips_per_line_dict[trip_id]
+                line_split = line.strip().split(",")
+                trip_id = line_split[trip_id_index]
+                sequence = int(line_split[sequence_index])
+                stop_shape_dist_traveled = float(line_split[stop_shape_dist_traveled_index])
+                stop_id = int(line_split[stop_id_index])
+                ligne_direction = trips_per_line_dict[trip_id]
                 if ligne_direction not in stops_per_line_dict:
                     stops_per_line_dict[ligne_direction]=[]
-                if stop_id not in [stop[0] for stop in stops_per_line_dict[ligne_direction]]:
-                    stops_per_line_dict[ligne_direction].append((stop_id, stop_shape_dist_traveled))
+                stops_per_line_dict[ligne_direction].append((stop_id, sequence, stop_shape_dist_traveled))
         for ligne_direction in stops_per_line_dict:
-            stops_per_line_dict[ligne_direction].sort(key=lambda x: x[1])
+            #Sort by sequence and shape_dist_traveled
+            stops_per_line_dict[ligne_direction] = sorted(stops_per_line_dict[ligne_direction], key=itemgetter(1, 2))
+            #Keep only one row per stop (the one with the lowest shape_dist_traveled)
+            stop_dict = {}
+            for stop_id, stop_sequence, distance in stops_per_line_dict[ligne_direction]:
+                if stop_id not in stop_dict: #already sorted so no need to verify the sequence and distance
+                    stop_dict[stop_id] = (stop_sequence, distance)
+            stops_per_line_dict[ligne_direction] = sorted([(stop_id, seq, dist) for stop_id, (seq, dist) in stop_dict.items()], key = itemgetter(1,2))
+
         stops_per_line_filepath = os.path.join(date_folder, "stops_per_line.txt")
         with open(stops_per_line_filepath, 'w') as file:
-            file.write("route_id,stop_id,shape_dist_traveled\n")
+            file.write("route_id,stop_id,sequence,distance\n")
             for ligne_direction in stops_per_line_dict:
                 for stop in stops_per_line_dict[ligne_direction]:
-                    file.write(ligne_direction+","+stop[0]+","+str(stop[1])+"\n")
+                    file.write(ligne_direction+","+str(stop[0])+","+str(stop[1])+","+str(stop[2])+"\n")
         return stops_per_line_dict, trips_per_line_dict
     
     def __load_config(self, config):
@@ -685,10 +706,10 @@ class GTFSGenerator:
     
     def __sort_stop_times(self, stop_times_df):
         #Remove the trips that have only one stop (one line for the whole trip)
-        trip_id_grouped = self.__stop_times_df.groupby("trip_id")
+        trip_id_grouped = stop_times_df.groupby("trip_id")
         trip_id_count = trip_id_grouped.size()
         trip_id_one_stop = trip_id_count[trip_id_count == 1].index
-        stop_times_df = self.__stop_times_df[~self.__stop_times_df["trip_id"].isin(trip_id_one_stop)]
+        stop_times_df = stop_times_df[~stop_times_df["trip_id"].isin(trip_id_one_stop)]
 
         #Sort the stop_times by date, planned_departure_time_from_origin and stop_sequence
         colums_to_sort = [self.__date_col, "planned_departure_time_from_origin", "stop_sequence"]

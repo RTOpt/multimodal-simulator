@@ -54,6 +54,11 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     dispatcher = FixedLineDispatcher(ss = ss,
                                      sp = sp,
                                      algo = algo)
+    route_names = [vehicle.route_name for vehicle in vehicles]
+    Data = {}
+    for route_name in route_names: 
+        Data[route_name] = dispatcher.get_data(pathtofile =, route_name=route_name)
+        
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 
     # Initialize the observer.

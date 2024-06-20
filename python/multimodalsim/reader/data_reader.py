@@ -455,7 +455,7 @@ class GTFSReader(DataReader):
             if self.__route_mode_dict is not None else None
 
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
-                          self.__CAPACITY, release_time, end_time, mode)
+                          self.__CAPACITY, release_time, end_time, mode, route_name=route_id)
 
         return vehicle, next_stops
 
