@@ -221,7 +221,7 @@ with open(cap_file_path_generated, 'r') as file:
     departure_time_at_origin_index=header_split.index("S_H_DEP_REEL28")
     shape_dist_traveled_at_origin_index=header_split.index("L_DISTCUMULKM")
     planned_arrival_time_at_origin_index=header_split.index("S_H_ARR_PLANIF28")
-    planned_departure_time_from_origin_index=header_split.index("DEPART28_BOOKING")
+    planned_departure_time_from_origin_index=header_split.index("S_DEPART28")
 
     destination_stop_id_index=header_split.index("D_CHRONOBUS_DESC")
     destination_stop_name_index=header_split.index("D_CHRONOBUS_DESCRIPTION_DESC")
@@ -287,7 +287,7 @@ for trip_id in stop_times_dict:
             sequence = prev[0]+1
         elif sequence == prev[0]:
             sequence+=1
-        stop_times[i][3] = str(sequence)
+        stop_times[i][3] = sequence
         prev[0]=sequence
         planned_arrival_time = int(float(stop_times[i][5]))
         if planned_arrival_time == -1:
@@ -306,6 +306,7 @@ for trip_id in stop_times_dict:
                 planned_arrival_time = int(stop_times[i-1][5])
         stop_times[i][5] = str(planned_arrival_time)
         prev[1] = planned_arrival_time
+    stop_times = sorted(stop_times, key=itemgetter(6, 3))
     stop_times_dict[trip_id] = stop_times
 
 #Rewrite the stop_times file

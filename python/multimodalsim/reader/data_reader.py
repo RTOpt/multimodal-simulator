@@ -579,10 +579,10 @@ class GTFSReader(DataReader):
             self.arrival_time = int(arrival_time)
             self.departure_time = int(departure_time)
             self.stop_id = stop_id
-            self.stop_sequence = stop_sequence
+            self.stop_sequence = int(stop_sequence)
             self.pickup_type = pickup_type
             self.drop_off_type = drop_off_type
-            self.shape_dist_traveled = shape_dist_traveled
-            self.planned_arrival_time = planned_arrival_time
+            self.shape_dist_traveled = float(shape_dist_traveled)
+            self.planned_arrival_time = int(planned_arrival_time)
             self.planned_departure_time_from_origin = \
-                planned_departure_time_from_origin
+                int(float(planned_departure_time_from_origin))

@@ -33,22 +33,22 @@ if __name__ == '__main__':
     # logger.info("Done importing GTFS files")
 
     #Split large .csv file into daily files (do once)
-    logger.info("Split large .csv file into daily files")
-    passage_arret_df = pd.read_csv(r"D:\donnees\Donnees_PASSAGE_ARRET_VLV_2019-11-01_2019-11-30.csv", delimiter = ',')
-    new_cap_folder = cap_filepath=os.path.join("D:","donnees","New donnees")
-    dates_list = passage_arret_df['AC_DT_TRAITEE'].unique()
-    for date in dates_list:
-        trips_day_df = passage_arret_df[
-            passage_arret_df['AC_DT_TRAITEE'] == date].drop('AC_DT_TRAITEE', axis=1)
-        cap_filename = date.split(" ")[0].replace("-", "") + ".csv"
-        trips_day_df.to_csv(os.path.join(new_cap_folder, cap_filename), index=None, sep = ';')
+    # logger.info("Split large .csv file into daily files")
+    # passage_arret_df = pd.read_csv(r"D:\donnees\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30.csv", delimiter = ',')
+    # new_cap_folder = cap_filepath=os.path.join("D:","donnees","New donnees")
+    # dates_list = passage_arret_df['DATE28'].unique()
+    # for date in dates_list:
+    #     trips_day_df = passage_arret_df[
+    #         passage_arret_df['DATE28'] == date].drop('DATE28', axis=1)
+    #     cap_filename = date.split(" ")[0].replace("-", "") + ".csv"
+    #     trips_day_df.to_csv(os.path.join(new_cap_folder, cap_filename), index=None, sep = ';')
     
             
     #Extract available connections from CAP Data (do once)
     logging.getLogger().setLevel(logging.DEBUG)
     for dateshort in ["20191101","20191102","20191103","20191104","20191105","20191106","20191107","20191108","20191109","20191110","20191111","20191112","20191113","20191114","20191115","20191116","20191117","20191118","20191119","20191120","20191121","20191122","20191123","20191124","20191125","20191126","20191127","20191128","20191129","20191130"]:
-        logger.info("Date: "+dateshort)
-        cap_filepath=os.path.join("D:","donnees","New donnees",dateshort+".csv")
+        logger.info("Date: " + dateshort)
+        cap_filepath=os.path.join("D:", "donnees", "New donnees", dateshort + ".csv")
         date=dateshort[0:4]+"-"+dateshort[4:6]+"-"+dateshort[6:8]
         date_folder=os.path.join("data", "fixed_line", "gtfs", "gtfs"+date)
         stop_times_filepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"stop_times.txt")

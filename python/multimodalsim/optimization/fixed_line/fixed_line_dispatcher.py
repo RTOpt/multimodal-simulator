@@ -1485,29 +1485,58 @@ class FixedLineDispatcher(Dispatcher):
         i=0
         return(passages, last)
 
-
-    def get_data(self, route_name :str, dimension =1, affichage=False):
-        k = 3
+    def get_and_cluster_data(self, route_name :str):
+        """
+        Get historical data for a route and cluster it.
+        Inputs:
+            route_name: name of the route
+        Outputs:
+            stop_to_stop_pairs: dictionary of stop-to-stop pairs
+            headways_between_buses: headways between buses
+            dwells: dwell times at stops
+            boarding: number boarding passengers at stops
+            alighting: number of alighting passengers at stops
+            transfers_boarding: number of boarding transferring passengers at stops
+            transfers_alighting: number of alighting transferring passengers at stops
+            TravelTimeClusters: clusters of travel times between stops
+            DwellClusters: clusters of dwell times at stops
+            Headways: clusters of headways between buses
+            Boarding: clusters of boarding passengers at stops
+            Alighting: clusters of alighting passengers at stops
+            TBoarding: clusters of boarding transferring passengers at stops
+            TAlighting: clusters of alighting transferring passengers at stops
+        """
         pathtofile = r'C:\Users\kklau\Desktop\Final_Recherche\stl\Data'
-        # Get historical data for the route
-        pairs, frequence, dwells = self.get_route_and_stop_historical_data(route_name, pathtofile=pathtofile)
-        boarding, alighting, transfers_m, transfers_d = self.get_passenger_historical_data(route_name, pathtofile=pathtofile)
 
-        ## Clustering 
-        StopClusters = self.cluster_stops(route_name, pairs, pathtofile = pathtofile)
-        DwellClusters=cluster_dwells(route_name, dwells, pathtofile = pathtofile)
-        Intervalles=cluster_intervalles(route_name, frequence, pathtofile = pathtofile)
-        Montants=cluster_passengers(route_name, k, boarding,'m',pathtofile=pathtofile)
-        Descendants=cluster_passengers(route_name, k, alighting,'d',pathtofile=pathtofile)
-        TMontants=cluster_passengers(route_name, k, transfers_m,'transM',pathtofile=pathtofile)
-        TDescendants=cluster_passengers(route_name, k, transfers_d,'transD',pathtofile=pathtofile)
-        self.Data=(pairs, frequence, dwells, boarding, alighting, transfers_m, transfers_d, StopClusters, DwellClusters, Intervalles, Montants, Descendants, TMontants, TDescendants)
+        # Get historical data for the route
+        stop_to_stop_pairs, headways_between_buses, dwells = self.get_route_and_stop_historical_data(route_name, pathtofile=pathtofile)
+        boarding, alighting, transfers_boarding, transfers_alighting = self.get_passenger_historical_data(route_name, pathtofile=pathtofile)
+
+        # Get stop data
+        completename = os.path.join(pathtofile, 'route_stops_' + route_name + '_month.txt')
+        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8')])
+        stops = np.genfromtxt(completename, delimiter=',', dtype=alltype, usecols = [0,1,2], names=True)
+
+        # Cluster historical data
+        Headways = self.cluster_bus_headways(headways_between_buses)
+        TravelTimes = self.cluster_travel_times_between_stops(stops, stop_to_stop_pairs)
+        Dwells = self.cluster_data_at_stops(stops, dwells)
+        Boarding = self.cluster_data_at_stops(stops, boarding)
+        Alighting = self.cluster_data_at_stops(stops, alighting)
+        TBoarding = self.cluster_data_at_stops(stops, transfers_boarding)
+        TAlighting = self.cluster_data_at_stops(stops, transfers_alighting)
+
+        return stop_to_stop_pairs, headways_between_buses, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Headways, Boarding, Alighting, TBoarding, TAlighting
 
     def get_route_and_stop_historical_data(self, route_name, pathtofile):
         completename_frequence = os.path.join(pathtofile, route_name + "_frequence_month.csv")
-        alltype=np.dtype([('f0', 'i8'), ('f1' 'i8'), ('f2', 'i8')])
+        alltype=np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8')])
         frequence=np.genfromtxt(completename_frequence, delimiter=",", dtype=alltype , usecols = [0,1,2])
-        
+        new_frequence=[]
+        for intervalle in frequence:
+            new_frequence.append([intervalle[1]],)
+        new_frequence=np.array(new_frequence)
+
         completename_dwells = os.path.join(pathtofile, route_name + "_dwells_month.csv")
         dwells_dict = self.create_data_dict(completename_dwells, passengers = False)
         
@@ -1518,12 +1547,14 @@ class FixedLineDispatcher(Dispatcher):
         headers = list(set([(x[0],x[1]) for x in pairs]))
         for (o,d) in headers:
             pairs_dict[(o,d)]=[]
-        for x in pairs: 
+        for x in pairs:
             if x[2]<0: 
-                pairs_dict[(x[0],x[1])].append((-x[2],x[3],x[4]))
+                pairs_dict[(x[0],x[1])].append([-x[2]],)
             else: 
-                pairs_dict[(x[0],x[1])].append((x[2],x[3],x[4]))
-        return(pairs_dict, frequence, dwells_dict)
+                pairs_dict[(x[0],x[1])].append([x[2]],)
+        for key in pairs_dict:
+            pairs_dict[key] = np.array(pairs_dict[key])
+        return(pairs_dict, new_frequence, dwells_dict)
 
     def get_passenger_historical_data(self, route_name, pathtofile):
         # Boarding passengers
@@ -1559,7 +1590,7 @@ class FixedLineDispatcher(Dispatcher):
                 empty.append(key)
         if passengers: 
             for key in empty:
-                data_dict[key].append(0)
+                data_dict[key].append([0],)
         else:
             for key in empty:
                 data_dict.pop(key, None)
@@ -1567,14 +1598,9 @@ class FixedLineDispatcher(Dispatcher):
             data_dict[key] = np.array(data_dict[key])
         return(data_dict)
     
-    def cluster_stops(self, route_name : str,
-                      consecutive_stop_pairs : dict,
-                      pathtofile = r'C:\Users\kklau\Desktop\Final_Recherche\stl\Data'):
-        k = 3
-        completename = os.path.join(pathtofile, 'route_stops_' + route_name + '_month.txt')
-        alltype=np.dtype([('f0','i8'),('f1','i8'),('f2','i8')])
-        stops=np.genfromtxt(completename, delimiter = ',', dtype=alltype, usecols=[0,1,2], names=True)
-        # Names = stop_order, stop_id, dist_cum, count
+    def cluster_travel_times_between_stops(self,
+                                           stops : np.array,
+                                           consecutive_stop_pairs : dict):
         count=0
         KClusters={}
         for i in range(len(stops)-1):
@@ -1582,18 +1608,50 @@ class FixedLineDispatcher(Dispatcher):
             next_stop_id = stops[i+1][1]
             if (current_stop_id, next_stop_id) in consecutive_stop_pairs:
                 pair = (current_stop_id, next_stop_id)
-                U = consecutive_stop_pairs[pair]
-                (n, m) = U.shape
-                if n<k:
-                    C, clusters=self.kmeans(U, n) # If there are less than k points, we cluster them in n clusters
-                else: 
-                    C, clusters=self.kmeans(U, k)
-                KClusters[pair]=(C, clusters)
+                KClusters[pair]=self.cluster_data(consecutive_stop_pairs[pair])
             else:
                 count+=1
         print('Number of non-existant pairs: ', count)
         return(KClusters)
     
+    def cluster_data_at_stops(self,
+                              stops : np.array,
+                              data_at_stops : dict):
+        count = 0
+        KClusters={}
+        for x in stops:
+            stop=x[1]
+            if stop in data_at_stops:
+                KClusters[stop] = self.cluster_data(data_at_stops[stop])
+            else:
+                count+=1
+        return(KClusters)
+    
+    def cluster_bus_headways(self, headways_between_buses : dict):
+        KClusters={}
+        U = headways_between_buses
+        k = 3
+        (n,m) = U.shape
+        C, clusters = self.kmeans(U, k)
+        KClusters = (C, clusters)
+        return(KClusters)
+    
+    def cluster_data(self, U):
+        """ Clusters the data in U using the k-means algorithm.
+        Inputs:
+            - U: np.array, shape (n,m)
+        Outputs:
+            - C: np.array, shape (k,m)
+            - clusters: np.array, shape (n,)
+        """
+        k=3 # Number of clusters
+        (n,m)=U.shape
+        if n<k:
+            C, clusters = self.kmeans(U, n) # If there are less than k points, we cluster them in n clusters
+        else: 
+            C, clusters = self.kmeans(U, k)
+        return (C, clusters)
+
     def kmeans(self, U,k): # U is a matrix with n rows and m columns, m>k. n points, m coordinates.
         """Performs the k-means algorithm on a set of points U in R^m.
         Returns the k clusters and the indices of the clusters to which each point belongs.
