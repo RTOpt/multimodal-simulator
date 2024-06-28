@@ -6,7 +6,7 @@ from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatche
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop, LabelLocation
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.simulator.request import Leg
-from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, GraphConstructorWithTactics
+from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, build_graph_with_tactics, convert_graph
 
 import geopy.distance
 import random 
@@ -728,16 +728,16 @@ class FixedLineDispatcher(Dispatcher):
                                                                     )
                     
                     # Step b: Create graph from generated instance
-                    G_gen = GraphConstructorWithTactics(bus_trips=bus_trips,
-                                                        transfers = transfers,
-                                                        last_departure_times = last_departure_times,
-                                                        initial_flows = initial_flows,
-                                                        time_step = self.general_parameters["pas"],
-                                                        price = self.general_parameters["price"],
-                                                        speedup_gen = self.speedup_factor,
-                                                        ss_gen = self.skip_stop,
-                                                        simu = True,
-                                                        last_stop = int(last_stop.location.label if last_stop != -1 else -1))
+                    G_gen = build_graph_with_tactics(bus_trips=bus_trips,
+                                                    transfers = transfers,
+                                                    last_departure_times = last_departure_times,
+                                                    initial_flows = initial_flows,
+                                                    time_step = self.general_parameters["pas"],
+                                                    price = self.general_parameters["price"],
+                                                    speedup_gen = self.speedup_factor,
+                                                    ss_gen = self.skip_stop,
+                                                    simu = True,
+                                                    last_stop = int(last_stop.location.label if last_stop != -1 else -1))
                     # Step c: Get Data on optimization results
                     prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
                     prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
@@ -1627,57 +1627,3 @@ class FixedLineDispatcher(Dispatcher):
         time_max, hold, speedup, ss = get_opt_gen_data(bus_flows, stop_id, trip_id)
         return(time_max, hold, speedup, ss, bus_flows, opt_val, runtime)
     
-    def convert_graph(G):
-        """Converts the graph G into a format that can be used by the optimization solver.
-        Inputs:
-            - G: Graph, the graph to convert
-        Outputs:
-         - Vnewset: set, the set of new vertices
-         """
-        V = G.get_nodes()
-        A = G.get_edges()
-        s = G.get_source()
-        t = G.get_target()
-
-        #create new vertices
-        Vnew={}
-        flows={}
-        i=0
-        ids={}
-        node_dict={}
-        edge_dict={}
-        bus={}
-        sources={}
-        puits={}
-        puits['t']={}
-        puits['n']={}
-        for v in V: 
-            Vnew[v] = i
-            node_dict[i] = v
-            stop_id = v.get_node_id()
-            ids[i] = stop_id
-            bus[i] = v.get_node_bus()
-            if stop_id==0 and v.get_node_bus() !=- 1:
-                sources[v.get_node_bus()]=v.get_node_time()
-            if v.get_node_type() == 'puit' and v.get_node_arrival_departure()=='a': #target node for non-transfer passengers
-                if v.get_node_bus() not in puits['n']:
-                    puits['n'][v.get_node_bus()]=[]
-                puits['n'][v.get_node_bus()].append(i)]
-            if v.get_node_type()=='transfer' and v.get_node_flow()<0: # node with alighting transfer passengers, called 'transfer target nodes'
-                if v.get_node_bus() not in puits['t']:
-                    puits['t'][v.get_node_bus()]=[]
-                puits['t'][v.get_node_bus()].append(i)
-            if v != t:
-                flows[i]=v.get_node_flow()
-            i+=1
-        Anew = set()
-        for edge in A:
-            u = edge.get_origin()
-            v = edge.get_destination()
-            j = edge.get_weight()
-            edge_dict[(u, v, j)] = edge
-            Anew.add((Vnew[u], Vnew[v], j))
-        snew = Vnew[s]
-        tnew = Vnew[t]
-        Vnewset = set([Vnew[v] for v in V])
-        return(Vnewset, Anew, snew, tnew, flows, ids, node_dict, edge_dict, bus, Vnew, sources, puits)

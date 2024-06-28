@@ -256,17 +256,17 @@ class Graph:
                 edge = Graph_Edge(origin, dest, weight, sp=sp, ss=ss)
                 self.edges.append(edge)
 
-def GraphConstructorWithTactics(bus_trips: dict, 
-                                transfers: dict,
-                                prev_times: dict,
-                                initial_flows: dict,
-                                time_step = 20,
-                                price = 3600,
-                                speedup_gen = 1,
-                                ss_gen = False,
-                                od_dict = {},
-                                simu=False,
-                                last_stop = 0):
+def build_graph_with_tactics(bus_trips: dict, 
+                            transfers: dict,
+                            prev_times: dict,
+                            initial_flows: dict,
+                            time_step = 20,
+                            price = 3600,
+                            speedup_gen = 1,
+                            ss_gen = False,
+                            od_dict = {},
+                            simu=False,
+                            last_stop = 0):
     """
     This function takes as input the data on two consecutive bus trips on the same line and returns a graph on which a flow optimization must be performed.
     Inputs: 
@@ -611,6 +611,124 @@ def GraphConstructorWithTactics(bus_trips: dict,
             ss_gen=False
             speedup_gen=1
     return(G)
+
+def convert_graph(G):
+        """Converts the graph G into a format that can be used by the optimization solver.
+        Inputs:
+            - G: Graph, the graph to convert
+        Outputs:
+         - Vnewset: set, the set of new vertices
+         """
+        V = G.get_nodes()
+        A = G.get_edges()
+        s = G.get_source()
+        t = G.get_target()
+
+        #create new vertices
+        Vnew = {}
+        flows = {}
+        i = 0
+        ids = {}
+        node_dict = {}
+        edge_dict = {}
+        bus = {}
+        sources = {}
+        puits = {}
+        puits['t'] = {}
+        puits['n'] = {}
+        for v in V: 
+            Vnew[v] = i
+            node_dict[i] = v
+            stop_id = v.get_node_id()
+            ids[i] = stop_id
+            bus[i] = v.get_node_bus()
+            if stop_id == 0 and v.get_node_bus() !=- 1:
+                sources[v.get_node_bus()] = v.get_node_time()
+            if v.get_node_type() == 'puit' and v.get_node_arrival_departure()=='a': #target node for non-transfer passengers
+                if v.get_node_bus() not in puits['n']:
+                    puits['n'][v.get_node_bus()] = []
+                puits['n'][v.get_node_bus()].append(i)
+            if v.get_node_type() == 'transfer' and v.get_node_flow() < 0: # node with alighting transfer passengers, called 'transfer target nodes'
+                if v.get_node_bus() not in puits['t']:
+                    puits['t'][v.get_node_bus()] = []
+                puits['t'][v.get_node_bus()].append(i)
+            if v != t:
+                flows[i] = v.get_node_flow()
+            i+=1
+        Anew = set()
+        for edge in A:
+            u = edge.get_origin()
+            v = edge.get_destination()
+            j = edge.get_weight()
+            edge_dict[(u, v, j)] = edge
+            Anew.add((Vnew[u], Vnew[v], j))
+        snew = Vnew[s]
+        tnew = Vnew[t]
+        Vnewset = set([Vnew[v] for v in V])
+        return(Vnewset, Anew, snew, tnew, flows, ids, node_dict, edge_dict, bus, Vnew, sources, puits)
+
+def build_and_solve_model_from_graph(V, A, s, t, flows, ids, node_dict, edge_dict, name, 
+                                     bus=False,
+                                     verbose=True,
+                                     prix_hors_bus=1,
+                                     savepath='graphesMIP',
+                                     keys={},
+                                     sources={},
+                                     puits={},
+                                     extras={}):
+
+    """ Solveur
+    Entrees: 
+    V ensemble de noeuds simples
+    A arcs simples
+    source du graphe
+    t puit du graphe
+    flows flots exogenes
+    ids 
+
+    Sorties: 
+    valeur de la fonction objectif pour la solution optimale
+    flots sur l'ensemble des arcs
+    A ensemble des arcs
+    """
+    # print(name)
+    m = OptModelFromGraph_mip(V, A, s, t, flows, ids, name, bus, 
+                              savepath=savepath,
+                              prix_hors_bus=prix_hors_bus,
+                              keys=keys,
+                              sources=sources,
+                              puits=puits,
+                              extras=extras)
+    m.store_search_progress_log = False
+
+    #Solve
+    runtime=timeit.default_timer()
+    m.optimize() 
+    runtime=timeit.default_timer()-runtime
+    # gap=m.gap
+    # print('Optimality GAP=',gap)
+
+    #Get results 
+    flow={}
+    bus_flows={}
+    display_flows={}
+    for (u1,v1,i) in A:
+        x=m.vars['x({},{},{})'.format(u1,v1,i)]
+        y=m.vars['y({},{},{})'.format(u1,v1,i)]
+        u=node_dict[u1]
+        v=node_dict[v1]
+        unew=(str)(u.get_node_id())+' '+u.get_node_arrival_departure()+' '+u.get_node_type()+' '+(str)(u.get_node_time())
+        vnew=(str)(v.get_node_id())+' '+v.get_node_arrival_departure()+' '+v.get_node_type()+' '+(str)(v.get_node_time())
+        display_flows[edge_dict[(u,v,i)]]=(int)(x.x)
+        flow[(unew,vnew,i)]=(int)(x.x)
+        bus_flows[edge_dict[(u,v,i)]]=(int)(y.x)
+    opt_val=m.objective_value
+    if verbose: 
+        print("Noeuds: ",len(V)+1)
+        print("Arcs: ", len(A))
+        print("valeur optimale: ",opt_val)
+        print("flots:", flow)
+    return(opt_val, flow,display_flows,bus_flows, runtime)
 
 def build_noopt_multiple_buses_hash(passages_multiple: dict, flot_initial:int,pas=20,price=3600,od_dict={}):
     """
