@@ -6,7 +6,7 @@ from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatche
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop, LabelLocation
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.simulator.request import Leg
-from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, build_graph_with_tactics, convert_graph
+from multimodalsim.optimization.fixed_line.graph_constructor import *
 
 import geopy.distance
 import random 
@@ -1623,7 +1623,14 @@ class FixedLineDispatcher(Dispatcher):
             - opt_val: int, the value of the objective function when using the optimal tactic
             - runtime: int, the runtime of the optimization"""
         V, A, s, t, flows, ids, node_dict, edge_dict, bus, Vdict, sources, puits = convert_graph(G_generated)
-        opt_val, flow, display_flows, bus_flows, runtime = Solveur_flot_mip(V, A, s, t, flows, ids ,node_dict, edge_dict, "Gen"+str(stop_id), bus,verbose=False, prix_hors_bus=1, keys={}, sources={}, puits={})
+        opt_val, flow, display_flows, bus_flows, runtime = build_and_solve_model_from_graph(V, A, s, t, flows, ids, node_dict, edge_dict,
+                                                                                            "Gen"+str(stop_id),
+                                                                                            bus,
+                                                                                            verbose=False, 
+                                                                                            prix_hors_bus=1, 
+                                                                                            keys={},
+                                                                                            sources={},
+                                                                                            puits={})
         time_max, hold, speedup, ss = get_opt_gen_data(bus_flows, stop_id, trip_id)
         return(time_max, hold, speedup, ss, bus_flows, opt_val, runtime)
     
