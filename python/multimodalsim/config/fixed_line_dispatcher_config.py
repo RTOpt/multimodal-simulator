@@ -48,14 +48,14 @@ class FixedLineDispatcherConfig(Config):
         elif algo == 0:
             name = 'offline'
         algo_parameters = {
-            "type_intervalles": int(self._config_parser[name]["type_intervalles"]), #always known beforehand
+            "type_headway": int(self._config_parser[name]["type_headway"]), #always known beforehand
             "type_dwell": int(self._config_parser[name]["type_dwell"]),
-            "type_tps_parcours": int(self._config_parser[name]["type_tps_parcours"]),
-            "type_m": int(self._config_parser[name]["type_m"]),
-            "type_d": int(self._config_parser[name]["type_d"]),
-            "type_tm": int(self._config_parser[name]["type_tm"]),
-            "type_td": int(self._config_parser[name]["type_td"]),
-            "type_ttime": int(self._config_parser[name]["type_ttime"]),
+            "type_travel_time": int(self._config_parser[name]["type_travel_time"]),
+            "type_boarding": int(self._config_parser[name]["type_boarding"]),
+            "type_alighting": int(self._config_parser[name]["type_alighting"]),
+            "type_boarding_transfer": int(self._config_parser[name]["type_boarding_transfer"]),
+            "type_alighting_transfer": int(self._config_parser[name]["type_alighting_transfer"]),
+            "type_transfer_arrival_time": int(self._config_parser[name]["type_transfer_arrival_time"]),
             "folder_name_addendum": self._config_parser[name]["folder_name_addendum"],
             "j_try": int(self._config_parser[name]["j_try"]),
             "nbr_simulations": int(self._config_parser[name]["nbr_simulations"])

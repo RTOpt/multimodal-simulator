@@ -3,7 +3,7 @@ sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 from stl_gtfs_simulator import*
 
 logger = logging.getLogger(__name__)
-small=False
+small=True
 ## This file runs the Multimodal Simulator for the whole month of November 2019 day by day with real STL Data.
 if __name__ == '__main__':
     # To modify 

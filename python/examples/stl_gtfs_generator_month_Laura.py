@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # gtfs_generator.build_stop_times(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=False)
     # logger.info("build_stop_times_upgrade")
     # gtfs_generator.build_stop_times_upgrade(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=True)
-    # logger.info("Done importing GTFS files")
+    logger.info("Done importing GTFS files")
 
     #Split large .csv file into daily files (do once)
     # logger.info("Split large .csv file into daily files")
@@ -43,52 +43,57 @@ if __name__ == '__main__':
     #     cap_filename = date.split(" ")[0].replace("-", "") + ".csv"
     #     trips_day_df.to_csv(os.path.join(new_cap_folder, cap_filename), index=None, sep = ';')
     
-            
+    # all_lines_SN, all_lines_EO = gtfs_generator.get_all_lines()      
     #Extract available connections from CAP Data (do once)
     logging.getLogger().setLevel(logging.DEBUG)
-    for dateshort in ["20191101","20191102","20191103","20191104","20191105","20191106","20191107","20191108","20191109","20191110","20191111","20191112","20191113","20191114","20191115","20191116","20191117","20191118","20191119","20191120","20191121","20191122","20191123","20191124","20191125","20191126","20191127","20191128","20191129","20191130"]:
-        logger.info("Date: " + dateshort)
-        cap_filepath=os.path.join("D:", "donnees", "New donnees", dateshort + ".csv")
-        date=dateshort[0:4]+"-"+dateshort[4:6]+"-"+dateshort[6:8]
-        date_folder=os.path.join("data", "fixed_line", "gtfs", "gtfs"+date)
-        stop_times_filepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"stop_times.txt")
-        requests_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"requests.csv")
-        connections_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"available_connections.json")
-        logger.info("Fill missing stop times...")
-        gtfs_generator.fill_missing_stop_times(date_folder)
+    dates = ["20191101","20191102","20191103","20191104","20191105","20191106","20191107","20191108","20191109","20191110","20191111","20191112","20191113","20191114","20191115","20191116","20191117","20191118","20191119","20191120","20191121","20191122","20191123","20191124","20191125","20191126","20191127","20191128","20191129","20191130"]
+    # for dateshort in dates:
+    #     logger.info("Date: " + dateshort)
+    #     cap_filepath=os.path.join("D:", "donnees", "New donnees", dateshort + ".csv")
+    #     date=dateshort[0:4]+"-"+dateshort[4:6]+"-"+dateshort[6:8]
+    #     date_folder=os.path.join("data", "fixed_line", "gtfs", "gtfs"+date)
+    #     stop_times_filepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"stop_times.txt")
+    #     requests_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"requests.csv")
+    #     connections_savepath=os.path.join("data","fixed_line","gtfs","gtfs"+date,"available_connections.json")
+    #     logger.info("Fill missing stop times...")
+    #     gtfs_generator.fill_missing_stop_times(date_folder)
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--cap", help="path to the file containing CAP "
-                                                "data.")
-        parser.add_argument("-s", "--stoptimes", help="path to the file containing"
-                                                    " the GTFS stop times.")
-        parser.add_argument("-r", "--requests", help="path to output file that "
-                                                    "will contain the requests.")
-        parser.add_argument("-c", "--connections", help="path to output file that "
-                                                        "will contain the "
-                                                        "available connections.")
-        args = parser.parse_args(["--cap",cap_filepath,"-s",stop_times_filepath,"-r",requests_savepath,"-c",connections_savepath])
+    #     parser = argparse.ArgumentParser()
+    #     parser.add_argument("--cap", help="path to the file containing CAP "
+    #                                             "data.")
+    #     parser.add_argument("-s", "--stoptimes", help="path to the file containing"
+    #                                                 " the GTFS stop times.")
+    #     parser.add_argument("-r", "--requests", help="path to output file that "
+    #                                                 "will contain the requests.")
+    #     parser.add_argument("-c", "--connections", help="path to output file that "
+    #                                                     "will contain the "
+    #                                                     "available connections.")
+    #     args = parser.parse_args(["--cap",cap_filepath,"-s",stop_times_filepath,"-r",requests_savepath,"-c",connections_savepath])
 
-        # CAPRequestsGenerator
-        logger.info("CAPRequestsGenerator for date: "+date)
-        stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes)
+    #     # CAPRequestsGenerator
+    #     logger.info("CAPRequestsGenerator for date: "+date)
+    #     stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes)
 
-        requests_df = stl_cap_requests_generator.generate_requests(max_connection_time=5400,
-                          release_time_delta=900, ready_time_delta=60,
-                          due_time_delta=3600)
+    #     requests_df = stl_cap_requests_generator.generate_requests(max_connection_time=5400,
+    #                       release_time_delta=900, ready_time_delta=60,
+    #                       due_time_delta=3600)
 
-        # Save to file
-        stl_cap_requests_generator.save_to_csv(args.requests)
+    #     # Save to file
+    #     stl_cap_requests_generator.save_to_csv(args.requests)
 
-        # AvailableConnectionsExtractor
-        logger.info("AvailableConnectionsExtractor for date: "+date)
-        available_connections_extractor = \
-            AvailableConnectionsExtractor(args.cap, args.stoptimes)
+    #     # AvailableConnectionsExtractor
+    #     logger.info("AvailableConnectionsExtractor for date: "+date)
+    #     available_connections_extractor = \
+    #         AvailableConnectionsExtractor(args.cap, args.stoptimes)
 
-        max_distance = 0.5
-        available_connections = available_connections_extractor.extract_available_connections(max_distance)
+    #     max_distance = 0.5
+    #     available_connections = available_connections_extractor.extract_available_connections(max_distance)
 
-        # Save to file
-        available_connections_extractor.save_to_json(args.connections)
-        logger.info("Done extracting available connections for date: "+date)
+    #     # Save to file
+    #     available_connections_extractor.save_to_json(args.connections)
+    #     logger.info("Done extracting available connections for date: "+date)
+    # Get route_stops for the month of November 2019
+    # gtfs_generator.create_stops_per_line_month_files()
+    # gtfs_generator.create_travel_times_month_files()
+    gtfs_generator.create_passenger_flow_month_files()
     logger.info("Done extracting available connections for all dates")

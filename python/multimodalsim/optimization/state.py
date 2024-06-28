@@ -52,9 +52,6 @@ class State:
         self.__available_connections = env_deep_copy.available_connections
 
     @property
-    def current_time(self):
-        return self.__current_time
-    @property
     def available_connections(self):
         return self.__available_connections
 

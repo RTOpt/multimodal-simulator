@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
 small=True
-only_transfers=False
+only_transfers=True
 main_trip_id="2790970"
 max_distance = 0.5 #connection max distance in km
 if small:

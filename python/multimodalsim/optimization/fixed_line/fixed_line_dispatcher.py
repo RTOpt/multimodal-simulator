@@ -3,9 +3,10 @@ import logging
 from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, Dispatcher
 from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatcherConfig
-from multimodalsim.simulator.vehicle import Vehicle, Route, LabelLocation
+from multimodalsim.simulator.vehicle import Vehicle, Route, Stop, LabelLocation
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.simulator.request import Leg
+from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, GraphConstructorWithTactics
 
 import geopy.distance
 import random 
@@ -15,6 +16,10 @@ import time
 import os
 import numpy as np
 import multiprocessing
+import math
+from statistics import mean
+from collections import Counter
+import traceback
 logger = logging.getLogger(__name__)
 
 class FixedLineDispatcher(Dispatcher):
@@ -31,6 +36,7 @@ class FixedLineDispatcher(Dispatcher):
         self.__walking_vehicle_counter = 0
         self.__CAPACITY = 80
         self.__Data = None
+        self.__route_name = None
 
 
     @property
@@ -68,6 +74,14 @@ class FixedLineDispatcher(Dispatcher):
     @Data.setter
     def Data(self, data):
         self.__Data = data
+
+    @property
+    def route_name(self):
+        return self.__route_name
+    
+    @route_name.setter
+    def route_name(self, name):
+        self.__route_name = name
     
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
@@ -180,7 +194,7 @@ class FixedLineDispatcher(Dispatcher):
         main_line = state.route_by_vehicle_id[main_line_id]
         if main_line.vehicle.route_name == 'Walking_route':
             return [], []
-        
+        self.route_name = main_line.vehicle.route_name
         main_line_stops = main_line.next_stops[0:self.horizon]
         
         # The next legs assigned and onboard the selected routes
@@ -661,132 +675,123 @@ class FixedLineDispatcher(Dispatcher):
         stop = route.next_stops[0]
         if stop == None: 
             return(False, False, (False, -1))
+        # get stops on both routes
         stops = route.next_stops[0: self.horizon]
-        stops_second = next_route.next_stops[0: self.horizon]
-                                            # Estimate arrival time of transfers at stops
-        transfer_times = self.get_transfer_stop_times(tops_first = stops, 
-                                                      stops_second = stops_second,
-                                                      type_ttime = self.algo_parameters['type_ttime'])
-        trip_id = route.vehicle.id
+        last_stop_id = stops[-1].location.label
+        stops_second = self.get_next_route_stops(last_stop_id, next_route)
+
         stop_id = stop.location.label
-        last_stop = self.allow_tactics_at_stops(state, transfer_times)
-        initial_flows = route.onboard_legs
-                                            # Dictionnary saving tactics used in all scenarios
-        T_regret=self.create_tactics_dict(self, stop)
+        bus_trip_id = route.vehicle.id
+        bus_next_trip_id = next_route.vehicle.id
+        #Get initial flows and previous times
+        initial_flows = {}
+        initial_flows[bus_trip_id] = int(len(route.onboard_legs))
+        initial_flows[bus_next_trip_id] = int(len(next_route.onboard_legs))
+        last_departure_times = {}
+        last_departure_times[bus_trip_id] = route.previous_stops[-1].departure_time if route.previous_stops != [] else route.next_stops[0].arrival_time -1
+        last_departure_times[bus_next_trip_id] = next_route.previous_stops[-1].departure_time if next_route.previous_stops != [] else next_route.next_stops[0].arrival_time -1
+        
+
+        # Estimate arrival time of transfers at stops
+        transfer_times = {}
+        ### A FAIRE : DEFINIR time_to_prev et time_to_next
+        transfer_times[bus_trip_id] = self.get_transfer_stop_times(state = state,
+                                                                stops = stops,
+                                                                type_transfer_arrival_time = self.algo_parameters['type_transfer_arrival_time'],
+                                                                time_to_prev=600,
+                                                                time_to_next=600)
+        transfer_times[bus_next_trip_id] = self.get_transfer_stop_times(state = state,
+                                                                    stops = stops_second,
+                                                                    type_transfer_arrival_time = self.algo_parameters['type_transfer_arrival_time'],
+                                                                    time_to_prev=600,
+                                                                    time_to_next=600)
+        
+        last_stop = self.allow_tactics_at_stops(state, transfer_times[route.vehicle.id])
+        runtimes = []
+        # Create dictionnary saving tactics used in all scenarios
         if self.__algo==2: # Regret Algorithm
-            i=0
-            j_try=0
-            succes = False
-        # return(False, False, (False, -1))
-            while i<self.algo_parameters["nbr_simulations"]:
-                if j_try<int(self.algo_parameters["j_try"]):
-                    try: # Bias because the scenarios which work are those where m/d are possible.
-                        j_try+=1
-                        # Step a: Generate instance for scenario j_try for the Regret algorithm
-                        passages,last=NewGenerateur(lign,
-                                                    dir, 
-                                                    self.general_parameters['nbr_bus'], 
-                                                    Data,
-                                                    type_intervalles=self.algo_parameters['type_intervalles'],
-                                                    type_dwell=self.algo_parameters['type_dwell'],
-                                                    type_tps_parcours=self.algo_parameters['type_tps_parcours'],
-                                                    type_m=self.algo_parameters['type_m'],
-                                                    type_d=self.algo_parameters['type_d'],
-                                                    type_tm=self.algo_parameters['type_tm'],
-                                                    type_td=self.algo_parameters['type_td'],
-                                                    type_ttime=self.algo_parameters['type_ttime'],
-                                                    Real_passages=passages_multiple,
-                                                    initial_flows=initial_flows,
-                                                    plan_times=planned_times,
-                                                    dimension=self.general_parameters["dimension"],
-                                                    last=last,
-                                                    horizon=self.horizon,
-                                                    transfer_times=transfer_times
-                                                    )
-                        runtime_start_regret=time.time()
-                        # Step b: Create graph from generated instance
-                        G_gen, bus,od,stats_od,extras=build_multiple_buses_hash(passages_multiple=passages,
-                                                                                flot_initial=initial_flows,
-                                                                                pas=self.general_parameters["pas"],
-                                                                                price=self.general_parameters["price"],
-                                                                                speedup_gen=self.speedup_factor,
-                                                                                ss_gen=self.skip_stop,
-                                                                                od_dict={}, 
-                                                                                simu=True,
-                                                                                last_stop=last_stop)
-                        # nb_noeuds.append(nb_nodes(G_gen))
-                        # nb_arcs.append(nb_edges(G_gen))
+            tactic_regrets_dict = self.create_tactics_dict(self, last_stop)
+        i=0
+        j_try=0
+        while i < self.algo_parameters["nbr_simulations"]:
+            if j_try < self.algo_parameters["j_try"]:
+                try: # Bias because the scenarios which work are those where m/d are possible.
+                    j_try+=1
+                    runtime_start=time.time()
+                    # Step a: Generate instance for scenario j_try for the Regret algorithm
+                    bus_trips, transfers = self.Generate_scenario(route,
+                                                                    next_route, 
+                                                                    stops, 
+                                                                    stops_second,
+                                                                    last = last_stop,
+                                                                    transfer_times=transfer_times
+                                                                    )
+                    
+                    # Step b: Create graph from generated instance
+                    G_gen = GraphConstructorWithTactics(bus_trips=bus_trips,
+                                                        transfers = transfers,
+                                                        last_departure_times = last_departure_times,
+                                                        initial_flows = initial_flows,
+                                                        time_step = self.general_parameters["pas"],
+                                                        price = self.general_parameters["price"],
+                                                        speedup_gen = self.speedup_factor,
+                                                        ss_gen = self.skip_stop,
+                                                        simu = True,
+                                                        last_stop = int(last_stop.location.label if last_stop != -1 else -1))
+                    # Step c: Get Data on optimization results
+                    prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
+                    prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
+                    last_travel_time = bus_trips[bus_trip_id][0].arrival_time - prev_stop_departure_time
+                    time_max, hold, speedup, ss, bus_flows, opt_val, runtime = self.get_gen_data(G_gen,
+                                                                                                 stop_id,
+                                                                                                 bus_trip_id,
+                                                                                                 last_travel_time = last_travel_time)
 
-                        # Step c: Get Data on optimization results
-                        passage_gen_id=[p for p in passages[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
-                        dwell_gen=get_passage_dwell_time(passage_gen_id)
-                        last_dwell_real=route.previous_stops[-1].departure_time - route.previous_stops[-1].arrival_time
-                        last_dist_real=real_prev_dists[stop_id]
-                        simu_last_temps_parcours=get_simu_last_temps_parcours(passages,
-                                                                              trip_id,
-                                                                              passage_gen_id,
-                                                                              last_regret)
-                        time_max, wait, speedup, ss, bus_flows, opt_val, runtime=get_gen_data(G_gen,stop_id,
-                                                                                              trip_id,
-                                                                                              self.general_parameters["price"],
-                                                                                              affichage=False, 
-                                                                                              global_savepath=global_savepath,
-                                                                                              simu_last_temps_parcours=simu_last_temps_parcours,
-                                                                                              j_try=str(j_try)+'regret')
+                    # Step d: Update tactics dictionary
+                    if self.algo==2: # Regret Algorithm
+                        tactic_regrets_dict = self.update_tactics_dict_regret(tactic_regrets_dict,
+                                                                                time_max, hold, speedup, ss,
+                                                                                bus_flows,
+                                                                                route,
+                                                                                next_route,
+                                                                                bus_trips,
+                                                                                transfers,
+                                                                                opt_val)
+                    runtime = time.time() - runtime_start
+                    runtimes.append(runtime)
+                    i+=1
+                    if self.algo == 1 or self.algo == 0: # Offline or Deterministic
+                        i = self.algo_parameters["nbr_simulations"]
+                        j_try = int(self.algo_parameters["j_try"]) + 1
+                except Exception as e:
+                    traceback.print_exc()
+                    logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
+            else: 
+                logger.warning('The scenario generation failed after {} tries.'.format(j_try))
+                return(False, False, (False, -1))
+        # Step 5: Apply tactics
+        if self.algo == 2: # Regret
+            time_max, hold, speedup, ss = self.choose_tactic(tactic_regrets_dict, last_stop)
 
-                        # Step d: Update tactics dictionary
-                        T_regret=update_tactics_dict_regret(T_regret, 
-                                                            time_max, wait, speedup, ss,
-                                                            bus_flows,
-                                                            stop_id, trip_id,
-                                                            passages_gen=passages_regret,
-                                                            opt_cost=opt_val,
-                                                            initial_flows=initial_flows,
-                                                            pas=self.general_parameters["pas"],
-                                                            price=self.general_parameters["price"],
-                                                            speedup_gen=self.speedup_factor,
-                                                            ss_gen=self.skip_stop,
-                                                            prix_hors_bus=self.general_parameters["prix_hors_bus"],
-                                                            global_savepath=global_savepath,
-                                                            affichage=affichage,
-                                                            j_try=j_try)
-                        runtime_regret=time.time()-runtime_start_regret
-                        # runtimes_regret.append(runtime_regret)
-                        i+=1
-                        if self.algo == 1 or self.algo ==0:
-                            j_try = int(self.algo_parameters["j_try"]) + 1
+        return(speedup == 1, ss == 1, ( hold >= 0 , time_max))
 
-                    except Exception as e:
-                        traceback.print_exc()
-                        print('probleme dans simulation numero:',j_try, 'stop_id =', stop_id)
-                else: 
-                    print('on a depasse le nombre possible de simus sans reuissir')
-                    input("Press enter to continue...")
-                    return(False, False, (False, -1))
-            # Step 5: Apply tactics
-            if self.algo == 2: # Regret
-                time_max_regret, wait_regret, speedup_regret, ss_regret=choose_tactic(T_regret,
-                                                                                      self.skip_stop,
-                                                                                      self.speedup_factor,
-                                                                                      last_stop)
+    def get_next_route_stops(self, last_stop_id, next_route):
+        """Get the next stops of the main line and the next main line.
+        Inputs:
+            - route: Route object, the main line route.
+            - next_route: Route object, the next main line route.
 
-            # Step 6: Apply tactics
-            passages_multiple_real,last, initial_flows,final_passages,h_prev,h_final=apply_tactics(passages_multiple,
-                                                                                                stop_id,trip_id,
-                                                                                                last,
-                                                                                                initial_flows,
-                                                                                                dwell_gen,
-                                                                                                h_prev,
-                                                                                                h_final,
-                                                                                                last_dwell_real,
-                                                                                                time_max_regret,
-                                                                                                wait_regret,
-                                                                                                speedup_regret,
-                                                                                                ss_regret,
-                                                                                                final_passages=final_passages,
-                                                                                                last_dist_real=last_dist_real)
-        transfer_time_to_use=[p for p in Real_passages_gen[trip_id] if get_passage_stop_id(p)==int(stop_id) and get_passage_transfer(p)==False][0]
-        transfer_ha=get_passage_heure_act(transfer_time_to_use)
+        Outputs:
+            - stops: list, the next stops of the main line and the next main line."""
+        stops_second = []
+        stop_id = -1
+        i = -1
+        while stop_id != last_stop_id and i < len(next_route.next_stops)-1:
+            i+=1
+            stop = next_route.next_stops[i]
+            stop_id = stop.location.label
+            stops_second.append(stop)
+        return stops_second
 
     def genfromtxt_with_lock(filename, dtype, delimiter=",", usecols=None, names=True,encoding='bytes',skip_header=0):
         lock = multiprocessing.Lock()
@@ -803,42 +808,64 @@ class FixedLineDispatcher(Dispatcher):
             file_lock('unlock')  # Release lock after reading
             return data
         
-    def get_transfer_stop_times(self, state, stops_first, stops_second, type_ttime):
-        min_time = stops_first[0].arrival_time - 1800 # 30 minutes before arrival
-        max_time = stops_second[-1].departure_time
-        available_connections = state.available_connections
+    def get_transfer_stop_times(self, state,
+                                stops,
+                                type_transfer_arrival_time,
+                                time_to_prev=600,
+                                time_to_next=600):
+        """Get the arrival times of the transfers at the stops.
+        Inputs:
+            - state: State object, the current state of the environment.
+            - stops: list, the stops to consider.
+            - type_transfer_arrival_time: int, the type of transfer arrival time generation to consider.
+            - time_to_prev: int, the time to consider before the arrival time of the first stop.
+            - time_to_next: int, the time to consider after the departure time of the last stop.
+        
+        Outputs:
+            - transfer_stop_times: dict, the arrival times of the transfers at the stops.
+              The format of the dict is as follows:
+              transfer_stop_times[stop_id : int] = [(arrival_time : int, route_name :str "ligne+dir"), ...]"""
+
         #Get potential transfers stops
-        all_stops = [int(str(stop.location)) for stop in stops_first + stops_second]
+        available_connections = state.available_connections
+        all_stops = [int(stop.location.label) for stop in stops]
         to_add = []
         for stop in all_stops:
-            if stop.location in available_connections:
-                for stop in available_connections[stop.location]:
-                    to_add.append(int(str(stop)))
+            if stop in available_connections:
+                for transfer_stop_label in available_connections[stop]:
+                    to_add.append(transfer_stop_label)
         all_stops += to_add
-        # Get potential transfer routes
+        all_stops = list(set(all_stops))
+
+        # Get potential transfer routes: consider all routes, not just selected routes as we don't know in advance where passengers will transfer.
         all_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id != state.main_line and route.vehicle.id != state.next_main_line]
-        # For each stop note potential transfer routes and their arrival times.
+        
+        # For each stop, note potential transfer routes and their arrival times.
+        min_time = stops[0].arrival_time - time_to_prev
+        max_time = stops[-1].departure_time + time_to_next
         transfer_stop_times = {}
         for route in all_routes:
             if route.current_stop is not None:
-                if int(str(route.current_stop.location)) in all_stops and route.current_stop.arrival_time > min_time and route.current_stop.arrival_time < max_time:
+                if int(route.current_stop.location.label) in all_stops and route.current_stop.arrival_time > min_time and route.current_stop.arrival_time < max_time:
                     print("Current stop is in all stops for potential transfers")
-                    if route.current_stop.location not in transfer_stop_times:
-                        transfer_stop_times[route.current_stop.location] = []
-                    current_stop_arrival_time_estimation = self.get_arrival_time_estimation(route, route.current_stop, type_ttime)
-                    transfer_stop_times[route.current_stop.location].append(route.current_stop.arrival_time, route.vehicle.id)
+                    if int(route.current_stop.location.label) not in transfer_stop_times:
+                        transfer_stop_times[int(route.current_stop.location.label)] = []
+                    current_stop_arrival_time_estimation = self.get_arrival_time_estimation(route, route.current_stop, type_transfer_arrival_time)
+                    transfer_stop_times[int(route.current_stop.location.label)].append(current_stop_arrival_time_estimation, route.vehicle.route_name)
             if route.next_stops is not None:
                 for stop in route.next_stops:
-                    if int(str(stop.location)) in all_stops and stop.arrival_time > min_time and stop.arrival_time < max_time:
+                    if int(stop.location.label) in all_stops and stop.arrival_time > min_time and stop.arrival_time < max_time:
                         print("Next stop is in all stops for potential transfers")
-                        if stop.location not in transfer_stop_times:
-                            transfer_stop_times[stop.location] = []
-                        current_stop_arrival_time_estimation = self.get_arrival_time_estimation(route, stop, type_ttime)
-                        transfer_stop_times[stop.location].append(current_stop_arrival_time_estimation, route.vehicle.id)
+                        if int(stop.location.label) not in transfer_stop_times:
+                            transfer_stop_times[int(stop.location.label)] = []
+                        current_stop_arrival_time_estimation = self.get_arrival_time_estimation(route, stop, type_transfer_arrival_time)
+                        transfer_stop_times[int(stop.location.label)].append(current_stop_arrival_time_estimation, route.vehicle.route_name)
+        print(transfer_stop_times)
+        input('transfer stop times')
         return transfer_stop_times
     
-    def get_arrival_time_estimation(self, route, stop, type_ttime):
-        if type_ttime==2: # real
+    def get_arrival_time_estimation(self, route, stop, type_transfer_arrival_time):
+        if type_transfer_arrival_time==2: # real
             return stop.arrival_time
         if route.previous_stops == []: #bus n'est pas parti
             return stop.planned_arrival_time
@@ -852,638 +879,92 @@ class FixedLineDispatcher(Dispatcher):
     
     def allow_tactics_at_stops(self, state, transfer_times):
         stops = state.route_by_vehicle_id[state.main_line].next_stops[:self.horizon]
-        normal=stop.departure_time
-        tactic=stop.departure_time
+        normal = stop.departure_time
+        tactic = stop.departure_time
         previous_departure_time = state.route_by_vehicle_id[state.main_line].previous_stops[-1].departure_time
-        dwell=0
-        last=-1
+        dwell = 0
+        last = -1
         for i in range(len(stops)):
             stop=stops[i]
             travel_time = stop.arrival_time - previous_departure_time
             dwell = stop.departure_time-stop.arrival_time
-            stop_id = stop.location
-            normal_time=travel_time+dwell
+            stop_id = int(stop.location.label)
+            normal_time = travel_time+dwell
             if self.skip_stop and self.speedup_factor!=1:
-                time_ss=travel_time
-                time_sp=int(0.8*travel_time)+dwell
-                time=min(time_ss,time_sp)
-                tactic=tactic+time
+                time_ss = travel_time
+                time_sp = int(0.8*travel_time) + dwell
+                time = min(time_ss, time_sp)
+                tactic = tactic+time
             elif self.skip_stop: 
-                time=travel_time
-                tactic=tactic+time
-            elif self.speedup_factor!=1:
-                time=int(0.8*travel_time)+dwell
-                tactic=tactic+time
-            normal=normal+normal_time
+                time = travel_time
+                tactic = tactic+time
+            elif self.speedup_factor != 1:
+                time = int(0.8*travel_time) + dwell
+                tactic = tactic+time
+            normal = normal+normal_time
             trip_id = state.main_line
             if stop_id in transfer_times:
-                for t in transfer_times[stop_id]:
-                    if normal>t:
-                        if tactic<=t: #tactics can turn an impossible transfer into a possible one
-                            last=stop
+                for (time, route_name) in transfer_times[stop_id]:
+                    if normal > time and tactic <= time: #tactics can turn an impossible transfer into a possible one
+                        last = stop
         return(last)
     
     def create_tactics_dict(self, last_stop):
         T={}
         ss = self.skip_stop
         sp = self.speedup_factor
-        T['h_hp']=0
-        T['none']=0
-        T['h_t']={}
-        T['h_t'][0]=0
-        T['h_t'][1]=[]
+        T['h_hp'] = 0
+        T['none'] = 0
+        T['h_t'] = {}
+        T['h_t'][0] = 0
+        T['h_t'][1] = []
         if last_stop == -1:
             return(T)
-        if ss==True: 
-            T['ss']=0
-        if sp!=1:  
-            T['sp']=0
-            T['sp_hp']=0
-            T['sp_t']={}
-            T['sp_t'][0]=0
-            T['sp_t'][1]=[]
+        if ss == True: 
+            T['ss'] = 0
+        if sp != 1:  
+            T['sp'] = 0
+            T['sp_hp'] = 0
+            T['sp_t'] = {}
+            T['sp_t'][0] = 0
+            T['sp_t'][1] = []
         return(T)
     
-    def NewGenerateur(self, 
-                      lign:str,
-                      dir:str,
-                      Real_passages,
-                      initial_flows,
-                      plan_times,
-                      last={},
-                      transfer_times={}):
+    def Generate_scenario(self, 
+                          main_route : Route,
+                          next_route : Route,
+                          stops : list,
+                          next_stops : list,
+                          last_stop : Stop,
+                          transfer_times : dict):
         """"
-        Fonction qui génère des passages de bus.
-        On a besoin des statistiques sur les lignes de bus pour pouvoir lancer cette fonction ! À générer auparavant. 
+        This function generates a scenario for the regret algorithm.
 
-        Entrées: 
-        lign-numéro de ligne 
-        dir-direction de la ligne 
-        date
-        nbr_bus-nombre de trajets à générer
-        h_debut-heure du premier départ à générer. Bien vérifier que le dernier départ n'est pas après la fin de service. 
-        # k nombre de clusters pour le clustering
-        StopClusters-clusters sur les temps de parcours
-        DwellClusters-clusters sur les dwells times
-        Intervalles-clusters des intevralles 
-        Montants-clusters sur le nombre de passagers montants
-        Descendants-clusters sur le nombre de passagers montants
-        TMontants-clusters sur le nombre de passagers en correspondance montants
-        TDescendants-clusters sur le nombre de passagers en correspondance montants
-        type_xxx: type de génération de données 
-            0: tirage dans cluster 
-            1: moyenne du cluster 
-            2: donnée réelle 
-            3: planifié
-        type_ttime: type de génération de données 
-            0: heure planifiée +retard actuel
-            1: temps de parcours proportionnel à la distance restante actuelle (référence=tps parcours planifié)
-            2: donnée réelle 
-            3: planifié
-        Passages: passages reels dans la simulation
-        dimension: dimension des clusters 
-        # pathtofile: dossier par defaut ou chercher les donnees necessaires 
-        cost_attente: cout de rater le dernier bus dans l'horizon 
-        # affichage: bool qui indique si on affiche les clusters
-        last: dict qui pour chaque trip donne le dernier arret visite, l'heure actuelle de DEPART depuis l'arret, le dwell a l'arret, et l'heure planifiee d'arrivee a l'arret
+        Inputs: 
+        main_route: Route object, the main line route.
+        next_route: Route object, the next main line route.
+        stops: list, the stops to consider on the main_route.
+        next_stops: list, the stops to consider on the next_route.
+        last_stop: Stop object, the last stop at which tactics are allowed.
+        transfer_times: dict, the arrival times of the transfers at the stops.
+            - The format is as follows:
+                transfer_times[trip_id : str][stop_id : int] = [(arrival_time : int, route_name :str "ligne+dir"), ...]
 
-        Sorties: 
-        passages-liste de passages aux arrets. Les passages sont ordonnés dans l'ordre de passage (passages normaux et transferts)
-        last: dict qui pour chaque trip donne le dernier arret visite, l'heure actuelle de DEPART depuis l'arret, le dwell a l'arret, et l'heure planifiee d'arrivee a l'arret
+        Outputs:
+        - bus_trips: dict, the trips on the main and next routes.
+            - The format is as follows:
+                bus_trips[trip_id : str] = [Stop1, Stop2, ...]
+        - transfers: dict, the transfers at the stops.
+            - The format is as follows:
+                transfers[trip_id : str][stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int), ...]
         """
-        nbr_bus = self.general_parameters['nbr_bus']
-        type_intervalles = self.algo_parameters['type_intervalles']
-        type_dwell = self.algo_parameters['type_dwell']
-        type_tps_parcours = self.algo_parameters['type_tps_parcours']
-        type_m = self.algo_parameters['type_m']
-        type_d = self.algo_parameters['type_d']
-        type_tm = self.algo_parameters['type_tm']
-        type_td = self.algo_parameters['type_td']
-        type_ttime = self.algo_parameters['type_ttime']
-        initial_flows = initial_flows
-        dimension = self.general_parameters["dimension"]
-        horizon = self.horizon
-        Data = self.Data[lign+dir]
-
-        ###Get Data 
-        pairs, frequence, dwells,montants,descendants,transferts,new_pairs,new_dwells,new_frequence,new_m,new_d,new_tm,new_td,StopClusters,DwellClusters,Intervalles,Montants,Descendants,TMontants,TDescendants=Data
-
-        #Get all stops
-        completename=os.path.join("stl","Data",'route_stops_'+lign+dir+'_month.txt')
-        alltype=np.dtype([('f0', 'i8'), ('f1', 'U12'),('f2','float16'),('f3','i8')])
-        stops=np.genfromtxt(completename,delimiter=",",dtype=alltype, usecols=[0,1,2,3], names=True)
-        # 0-stop_order
-        # 1-stop_id
-        # 2-dist_cum
-        # 3-number of times stop was registered in the month
-        stop_dict={}
-        stop_list=[]
-        for stop in stops:
-            stop_list.append(int(stop[1]))
-            stop_dict[int(stop[1])]={}
-            stop_dict[int(stop[1])]['order']=int(stop[0])
-            stop_dict[int(stop[1])]['dist']=float(stop[2])
-            stop_dict[int(stop[1])]['f']=int(stop[3])
-        if lign=='70': 
-            if dir=='O':
-                all=746 #nombre de trip_ids dans le mois 
-            else: 
-                all=702 ### a revoir
-        else:### ligne 42
-            if dir=='O':
-                all=1188
-            else: 
-                all=1297
-        ### Partie 2: Génération de passages 
-        ### Infos sur les passages reels\planifies 
-        if type_intervalles==2:
-            order=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
-        elif type_intervalles==3: 
-            order=sorted([(Real_passages[trip][0].hp-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
-        else:
-            order=[]
-        
-        #le premier passage de chaque bus est adapte pour ne plus prendre en compte le dwell time a l'arret prec
-        debut=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))[0][0]
-        intervalles=gen_intervalle(Intervalles,new_frequence,frequence,nbr_bus,debut,dimension,type_intervalles,order)
-        order=sorted([(Real_passages[trip][0].ha-Real_passages[trip][0].cost,trip) for trip in Real_passages],key=itemgetter(0))
-        
-        if last=={}:
-            for trip in Real_passages:
-                last[trip]=(-1,Real_passages[trip][0].ha-Real_passages[trip][0].cost,0,Real_passages[trip][0].ha-Real_passages[trip][0].cost)
-
-        if initial_flows=={}:
-            for trip in Real_passages:
-                initial_flows[trip]=0
-        # print('flot initial', initial_flows)
-        #get info: 
-        dwell_data={}
-        m_data={}
-        d_data={}
-        tm={}
-        td={}
-        tdwell={}
-        ttime={}
-        tps={}
-        trip=0
-        trips={}
-        # print(order)
-        for (h,trip_id) in order:
-            # print('h', h, 'trip_id', trip_id)
-            trips[trip]=trip_id
-            first=True
-            prec_dwell=0 #car on prend l'heure de depart depuis le dernier arret
-            prev=last[trip_id][1]#heure de depart reelle post tactiques depuis le dernier arret pour ce bus
-            tmp=Real_passages[trip_id]
-            dwell_data[trip]={}
-            m_data[trip]={}
-            d_data[trip]={}
-            tm[trip_id]={}
-            td[trip_id]={}
-            tdwell[trip_id]={}
-            ttime[trip_id]={}
-            tps[trip]={}
-            for p in tmp:
-                dwell=int(get_passage_dwell_time(p))
-                stop=int(get_passage_stop_id(p))
-                m=int(get_passage_nb_montant(p))
-                d=int(get_passage_nb_desc(p))
-                if get_passage_transfer(p)==False:
-                    dwell_data[trip][stop]=dwell #dwell reel 
-                    m_data[trip][stop]=m
-                    d_data[trip][stop]=d
-                    if type_tps_parcours==2:#reel
-                        if first==False:
-                            tps[trip][(stop_prev,stop)]=get_passage_cost(p)-prec_dwell#tps de parcours reel
-                            stop_prev=stop
-                            prec_dwell=dwell
-                        else:
-                            first=False
-                            tps[trip][(-1,stop)]=get_passage_cost(p)-last[trips[trip]][2]#tps de parcours reel
-                            stop_prev=stop
-                            prec_dwell=dwell
-                    elif type_tps_parcours==3:#planifie
-                        if first==False:
-                            tps[trip][(stop_prev,stop)]=get_passage_heure_plan(p)-prev-10
-                            prev=get_passage_heure_plan(p)
-                            stop_prev=stop
-                        else:#premier arret pour ces passages
-                            first=False
-                            stop_prev=stop
-                            # tps[trip][(last[trip][0],stop)]=get_passage_heure_plan(p)-prev-10 #10 is general dwell time
-                            prev=get_passage_heure_plan(p)
-                    prec_dwell=dwell
-                else:
-                    trip_tmp=copy.deepcopy(trip)
-                    trip=trip_id
-                    tdwell[trip][stop]=dwell
-                    if stop in tm[trip]:
-                        tm[trip][stop].append(m)
-                    else: 
-                        tm[trip][stop]=[m]
-                    if stop in td[trip]: 
-                        td[trip][stop].append(d)
-                    else: 
-                        td[trip][stop]=[d]
-                    if stop in ttime[trip]:
-                        if type_ttime==2: #reel 
-                            ttime[trip][stop].append(get_passage_heure_act(p))
-                        elif type_ttime==3: #planifie
-                            ttime[trip][stop].append(get_passage_heure_plan(p))
-                    else: 
-                        if type_ttime==2: #reel 
-                            ttime[trip][stop]=[get_passage_heure_act(p)]
-                        elif type_ttime==3: #planifie
-                            ttime[trip][stop]=[get_passage_heure_plan(p)]
-                    trip=trip_tmp
-            trip+=1
-        # print('trips dict', trips)
-        if type_ttime==0 or type_ttime==1 or type_ttime==3: #translation, estimation ou reel 
-            ttime=transfer_times
-        if ttime=={}:
-            for (h,trip_id) in order:
-                ttime[trip_id]={}
-        # print(ttime)
-        passages={}
-        # time=h_debut
-        for i in range(nbr_bus):
-            trip_id=i
-            passages[trips[trip_id]]=[]
-            if i==0:
-                h_debut=debut
-            if i==1: 
-                h_debut=get_passage_heure_act(Real_passages[trips[1]][0])-Real_passages[trips[1]][0].cost
-            # h_debut=debut+sum([intervalles[j] for j in range(i+1)])
-            old_dwell=last[trips[trip_id]][2]
-            hp=h_debut
-            # hp=debut+sum([intervalles[j] for j in range(i+1)])
-            # print('total',initial_flows[trips[trip_id]])
-            total=initial_flows[trips[trip_id]] #nombre de passagers dans le bus 
-            stop=get_passage_stop_id(Real_passages[trips[trip_id]][0])
-            l=get_passage_level(Real_passages[trips[trip_id]][0])
-            start = [k for k, x in enumerate(stops) if int(x[1]) == stop][0]
-            if i==0: 
-                end=min(start+1+horizon, len(stops))
-            #dwell time
-            if type_dwell==2:
-                if stop in dwell_data[trip_id]:
-                    dwell=dwell_data[trip_id][stop]
-                    # print('on est la dwell 1')
-                else:
-                    dwell=0#le stop est skip dans le cas reel 
-            elif stop in dwells:
-                real=len(dwells[stop])
-                win_dwell=real/all
-                (C, clusters)=DwellClusters[stop]
-                dwells_stop=dwells[stop]
-                new_dwells_stop=new_dwells[stop]
-                dwell=gen_dwell(C, clusters,dwells_stop, new_dwells_stop, dimension,h_debut,type_dwell,win_dwell,dwell)
-            else:
-                dwell=0 #on ne s'arrete pas a l'arret.
-
-            #nombre descendants:
-            #calculer avant le nombre de montants (sinon le total peut etre negatif!)
-            if type_d==2: #reel
-                if int(stop) in d_data[trip_id]:
-                    d=d_data[trip_id][int(stop)]
-                    # print('on est la d 1')
-                    if total-d<0:
-                        if total>0:
-                            d=total-1
-                        else: d=0
-                else:#the bus did not stop here in real life
-                    d=0
-            elif stop in descendants:
-                real_d=len([x for x in descendants[stop]])
-                win=real_d/all
-                (C, clusters)=Descendants[stop]
-                descendants_stop=descendants[stop]
-                new_descendants_stop=new_d[stop]
-                d=gen_d(C, clusters,descendants_stop, new_descendants_stop, dimension,h_debut,type_d,win)
-                if total-d<0:
-                    if total>0:
-                        d=total-1
-                    else: d=0
-            else: 
-                d=0
-            total-=d
-            # print('total',total,'d',d,'stop',stop)
-
-            #nbr montants
-            if type_m==2: #reel
-                if int(stop) in m_data[trip_id]:
-                    # print('on est la m 1')
-                    m=m_data[trip_id][int(stop)]
-                else:#the bus did not stop here in real life
-                    m=0
-            elif stop in montants:
-                real_m=len([x for x in montants[stop]])
-                win=real_m/all
-                (C, clusters)=Montants[stop]
-                montants_stop=montants[stop]
-                new_montants_stop=new_m[stop]
-                m=gen_m(C, clusters,montants_stop, new_montants_stop, dimension,h_debut,type_m,win)
-            else:
-                m=0
-            total+=m
-            # print('total',total)
-
-            #tps parcours
-            prec=last[trips[trip_id]][0]#dernier arret visite par ce bus avant la simulation 
-            if prec==-1:
-                if start==0:
-                    temps_parcours=0
-                elif type_tps_parcours==2 or type_tps_parcours==3:
-                    # print('on est la tmps parcours 1')
-                    temps_parcours=get_passage_cost(Real_passages[trips[trip_id]][0])
-                else: 
-                    prec1=int(stops[start-1][1])
-                    (C, clusters)=StopClusters[(prec1,stop)]
-                    pairs_stop=pairs[(prec1,stop)]
-                    new_pairs_stop=new_pairs[(prec1,stop)]
-                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
-            ### le temps de parcours prends en compte le dwell a l'arret prec
-            elif type_tps_parcours==2:#reel
-                temps_parcours=get_passage_cost(Real_passages[trips[trip_id]][0])-last[trips[trip_id]][2]
-            elif type_tps_parcours==3:#planifie
-                prev=last[trips[trip_id]][3]#heure d'arrivee planifiee au dernier arret 
-                temps_parcours=max(1,get_passage_heure_plan(Real_passages[trips[trip_id]][0])-prev-5)
-            else:
-                if (prec,stop) in StopClusters:
-                    (C, clusters)=StopClusters[(prec,stop)]
-                    pairs_stop=pairs[(prec,stop)]
-                    new_pairs_stop=new_pairs[(prec,stop)]
-                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
-                else:
-                    if start>0:
-                        prec1=int(stops[start-1][1])
-                        (C, clusters)=StopClusters[(prec1,stop)]
-                        pairs_stop=pairs[(prec1,stop)]
-                        new_pairs_stop=new_pairs[(prec1,stop)]
-                        temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
-                        dist_prec=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec][0])
-                        dist1=float(stops[start][2])-float(stops[start-1][2])
-                        dist2=float(stops[start][2])-dist_prec
-                        temps_parcours=max(1,int(temps_parcours*dist2/dist1))
-                    else:
-                        temps_parcours=0
-
-            ##pas besoin car ici old_dwell=0 
-            if type_tps_parcours!=3:
-                temps_parcours+=old_dwell 
-            hp=hp+temps_parcours
-            dist=float(stops[start][2])
-            if int(stop) in plan_times[trips[trip_id]]:
-                h_plan=plan_times[trips[trip_id]][int(stop)]
-            else:
-                # print('stop', stop, 'trip', trips[trip_id], 'plan_time',plan_times[trips[trip_id]])
-                h_plan=hp
-            # print(stop, h_plan, hp, dwell, m, d,temps_parcours, l,total)
-            passages[trips[trip_id]].append(Passage(int(stop),h_plan,hp,dwell,m,d,temps_parcours,False,l,dist))
-            old_dwell=dwell
-            prec=stop
-            q=0
-            # for j in range(start+1,min(start+1+horizon, len(stops))):
-            for j in range(start+1,end):
-                # print('iter', q)
-                q+=1
-                l+=1
-                stop=int(stops[j][1])
-
-                #temps parcours 
-                if type_tps_parcours==2 or type_tps_parcours==3:#reel ou planifie
-                    if (prec,stop) in tps[trip_id]:
-                        temps_parcours=tps[trip_id][(prec,stop)]#ce dict est deja remplie avec les infos correspondantes en fonction de type
-                    else:
-                        prec1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if stop2==int(stop)]
-                        if len(prec1)!=0:
-                            prec1=prec1[0][0]#dernier arret ou s'est arrete le bus avant stop dans le cas reel
-                            dist_prec1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec1][0])
-                            dist_prec=float(stops[j-1][2])
-                            dist=float(stops[j][2])
-                            dist1=dist-dist_prec
-                            dist2=dist-dist_prec1
-                            temps_parcours_tmp=tps[trip_id][(prec1,stop)]
-                            temps_parcours=max(1,int(temps_parcours_tmp*dist1/dist2))
-                        else: 
-                            stop1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if prec2==int(prec)]
-                            if len(stop1)!=0:
-                                stop1=stop1[0][1]
-                                dist_stop1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == stop1][0])
-                                dist_stop=float(stops[j][2])
-                                dist_prec=float(stops[j-1][2])
-                                dist1=dist_stop-dist_prec
-                                dist2=dist_stop1-dist_prec
-                                temps_parcours_tmp=tps[trip_id][(prec,stop1)]
-                                temps_parcours=max(1,int(temps_parcours_tmp*dist1/dist2))
-                            else:
-                                indice_tmp=j
-                                while len(prec1)==0 and indice_tmp<len(stops)-1:
-                                    indice_tmp+=1
-                                    stop_tmp=int(stops[indice_tmp][1])
-                                    prec1=[(prec2,stop2) for (prec2,stop2) in tps[trip_id] if stop2==int(stop_tmp)]
-                                if indice_tmp>=len(stops)-1:#on est au dernier passage
-                                    (C, clusters)=StopClusters[(prec,stop)]
-                                    pairs_stop=pairs[(prec,stop)]
-                                    new_pairs_stop=new_pairs[(prec,stop)]
-                                    ### le temps de parcours prends en compte le dwell a l'arret prec
-                                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,1)
-                                else:
-                                    prec1=prec1[0][0]#premier arret ou s'arrete le bus apres stop dans le cas reel
-                                    dist_prec1=float([x[2] for k, x in enumerate(stops) if int(x[1]) == prec1][0])
-                                    dist_stop_tmp=float(stops[indice_tmp][2])
-                                    dist=float(stops[j][2])
-                                    dist_prec=float(stops[j-1][2])
-                                    dist1=dist_stop_tmp-dist_prec1
-                                    dist2=dist-dist_prec
-                                    temps_parcours_tmp=tps[trip_id][(prec1,stop_tmp)]
-                                    temps_parcours=max(1,int(temps_parcours_tmp*dist2/dist1))
-                        ### si on a pas la valeur exacte on trouve la valeur proportionnelle par rapport
-                        ### a la distance parcourue
-                else:
-                    (C, clusters)=StopClusters[(prec,stop)]
-                    pairs_stop=pairs[(prec,stop)]
-                    new_pairs_stop=new_pairs[(prec,stop)]
-                    ### le temps de parcours prends en compte le dwell a l'arret prec
-                    temps_parcours=gen_tps(C,clusters,pairs_stop, new_pairs_stop,dimension, h_debut,type_tps_parcours)
-                    # print(stop,'  ',temps_parcours)
-                if type_tps_parcours!=3:
-                    temps_parcours+=old_dwell 
-                
-                #dwell time
-                if type_dwell==2:#reel 
-                    if int(stop) in dwell_data[trip_id]:
-                        # print('on est la dwell 2')
-                        dwell=dwell_data[trip_id][int(stop)]
-                    else:
-                        dwell=0
-                elif stop in dwells: 
-                    real=len(dwells[stop])
-                    win_dwell=real/all
-                    (C, clusters)=DwellClusters[stop]
-                    dwells_stop=dwells[stop]
-                    new_dwells_stop=new_dwells[stop]
-                    dwell=gen_dwell(C, clusters,dwells_stop, new_dwells_stop, dimension,h_debut,type_dwell,win_dwell,dwell)
-                else: 
-                    dwell=0 #on ne s'arrete pas a l'arret. Pas de SS pour l'instant
-
-                #nombre descendants
-                if type_d==2: #reel
-                    if int(stop) in d_data[trip_id]:
-                        d=d_data[trip_id][int(stop)]
-                        if total-d<0:
-                            if total>0:
-                                d=total-1
-                            else: d=0
-                    else:#the bus did not stop here in real life
-                        d=0
-                elif stop in descendants:
-                    real_d=len([x for x in descendants[stop]])
-                    win=real_d/all
-                    (C, clusters)=Descendants[stop]
-                    descendants_stop=descendants[stop]
-                    new_descendants_stop=new_d[stop]
-                    d=gen_d(C, clusters,descendants_stop, new_descendants_stop, dimension,h_debut,type_d,win)
-                    if total-d<0:
-                        if total>0:
-                            d=total-1
-                        else: d=0
-                else: 
-                    d=0
-                # print('total',total,'d',d,'stop',stop)
-                #nbr montants
-                if type_m==2: #reel
-                    if int(stop) in m_data[trip_id]:
-                        m=m_data[trip_id][int(stop)]
-                    else:#the bus did not stop here in real life
-                        m=0
-                elif stop in montants:
-                    real_m=len([x for x in montants[stop]])
-                    win=real_m/all
-                    (C, clusters)=Montants[stop]
-                    montants_stop=montants[stop]
-                    new_montants_stop=new_m[stop]
-                    m=gen_m(C, clusters,montants_stop, new_montants_stop, dimension,h_debut,type_m,win)
-                else:
-                    m=0
-                
-                # print('total',total)
-                dist=float(stops[j][2])
-                # print(stop, hp, dwell, m, d,temps_parcours, l,total)
-                hp=hp+temps_parcours
-                if int(stop) in plan_times[trips[trip_id]]:
-                    h_plan=plan_times[trips[trip_id]][int(stop)]
-                else:
-                    # print('stop', stop, 'trip', trips[trip_id], 'plan_time',plan_times[trips[trip_id]])
-                    h_plan=hp
-                # print(stop, h_plan, hp, dwell, m, d,temps_parcours, l,total)
-                
-                ### Transferts?
-                tmp_trip_id=copy.deepcopy(trip_id)
-                trip_id=trips[trip_id]
-                maxd=0
-                d=0
-                dreal=False
-                tdreal=False
-                if type_d==2: 
-                    maxd=copy.deepcopy(d)
-                    dreal=True
-                elif type_td==2:
-                    tdreal=True
-                    if (int(stop) in ttime[trip_id]):
-                        for transfer_time in ttime[trip_id][int(stop)]:
-                            if int(stop) in td[trip_id]:
-                                maxd=sum(k for k in  td[trip_id][int(stop)])
-                                # print('on est la maxd')
-                else:
-                    maxd=copy.deepcopy(d)
-                #dans tous les cas ttime represente deja l'heure de passage du bus de transfert comme on souhaite
-                # la modeliser 
-                # NON: if type_ttime==2 or type_ttime==3: #si on a les vrais  temps de transferts
-                if (int(stop) in ttime[trip_id]):
-                    for transfer_time in ttime[trip_id][int(stop)]:
-                        m_tmp=0
-                        d_tmp=0
-                        transfer=False
-                        #transfert descendant
-                        if type_td==2:#real 
-                            if int(stop) in td[trip_id] and len(td[trip_id][int(stop)])>0:
-                                d_tmp=td[trip_id][int(stop)].pop(0)
-                                if maxd-d_tmp<0:#normalement pas besoin de ce test... 
-                                    if dreal: #dreal et tdreal ...pas normal
-                                        if maxd>0:
-                                            d_tmp=maxd
-                                        else: d_tmp=0
-                                    else: 
-                                        # print('on est la bis maxd')
-                                        maxd=maxd+(d_tmp-maxd)
-                                    # else: d=0
-                            #else: d=0#pas de transferts descendants a cet arret 
-                        elif stop in transferts['d']:
-                            real_d=len(transferts['d'][stop])
-                            win_td=real_d/all
-                            (C, clusters)=TDescendants[stop]
-                            tdescendants_stop=transferts['d'][stop]
-                            new_tdescendants_stop=new_td[stop]
-                            d_tmp=gen_td(C, clusters,tdescendants_stop, new_tdescendants_stop, dimension,h_debut,type_td,win_td)
-                            if maxd-d_tmp<0:
-                                if dreal:
-                                    if maxd>0:
-                                        d_tmp=maxd
-                                    else: d_tmp=0
-                                else: 
-                                    maxd=maxd+(d_tmp-maxd)
-                        #Transfert montant
-                        if type_tm==2:#real
-                            if int(stop) in tm[trip_id] and len(tm[trip_id][int(stop)])>0:
-                                m_tmp=tm[trip_id][int(stop)].pop(0)
-                            # else:  m=0
-                        elif stop in transferts['m']:
-                            real_m=len(transferts['m'][stop])
-                            win_tm=real_m/all
-                            transfer=True
-                            (C, clusters)=TMontants[stop]
-                            tmontants_stop=transferts['m'][stop]
-                            new_tmontants_stop=new_tm[stop]
-                            m_tmp=gen_tm(C, clusters,tmontants_stop, new_tmontants_stop, dimension,h_debut,type_tm,win_tm)
-                        if m_tmp>0 or d_tmp>0:
-                            transfer=True
-                        if transfer:
-                            maxd=maxd-d_tmp
-                            passages[trips[tmp_trip_id]].append(Passage(int(stop),transfer_time,transfer_time,10,m_tmp,d_tmp,1800,True,l,dist))
-                tmp_passage_transfer=[p for p in passages[trips[tmp_trip_id]] if get_passage_stop_id(p)==int(stop) and get_passage_transfer(p)==True and get_passage_nb_desc(p)>0]
-                tdtot=sum([get_passage_nb_desc(p) for p in tmp_passage_transfer])
-                if tdtot>d: #probleme !
-                    if dreal: 
-                        # if tdreal:
-                        #     print('il y a un pb on ne devrait pas etre la')
-                        while d-tdtot<0:
-                            trans=np.random.choice(tmp_passage_transfer)
-                            if get_passage_nb_desc(trans)>0:
-                                trans.nb_d-=1
-                                tdtot-=1
-                    else: 
-                        if total-tdtot>=0:
-                            d=tdtot
-                        else: 
-                            maxtd=total
-                            while maxtd-tdtot<0:
-                                trans=np.random.choice(tmp_passage_transfer)
-                                if get_passage_nb_desc(trans)>0:
-                                    trans.nb_d-=1
-                                    tdtot-=1
-                            d=tdtot
-                passages[trips[tmp_trip_id]].append(Passage(int(stop),h_plan,hp,dwell,m,d,temps_parcours,False,l,dist))
-                total=total-d
-                total+=m
-                m=0
-                d=0
-                old_dwell=dwell
-                # time+=temps_parcours
-                prec=stop
-                trip_id=tmp_trip_id
-        i=0
-        return(passages, last)
+        transfers = {}
+        bus_trips = {}
+        prev_stop = main_route.previous_stops[-1] if main_route.previous_stops != [] else None
+        bus_trips[main_route.vehicle.id], transfers[main_route.vehicle.id] = self.generate_bus_trip(stops, prev_stop, transfer_times[main_route.vehicle.id], last_stop)
+        next_route_prev_stop = next_route.previous_stops[-1] if next_route.previous_stops != [] else None
+        bus_trips[next_route.vehicle.id], transfers[next_route.vehicle.id] = self.generate_bus_trip(next_stops, next_route_prev_stop, transfer_times[next_route.vehicle.id])
+        return (bus_trips, transfers)
 
     def get_and_cluster_data(self, route_name :str):
         """
@@ -1506,19 +987,19 @@ class FixedLineDispatcher(Dispatcher):
             TBoarding: clusters of boarding transferring passengers at stops
             TAlighting: clusters of alighting transferring passengers at stops
         """
-        pathtofile = r'C:\Users\kklau\Desktop\Final_Recherche\stl\Data'
+        pathtofile = os.path.join("data", "fixed_line", "gtfs", "route_data")
 
         # Get historical data for the route
-        stop_to_stop_pairs, headways_between_buses, dwells = self.get_route_and_stop_historical_data(route_name, pathtofile=pathtofile)
+        stop_to_stop_pairs, dwells = self.get_route_and_stop_historical_data(route_name, pathtofile=pathtofile)
         boarding, alighting, transfers_boarding, transfers_alighting = self.get_passenger_historical_data(route_name, pathtofile=pathtofile)
 
         # Get stop data
         completename = os.path.join(pathtofile, 'route_stops_' + route_name + '_month.txt')
-        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8')])
+        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','f8')]) #stop_id, sequence, distance
         stops = np.genfromtxt(completename, delimiter=',', dtype=alltype, usecols = [0,1,2], names=True)
 
         # Cluster historical data
-        Headways = self.cluster_bus_headways(headways_between_buses)
+        # Headways = self.cluster_bus_headways(headways_between_buses)
         TravelTimes = self.cluster_travel_times_between_stops(stops, stop_to_stop_pairs)
         Dwells = self.cluster_data_at_stops(stops, dwells)
         Boarding = self.cluster_data_at_stops(stops, boarding)
@@ -1526,71 +1007,89 @@ class FixedLineDispatcher(Dispatcher):
         TBoarding = self.cluster_data_at_stops(stops, transfers_boarding)
         TAlighting = self.cluster_data_at_stops(stops, transfers_alighting)
 
-        return stop_to_stop_pairs, headways_between_buses, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Headways, Boarding, Alighting, TBoarding, TAlighting
+        return (stop_to_stop_pairs,
+                # headways_between_buses,
+                dwells,
+                boarding, alighting, 
+                transfers_boarding, transfers_alighting, 
+                TravelTimes, Dwells, 
+                # Headways,
+                Boarding, Alighting, 
+                TBoarding, TAlighting)
 
     def get_route_and_stop_historical_data(self, route_name, pathtofile):
-        completename_frequence = os.path.join(pathtofile, route_name + "_frequence_month.csv")
-        alltype=np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8')])
-        frequence=np.genfromtxt(completename_frequence, delimiter=",", dtype=alltype , usecols = [0,1,2])
-        new_frequence=[]
-        for intervalle in frequence:
-            new_frequence.append([intervalle[1]],)
-        new_frequence=np.array(new_frequence)
+        """ 
+        Get historical data for a route and cluster it.
+        Inputs:
+            - route_name: name of the route
+            - pathtofile: path to the file containing the data
+        Outputs:
+            - pairs_dict: dictionary of stop-to-stop travel time pairs
+            - frequence: frequency of the route
+            - dwells_dict: dwell times at stops for the route"""
+        # completename_frequence = os.path.join(pathtofile, route_name + "_frequence_month.csv")
+        # alltype=np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8')])
+        # frequence=np.genfromtxt(completename_frequence, delimiter=",", dtype=alltype , usecols = [0,1,2])
+        # new_frequence=[]
+        # for intervalle in frequence:
+        #     new_frequence.append([intervalle[1]],)
+        # new_frequence=np.array(new_frequence)
 
-        completename_dwells = os.path.join(pathtofile, route_name + "_dwells_month.csv")
+        completename_dwells = os.path.join(pathtofile, route_name + "_dwell_times_month.csv")
         dwells_dict = self.create_data_dict(completename_dwells, passengers = False)
         
-        completename_pairs = os.path.join( pathtofile, route_name + "_pairs_month.csv")
-        alltype = np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8'), ('f3', 'i8'), ('f4', 'i8')])
-        pairs = np.genfromtxt(completename_pairs, delimiter = ',', dtype = alltype, usecols = [0,1,2,3,4])
+        completename_pairs = os.path.join( pathtofile, route_name + "_travel_times_month.csv")
+        alltype = np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8'), ('f3', 'i8')])
+        pairs = np.genfromtxt(completename_pairs, delimiter = ',', dtype = alltype, usecols = [0,1,2,3])
         pairs_dict = {}
         headers = list(set([(x[0],x[1]) for x in pairs]))
         for (o,d) in headers:
             pairs_dict[(o,d)]=[]
         for x in pairs:
             if x[2]<0: 
-                pairs_dict[(x[0],x[1])].append([-x[2]],)
+                print('Travel time is negative...')
             else: 
-                pairs_dict[(x[0],x[1])].append([x[2]],)
+                pairs_dict[(x[0],x[1])].append([x[2], x[3]],) # [travel_time, event_time]
         for key in pairs_dict:
             pairs_dict[key] = np.array(pairs_dict[key])
-        return(pairs_dict, new_frequence, dwells_dict)
+        return(pairs_dict,
+            #    new_frequence, 
+               dwells_dict)
 
     def get_passenger_historical_data(self, route_name, pathtofile):
         # Boarding passengers
-        completename_montants = os.path.join(pathtofile, route_name + "_m_month.csv")
+        completename_montants = os.path.join(pathtofile, route_name + "_boarding_passengers_month.csv")
         m_dict = self.create_data_dict(completename_montants)
 
         # Alighting passengers
-        completename_d = os.path.join(pathtofile, route_name + "_d_month.csv")
+        completename_d = os.path.join(pathtofile, route_name + "_alighting_passengers_month.csv")
         d_dict = self.create_data_dict(completename_d)
 
         # Boarding transferring passengers
-        completename_tmontants=os.path.join(pathtofile, route_name + "_tm_month.csv")
+        completename_tmontants=os.path.join(pathtofile, route_name + "_transfer_boarding_passengers_month.csv")
         tm_dict = self.create_data_dict(completename_tmontants)
 
         # Alighting transferring passengers
-        completename_td=os.path.join(pathtofile, route_name + "_td_month.csv")
+        completename_td=os.path.join(pathtofile, route_name + "_transfer_alighting_passengers_month.csv")
         td_dict = self.create_data_dict(completename_td)
         return(m_dict, d_dict, tm_dict, td_dict)
 
     def create_data_dict(self, completename, passengers = True):
-        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8'),('f3','i8')])
-        data = np.genfromtxt(completename, delimiter = ',', dtype = alltype, usecols = [0,1,2,3])
+        alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8')]) #stop_id, duration/quantity, event_time
+        data = np.genfromtxt(completename, delimiter = ',', dtype = alltype, usecols = [0,1,2])
         data_dict = {}
         headers = np.unique([x[0] for x in data])
         for stop in headers:
             data_dict[stop] = []
         for row in data: 
-            if row[1] != 0:
-                data_dict[row[0]].append([row[1]],)
+            data_dict[row[0]].append([row[1], row[2]],)
         empty=[]
         for key in data_dict: 
             if data_dict[key] == []:
                 empty.append(key)
         if passengers: 
             for key in empty:
-                data_dict[key].append([0],)
+                data_dict[key].append([0, 0],)
         else:
             for key in empty:
                 data_dict.pop(key, None)
@@ -1604,36 +1103,27 @@ class FixedLineDispatcher(Dispatcher):
         count=0
         KClusters={}
         for i in range(len(stops)-1):
-            current_stop_id = stops[i][1]
-            next_stop_id = stops[i+1][1]
+            current_stop_id = stops[i][0]
+            next_stop_id = stops[i+1][0]
             if (current_stop_id, next_stop_id) in consecutive_stop_pairs:
                 pair = (current_stop_id, next_stop_id)
                 KClusters[pair]=self.cluster_data(consecutive_stop_pairs[pair])
             else:
                 count+=1
-        print('Number of non-existant pairs: ', count)
+        # print('Number of non-existant pairs: ', count)
         return(KClusters)
     
     def cluster_data_at_stops(self,
                               stops : np.array,
                               data_at_stops : dict):
-        count = 0
+        # count = 0
         KClusters={}
         for x in stops:
-            stop=x[1]
-            if stop in data_at_stops:
-                KClusters[stop] = self.cluster_data(data_at_stops[stop])
-            else:
-                count+=1
-        return(KClusters)
-    
-    def cluster_bus_headways(self, headways_between_buses : dict):
-        KClusters={}
-        U = headways_between_buses
-        k = 3
-        (n,m) = U.shape
-        C, clusters = self.kmeans(U, k)
-        KClusters = (C, clusters)
+            stop_id = x[0]
+            if stop_id in data_at_stops:
+                KClusters[stop_id] = self.cluster_data(data_at_stops[stop_id])
+            # else:
+            #     count+=1
         return(KClusters)
     
     def cluster_data(self, U):
@@ -1674,7 +1164,7 @@ class FixedLineDispatcher(Dispatcher):
             for i in range(n):
                 distances = np.zeros(k)
                 for j in range(k):
-                    distances[j] = self.dist(U[i], C[j], None) # distance between U[i] and each center of cluster, distances has k values
+                    distances[j] = self.dist(U[i][1], C[j][1], None) # distance between U[i] and each center of cluster, distance has 1 value which is the time of event
                 clusters[i] = np.argmin(distances) # assigns the point U[i] to the closest center
             C_old = copy.deepcopy(C) # updates the old centers
             for i in range(k):
@@ -1688,3 +1178,506 @@ class FixedLineDispatcher(Dispatcher):
         """Calculates the distance between two points in a space of dimension ax."""
         return np.linalg.norm(a - b, axis=ax)
     
+    def get_headway(self, main_route, stops_second):
+        """Calculates the headway between two lines with future stops stops and stops_second."""
+        headway_at_stop_id = stops_second[0].location.label
+        next_time = stops_second[0].arrival_time
+        previous_stops = main_route.previous_stops
+        for stop in previous_stops:
+            if stop.location.label == headway_at_stop_id:
+                previous_time = stop.arrival_time
+                break
+        headway = next_time - previous_time
+        return headway
+    
+    def generate_bus_trip(self, stops, prev_stop, transfer_times, last_stop = -1, initial_flow = 0):
+        """Generates a trip for a route with stops and previous time prev_time.
+        Inputs:
+            - stops: list of Stops
+            - prev_stop: Stop
+            - transfer_times: dict
+            - last_stop: Stop, the last stop at which tactics are allowed
+        Outputs:
+            - new_stops: list of Stops
+            - transfers: dict
+                The format is as follows:
+                transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int), ...]"""
+        new_stops =[]
+        transfers = {}
+        prev_time = prev_stop.departure_time if prev_stop != None else stops[0].arrival_time -1
+        for stop in stops:
+            dwell_time = self.generate_dwell_time(stop, prev_time)
+            travel_time = self.generate_travel_time(prev_stop, stop, prev_time)
+            nbr_alighting = self.generate_alighting(stop, prev_time, initial_flow)
+            initial_flow -= nbr_alighting
+            if int(stop.location.label) in transfer_times and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
+                nbr_transferring_alighting = self.generate_transferring_alighting(stop, initial_flow)
+                initial_flow -= nbr_transferring_alighting
+                nbr_transferring_boarding = self.generate_transferring_boarding(stop)
+                initial_flow += nbr_transferring_boarding
+            else:
+                nbr_transferring_alighting = 0
+                nbr_transferring_boarding = 0
+            nbr_boarding = self.generate_boarding(stop, prev_time)
+            initial_flow += nbr_boarding
+            transfers_at_stop = self.generate_transfers(stop, nbr_transferring_boarding, nbr_transferring_alighting, transfer_times)
+            prev_time = prev_time + travel_time + dwell_time
+            new_stop = Stop(arrival_time = prev_time + travel_time, 
+                            departure_time = prev_time + travel_time + dwell_time,
+                            location = stop.location,
+                            cumulative_distance = stop.cumulative_distance,
+                            min_departure_time = stop.min_departure_time,
+                            planned_arrival_time = stop.planned_arrival_time,
+                            planned_departure_time_from_origin = stop.planned_departure_time_from_origin)
+            new_stop.passengers_to_board.append(nbr_boarding)
+            new_stop.passengers_to_alight.append(nbr_alighting)
+            transfers[int(new_stop.location.label)] = transfers_at_stop
+            new_stops.append(new_stop)
+        return new_stops, transfers
+    
+    def generate_dwell_time(self, stop, time):
+        """Generates a dwell time for a stop.
+        Inputs:
+            - stop: Stop    
+        Outputs:
+            - dwell_time: int
+            
+        Parameters: 
+        type_dwell: 
+            0: sample in cluster
+            1: cluster mean
+            2: real value
+            3: planned value
+        """
+        type_dwell = self.algo_parameters['type_dwell']
+        if type_dwell == 2:
+            return stop.departure_time - stop.arrival_time
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = int(stop.location.label)
+        clusters_pair = Dwells[key]
+        values = dwells[key]
+        dwell_time = self.get_value_from_clusters(clusters_pair, values, time, type_dwell)
+        return (dwell_time)
+    
+    def get_value_from_clusters(self, clusters_pair, values, time, type_generation):
+        """Generate a value from clusters.
+        Inputs:
+            - clusters_pair = (C, clusters): tuple of clusters and cluster indices
+            - values: np.array, shape (n,2)
+            - time: int"""
+        (C, clusters) = clusters_pair
+        (a,b) = values.shape
+        distance = np.zeros(a)
+        for i in range(len(C)):
+            distance[i] = abs(C[i][1] - time)
+        cluster_index = np.argmin(distance)
+        indices = np.array([j for j in range(a) if clusters[j] == cluster_index])
+        if type_generation == 0: 
+            index = int(random.choice(indices))
+            value = values[index][0]
+        elif type_generation == 1: 
+            tmp = mean([values[index][0] for index in indices])
+            value = random.choice([math.floor(tmp), math.ceil(tmp)])
+        return (value)
+    
+    def generate_travel_time(self, stop1, stop2, time):
+        """Generates a travel time between two stops.
+        Inputs:
+            - stop1: Stop
+            - stop2: Stop
+            - time: int, time of occurrence of the event
+        Outputs:
+            - travel_time: int
+        """
+        if stop1 == None:
+            return 1
+        type_travel_time = self.algo_parameters['type_travel_time']
+        if type_travel_time == 2:
+            return stop2.arrival_time - stop1.departure_time
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = (int(stop1.location.label), int(stop2.location.label))
+        clusters_pair = TravelTimes[key]
+        values = stop_to_stop_pairs[key]
+        travel_time = self.get_value_from_clusters(clusters_pair, values, time, type_travel_time)
+        return (travel_time)
+
+    def generate_boarding(self, stop, time):
+        """Generates the number of boarding passengers at a stop.
+        Inputs:
+            - stop: Stop
+            - time: int, time of occurrence of the event
+        Outputs:
+            - boarding: int
+        """
+        type_boarding = self.algo_parameters['type_boarding']
+        if type_boarding == 2:
+            count = 0
+            passengers_to_board = stop.passengers_to_board
+            for trip in passengers_to_board:
+                first_leg = trip.next_legs[0] # We are looking for boarding without a transfer.
+                if first_leg.origin.label == stop.location.label and trip.current_leg == None and trip.previous_legs == []:
+                    count += 1
+            return count
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = int(stop.location.label)
+        clusters_pair = Boarding[key]
+        values = boarding[key]
+        boarding = self.get_value_from_clusters(clusters_pair, values, time, type_boarding)
+        return (boarding)  
+    
+    def generate_alighting(self, stop, time, initial_flow):
+        """Generates the number of alighting passengers at a stop.
+        Inputs:
+            - stop: Stop
+            - time: int, time of occurrence of the event
+        Outputs:
+            - alighting: int
+        """
+        type_alighting = self.algo_parameters['type_alighting']
+        if type_alighting == 2:
+            count = 0 
+            passengers_to_alight = stop.passengers_to_alight
+            for trip in passengers_to_alight: # No transfers
+                if (trip.current_leg != None and trip.next_legs == [] and trip.current_leg.destination.label == stop.location.label):
+                    count += 1
+                if (trip.current_leg == None):
+                    i = 0
+                    for leg in trip.next_legs:
+                        if leg.destination.label == stop.location.label and i < len(trip.next_legs) - 1:
+                            count += 1
+                            break
+                        i += 1
+            if count <= initial_flow:
+                return count
+            else:
+                return initial_flow
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = int(stop.location.label)
+        clusters_pair = Alighting[key]
+        values = alighting[key]
+        alighting = self.get_value_from_clusters(clusters_pair, values, time, type_alighting)
+        if alighting <= initial_flow:
+            return alighting
+        else:
+            return initial_flow
+    
+    def generate_transferring_boarding(self, stop, time):
+        """Generates the number of boarding transferring passengers at a stop.
+        Inputs:
+            - stop: Stop
+            - time: int, time of occurrence of the event
+        Outputs:
+            - boarding: int
+        """
+        type_boarding_transfer = self.algo_parameters['type_boarding_transfer']
+        if type_boarding_transfer == 2:
+            count = 0
+            passengers_to_board = stop.passengers_to_board
+            for trip in passengers_to_board:
+                if (trip.current_leg != None and trip.next_legs != [] and trip.next_legs[0].origin.label == stop.location.label):
+                    count += 1
+                if (trip.current_leg is None):
+                    if (trip.previous_legs != [] and trip.next_legs[0].origin.label == stop.location.label):
+                        count += 1
+                    if (trip.previous_legs == []):
+                        i = 0 
+                        for leg in trip.next_legs:
+                            if leg.origin.label == stop.location.label and i > 0:
+                                count += 1
+                                break
+                            i += 1
+            return count
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = int(stop.location.label)
+        clusters_pair = TBoarding[key]
+        values = transfers_boarding[key]
+        transferring_boarding = self.get_value_from_clusters(clusters_pair, values, time, type_boarding_transfer)
+        return (transferring_boarding)
+
+    def generate_transferring_alighting(self, stop, time, initial_flow):
+        """Generates the number of alighting transferring passengers at a stop.
+        Inputs:
+            - stop: Stop
+            - time: int, time of occurrence of the event
+        Outputs:
+            - alighting: int
+        """
+        type_alighting_transfer = self.algo_parameters['type_alighting_transfer']
+        if type_alighting_transfer == 2:
+            count = 0
+            passengers_to_alight = stop.passengers_to_alight
+            for trip in passengers_to_alight:
+                if (trip.current_leg != None and trip.next_legs != [] and trip.current_leg.destination.label == stop.location.label):
+                    count += 1
+                if (trip.current_leg is None):
+                    if (trip.next_legs != []):
+                        i = 0
+                        for leg in trip.next_legs:
+                            if leg.destination.label == stop.location.label and i < len(trip.next_legs) - 1:
+                                count += 1
+                                break
+                            i += 1
+            if count <= initial_flow:
+                return count
+            return initial_flow
+        
+        route_name = self.route_name
+        Data = self.Data[route_name]
+        stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
+        key = int(stop.location.label)
+        clusters_pair = TAlighting[key]
+        values = transfers_alighting[key]
+        transferring_alighting = self.get_value_from_clusters(clusters_pair, values, time, type_alighting_transfer)
+        if transferring_alighting <= initial_flow:
+            return transferring_alighting
+        return (initial_flow)
+
+    def generate_transfers(self, stop, nbr_boarding, nbr_alighting, transfer_times):
+        """Generates the transfers at a stop. This makes a link between potential transferring buses
+        and the generated passengers.
+        Inputs:
+            - stop: Stop
+            - nbr_boarding: int number of transferring boarding passengers
+            - nbr_alighting: int number of transferring alighting passengers
+            - transfer_times: dict containing the transfer times for all potential transferring buses at each stop
+        Outputs:
+            - transfers: dict containing the transfers at the stop
+                The format is as follows:
+                transfers['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int), ...]"""
+        if nbr_alighting + nbr_boarding == 0 or \
+           int(stop.location.label) not in transfer_times:
+            return []
+        
+        transfers = {}
+        transfers['boarding'] = []
+        transfers['alighting'] = []
+        stop_id = int(stop.location.label)
+        tmp = []
+        for i in range(nbr_boarding):
+            transfer_time = random.choice(transfer_times[stop_id])[0]
+            tmp.append(transfer_time)
+            # count occurrences of transfer_time in transfers['boarding']
+            for item, count in Counter(tmp).items():
+                transfers['boarding'].append((item, count))
+        tmp =[]
+        for i in range(nbr_alighting):
+            transfer_time = random.choice(transfer_times[stop_id])[0]
+            tmp.append(transfer_time)
+            for item, count in Counter(tmp).items():
+                transfers['alighting'].append((item, count))
+        return transfers
+    
+    def choose_tactic(self, T, last_stop):
+        """ Chooses the tactic with the lowest regret in the tactics dictionary T.
+        Inputs:
+            - T: dict, the tactics dictionary
+            - last_stop: Stop, the last stop at which tactics are allowed
+        Outputs:
+            - time_max: int, the latest time at which to depart from the stop after holding
+            - hold: int, -1 if no hold time
+                        0 if wait for planned time
+                        1 if waiting for a transfer
+            - speedup: int, 0 if no speedup, 1 if speedup
+            - ss: int, 0 if no skip-stop, 1 if skip-stop"""
+        time_max=-1
+        ### Ici on utilise une hierarchie des tactiques si plusieurs sont utilises le meme nombre de fois :
+        ## La hierarchie depend de la facilite a implementer une tactique et au risque qu'elle induit 
+        ### None> H_HP> SP> SP_HP> H_T > SP_T>SS
+        ss = self.skip_stop
+        sp = self.speedup_factor
+        if sp == 1: 
+            T['sp'] = 1000000
+            T['sp_hp'] = 1000000
+            T['sp_t'] = [1000000, 0]
+        if ss == False:  
+            T['ss'] = 1000000
+        if last_stop == -1:
+            T['sp'] = 1000000
+            T['sp_hp'] = 1000000
+            T['sp_t'] = [1000000, 0]
+            T['ss'] = 1000000
+        tmp=[ T['none'], T['h_hp'], T['sp'], T['sp_hp'], T['h_t'][0], T['sp_t'][0], T['ss']]
+        index=np.argmin(tmp) #ceci retourne bien la tactique la plus haute dans la hierarchie si plusieurs tactiques ont le meme regret 
+        ss = 0
+        speedup = 0
+        hold = -1
+        if index == 6:
+            ss = 1
+        if index in [2, 3, 5]:
+            sp = 1
+        if index in [1, 3]:
+            hold = 0
+        if index in [4, 5]:
+            hold = 1
+            if index == 4:
+                time_max=mean(T['h_t'][1])
+            else:
+                time_max=mean(T['sp_t'][1])
+        return(time_max, hold, speedup, ss)
+    
+    def update_tactics_dict_regret(self,
+                                   tactic_regrets_dict : dict,
+                                   time_max: int, hold :int, speedup: int, ss: int,
+                                   bus_flows_in_solution : dict,
+                                   route : Route,
+                                   next_route : Route,
+                                   bus_trips : dict,
+                                   transfers : dict,
+                                   opt_cost: int):
+        """Updates the tactics dictionary T given the optimal tactic, and calculates the regret of all other tactics.
+        Inputs:
+            - T: dict, the tactics dictionary
+            - time_max: int, the latest time at which to depart from the stop after holding
+            - hold: int, -1 if no hold time
+                         0 if wait for planned time
+                         1 if waiting for a transfer
+            - speedup: int, 0 if no speedup, 1 if speedup
+            - ss: int, 0 if no skip-stop, 1 if skip-stop
+            - bus_flows_in_solution: dict, the bus flows in the solution, shows the path of each bus in the graph.
+            - route: Route, the main line route
+            - next_route: Route, the next main line route
+            - bus_trips: dict, the generated trips on the main and next routes
+            - transfers: dict, the transfers at the stops in the genrated trips
+            - opt_cost: int, the optimal cost when using the optimal tactic
+        Outputs:
+            - T: dict, the updated tactics dictionary
+            """
+        # Get parameters
+        ss_gen = self.skip_stop
+        speedup_gen = self.speedup_factor
+        price = self.general_parameters["price"]
+        step = self.general_parameters["step"]
+        out_of_bus_price = self.general_parameters["out_of_bus_price"]
+        trip_id = route.vehicle.id
+        next_trip_id = next_route.vehicle.id
+        stop_id = int(route.next_stops[0].location.label)
+        initial_flows = {}
+        initial_flows[trip_id] = int(len(route.onboard_legs))
+        initial_flows[next_trip_id] = int(len(next_route.onboard_legs))
+
+        # List of all tactics
+        all = ['none', 'h_hp', 'h_t']
+        if ss_gen == True: 
+            all.append('ss')
+        if speedup_gen != 1: 
+            all.append('sp')
+            all.append('sp_hp')
+            all.append('sp_t')
+
+        # Find optimal tactic and remove it from the list of tactics
+        if ss==1: 
+            all.remove('ss')
+        elif speedup == 1: 
+            if hold == -1:
+                all.remove('sp')
+            elif hold == 0: 
+                all.remove('sp_hp')
+            else: 
+                all.remove('sp_t')
+        else: 
+            if hold == -1: 
+                all.remove('none')
+            elif hold == 0:
+                all.remove('h_hp')
+            else: 
+                all.remove('h_t')
+        tactics = self.get_tactics(bus_flows_in_solution, trip_id, next_trip_id)
+        passages = self.new_create_new_passages(bus_trips, transfers, tactics, stop_id, trip_id, time_max, all)
+        for tactic in passages:
+            if tactic == 'sp_t' or tactic == 'h_t':
+                regret = self.new_get_tactic_regret(tactic, passages, opt_cost, trip_id, initial_flows, step, price, out_of_bus_price)
+                tactic_regrets_dict[tactic][0] += regret
+                tactic_regrets_dict[tactic][1].append(passages[tactic][trip_id][0].ha+passages[tactic][trip_id][0].dwell)
+            else: 
+                regret = self.new_get_tactic_regret(tactic, passages,opt_cost, trip_id, initial_flows, step, price, out_of_bus_price)
+                tactic_regrets_dict[tactic] += regret
+        return(tactic_regrets_dict)
+
+    def get_gen_data(self, G_generated, stop_id, trip_id): 
+        """ Extract the results after optimization for the graph G_generated for the stop_id in the bus trip trip_id.
+        Inputs:
+            - G_generated: Graph, the graph generated with data from the generated scenario
+            - stop_id: int, the stop id
+            - trip_id: str, the trip id
+        Outputs:
+            - time_max: int, the latest time at which to depart from the stop after holding
+            - hold: int, the hold time
+            - speedup: int, 0 if no speedup, 1 if speedup
+            - ss: int, 0 if no skip-stop, 1 if skip-stop
+            - bus_flows: dict, the bus flows in the solution, shows the path of each bus in the graph.
+            - opt_val: int, the value of the objective function when using the optimal tactic
+            - runtime: int, the runtime of the optimization"""
+        V, A, s, t, flows, ids, node_dict, edge_dict, bus, Vdict, sources, puits = convert_graph(G_generated)
+        opt_val, flow, display_flows, bus_flows, runtime = Solveur_flot_mip(V, A, s, t, flows, ids ,node_dict, edge_dict, "Gen"+str(stop_id), bus,verbose=False, prix_hors_bus=1, keys={}, sources={}, puits={})
+        time_max, hold, speedup, ss = get_opt_gen_data(bus_flows, stop_id, trip_id)
+        return(time_max, hold, speedup, ss, bus_flows, opt_val, runtime)
+    
+    def convert_graph(G):
+        """Converts the graph G into a format that can be used by the optimization solver.
+        Inputs:
+            - G: Graph, the graph to convert
+        Outputs:
+         - Vnewset: set, the set of new vertices
+         """
+        V = G.get_nodes()
+        A = G.get_edges()
+        s = G.get_source()
+        t = G.get_target()
+
+        #create new vertices
+        Vnew={}
+        flows={}
+        i=0
+        ids={}
+        node_dict={}
+        edge_dict={}
+        bus={}
+        sources={}
+        puits={}
+        puits['t']={}
+        puits['n']={}
+        for v in V: 
+            Vnew[v] = i
+            node_dict[i] = v
+            stop_id = v.get_node_id()
+            ids[i] = stop_id
+            bus[i] = v.get_node_bus()
+            if stop_id==0 and v.get_node_bus() !=- 1:
+                sources[v.get_node_bus()]=v.get_node_time()
+            if v.get_node_type() == 'puit' and v.get_node_arrival_departure()=='a': #target node for non-transfer passengers
+                if v.get_node_bus() not in puits['n']:
+                    puits['n'][v.get_node_bus()]=[]
+                puits['n'][v.get_node_bus()].append(i)]
+            if v.get_node_type()=='transfer' and v.get_node_flow()<0: # node with alighting transfer passengers, called 'transfer target nodes'
+                if v.get_node_bus() not in puits['t']:
+                    puits['t'][v.get_node_bus()]=[]
+                puits['t'][v.get_node_bus()].append(i)
+            if v != t:
+                flows[i]=v.get_node_flow()
+            i+=1
+        Anew = set()
+        for edge in A:
+            u = edge.get_origin()
+            v = edge.get_destination()
+            j = edge.get_weight()
+            edge_dict[(u, v, j)] = edge
+            Anew.add((Vnew[u], Vnew[v], j))
+        snew = Vnew[s]
+        tnew = Vnew[t]
+        Vnewset = set([Vnew[v] for v in V])
+        return(Vnewset, Anew, snew, tnew, flows, ids, node_dict, edge_dict, bus, Vnew, sources, puits)

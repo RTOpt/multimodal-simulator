@@ -57,9 +57,10 @@ class Environment(object):
         self.__optimize_cv = None
         self.__available_connections = None
 
-        # self.__main_line = main_line
-        # self.__next_main_line = next_main_line
-
+    @property
+    def available_connections(self):
+        return self.__available_connections
+    
     @property
     def current_time(self):
         return self.__current_time
