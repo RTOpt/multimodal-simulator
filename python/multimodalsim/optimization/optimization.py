@@ -117,8 +117,10 @@ class Optimization:
             -> list['request.Leg']:
         return self.__splitter.split(trip, state)
 
-    def dispatch(self, state: 'state_module.State') -> 'OptimizationResult':
-        return self.__dispatcher.dispatch(state)
+    def dispatch(self, state: 'state_module.State',
+                 partition_subset: Optional[PartitionSubset] = None) \
+            -> 'OptimizationResult':
+        return self.__dispatcher.dispatch(state, partition_subset)
 
     def need_to_optimize(
             self, env_stats: EnvironmentStatistics) \

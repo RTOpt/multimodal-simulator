@@ -49,3 +49,8 @@ class OptimizationConfig(Config):
     def termination_waiting_time(self) -> float:
         return float(self._config_parser["asynchronous"][
                          "termination_waiting_time"])
+
+    @property
+    def state_includes_partition_subset_only(self) -> bool:
+        return self._config_parser.getboolean(
+               "asynchronous", "state_includes_partition_subset_only")

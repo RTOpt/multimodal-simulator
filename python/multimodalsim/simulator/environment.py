@@ -180,7 +180,8 @@ class Environment:
         self.__routes_by_vehicle_id[vehicle_id] = route
 
     def get_new_state(self,
-                      partition_subset: Optional[PartitionSubset] = None) \
+                      partition_subset: Optional[PartitionSubset] = None,
+                      include_partition_subset_only: bool = False) \
             -> 'state_module.State':
         state_copy = copy.copy(self)
         state_copy.__network = None
@@ -196,7 +197,7 @@ class Environment:
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        if partition_subset is not None:
+        if partition_subset is not None and include_partition_subset_only:
             self.__filter_state_copy_according_to_partition(state_copy,
                                                             partition_subset)
 
@@ -222,6 +223,7 @@ class Environment:
 
     def __filter_state_copy_according_to_partition(self, state_copy,
                                                    partition_subset):
+        logger.warning("__filter_state_copy_according_to_partition")
         state_copy.__trips = self.__filter_trips_according_to_partition(
             state_copy.__trips, partition_subset)
 

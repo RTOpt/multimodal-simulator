@@ -132,6 +132,9 @@ class Optimize(ActionEvent):
         """If a Partition is used and the current Optimize event corresponds
         to the main Optimize event, then creates one Optimize event for each
         PartitionSubset of the Partition."""
+
+        self.__other_optimize_events = None
+
         other_events_created = False
         if self.__partition_subset is None \
                 and optimization.partition is not None:
@@ -150,7 +153,9 @@ class Optimize(ActionEvent):
             self.__state = env.get_new_state()
             env.optimization.update_state(self.__state)
         else:
-            self.__state = env.get_new_state(self.__partition_subset)
+            self.__state = env.get_new_state(
+                self.__partition_subset,
+                self.__state_includes_partition_subset_only)
             env.optimization.update_state(self.__state,
                                           self.__partition_subset)
 
@@ -216,6 +221,7 @@ class Optimize(ActionEvent):
         process_dict["state"] = self.__state
         process_dict["dispatch_function"] = env.optimization.dispatch
         process_dict["optimization_result"] = None
+        process_dict["partition_subset"] = self.__partition_subset
 
         return process_dict
 
@@ -237,8 +243,10 @@ class Optimize(ActionEvent):
 
     @staticmethod
     def dispatch(dispatch_function: Callable,
-                 state: State) -> 'optimization_module.OptimizationResult':
-        optimization_result = dispatch_function(state)
+                 state: State,
+                 partition_subset: Optional[PartitionSubset] = None) \
+            -> 'optimization_module.OptimizationResult':
+        optimization_result = dispatch_function(state, partition_subset)
 
         return optimization_result
 
@@ -259,6 +267,9 @@ class Optimize(ActionEvent):
             if max_optimization_time is None else max_optimization_time
         self.__max_optimization_time = optimization.freeze_interval \
             if max_optimization_time is None else max_optimization_time
+
+        self.__state_includes_partition_subset_only = \
+            config.state_includes_partition_subset_only
 
 
 class EnvironmentUpdate(ActionEvent):
@@ -384,5 +395,8 @@ class DispatchProcess(mp.Process):
 
         dispatch_function = self.__process_dict["dispatch_function"]
 
-        optimization_result = self.__dispatch(dispatch_function, state)
+        partition_subset = self.__process_dict["partition_subset"]
+
+        optimization_result = self.__dispatch(dispatch_function, state,
+                                              partition_subset)
         self.__process_dict["optimization_result"] = optimization_result
