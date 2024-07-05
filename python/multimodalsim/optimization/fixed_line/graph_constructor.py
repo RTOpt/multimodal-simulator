@@ -742,7 +742,7 @@ def get_last_stop(last_stop, level, stops_level):
         last = stops_level[int(last_stop)]
     return(last)
 
-def convert_graph(G : Graph):
+def convert_graph_to_model_format(G : Graph):
         """Converts the graph G into a format that can be used by the optimization solver.
         Inputs:
             - G: Graph, the graph to convert

@@ -6,7 +6,7 @@ from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatche
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop, LabelLocation
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.simulator.request import Leg
-from multimodalsim.optimization.fixed_line.graph_constructor import build_graph_with_tactics, build_graph_without_tactics,  build_and_solve_model_from_graph, convert_graph, extract_tactics_from_solution
+from multimodalsim.optimization.fixed_line.graph_constructor import build_graph_with_tactics, build_graph_without_tactics,  build_and_solve_model_from_graph, convert_graph_to_model_format, extract_tactics_from_solution
 
 import geopy.distance
 import random 
@@ -742,15 +742,15 @@ class FixedLineDispatcher(Dispatcher):
                     prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
                     prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
                     last_travel_time = bus_trips[bus_trip_id][0].arrival_time - prev_stop_departure_time
-                    time_max, hold, speedup, ss, bus_flows, opt_val, runtime = self.get_gen_data(G_gen,
-                                                                                                 stop_id,
-                                                                                                 bus_trip_id,
-                                                                                                 last_travel_time = last_travel_time)
+                    time_max, hold, speedup, skip_stop, bus_flows, opt_val, runtime = self.get_solution_for_graph(G_gen,
+                                                                                                            stop_id,
+                                                                                                            bus_trip_id,
+                                                                                                            last_travel_time = last_travel_time)
 
                     # Step d: Update tactics dictionary
                     if self.algo==2: # Regret Algorithm
                         tactic_regrets_dict = self.update_tactics_dict_regret(tactic_regrets_dict,
-                                                                                time_max, hold, speedup, ss,
+                                                                                time_max, hold, speedup, skip_stop,
                                                                                 bus_flows,
                                                                                 route,
                                                                                 next_route,
@@ -772,7 +772,6 @@ class FixedLineDispatcher(Dispatcher):
         # Step 5: Apply tactics
         if self.algo == 2: # Regret
             time_max, hold, speedup, ss = self.choose_tactic(tactic_regrets_dict, last_stop)
-
         return(speedup == 1, ss == 1, ( hold >= 0 , time_max))
 
     def get_next_route_stops(self, last_stop_id, next_route):
@@ -811,8 +810,8 @@ class FixedLineDispatcher(Dispatcher):
     def get_transfer_stop_times(self, state,
                                 stops,
                                 type_transfer_arrival_time,
-                                time_to_prev=600,
-                                time_to_next=600):
+                                time_to_prev = 600,
+                                time_to_next = 600):
         """Get the arrival times of the transfers at the stops.
         Inputs:
             - state: State object, the current state of the environment.
@@ -1608,8 +1607,11 @@ class FixedLineDispatcher(Dispatcher):
                 tactic_regrets_dict[tactic] += regret
         return(tactic_regrets_dict)
 
-    def get_gen_data(self, G_generated, stop_id, trip_id): 
-        """ Extract the results after optimization for the graph G_generated for the stop_id in the bus trip trip_id.
+    def get_solution_for_graph(self, G_generated, stop_id, trip_id): 
+        """
+        This function generates the solution for a graph.
+        Given a graph G_generated, a stop_id and a trip_id, it first converts the graph to a model format,
+        then builds and solves the corresponding arc-flow model, and finally extracts the tactics used at the stop with stop_id for the bus trip_id from the solution.
         Inputs:
             - G_generated: Graph, the graph generated with data from the generated scenario
             - stop_id: int, the stop id
@@ -1622,7 +1624,7 @@ class FixedLineDispatcher(Dispatcher):
             - bus_flows: dict, the bus flows in the solution, shows the path of each bus in the graph.
             - opt_val: int, the value of the objective function when using the optimal tactic
             - runtime: int, the runtime of the optimization"""
-        V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = convert_graph(G_generated)
+        V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = convert_graph_to_model_format(G_generated)
         opt_val, flow, display_flows, bus_flows, runtime = build_and_solve_model_from_graph(V, A, s, t, flows, ids, node_dict, edge_dict,
                                                                                             "Gen"+str(stop_id),
                                                                                             bus_dict,
