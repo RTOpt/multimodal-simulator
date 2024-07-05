@@ -374,6 +374,8 @@ class Stop(object):
         self.__cumulative_distance = cumulative_distance
         self.__planned_arrival_time = planned_arrival_time
         self.__planned_departure_time_from_origin = planned_departure_time_from_origin
+        self.__skip_stop = 0
+        self.__speedup = 0
 
     def __str__(self):
         class_string = str(self.__class__) + ": {"
@@ -504,6 +506,22 @@ class Stop(object):
     @planned_departure_time_from_origin.setter
     def planned_departure_time_from_origin(self, planned_departure_time_from_origin):
         self.__planned_departure_time_from_origin = planned_departure_time_from_origin
+
+    @property
+    def skip_stop(self):
+        return self.__skip_stop
+    
+    @skip_stop.setter
+    def skip_stop(self, skip_stop):
+        self.__skip_stop = skip_stop
+
+    @property
+    def speedup(self):
+        return self.__speedup
+    
+    @speedup.setter
+    def speedup(self, speedup):
+        self.__speedup = speedup
         
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the

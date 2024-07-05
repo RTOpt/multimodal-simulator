@@ -6,7 +6,7 @@ from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatche
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop, LabelLocation
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.simulator.request import Leg
-from multimodalsim.optimization.fixed_line.graph_constructor import *
+from multimodalsim.optimization.fixed_line.graph_constructor import build_graph_with_tactics, build_graph_without_tactics,  build_and_solve_model_from_graph, convert_graph, extract_tactics_from_solution
 
 import geopy.distance
 import random 
@@ -728,7 +728,7 @@ class FixedLineDispatcher(Dispatcher):
                                                                     )
                     
                     # Step b: Create graph from generated instance
-                    G_gen = build_graph_with_tactics(bus_trips=bus_trips,
+                    G_gen = build_graph_with_tactics(bus_trips = bus_trips,
                                                     transfers = transfers,
                                                     last_departure_times = last_departure_times,
                                                     initial_flows = initial_flows,
@@ -737,7 +737,7 @@ class FixedLineDispatcher(Dispatcher):
                                                     speedup_gen = self.speedup_factor,
                                                     ss_gen = self.skip_stop,
                                                     simu = True,
-                                                    last_stop = int(last_stop.location.label if last_stop != -1 else -1))
+                                                    last_stop = int(last_stop.location.label) if last_stop != -1 else -1)
                     # Step c: Get Data on optimization results
                     prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
                     prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
@@ -1622,15 +1622,13 @@ class FixedLineDispatcher(Dispatcher):
             - bus_flows: dict, the bus flows in the solution, shows the path of each bus in the graph.
             - opt_val: int, the value of the objective function when using the optimal tactic
             - runtime: int, the runtime of the optimization"""
-        V, A, s, t, flows, ids, node_dict, edge_dict, bus, Vdict, sources, puits = convert_graph(G_generated)
+        V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = convert_graph(G_generated)
         opt_val, flow, display_flows, bus_flows, runtime = build_and_solve_model_from_graph(V, A, s, t, flows, ids, node_dict, edge_dict,
                                                                                             "Gen"+str(stop_id),
-                                                                                            bus,
-                                                                                            verbose=False, 
-                                                                                            prix_hors_bus=1, 
-                                                                                            keys={},
-                                                                                            sources={},
-                                                                                            puits={})
-        time_max, hold, speedup, ss = get_opt_gen_data(bus_flows, stop_id, trip_id)
+                                                                                            bus_dict,
+                                                                                            verbose = False, 
+                                                                                            prix_hors_bus = self.general_parameters["out_of_bus_price"], 
+                                                                                            )
+        time_max, hold, speedup, ss = extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(time_max, hold, speedup, ss, bus_flows, opt_val, runtime)
     
