@@ -3,6 +3,7 @@ import copy
 
 import multimodalsim.state_machine.state_machine as state_machine
 from multimodalsim.state_machine.status import PassengersStatus
+from multimodalsim.simulator.request import Leg
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +322,114 @@ class Route(object):
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
         return result
+    
+    def route_skip_stop(self):
+        """Skip the next stop on the route."""
+        if len(self.__next_stops)>1:
+            self.__next_stops = self.__next_stops[1:]
+
+    def get_next_route_stops(self, last_stop_id):
+        """Get the next stops on the route until you reach the last stop id.
+        Inputs:
+            - last_stop_id: int, the id of the last stop.
+        Outputs:
+            - stops: list, the next stops on the route."""
+        stops_second = []
+        stop_id = -1
+        i = -1
+        while stop_id != last_stop_id and i < len(self.next_stops)-1:
+            i+=1
+            stop = self.next_stops[i]
+            stop_id = stop.location.label
+            stops_second.append(stop)
+        return stops_second
+    
+    def get_legs_for_passengers_boarding_at_skipped_stop(self, new_legs):
+        """Update the legs for passengers boarding at the skipped stop.
+           The route has to have next stops.
+        Inputs:
+            - new_legs: dict, the new legs for passengers boarding at the skipped stop.
+        Outputs:
+            - new_legs: dict, the updated new legs."""
+        # Find legs supposed to board at the skipped stop
+        boarding_legs = [leg for leg in self.assigned_legs if leg.origin == self.next_stops[0].location]
+        # Add 'boarding_legs_to_remove' to the new legs
+        new_legs['boarding'] = boarding_legs
+        # # Remove the boarding legs from the stop (this stop is skipped so not modified later on)
+        # route.next_stops[0].passengers_to_board = []
+        return new_legs
+    
+    def update_legs_for_passengers_alighting_at_skipped_stop(self, walking_route):
+        """Update the legs for passengers alighting at the skipped stop.
+        Inputs:
+            - route: Route object, the main line route.
+            - skipped_legs: list, the legs for passengers alighting at the skipped stop that are onboard the main line.
+
+        Outputs:
+            - route: Route object, the updated main line route."""
+        skipped_stop = self.next_stops[0]
+        next_stop = self.next_stops[1]
+
+        # Find passengers alighting at the skipped stop
+        skipped_legs = [leg for leg in self.onboard_legs if leg.destination == skipped_stop.location]
+        trips = [leg.trip for leg in skipped_legs]
+        # remove alighting legs from the destination stop
+        for trip in trips:
+            skipped_stop.passengers_to_alight.remove(trip)
+            # print(len(skipped_stop.passengers_to_alight), 'number of passengers to alight at skipped stop')
+            # input()
+        # remove the alighting legs from the onboard legs
+        self.onboard_legs = [leg for leg in self.onboard_legs if leg not in skipped_legs]
+
+        # prepare input data for walking
+        new_legs = {}
+        new_legs['walk'] = []
+        new_legs['onboard'] = []
+        new_legs['boarding'] = []
+        walk_origin = walking_route.current_stop.location.label
+        walk_destination = walking_route.next_stops[0].location.label
+        walk_release_time = walking_route.vehicle.release_time-1
+        walk_ready_time = walking_route.vehicle.release_time
+        walk_due_time = walking_route.vehicle.end_time+10
+        walk_cap_vehicle_id = walking_route.vehicle.id
+        # replace the onboard legs with new legs with destination next_stop
+        for leg in skipped_legs:
+            leg_id = leg.id
+            origin = leg.origin.label
+            destination = next_stop.location.label
+            nb_passengers = leg.nb_passengers
+            release_time = leg.release_time
+            ready_time = leg.ready_time
+            due_time = leg.due_time
+            trip = leg.trip
+            cap_vehicle_id = leg.cap_vehicle_id
+            new_leg = Leg(leg_id, LabelLocation(origin),
+                          LabelLocation(destination),
+                          nb_passengers, release_time,
+                          ready_time, due_time, trip)
+            new_leg.assigned_vehicle = self.vehicle
+            new_leg.set_cap_vehicle_id(cap_vehicle_id)
+            self.onboard_legs.append(new_leg) # passengers onboard are automatically reassigned to their destination stop in __process_route_plan if they are in RoutePlan()
+            new_legs['onboard'].append(new_leg)
+
+            # get the trip of the leg
+            trip = leg.trip
+            # replace the current leg of the trip
+            trip.current_leg = new_leg
+
+            # add alighting passenger to the following stop
+            # No need, done in process route plans.
+
+            # add walk leg to the trip
+            walk_leg_id = leg_id + '_walking'
+            walk_leg = Leg(walk_leg_id, LabelLocation(walk_origin),
+                           LabelLocation(walk_destination), 
+                           nb_passengers, walk_release_time,
+                           walk_ready_time, walk_due_time, trip)
+            walk_leg.set_cap_vehicle_id(walk_cap_vehicle_id)
+            trip.next_legs = [walk_leg] + trip.next_legs
+            new_legs['walk'].append(walk_leg)
+        return skipped_legs, new_legs
 
 
 class Stop(object):

@@ -32,8 +32,8 @@ class FixedLineDispatcherConfig(Config):
             "k": int(self._config_parser["general"]["k"]), # nombre de clusters par jour
             "dimension": int(self._config_parser["general"]["dimension"]), # dimension des clusters 
             "nbr_bus": int(self._config_parser["general"]["nbr_bus"]), # nombre de bus par simulation
-            "pas": int(self._config_parser["general"]["pas"]),
-            "prix_hors_bus": int(self._config_parser["general"]["prix_hors_bus"]),
+            "step": int(self._config_parser["general"]["step"]),
+            "out_of_bus_price": int(self._config_parser["general"]["out_of_bus_price"]),
             "price": int(self._config_parser["general"]["price"]),
             "walking_speed": float(self._config_parser["general"]["walking_speed"])
         }
