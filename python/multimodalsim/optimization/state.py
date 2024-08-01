@@ -1,10 +1,8 @@
 import logging
-from typing import Optional
 
 import multimodalsim.simulator.request as request
 import multimodalsim.simulator.vehicle as vehicle_module
 import multimodalsim.simulator.environment as environment_module
-from multimodalsim.optimization.partition import PartitionSubset
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,7 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.partition import FixedPartition, \
-    GreedyPartition
+from multimodalsim.optimization.partition import FixedPartition
 from multimodalsim.optimization.partition_subset import \
     VehiclesLegsPartitionSubset
 from multimodalsim.optimization.splitter import OneLegSplitter

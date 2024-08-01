@@ -36,6 +36,7 @@ class Optimize(ActionEvent):
 
         self.__partition_subset = partition_subset
         self.__state = None
+        self.__process_pool = queue.env.optimization.process_pool
 
         other_events_created = self.__create_other_optimize_events_if_needed(
             queue.env.optimization, time, queue)
@@ -185,7 +186,8 @@ class Optimize(ActionEvent):
 
         hold_event = Hold(self.queue, env.current_time
                           + env.optimization.freeze_interval, hold_cv,
-                          self.__max_optimization_time)
+                          self.__max_optimization_time, self.__process_pool)
+
         hold_event.add_to_queue()
 
         optimize_thread = Thread(target=self.__optimize_in_new_thread,
@@ -197,13 +199,15 @@ class Optimize(ActionEvent):
         self.__state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        with mp.Manager() as manager:
-            process_dict = self.__create_process_dict(env, manager)
-            opt_process = self.__create_optimize_process(process_dict,
-                                                         hold_event)
-            opt_process.start()
-            opt_process.join()
-            self.__create_environment_update(process_dict, hold_event)
+        async_result = self.__process_pool.apply_async(
+            dispatch_process_function,
+            args=(Optimize.dispatch, self.__state,
+                  env.optimization.dispatcher.dispatch,
+                  self.__partition_subset))
+
+        optimization_result = async_result.get()
+
+        self.__create_environment_update(optimization_result, hold_event)
 
         self.__state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
@@ -215,28 +219,9 @@ class Optimize(ActionEvent):
         with optimize_cv:
             optimize_cv.notify()
 
-    def __create_process_dict(self, env, manager):
-
-        process_dict = manager.dict()
-        process_dict["state"] = self.__state
-        process_dict["dispatch_function"] = env.optimization.dispatch
-        process_dict["optimization_result"] = None
-        process_dict["partition_subset"] = self.__partition_subset
-
-        return process_dict
-
-    def __create_optimize_process(self, process_dict, hold_event):
-        opt_process = DispatchProcess(dispatch=Optimize.dispatch,
-                                      process_dict=process_dict)
-        with hold_event.cv:
-            hold_event.optimization_process = opt_process
-
-        return opt_process
-
-    def __create_environment_update(self, process_dict, hold_event):
+    def __create_environment_update(self, optimization_result, hold_event):
         with hold_event.cv:
             hold_event.cancelled = True
-            optimization_result = process_dict["optimization_result"]
             EnvironmentUpdate(optimization_result,
                               self.queue, self.state_machine).add_to_queue()
             hold_event.cv.notify()
@@ -339,7 +324,8 @@ class EnvironmentIdle(ActionEvent):
 
 class Hold(TimeSyncEvent):
     def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
-                 cv: Condition, max_optimization_time: float) -> None:
+                 cv: Condition, max_optimization_time: float,
+                 process_pool: mp.Pool) -> None:
         super().__init__(queue, event_time,
                          max_waiting_time=max_optimization_time,
                          event_name='Hold')
@@ -348,7 +334,7 @@ class Hold(TimeSyncEvent):
         self.__max_optimization_time = max_optimization_time
         self.__timestamp = time.time()
 
-        self.__optimization_process = None
+        self.__process_pool = process_pool
 
         self.__termination_waiting_time = \
             queue.env.optimization.config.termination_waiting_time
@@ -356,14 +342,6 @@ class Hold(TimeSyncEvent):
     @property
     def cv(self) -> Condition:
         return self.__cv
-
-    @property
-    def optimization_process(self) -> 'DispatchProcess':
-        return self.__optimization_process
-
-    @optimization_process.setter
-    def optimization_process(self, optimization_process: 'DispatchProcess'):
-        self.__optimization_process = optimization_process
 
     def _synchronize(self) -> None:
         with self.__cv:
@@ -373,30 +351,21 @@ class Hold(TimeSyncEvent):
                     self.__terminate_process()
 
     def __terminate_process(self):
-        if self.__optimization_process.is_alive():
-            logger.warning("Terminate optimization process".format(
-                self.__termination_waiting_time))
-            self.__optimization_process.terminate()
-            time.sleep(self.__termination_waiting_time)
-            if self.__optimization_process.exitcode is None:
-                self.__optimization_process.kill()
-            raise RuntimeError("Optimization exceeded the time limit of {} "
-                               "seconds.".format(self.__max_optimization_time))
+        logger.warning("Terminate optimization process in {} seconds.".format(
+            self.__termination_waiting_time))
+        self.__process_pool.terminate()
+        time.sleep(self.__termination_waiting_time)
+        for process in self.__process_pool._pool:
+            if process.exitcode is None:
+                process.kill()
+        raise RuntimeError("Optimization exceeded the time limit of {} "
+                           "seconds.".format(self.__max_optimization_time))
 
 
-class DispatchProcess(mp.Process):
-    def __init__(self, dispatch: Callable, process_dict: dict) -> None:
-        super().__init__()
-        self.__dispatch = dispatch
-        self.__process_dict = process_dict
+def dispatch_process_function(
+        dispatch: Callable, state, dispatch_function, partition_subset) \
+        -> optimization_module.OptimizationResult:
+    optimization_result = dispatch(dispatch_function, state,
+                                   partition_subset)
 
-    def run(self) -> None:
-        state = self.__process_dict["state"]
-
-        dispatch_function = self.__process_dict["dispatch_function"]
-
-        partition_subset = self.__process_dict["partition_subset"]
-
-        optimization_result = self.__dispatch(dispatch_function, state,
-                                              partition_subset)
-        self.__process_dict["optimization_result"] = optimization_result
+    return optimization_result

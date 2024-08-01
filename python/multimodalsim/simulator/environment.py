@@ -201,7 +201,12 @@ class Environment:
             self.__filter_state_copy_according_to_partition(state_copy,
                                                             partition_subset)
 
-        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
+        if self.__optimization.config.asynchronous:
+            # No deep copy is needed when asynchronous (state is copied in a
+            # new process)
+            state_deepcopy = state_module.State(state_copy)
+        else:
+            state_deepcopy = state_module.State(copy.deepcopy(state_copy))
 
         return state_deepcopy
 
@@ -275,5 +280,6 @@ class Environment:
         return self.__optimize_cv
 
     @optimize_cv.setter
-    def optimize_cv(self, optimize_cv: Optional[Condition]) -> None:
+    def optimize_cv(self, optimize_cv: Optional[Condition] | dict[Condition]) \
+            -> None:
         self.__optimize_cv = optimize_cv

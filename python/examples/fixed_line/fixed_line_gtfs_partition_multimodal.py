@@ -5,8 +5,7 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.partition import PartitionSubset, Partition, \
-    FixedLineGreedyPartition
+from multimodalsim.optimization.partition import FixedLineGreedyPartition
 from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.simulator.simulation import Simulation

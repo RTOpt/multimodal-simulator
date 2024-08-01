@@ -1,4 +1,5 @@
 import logging
+from multiprocessing import Pool
 from typing import Optional, Union
 
 from multimodalsim.config.optimization_config import OptimizationConfig
@@ -63,6 +64,13 @@ class Optimization:
         self.__create_state_variable()
 
         self.__load_config(config, freeze_interval)
+
+        if self.__config.asynchronous:
+            nb_processes = len(partition.subsets) if partition is not None \
+                else 1
+            self.__process_pool = Pool(processes=nb_processes)
+        else:
+            self.__process_pool = None
 
     @property
     def status(self) -> Union[OptimizationStatus, dict[OptimizationStatus]]:
@@ -144,6 +152,10 @@ class Optimization:
     @property
     def partition(self) -> Partition:
         return self.__partition
+
+    @property
+    def process_pool(self) -> Pool:
+        return self.__process_pool
 
     @property
     def config(self) -> OptimizationConfig:
