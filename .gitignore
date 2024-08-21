@@ -29,7 +29,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-output/fixed_line/gtfs/
+output/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -132,6 +132,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 non_existent_trips.csv
-non_existent_trips.csv
-non_existent_trips.csv
-non_existent_trips.csv
+
