@@ -38,12 +38,8 @@ class VehicleReady(Event):
                                     self.queue,
                                     bus=True,
                                     event_priority=Event.HIGH_PRIORITY,
-                                    main_line = self.__route.vehicle.id).add_to_queue()
-        # else:
-        #     # if 'walk' in self.__vehicle.id:
-        #     #     print('Walk vehicle is ready, optimize before leaving the depot...')
-        #     #     input('Walking vehicle is ready, press Enter to continue...')
-        #     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+                                    main_line = self.__route.vehicle.id,
+                                    next_main_line = env.next_vehicles[self.__route.vehicle.id]).add_to_queue()
 
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 

@@ -39,8 +39,6 @@ class Environment(object):
 
     def __init__(self, optimization, network=None, coordinates=None,
                  travel_times=None,
-                #    main_line=None,
-                #    next_main_line=None
                    ):
         self.__current_time = 0
         self.__trips = []
@@ -48,6 +46,7 @@ class Environment(object):
         self.__non_assigned_trips = []
         self.__vehicles = []
         self.__routes_by_vehicle_id = {}
+        self.__next_vehicles = {}
 
         self.__network = network
         self.__optimization = optimization
@@ -264,15 +263,14 @@ class Environment(object):
     def optimize_cv(self, optimize_cv):
         self.__optimize_cv = optimize_cv
     
-    # @property
-    # def main_line(self):
-    #     return self.__main_line
+    @property
+    def next_vehicles(self):
+        return self.__next_vehicles
     
-    # @property
-    # def next_main_line(self):
-    #     return self.__next_main_line
-
-
+    @next_vehicles.setter
+    def next_vehicles(self, next_vehicles):
+        self.__next_vehicles = next_vehicles
+    
 class EnvironmentStatistics:
 
     def __init__(self, env):

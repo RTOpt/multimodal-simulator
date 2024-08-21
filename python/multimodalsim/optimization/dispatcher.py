@@ -280,6 +280,7 @@ class Dispatcher:
         for stop in route.next_stops:
             if leg.destination == stop.location:
                 stop.passengers_to_alight.append(leg.trip)
+                stop.passengers_to_alight_int += 1
                 break
 
     def __add_passenger_to_board(self, trip, stop):
@@ -287,22 +288,26 @@ class Dispatcher:
         trip_ids_list = [trip.id for trip in stop.passengers_to_board]
         if trip.id not in trip_ids_list:
             stop.passengers_to_board.append(trip)
+            stop.passengers_to_board_int +=1
 
     def __add_passenger_to_alight(self, trip, stop):
         # print('on est la, on ajoute le passenger_to_alight ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
+            stop.passengers_to_alight_int = stop.passengers_to_alight_int + 1
 
     def __remove_passenger_to_board(self, trip, stop):
         trip_ids_list = [trip.id for trip in stop.passengers_to_board]
         if trip.id in trip_ids_list:
             stop.passengers_to_board.remove(trip)
+            stop.passengers_to_board_int = max( 0, stop.passengers_to_board_int - 1)
     
     def __remove_passenger_to_alight(self, trip, stop):
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id in trip_ids_list:
             stop.passengers_to_alight.remove(trip)
+            stop.passengers_to_alight_int = max( 0, stop.passengers_to_alight_int - 1)
 
 class OptimizedRoutePlan:
     """Structure to store the optimization results of one route.
@@ -496,6 +501,7 @@ class OptimizedRoutePlan:
         for leg in legs_to_board:
             # print('Route id: ', self.__route.vehicle.id, 'on ajoute le passager', leg.trip.id,' au stop: ', stop.location.label)
             stop.passengers_to_board.append(leg.trip)
+            stop.passengers_to_board_int += 1
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
                 self.assign_leg(leg)
@@ -503,6 +509,7 @@ class OptimizedRoutePlan:
     def __assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
         for leg in legs_to_alight:
             stop.passengers_to_alight.append(leg.trip)
+            stop.passengers_to_alight_int += 1
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
                 self.assign_leg(leg)

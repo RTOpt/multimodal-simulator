@@ -1,3 +1,5 @@
+from multimodalsim.optimization.optimization import OptimizationResult
+from multimodalsim.simulator.vehicle import Stop, LabelLocation
 
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -8,8 +10,10 @@ import timeit
 from typing import List
 import matplotlib
 import copy
-from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.vehicle import Stop
+import os
+import networkx as nx
+from matplotlib.lines import Line2D
+
 print(matplotlib.__version__)
 
 class Graph_Node:
@@ -30,11 +34,11 @@ class Graph_Node:
     - dist: the distance of the node from the source node
     - bus: the bus to which the node belongs (the bus trip_id)
     """
-    def __init__(self, stop_id, ad, time=0, real_time=0, type='normal', flow=0, level=-1, dist=0, bus=-1):
+    def __init__(self, stop_id, ad, time=0, transfer_time=0, type='normal', flow=0, level=-1, dist=0, bus=-1):
         self.__stop_id = stop_id
         self.__type = type
         self.__time = time
-        self.__rt = real_time
+        self.__transfer_time = transfer_time
         self.__ad = ad
         self.__flow = flow
         if level == -1:
@@ -69,8 +73,8 @@ class Graph_Node:
         return(self.__time)
 
     @property
-    def node_real_time(self):
-        return(self.__rt)
+    def node_transfer_time(self):
+        return(self.__transfer_time)
     
     @property
     def node_arrival_departure(self):
@@ -107,7 +111,8 @@ class Graph_Node:
     @node_time.setter
     def node_time(self, time):
         self.__time = time
-    
+
+    @property
     def show_node(self):
         print('***NODE***')
         print("stop id:", self.node_stop_id) 
@@ -139,7 +144,7 @@ class Graph_Edge:
     def __eq__(self, other):
         """Overrides the default implementation of =="""
         if isinstance(other, Graph_Edge):
-            return (self.o == other.o and self.d == other.d and self.w == other.w and self.c == other.c)
+            return (self.__o == other.__o and self.__d == other.__d and self.__w == other.__w and self.__c == other.__c)
         return False
 
     def __ne__(self, other):
@@ -147,7 +152,7 @@ class Graph_Edge:
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.o, self.d, self.w, self.c))
+        return hash((self.__o, self.__d, self.__w, self.__sp, self.__ss))
     
     @property
     def origin(self):
@@ -172,22 +177,23 @@ class Graph_Edge:
     def capacity(self):
         return(self.__c)
     
+    @property
     def show_edge(self):
         print('***EDGE***')
-        print("origin: stop_id-", self.origin.node_stop_id,
-              ", arrival/dparture-", self.origin.node_arrival_departure,
-              ", time-", self.origin.node_time,
-              ", type-", self.origin.node_type,
-              ", flow-", self.origin.node_flow,
-              ", level-", self.origin.node_level,
-              ", bus-", self.origin.node_bus)
-        print("destination: stop_id-", self.destination.node_stop_id,
-                ", arrival/dparture-", self.destination.node_arrival_departure,
-                ", time-", self.destination.node_time,
-                ", type-", self.destination.node_type,
-                ", flow-", self.destination.node_flow,
-                ", level-", self.destination.node_level,
-                ", bus-", self.destination.node_bus)
+        print("origin: stop_id :", self.origin.node_stop_id,
+              ", arrival/dparture :", self.origin.node_arrival_departure,
+              ", time :", self.origin.node_time,
+              ", type :", self.origin.node_type,
+              ", flow :", self.origin.node_flow,
+              ", level :", self.origin.node_level,
+              ", bus :", self.origin.node_bus)
+        print("destination: stop_id :", self.destination.node_stop_id,
+                ", arrival/dparture :", self.destination.node_arrival_departure,
+                ", time :", self.destination.node_time,
+                ", type :", self.destination.node_type,
+                ", flow :", self.destination.node_flow,
+                ", level :", self.destination.node_level,
+                ", bus :", self.destination.node_bus)
         print("weight: ", self.weight)
         print("speedup: ", self.speedup, "skip-stop: ", self.skip_stop)
         print('***EDGE***')
@@ -199,7 +205,7 @@ class Graph:
     De plus, chaque graphe a un noeud source "source" et un noeud puit "target" définit dès le départ.
     """
     def __init__(self,name: str, nodes: List[Graph_Node], edges: List[Graph_Edge], source: Graph_Node, target: Graph_Node):
-        self.name=name
+        self.__name = name
         if (source in nodes) == False: 
             nodes.insert(0, source)
         if (target in nodes) == False: 
@@ -210,7 +216,10 @@ class Graph:
         self.__t = target
         self.__time_step = 20
         self.__price = 3600
-
+    @property
+    def name(self):
+        return self.__name
+    
     @property
     def time_step(self):
         return self.__time_step
@@ -243,19 +252,18 @@ class Graph:
     def target(self):
         return(self.__t)
     
+    @property
     def nb_nodes(self):
         return(len(self.__nodes))
     
+    @property
     def nb_edges(self):
         return(len(self.__edges))
     
     def get_node(self, stop_id : int, ad :str, time :int, type: str):
-        tmp=[]
         for node in self.nodes:
             if node.node_stop_id == stop_id and node.node_arrival_departure == ad and node.node_time == time and node.node_type==type:
-                tmp.append(node)
-        if len(tmp)==1:
-            return(tmp[0])
+                return(node)
         return(False)
     
     def contains_node(self, node: Graph_Node):
@@ -263,13 +271,13 @@ class Graph:
     
     def add_node(self, node : Graph_Node):
         if self.contains_node(node) == False:
-            self.nodes.append(node)
+            self.__nodes.append(node)
 
     def contains_edge(self, origin:Graph_Node, dest:Graph_Node, weight: int):
         edges=[edge for edge in self.edges if edge.origin == origin and edge.destination == dest and edge.weight == weight]
         if len(edges)>0:
             return(True)
-        else: return(False)
+        return(False)
     
     def append_edge(self, edge: Graph_Edge):
         self.__edges.append(edge)
@@ -281,7 +289,7 @@ class Graph:
             else:
                 weight = dest.node_time - origin.node_time
         if weight >= 0:
-            if self.contains_edge(origin, dest, weight)==False: 
+            if self.contains_edge(origin, dest, weight) == False: 
                 if self.contains_node(origin) == False:
                     print("pb origin not in nodes", origin.show_node())
                     print(self.edges)
@@ -292,8 +300,28 @@ class Graph:
                     print(self.edges)
                 edge = Graph_Edge(origin, dest, weight, sp = sp, ss = ss)
                 self.append_edge(edge)
+    
+    @property
+    def show_graph(self):
+        """ This functions shows the graph.
+        First we print the source node and the target node.
+        Then we print all the nodes in the graph in the order they were added to the graph.
+        Then we print all the edges in the graph in the order they were added to the graph.
+        """
+        print('***GRAPH***')
+        print('Source node:')
+        self.source.show_node
+        print('Target node:')
+        self.target.show_node
+        print('Nodes:')
+        for node in self.nodes:
+            node.show_node
+        print('Edges:')
+        for edge in self.edges:
+            edge.show_edge
+        print('***GRAPH***')
         
-    def add_alighting_passenger_edge(self, arrival_node, alighting_transfer_node, walking_time = 0, stop_is_skipped = 0):
+    def add_alighting_transfer_passenger_edge(self, arrival_node, alighting_transfer_node, walking_time = 0, stop_is_skipped = 0):
         alighting_transfer_node_time = alighting_transfer_node.node_time
         arrival_time = arrival_node.node_time + walking_time
         if alighting_transfer_node_time - arrival_time > 0:
@@ -301,7 +329,7 @@ class Graph:
         else: 
             wait_for_next_transfer_bus = alighting_transfer_node_time - arrival_time
             while wait_for_next_transfer_bus <= 0:
-                wait_for_next_transfer_bus += alighting_transfer_node.node_real_time
+                wait_for_next_transfer_bus += alighting_transfer_node.node_transfer_time
             self.add_edge(arrival_node, alighting_transfer_node, wait_for_next_transfer_bus, ss = stop_is_skipped) # if we miss the transfer, the waiting time is equal to the wait to the next available transfer bus
                         
     def add_source_node(self,
@@ -311,7 +339,7 @@ class Graph:
                         trip_id : str,
                         global_source_node: Graph_Node):
         """
-        This function adds a source node to the graph.
+        This function adds a secondary source node to the graph for each trip.
         Inputs:
             - G: the graph
             - sources: dictionary of source nodes
@@ -351,10 +379,101 @@ class Graph:
             - target_nodes: updated dictionary of target nodes
             - od_d_dict: udpated dictionary of nodes with negative exogenous flow"""
         stop_id = int(stop.location.label)
-        target = Graph_Node(stop_id, "a", start_time, start_time, "puit", -stop.passengers_to_alight[0], l, d, trip_id)
+        target = Graph_Node(stop_id, "a", start_time, start_time, "puit", -stop.passengers_to_alight_int, l, d, trip_id)
         self.add_node(target)
         target_nodes[trip_id][stop_id] = target
-        od_d_dict[trip_id].append((stop, target))
+        od_d_dict[trip_id].append((stop_id, target))
+    
+    def create_stops_dict(self,
+                          bus_trips: dict,
+                          with_tactics = False):
+        """
+        This function creates a dictionary of stops and their corresponding levels in the graph.
+        Inputs:
+            - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
+            - with_tactics: boolean indicating whether tactics are allowed.
+        Outputs:
+            - stops_level: dictionary containing the level of each stop in the graph
+            - stops_dist: dictionary containing the distance of each stop in the graph
+            - targets: dictionary containing the target nodes for each stop
+        """
+        global_target_node = self.target
+        stop_id_and_dist = []
+        for trip_id in bus_trips:
+            for stop in bus_trips[trip_id]:
+                stop_id_and_dist.append((int(stop.location.label), stop.cumulative_distance))
+        stop_id_and_dist=np.unique(stop_id_and_dist,axis=0)
+        stop_id_and_dist=sorted(stop_id_and_dist, key=itemgetter(1))
+        stops_level = {}
+        stops_dist = {}
+        targets = {}
+        level = 1
+        for i in range(len(stop_id_and_dist)):
+            stop_id = int(stop_id_and_dist[i][0])
+            if (stop_id in stops_level) == False:
+                stops_level[stop_id] = level
+                stops_dist[stop_id] = stop_id_and_dist[i][1]
+                target_node_for_level = Graph_Node(stop_id, "d", 0, 0, 'puit', 0, level, stop_id_and_dist[i][1])
+                targets[stop_id] = target_node_for_level
+                self.add_node(target_node_for_level)
+                if with_tactics == False: 
+                    self.add_edge(target_node_for_level, global_target_node, 0)
+                level += 1
+        return stops_level, stops_dist, targets
+    
+    def get_transfer_data(self,
+                      transfers: dict,
+                      stops_level: dict,
+                      stops_dist: dict,
+                      trip_id: str,
+                      od_d_dict: dict,
+                      od_m: list):
+        """
+        This function creates transfer nodes and gets transfer data for passengers transferring on the bus trip.
+        Inputs:
+            - transfers: dictionary containing the transfer data for passengers transferring on the bus trip.
+            - stops_level: dictionary containing the level of each stop in the graph.
+            - stops_dist: dictionary containing the distance of each stop in the graph.
+            - trip_id: the bus trip id
+            - od_d_dict: dictionary containing the origins/destinations of each passenger
+            - od_m: list containing the number of passengers boarding the bus trip at each stop
+            - G: the graph
+        Outputs:
+            - transfer_nodes: dictionary of transfer nodes for each stop, contains transfer nodes for passenger going to other lines.
+            - transfer_passengers: dictionary containing the time and number of passengers arriving from other lines at each stop
+
+        """
+        # Create transfer nodes and get transfer data
+        transfer_nodes = {} # dict of transfer nodes for each stop, contains transfer nodes for passenger going to other lines.
+        transfer_passengers = defaultdict(lambda : defaultdict(dict)) # dict containing the time and number of passengers arriving from other lines at each stop
+        level = -1 # level of the stop
+        for stop_id in transfers[trip_id]: 
+            level = stops_level[stop_id]
+            dist = stops_dist[stop_id]
+            # Passengers aligting and transfering to other lines
+            for (time, nbr_passengers, transfer_time) in transfers[trip_id][stop_id]['alighting']:
+                if stop_id not in transfer_nodes:
+                    transfer_nodes[stop_id] = []
+                add_flow_to_existing_node = False
+                for node in transfer_nodes[stop_id]:
+                    if node.node_time == time and node.node_transfer_time == transfer_time:
+                        node.node_flow = node.node_flow - nbr_passengers
+                        add_flow_to_existing_node = True
+                        od_d_dict[trip_id].append((stop_id, node))
+                        break
+                if add_flow_to_existing_node == False: 
+                    transfer_node = Graph_Node(stop_id, "a", time, transfer_time, "transfer", -nbr_passengers, level, dist, trip_id)
+                    transfer_nodes[stop_id].append(transfer_node)
+                    self.add_node(transfer_node)
+                    od_d_dict[trip_id].append((stop_id, transfer_node))
+
+            # Passengers transfering from other lines and boarding main line.
+            for (time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']:
+                if stop_id not in transfer_passengers: 
+                    transfer_passengers[stop_id] = {}
+                transfer_passengers[stop_id][time] = nbr_passengers # all transfer times are unique
+                od_m.append((nbr_passengers, stop_id, time))
+        return(transfer_nodes, transfer_passengers, od_d_dict, od_m, level)
     
     def add_speedup_tactic_path(self,
                             stop : Stop,
@@ -398,7 +517,7 @@ class Graph:
 
         if speedup_factor == 1 or travel_time <= 30 or speedup_departure_time < stop.planned_arrival_time - 60:
             # Do not a speedup tactic path
-            return speedup_path_is_added, cur_arr, departs_current, None, None
+            return speedup_path_is_added,  None
         
         # Add speedup tactic path
         if speedup_arrival_time in cur_arr:
@@ -455,12 +574,12 @@ class Graph:
             """
         stop_id = int(stop.location.label)
         time_step = self.time_step
-        arrival_time = time_prev + travel_time    
+        arrival_time = time_prev + travel_time  
         if arrival_time in cur_arr:
-            no_tactics_arrival_node=cur_arr[arrival_time]
+            no_tactics_arrival_node = cur_arr[arrival_time]
         else: 
             no_tactics_arrival_node = Graph_Node(stop_id,'a', arrival_time, 0, 'normal', 0, l, d, trip_id)
-            cur_arr[arrival_time]=no_tactics_arrival_node
+            cur_arr[arrival_time] = no_tactics_arrival_node
             self.add_node(no_tactics_arrival_node)
             self.add_edge(no_tactics_arrival_node, target, 0)
         departure_time = (arrival_time + dwell + time_step-1) //time_step*time_step
@@ -490,7 +609,7 @@ class Graph:
                             l: int,
                             d: float,
                             trip_id: str,
-                            ss: bool):
+                            ss: bool):            
         """
         This function adds a skip-stop path to the graph.
         Inputs:
@@ -513,6 +632,7 @@ class Graph:
         skip_stop_time = (arrival_time + time_step - 1)//time_step*time_step # here arrival and departure time are the same
         if l >= last or ss == False or id_in_transfer_passengers or skip_stop_time <= stop.planned_arrival_time - 60:
             return
+        
         if skip_stop_time in skips: 
             skip_node = skips[skip_stop_time]
         else:
@@ -536,38 +656,67 @@ class Graph:
                                               planned_departure_time: int,
                                               edge_dep_plan: Graph_Edge,
                                               walking_time = 0,
-                                              stop_is_skipped = 0
+                                              stop_is_skipped = 0,
+                                              boarding_without_transfer = False,
+                                              l: int = 0,
+                                              d: float = 0
                                               ):
+        """This function add edges to the graph allowing passengers transferring from other buses to the main line to
+        board the bus at the newly created nodes at the current stop.
+        
+        Inputs:
+            - stop: Stop, the stop at which the boarding transfer passengers are boarding
+            - trip_id: str, the bus trip id
+            - transfer_passengers: dict, the dictionary of transfer passengers
+                The format is as follows:
+                transfer_passengers[stop_id: int][transfer_time: int] = number of passengers
+            - exo_current: dict, the dictionary of exogenous nodes at the current stop
+                The format is as follows:
+                exo_current[time] = node
+            - od_m_dict: dict, the dictionary of OD pairs
+                The format is as follows:
+                od_m_dict[trip_id] = [(number of passengers, stop, edge), ...]
+            - planned_departure_node_tmp: Graph_Node, the planned departure node of the bus with exogenous flow
+            - planned_departure_time: int, the planned departure time of the bus at the stop
+            - edge_dep_plan: Graph_Edge, the edge from the planned departure node with exogenous flow to the network
+            - walking_time: int, the time it takes for passengers to walk from the previous/next stop to the current stop
+            - stop_is_skipped: int, indicates if the stop is skipped or not
+        Outputs:
+            - tmp: list of newly created nodes for the transfer passengers"""
         # Boarding transfer passengers
         stop_id = int(stop.location.label)
         time_step = self.time_step
-        if stop_id in transfer_passengers:
-            tmp = []
-            for transfer_time in transfer_passengers[stop_id]:
-                transfer_bus_arrival_time_discrete = (transfer_time + time_step - 1)//time_step * time_step
-                # There are two possibilities: transfer happens at the same time as the normal boarding or not
-                if transfer_bus_arrival_time_discrete == planned_departure_time: 
-                    planned_departure_node_tmp.node_flow = planned_departure_node_tmp.node_flow + transfer_passengers[stop_id][transfer_time]
-                    planned_departure_node_tmp.node_type = 'transfer'
-                    od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_dep_plan))
-                else: 
-                    # All transfer times are unique so we only need to check for the planned departure time.
-                    # Transfer_passengers[stop_id][transfer_time] > 0 for all transfer times
-                    additional_time = 0 if stop_is_skipped == 0 else walking_time
-                    transfer_passenger_arrival_time_at_stop = transfer_bus_arrival_time_discrete + additional_time
-                    edge_weight = 1 if stop_is_skipped == 0 else walking_time
-                    while (transfer_bus_arrival_time_discrete + walking_time in exo_current)==True:
-                        transfer_bus_arrival_time_discrete += 1
-                    transfer_departure_node = Graph_Node(stop_id, "d", transfer_passenger_arrival_time_at_stop, 0, "transfer", 0, l, d, trip_id)
-                    transfer_departure_node_tmp = Graph_Node(stop_id, "d", transfer_bus_arrival_time_discrete, 0, "transfer", transfer_passengers[stop_id][transfer_time], l, d, trip_id)
-                    self.add_node(transfer_departure_node)
-                    self.add_node(transfer_departure_node_tmp)
-                    edge_deb = Graph_Edge(transfer_departure_node_tmp, transfer_departure_node, edge_weight, ss = stop_is_skipped)
-                    self.add_edge(transfer_departure_node_tmp, transfer_departure_node, edge_weight, ss = stop_is_skipped)
-                    exo_current[transfer_bus_arrival_time_discrete] = transfer_departure_node_tmp
-                    tmp.append(transfer_departure_node)
-                    od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_deb)) 
+        tmp = []
+
+        if stop_id not in transfer_passengers:
             return tmp
+        
+        for transfer_time in transfer_passengers[stop_id]:
+            transfer_bus_arrival_time_discrete = (transfer_time + time_step - 1)//time_step * time_step
+            # There are two possibilities: transfer happens at the same time as the normal boarding or not
+            if transfer_bus_arrival_time_discrete == planned_departure_time and boarding_without_transfer: 
+                planned_departure_node_tmp.node_flow = planned_departure_node_tmp.node_flow + transfer_passengers[stop_id][transfer_time]
+                planned_departure_node_tmp.node_type = 'transfer'
+                od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_dep_plan))
+                print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
+            else: 
+                # All transfer times are unique so we only need to check for the planned departure time.
+                # Transfer_passengers[stop_id][transfer_time] > 0 for all transfer times
+                additional_time = 0 if stop_is_skipped == 0 else walking_time
+                transfer_passenger_arrival_time_at_stop = transfer_bus_arrival_time_discrete + additional_time
+                edge_weight = 1 if stop_is_skipped == 0 else walking_time
+                while (transfer_bus_arrival_time_discrete + walking_time in exo_current)==True:
+                    transfer_bus_arrival_time_discrete += 1
+                transfer_departure_node = Graph_Node(stop_id, "d", transfer_passenger_arrival_time_at_stop, 0, "transfer", 0, l, d, trip_id)
+                transfer_departure_node_tmp = Graph_Node(stop_id, "d", transfer_bus_arrival_time_discrete, 0, "transfer", transfer_passengers[stop_id][transfer_time], l, d, trip_id)
+                self.add_node(transfer_departure_node)
+                self.add_node(transfer_departure_node_tmp)
+                edge_deb = Graph_Edge(transfer_departure_node_tmp, transfer_departure_node, edge_weight, ss = stop_is_skipped)
+                self.add_edge(transfer_departure_node_tmp, transfer_departure_node, edge_weight, ss = stop_is_skipped)
+                exo_current[transfer_bus_arrival_time_discrete] = transfer_departure_node_tmp
+                tmp.append(transfer_departure_node)
+                od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_deb)) 
+        return tmp
         
     def link_passengers_from_previous_bus(self,
                                           times: list,
@@ -584,12 +733,14 @@ class Graph:
             - stop_id: the stop id
             - last_exo: dictionary of last exogenous nodes
             - exo_current: dictionary of current exogenous nodes
+            - departs_current: dictionary of current departure nodes
+            - with_tactics: indicates if tactics are allowed
         """
         if stop_id in last_exo:
             for node_exo in last_exo[stop_id]: 
                 if node_exo.node_time <= times[0][0]: 
                     self.add_edge(node_exo, times[0][1])
-                elif node_exo.node_time > times[-1][0]:
+                elif node_exo.node_time > times[-1][0]: # This should not happe, passenger assigned to previous bus arrived after current bus...
                     node_dep = [edge for edge in self.edges if edge.origin == node_exo][0].destination
                     times.append((node_dep.node_time, node_dep))
                     if with_tactics == False:
@@ -602,7 +753,7 @@ class Graph:
                             node_dep.node_time = node_dep.node_time + 1
                         departs_current[node_dep.node_time] = node_dep
                 else: 
-                    i=1
+                    i = 1
                     node_exo_test = True
                     while i < len(times) and node_exo_test:
                         if node_exo.time<=times[i][0]:
@@ -635,12 +786,18 @@ class Graph:
             - trip_id: the bus trip id
             - order: list of bus trips with their start times
         Outputs:"""
+        print('stop id', stop_id, 'start time', start_time, 'trip id', trip_id, 'order', order)
         for k in range(len(times)-1): # Add waiting time arcs for passengers waiting at the stop
             if times[k][0] < no_tactics_departure_node.node_time: 
                 self.add_edge(times[k][1], times[k+1][1]) 
         # Passengers ready after the bus departure will wait for the next bus
         if times[len(times)-1][1] != no_tactics_departure_node or (start_time, trip_id) == order[-1]:
-            last_exo[stop_id]=[exo_current[key] for key in exo_current if key >= no_tactics_departure_node.node_time]
+            exogenous_nodes_to_link_to_next_bus = [exo_current[key] for key in exo_current if key >= no_tactics_departure_node.node_time]
+            if len(exogenous_nodes_to_link_to_next_bus) > 0:
+                print('There are nodes with exogenous flows that need to be linked to next bus at stop id', stop_id)
+                for node in exogenous_nodes_to_link_to_next_bus:
+                    node.show_node
+                last_exo[stop_id] = exogenous_nodes_to_link_to_next_bus
         return
     
     def finalize_graph_for_current_stop_with_tactics(self,
@@ -666,9 +823,11 @@ class Graph:
             self.add_edge(times[k][1], times[k+1][1])
         if skip_stop_is_allowed == False and speedup_factor == 1: # Only hold tactic is allowed
             departure_time = no_tactics_departure_node.node_time
-            last_exo[stop_id]=[exo_current[key] for key in exo_current if key >= departure_time] # any earlier departures are impossible
+            nodes_to_link_to_next_bus = [exo_current[key] for key in exo_current if key >= departure_time] # any earlier departures are impossible
         else: 
-            last_exo[stop_id]=[exo_current[key] for key in exo_current]
+            nodes_to_link_to_next_bus = [exo_current[key] for key in exo_current]
+        if len(nodes_to_link_to_next_bus) > 0:
+            last_exo[stop_id] = nodes_to_link_to_next_bus
         return
     
     def finalize_graph_for_current_bus_trip(self,
@@ -699,60 +858,45 @@ class Graph:
             - order: list of bus trips with their start times"""
         for k in range(len(times)):
             self.add_edge(times[k][1], global_target_node, 0)
-        for time in skips: # We don't need this as an arc for all skip-stop nodes is already added in the add_skip_stop_path function
+        for time in skips:
             self.add_edge(skips[time], global_target_node, 0)
         for node_exo in exo_current: 
             self.add_edge(exo_current[node_exo], global_target_node, 0)
         if (start_time, trip_id) == order[-1]:
+            print('We are treating the last bus trip')
             for id in last_exo: 
-                input(" Last exo devrait etre vide ici si on visite tous les arrets de la ligne...") # A enlever
-                target_niveau = targets[stop_id]
+                target_niveau = targets[id]
                 for node_exo in last_exo[id]:
                     if node_exo.node_bus == str(trip_id):
                         self.add_edge(node_exo, target_niveau, price)
+                        # print('Adding edge from last exo to target node')
+                        # print('All edges connected to last exo')
+                        # for edge in self.edges:
+                        #     if edge.origin == node_exo or edge.destination == node_exo:
+                        #         edge.show_edge
+                        
         return
 
-def get_all_passenger_ready_times_and_bus_departure_times(times,
-                                                            departs_current: dict,
-                                                            boarding_without_transfer: bool,
-                                                            planned_departure_time: int,
-                                                            planned_departure_node: Graph_Node):
-    """
-    This function returns, sorted, all possible passenger ready times and bus departure times for the bus from the current bus stop.
-    Inputs:
-        - times: list of all possible passenger ready times and bus departure times
-        - departs_current: dictionary of bus departure times
-        - boarding_without_transfer: boolean indicating whether passengers are boarding without a transfer
-        - planned_departure_time: the planned departure time of the bus
-        - planned_departure_node: the planned departure node of the bus
-        - planned_departure_time_in_departs_current: boolean indicating whether the planned departure time is in departs_current"""
-    for time in departs_current:
-        times.append((time, departs_current[time]))
-    if boarding_without_transfer and (planned_departure_time in departs_current) == False:
-        times.append((planned_departure_time, planned_departure_node))
-    times = sorted(times, key=itemgetter(0))
-    return
-
-def get_last_stop(last_stop, level, stops_level):
-    if last_stop == 0:
-        last = level
-    elif last_stop == -1:
-        last = 0
-    else: 
-        last = stops_level[int(last_stop)]
-    return(last)
-
-def convert_graph_to_model_format(G : Graph):
+    def convert_graph_to_model_format(self):
         """Converts the graph G into a format that can be used by the optimization solver.
         Inputs:
             - G: Graph, the graph to convert
         Outputs:
-         - Vnewset: set, the set of new vertices
+            - Vnew: set of all nodes (each node is a number 1,2,3 ...)
+            - Anew: set of all arcs
+            - snew: source node
+            - tnew: target node
+            - flows: exogenous flow at each node. example: flows[6]=+2
+            - ids: a dictionary that for each node gives its stop_id. example: ids[6]=46884
+            - node_dict: a dictionary that for each node number gives the corresponding Graph_Node object
+            - edge_dict: a dictionary that for each edge number gives the corresponding Graph_Edge object
+            - bus_dict: a dictionary that for each node number gives its bus trip_id. example: bus_dict[6]='2546781'
          """
-        V = G.nodes
-        A = G.edges
-        s = G.source
-        t = G.target
+        print('Converting graph to model format')
+        V = self.nodes
+        A = self.edges
+        s = self.source
+        t = self.target
 
         #create new vertices
         Vnew = {}
@@ -795,7 +939,113 @@ def convert_graph_to_model_format(G : Graph):
         snew = Vnew[s]
         tnew = Vnew[t]
         Vnewset = set([Vnew[v] for v in V])
+        print('Graph converted to model format')
         return(Vnewset, Anew, snew, tnew, flows, ids, node_dict, edge_dict, bus)
+    
+    def build_and_solve_model_from_graph(self,
+                                     name,
+                                     verbose = True,
+                                     out_of_bus_price = 1,
+                                     savepath = 'output',
+                                     keys = {},
+                                     sources = {},
+                                     puits = {},
+                                     extras = {}):
+
+        """ 
+        Function that takes a graph, information on buses and Origin/Destination pairs and returns the optimal solution of the arc-flow model.
+
+        Inputs:
+            - name: instance name
+            - verbose: boolean, if True, the function prints the optimal value and the flows
+            - out_of_bus_price: out of bus waiting time cost 'as perceived by passengers'.
+            - savepath: directory where to save the arc-flow model (optional)
+            - keys: dict that for each node with negative exogenous flow returns a list of edges. These are the edges passengers use to board the bus.
+            If the flow on such an edge is 0, that means the passenger did not board the current bus. The alighting flow of the node must be ajusted accordingly.
+            - sources: dict that for each trip_id returns the departure time at the origin of the trip
+            - puits: dict that for each bus trip returns the nodes with negative exogenous flows (alighting nodes)
+            - extras: dict that contains additional information (optional)
+        Outputs:
+            - optimal_value: int, the optimal value of the objective function of the arc-flow model
+            #- flow: dict, the passenger flows on each edge
+            - bus_flows: dict, the bus flows on each edge
+            - display_flows: dict, the passenger flow on each edge, used in the display_graph function.
+            - runtime: float, the runtime of the optimization model
+        """
+        V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = self.convert_graph_to_model_format()
+
+        m = create_opt_model_from_graph_with_mip(V, A, s, t, flows, ids, name,
+                                                bus_dict, 
+                                                savepath=savepath,
+                                                out_of_bus_price=out_of_bus_price,
+                                                keys=keys,
+                                                sources=sources,
+                                                puits=puits,
+                                                extras=extras)
+        m.store_search_progress_log = False
+
+        #Solve
+        runtime = timeit.default_timer()
+        m.optimize() 
+        runtime = timeit.default_timer()-runtime
+        gap = m.gap
+        print('Optimality GAP=',gap)
+
+        #Get results 
+        # passenger_flows = {}
+        bus_flows = {}
+        display_flows = {}
+        indicator_flows = {}
+        for (u1,v1,i) in A:
+            x = m.vars['x({},{},{})'.format(u1,v1,i)]
+            y = m.vars['y({},{},{})'.format(u1,v1,i)]
+            u = node_dict[u1]
+            v = node_dict[v1]
+            # unew = (str)(u.node_stop_id)+' '+u.node_arrival_departure+' '+u.node_type+' '+(str)(u.node_time)
+            # vnew = (str)(v.node_stop_id())+' '+v.node_arrival_departure+' '+v.node_type+' '+(str)(v.node_time)
+            # print('Edge (',u1,',',v1,',',i,')', 'x=',x.x, 'y=',y.x)
+            display_flows[edge_dict[(u,v,i)]] = round(x.x)
+            # passenger_flows[(unew, vnew, i)] = (int)(x.x)
+            bus_flows[edge_dict[(u,v,i)]]=round(y.x)
+
+        optimal_value = m.objective_value
+        if verbose: 
+            print("Noeuds: ", len(V) + 1)
+            print("Arcs: ", len(A))
+            print("valeur optimale: ", optimal_value)
+            # print("flots:", flow)
+        # return(optimal_value, flow, display_flows, bus_flows, runtime)
+        return(optimal_value, bus_flows, display_flows, runtime)
+    
+def get_all_passenger_ready_times_and_bus_departure_times(times,
+                                                            departs_current: dict,
+                                                            boarding_without_transfer: bool,
+                                                            planned_departure_time: int,
+                                                            planned_departure_node: Graph_Node):
+    """
+    This function returns, sorted, all possible passenger ready times and bus departure times for the bus from the current bus stop.
+    Inputs:
+        - times: list of all possible passenger ready times and bus departure times
+        - departs_current: dictionary of bus departure times
+        - boarding_without_transfer: boolean indicating whether passengers are boarding without a transfer
+        - planned_departure_time: the planned departure time of the bus
+        - planned_departure_node: the planned departure node of the bus
+        - planned_departure_time_in_departs_current: boolean indicating whether the planned departure time is in departs_current"""
+    for time in departs_current:
+        times.append((time, departs_current[time]))
+    if boarding_without_transfer and (planned_departure_time in departs_current) == False:
+        times.append((planned_departure_time, planned_departure_node))
+    return times
+
+def get_last_stop(last_stop, level, stops_level):
+    """Returns the stop level of the last stop at which tactics are allowed."""
+    if last_stop == 0:
+        last = level
+    elif last_stop == -1:
+        last = 0
+    else: 
+        last = stops_level[int(last_stop)]
+    return(last)
 
 def initialize_graph_and_parameters(bus_trips: dict, 
                                     transfers: dict,
@@ -824,104 +1074,15 @@ def initialize_graph_and_parameters(bus_trips: dict,
     time_min = order[0][0]
     second_bus = order[-1][1]
     last_stop_second_bus = bus_trips[second_bus][-1]
-    time_max = 100 + max( [last_stop_second_bus.departure_time()]+[time for (time, nbr_passengers) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
+    time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
     if time_max - time_min > price: 
-        price = time_max-time_min
+        price = time_max - time_min
     global_source_node = Graph_Node(-1, "d", order[0][0]-2, order[0][0]-2, "normal", 0, 0, -0.1) # General source node for all buses. Need a non-zero time difference between source nodes to avoid MIP constraints.
     global_target_node = Graph_Node(0, "a", 0, 0, "normal", 0)
     G = Graph('G', [], [], global_source_node, global_target_node)
     G.price = price
     G.time_step = time_step
     return G, order, price, global_source_node, global_target_node
-
-def create_stops_dict(bus_trips: dict,
-                      G : Graph,
-                      global_target_node : Graph_Node,
-                      with_tactics = False):
-    """
-    This function creates a dictionary of stops and their corresponding levels in the graph.
-    Inputs:
-        - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
-        - G: the graph
-        - global_target_node: the global target node for the graph.
-        - with_tactics: boolean indicating whether tactics are allowed.
-    """
-    stop_id_and_dist = []
-    for trip_id in bus_trips:
-        for stop in bus_trips[trip_id]:
-            stop_id_and_dist.append((int(stop.location.label), stop.cumulative_distance))
-    stop_id_and_dist=np.unique(stop_id_and_dist,axis=0)
-    stop_id_and_dist=sorted(stop_id_and_dist, key=itemgetter(1))
-    stops_level = {}
-    stops_dist = {}
-    targets = {}
-    level = 1
-    for i in range(len(stop_id_and_dist)):
-        stop_id = int(stop_id_and_dist[i][0])
-        if (stop_id in stops_level) == False:
-            stops_level[stop_id] = level
-            stops_dist[stop_id] = stop_id_and_dist[i][1]
-            target_node_for_level = Graph_Node(stop_id, "d", 0, 0, 'puit', 0, level, stop_id_and_dist[i][1])
-            targets[stop_id] = target_node_for_level
-            G.add_node(target_node_for_level)
-            if with_tactics == False: 
-                G.add_edge(G, target_node_for_level, global_target_node, 0)
-            level += 1
-    return G, stops_level, stops_dist, targets
-
-def get_transfer_data(transfers: dict,
-                      stops_level: dict,
-                      stops_dist: dict,
-                      trip_id: str,
-                      od_d_dict: dict,
-                      od_m: list,
-                      G: Graph):
-    """
-    This function creates transfer nodes and gets transfer data for passengers transferring on the bus trip.
-    Inputs:
-        - transfers: dictionary containing the transfer data for passengers transferring on the bus trip.
-        - stops_level: dictionary containing the level of each stop in the graph.
-        - stops_dist: dictionary containing the distance of each stop in the graph.
-        - trip_id: the bus trip id
-        - od_d_dict: dictionary containing the origins/destinations of each passenger
-        - od_m: list containing the number of passengers boarding the bus trip at each stop
-        - G: the graph
-    Outputs:
-        - transfer_nodes: dictionary of transfer nodes for each stop, contains transfer nodes for passenger going to other lines.
-        - transfer_passengers: dictionary containing the time and number of passengers arriving from other lines at each stop
-
-    """
-    # Create transfer nodes and get transfer data
-    transfer_nodes = {} # dict of transfer nodes for each stop, contains transfer nodes for passenger going to other lines.
-    transfer_passengers = defaultdict(lambda : defaultdict(dict)) # dict containing the time and number of passengers arriving from other lines at each stop
-    level = -1 # level of the stop
-    for stop_id in transfers[trip_id]: 
-        level = stops_level[stop_id]
-        dist = stops_dist[stop_id]
-        # Passengers aligting and transfering to other lines
-        for (time, nbr_passengers) in transfers[trip_id][stop_id]['alighting']:
-            if stop_id not in transfer_nodes:
-                transfer_nodes[stop_id] = []
-            add_flow_to_existing_node = False
-            for node in transfer_nodes[stop_id]:
-                if node.node_time == time and node.node_real_time == get_passage_cost(p):
-                    node.node_flow = node.node_flow - nbr_passengers
-                    add_flow_to_existing_node = True
-                    od_d_dict[trip_id].append((stop_id, node))
-                    break
-            if add_flow_to_existing_node == False: 
-                transfer_node = Graph_Node(stop_id, "a", time, get_passage_cost(p), "transfer", -nbr_passengers, level, dist, trip_id)
-                transfer_nodes[stop_id].append(transfer_node)
-                G.add_node(transfer_node)
-                od_d_dict[trip_id].append((stop_id, transfer_node))
-
-        # Passengers transfering from other lines and boarding main line.
-        for (time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']:
-            if stop_id not in transfer_passengers: 
-                transfer_passengers[stop_id] = {}
-            transfer_passengers[stop_id][time] = nbr_passengers # all transfer times are unique
-            od_m.append((nbr_passengers, stop_id, time))
-        return(transfer_nodes, transfer_passengers, od_d_dict, od_m, level)
 
 def build_graph_with_tactics(bus_trips: dict, 
                             transfers: dict,
@@ -963,11 +1124,10 @@ def build_graph_with_tactics(bus_trips: dict,
                                                                                               prev_times = prev_times,
                                                                                               price = price,
                                                                                               time_step = time_step)
+    
     # Create a dict with all stops in the two bus trips
-    G, stops_level, stops_dist, targets = create_stops_dict(bus_trips,
-                                                            G,
-                                                            global_target_node,
-                                                            with_tactics = False)
+    stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
+                                                           with_tactics = False)
 
     # Initialize variables
     sources = {}
@@ -989,20 +1149,19 @@ def build_graph_with_tactics(bus_trips: dict,
         G.add_source_node(sources, start_time, initial_flows[trip_id], trip_id, global_source_node)
 
         # Create transfer nodes and get transfer data
-        transfer_nodes, transfer_passengers, od_d_dict, od_m, level = get_transfer_data(transfers,
+        transfer_nodes, transfer_passengers, od_d_dict, od_m, level = G.get_transfer_data(transfers,
                                                                                         stops_level,
                                                                                         stops_dist,
                                                                                         trip_id,
                                                                                         od_d_dict,
-                                                                                        od_m,
-                                                                                        G)
+                                                                                        od_m)
 
         # Decide last stop at which tactics are allowed
         last = get_last_stop(last_stop, level, stops_level)
 
         # Initialize dicts
         departs_prev = {}
-        departs_prev[sources[trip_id].time] = sources[trip_id]
+        departs_prev[sources[trip_id].node_time] = sources[trip_id]
         prev_departure_time = prev_times[trip_id]
 
         # Create nodes and edges at each stop
@@ -1041,7 +1200,7 @@ def build_graph_with_tactics(bus_trips: dict,
                 time_prev = prev_node.node_time
 
                 # Add bus path using the speedup tactic
-                speedup_path_is_added, speedup_arrival_node = G.add_speedup_tactic_path(stop, speedup_factor, travel_time, time_prev, dwell, time_step, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
+                speedup_path_is_added, speedup_arrival_node = G.add_speedup_tactic_path(stop, speedup_factor, travel_time, time_prev, dwell, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
 
                 # Add bus path without tactics
                 no_tactics_arrival_node, no_tactics_departure_node = G.add_no_tactics_path(stop, travel_time, time_prev, dwell, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
@@ -1052,23 +1211,22 @@ def build_graph_with_tactics(bus_trips: dict,
                     for alighting_transfer_node in transfer_nodes[stop_id]:
                         # Link to bus path using speedup tactic
                         if speedup_path_is_added: #there is a speedup tactic
-                            G.add_alighting_passenger_edge(speedup_arrival_node, alighting_transfer_node)
+                            G.add_alighting_transfer_passenger_edge(speedup_arrival_node, alighting_transfer_node)
                         # Link to bus path without tactics
-                        G.add_alighting_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
+                        G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
                         # If stop is skipped, the passengers cannot alight here.
                 # Add bus path using the skip-stop tactic
                 else: 
-                    G.add_skip_stop_path(stop, travel_time, time_prev, last, skips, target_nodes, prev_node, no_tactics_arrival_node.node_time, (stop_id in transfer_passengers), l, d, trip_id, ss = skip_stop_is_allowed)
+                    G.add_skip_stop_path(stop, travel_time, time_prev, last, skips, target_nodes, prev_node, no_tactics_arrival_node.node_time, walking_time, (stop_id in transfer_passengers), l, d, trip_id, ss = skip_stop_is_allowed)
             # All bus paths are added
 
             # Add paths for passengers boarding without a transfer
             min_departure_time = min([time for time in departs_current])
-            boarding_without_transfer = False
             planned_departure_time = stop.planned_arrival_time - 60
-            if stop.passengers_to_board[0] > 0:
+            boarding_without_transfer = False
+            if stop.passengers_to_board_int > 0:
                 boarding_without_transfer = True
-                planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board[0], l, d, trip_id)
-                G.add_node(planned_departure_node_tmp)
+                planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
                 if planned_departure_time in departs_current:
                     planned_departure_node = departs_current[planned_departure_time]
                 else: 
@@ -1076,27 +1234,32 @@ def build_graph_with_tactics(bus_trips: dict,
                     G.add_node(planned_departure_node)
                     if planned_departure_time > min_departure_time:
                         departs_current[planned_departure_time] = planned_departure_node
+                G.add_node(planned_departure_node_tmp)
                 edge_dep_plan = Graph_Edge(planned_departure_node_tmp, planned_departure_node, 1)
                 G.add_edge(planned_departure_node_tmp, planned_departure_node, 1)
                 exo_current[planned_departure_time] = planned_departure_node_tmp
-                if planned_departure_node.node_time > min_departure_time:
-                    departs_current[planned_departure_time] = planned_departure_node
-                od_m_dict[trip_id].append((stop.passengers_to_board[0], stop, edge_dep_plan))
+                od_m_dict[trip_id].append((stop.passengers_to_board_int, stop, edge_dep_plan))
                 for skip_node in skips:
-                    skip_edge_time = skips[skip_node].node_time-(walking_time + planned_departure_time) # there is enough time for passengers to walk from the previous stop to the skipped stop
-                    if skip_edge_time > 0:
-                        G.add_edge(planned_departure_node, skips[skip_node], skip_edge_time, ss = 1)
-
+                    skip_edge_is_possible = (skips[skip_node].node_time-(walking_time + planned_departure_time))>0 # there is enough time for passengers to walk from the previous stop to the skipped stop
+                    if skip_edge_is_possible:
+                        G.add_edge(planned_departure_node, skips[skip_node], skips[skip_node].node_time-planned_departure_time, ss = 1)
+            else:
+                planned_departure_node_tmp = -1
+                edge_dep_plan = -1
+                planned_departure_node = -1
             # Add paths for passengers boarding with a transfer
             new_transfer_nodes = G.add_boarding_transfer_passenger_edges(stop, trip_id,
-                                                          transfer_passengers,
-                                                          exo_current,
-                                                          od_m_dict,
-                                                          planned_departure_node_tmp,
-                                                          planned_departure_time,
-                                                          edge_dep_plan,
-                                                          walking_time = 0,
-                                                          stop_is_skipped = 0)
+                                                                        transfer_passengers,
+                                                                        exo_current,
+                                                                        od_m_dict,
+                                                                        planned_departure_node_tmp,
+                                                                        planned_departure_time,
+                                                                        edge_dep_plan,
+                                                                        walking_time = 0,
+                                                                        stop_is_skipped = 0,
+                                                                        boarding_without_transfer = boarding_without_transfer,
+                                                                        l = l,
+                                                                        d = d)
             # All bus and passenger paths have been added 
 
             times = []
@@ -1108,17 +1271,19 @@ def build_graph_with_tactics(bus_trips: dict,
                         times.append((new_transfer_node.node_time, new_transfer_node)) # The bus cannot depart from this node as it is before the first path arrival at the stop
             
             # Get all possible passenger ready times and bus departure times for the current stop
-            get_all_passenger_ready_times_and_bus_departure_times(times,
+            times = get_all_passenger_ready_times_and_bus_departure_times(times,
                                                                   departs_current,
                                                                   boarding_without_transfer,
                                                                   planned_departure_time,
                                                                   planned_departure_node)
+            times = sorted(times, key = itemgetter(0))
             for time in skips: 
                 if (time in departs_current) == False:
                     departs_current[time] = skips[time]
                 elif (time+1 in departs_current) == False:
-                    input('how rare is this?')
                     departs_current[time+1] = skips[time]
+                else:
+                    input('how rare is this?')
 
             # Add paths for passengers who missed the previous bus
             G.link_passengers_from_previous_bus(times, stop_id, last_exo, exo_current, departs_current, with_tactics = True)
@@ -1170,10 +1335,8 @@ def build_graph_without_tactics(bus_trips: dict,
                                                                                               prev_times,
                                                                                               price,
                                                                                               time_step)
-    G, stops_level, stops_dist, targets = create_stops_dict(bus_trips,
-                                                            G,
-                                                            global_target_node,
-                                                            with_tactics = False)
+    stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
+                                                           with_tactics = False)
     # Initialize variables
     sources = {}
     last_exo = {}
@@ -1195,13 +1358,12 @@ def build_graph_without_tactics(bus_trips: dict,
         G.add_source_node(sources, start_time, initial_flows[trip_id], trip_id, global_source_node)
 
         # Create transfer nodes and get transfer data
-        transfer_nodes, transfer_passengers, od_d_dict, od_m, level = get_transfer_data(transfers,
+        transfer_nodes, transfer_passengers, od_d_dict, od_m, level = G.get_transfer_data(transfers,
                                                                                         stops_level,
                                                                                         stops_dist,
                                                                                         trip_id,
                                                                                         od_d_dict,
-                                                                                        od_m,
-                                                                                        G)
+                                                                                        od_m)
         # Get missed transfers from previous bus
         extras = []
         # if prev_transfers != [] and od_dict != {}:
@@ -1225,7 +1387,7 @@ def build_graph_without_tactics(bus_trips: dict,
 
         # Initialize dicts
         departs_prev = {}
-        departs_prev[sources[trip_id].time] = sources[trip_id]
+        departs_prev[sources[trip_id].node_time] = sources[trip_id]
         prev_departure_time = prev_times[trip_id]
 
         # Create nodes and edges for each stop
@@ -1270,57 +1432,69 @@ def build_graph_without_tactics(bus_trips: dict,
                 walking_time = int(max(0, (d-prev_node.node_dist)/4*3600-travel_time))
                 edge_weight = 0 if stop_is_skipped == 0 else walking_time
                 # ONLY WHEN EVALUATING REGRETS: when this stop is skipped, we need to add a walking time to the next stop
-                G.add_edge(G, no_tactics_arrival_node, target_nodes[trip_id][stop_id], edge_weight, ss = stop_is_skipped)
+                G.add_edge(no_tactics_arrival_node, target_nodes[trip_id][stop_id], edge_weight, ss = stop_is_skipped)
 
                 # Add paths for passengers alighting with a transfer
                 if stop_id in transfer_nodes and stop_is_skipped == 0:
                     for alighting_transfer_node in transfer_nodes[stop_id]:
                         # Link to no tactics path
-                        G.add_alighting_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
+                        G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
 
                 if stop_id in transfer_nodes and stop_is_skipped == 1: # extra walking time because of skipped stop
                     for alighting_transfer_node in transfer_nodes[stop_id]:
                         # Link to skip stop path (# ONLY WHEN EVALUATING REGRETS)
-                        G.add_alighting_passenger_edge(no_tactics_arrival_node, alighting_transfer_node, walking_time, ss = stop_is_skipped)
+                        G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node, walking_time, ss = stop_is_skipped)
 
             # Add paths for passengers boarding without a transfer
             boarding_without_transfer = False
             additional_time = 0 if stop_is_skipped == 0 else walking_time
             edge_weigth = 1 if stop_is_skipped == 0 else walking_time
             planned_departure_time = stop.planned_arrival_time - 60 + additional_time
-            if stop.passengers_to_board[0] > 0:
+            if stop.passengers_to_board_int > 0:
                 boarding_without_transfer = True
-                planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board[0], l, d, trip_id)
-                planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id)
+                planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
+                if planned_departure_time in departs_current:
+                    planned_departure_node = departs_current[planned_departure_time]
+                else:
+                    planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id) 
                 G.add_node(planned_departure_node)
                 G.add_node(planned_departure_node_tmp)
                 edge_dep_plan = Graph_Edge(planned_departure_node_tmp, planned_departure_node, edge_weigth, ss = stop_is_skipped)
                 G.add_edge(planned_departure_node_tmp, planned_departure_node, edge_weigth, ss = stop_is_skipped)
                 exo_current[planned_departure_time] = planned_departure_node_tmp
-                od_m_dict[trip_id].append((stop, edge_dep_plan))
+                od_m_dict[trip_id].append((stop.passengers_to_board_int, stop, edge_dep_plan))
+            else:
+                planned_departure_node_tmp = -1
+                edge_dep_plan = -1
+                planned_departure_node = -1
             
             # Add paths for passengers boarding with a transfer
+            print('exo_current', exo_current)
             new_transfer_nodes = G.add_boarding_transfer_passenger_edges(stop, trip_id,
-                                                          transfer_passengers,
-                                                          exo_current,
-                                                          od_m_dict,
-                                                          planned_departure_node_tmp,
-                                                          planned_departure_time,
-                                                          edge_dep_plan,
-                                                          walking_time = walking_time,
-                                                          stop_is_skipped = stop_is_skipped)
+                                                                        transfer_passengers,
+                                                                        exo_current,
+                                                                        od_m_dict,
+                                                                        planned_departure_node_tmp,
+                                                                        planned_departure_time,
+                                                                        edge_dep_plan,
+                                                                        walking_time = walking_time,
+                                                                        stop_is_skipped = stop_is_skipped,
+                                                                        boarding_without_transfer = boarding_without_transfer,
+                                                                        l = l,
+                                                                        d = d)
+            print('updated exo_current', exo_current)
             # All possible bus and passenger paths have been added.
 
             times = []
             if stop_id in transfer_passengers:
                 for new_transfer_node in new_transfer_nodes: # The bus cannot depart from this node ( in the no tactics case we depart from the real life node)
                     times.append((new_transfer_node.node_time, new_transfer_node))
-            
-            get_all_passenger_ready_times_and_bus_departure_times(times,
+            times = get_all_passenger_ready_times_and_bus_departure_times(times,
                                                                   departs_current,
                                                                   boarding_without_transfer,
                                                                   planned_departure_time,
                                                                   planned_departure_node)
+            times = sorted(times, key=itemgetter(0) )
 
             # If passengers missed the previous bus, add a waiting time arc to the current bus trip_id
             G.link_passengers_from_previous_bus(times, stop_id, last_exo, exo_current, departs_current, with_tactics = False)
@@ -1348,92 +1522,11 @@ def build_graph_without_tactics(bus_trips: dict,
             departs_prev=departs_current
     return(G, trip_id, bus_departures)
 
-def build_and_solve_model_from_graph(V, A, s, t, flows, ids, node_dict, edge_dict,
-                                     name, 
-                                     bus_dict = False,
-                                     verbose = True,
-                                     out_of_bus_price = 1,
-                                     savepath = 'graphesMIP',
-                                     keys = {},
-                                     sources = {},
-                                     puits = {},
-                                     extras = {}):
-
-    """ 
-    Function that takes a graph, information on buses and Origin/Destination pairs and returns the optimal solution of the arc-flow model.
-
-    Inputs:
-        - V: set of all nodes (each node is a number 1,2,3 ...)
-        - A: set of all arcs
-        - s: source node
-        - t: target node
-        - flows: exogenous flow at each node. example: flows[6]=+2
-        - ids: a dictionary that for each node gives its stop_id. example: ids[6]=46884
-        - node_dict: a dictionary that for each node number gives the corresponding Graph_Node object
-        - edge_dict: a dictionary that for each edge number gives the corresponding Graph_Edge object
-        - name: instance name
-        - bus_dict: a dictionary that for each node number gives its bus trip_id. example: bus_dict[6]='2546781'
-        - verbose: boolean, if True, the function prints the optimal value and the flows
-        - out_of_bus_price: out of bus waiting time cost 'as perceived by passengers'.
-        - savepath: directory where to save the arc-flow model (optional)
-        - keys: dict that for each node with negative exogenous flow returns a list of edges. These are the edges passengers use to board the bus.
-          If the flow on such an edge is 0, that means the passenger did not board the current bus. The alighting flow of the node must be ajusted accordingly.
-        - sources: dict that for each trip_id returns the departure time at the origin of the trip
-        - puits: dict that for each bus trip returns the nodes with negative exogenous flows (alighting nodes)
-        - extras: dict that contains additional information (optional)
-    Outputs:
-        - optimal_value: int, the optimal value of the objective function of the arc-flow model
-        #- flow: dict, the passenger flows on each edge
-        #- display_flows: dict, the flow on each edge in a more readable format
-        - bus_flows: dict, the bus flows on each edge
-        - runtime: float, the runtime of the optimization model
-    """
-    # print(name)
-    m = create_opt_model_from_graph_with_mip(V, A, s, t, flows, ids, name,
-                                             bus_dict, 
-                                            savepath=savepath,
-                                            out_of_bus_price=out_of_bus_price,
-                                            keys=keys,
-                                            sources=sources,
-                                            puits=puits,
-                                            extras=extras)
-    m.store_search_progress_log = False
-
-    #Solve
-    runtime=timeit.default_timer()
-    m.optimize() 
-    runtime=timeit.default_timer()-runtime
-    # gap=m.gap
-    # print('Optimality GAP=',gap)
-
-    #Get results 
-    # passenger_flows = {}
-    bus_flows = {}
-    # display_flows={}
-    for (u1,v1,i) in A:
-        x=m.vars['x({},{},{})'.format(u1,v1,i)]
-        y=m.vars['y({},{},{})'.format(u1,v1,i)]
-        u=node_dict[u1]
-        v=node_dict[v1]
-        # unew = (str)(u.node_stop_id)+' '+u.node_arrival_departure+' '+u.node_type+' '+(str)(u.node_time)
-        # vnew = (str)(v.node_stop_id())+' '+v.node_arrival_departure+' '+v.node_type+' '+(str)(v.node_time)
-        # display_flows[edge_dict[(u,v,i)]]=(int)(x.x)
-        # passenger_flows[(unew, vnew, i)]=(int)(x.x)
-        bus_flows[edge_dict[(u,v,i)]]=(int)(y.x)
-    optimal_value=m.objective_value
-    if verbose: 
-        print("Noeuds: ", len(V)+1)
-        print("Arcs: ", len(A))
-        print("valeur optimale: ",optimal_value)
-        # print("flots:", flow)
-    # return(optimal_value, flow, display_flows, bus_flows, runtime)
-    return(optimal_value, bus_flows, runtime)
-
 def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip',
                                         bus_dict = False,
-                                        savepath='output',
-                                        out_of_bus_price=2,
-                                        keys={},sources={},puits={},extras={}): 
+                                        savepath = 'output',
+                                        out_of_bus_price = 2,
+                                        keys={}, sources={}, puits={}, extras={}): 
     """ Function that takes a graph, information on buses and Origin/Destination pairs and returns an arc-flow model to solve.
 
     Inputs: 
@@ -1457,13 +1550,12 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
     Outputs: 
     Arc-flow model
     """
-    
     #Initialize model
-    m = Model(solver_name = CBC)
-    m.verbose = 0
+    m = Model(solver_name="CBC")
+    m.verbose = 1
     
     #Initialize Variables
-    x = {(u,v,i): m.add_var(name='x({},{},{})'.format(u,v,i), var_type = INTEGER, lb=0, ub=1000) for (u,v,i) in A}
+    x = {(u,v,i): m.add_var(name='x({},{},{})'.format(u,v,i), var_type = INTEGER, lb=0, ub=100) for (u,v,i) in A}
     y = {(u,v,i): m.add_var(name='y({},{},{})'.format(u,v,i), var_type = INTEGER, lb=0, ub=1) for (u,v,i) in A}
     if keys != {}:
         prev_bus = {}
@@ -1499,13 +1591,12 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
             for k in keys[bus]:
                 for (u, v, i) in keys[bus][k]:
                     indicator_arcs_set.add((u, v, i))
-        # ind={(u,v,i): m.add_var(name='ind({},{},{})'.format(u,v,i), var_type=INTEGER, lb=0, ub=1) for (u,v,i) in [(u,v,i) for (u,v,i) in indicator_arcs_set if i!=0]}
-        ind={(u,v,i): m.add_var(name='ind({},{},{})'.format(u,v,i), var_type = INTEGER, lb = 0, ub = 1) for (u,v,i) in [(u, v, i) for (u, v, i) in indicator_arcs_set]}
-    if out_of_bus_price!=1:
-        z={(u,v,i): m.add_var(name='z({},{},{})'.format(u, v, i), var_type = INTEGER, lb = 0, ub = 1000) for (u,v,i) in [(u, v, i) for (u, v, i) in A if i != 0 and ids[u] == ids[v]]}
+        ind = {(u,v,i): m.add_var(name='ind({},{},{})'.format(u,v,i), var_type = INTEGER, lb = 0, ub = 1) for (u,v,i) in [(u, v, i) for (u, v, i) in indicator_arcs_set]}
+    if out_of_bus_price !=1 :
+        z={(u,v,i): m.add_var(name='z({},{},{})'.format(u, v, i), var_type = INTEGER, lb = 0, ub = 100) for (u,v,i) in [(u, v, i) for (u, v, i) in A if i != 0 and ids[u] == ids[v]]}
     
     #Initialize objective 
-    if out_of_bus_price==1:
+    if out_of_bus_price == 1:
         m.objective = minimize(xsum(i * x[u, v, i] for (u,v,i) in A))
     else:
         m.objective = minimize(xsum(i * x[u, v, i] for (u, v, i) in A)+ xsum(i*(out_of_bus_price - 1) * z[u, v, i] for (u, v, i) in [(u, v, i) for (u, v, i) in A if i != 0 and ids[u] == ids[v]]))
@@ -1519,10 +1610,11 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
         for k in V:
             m += xsum(x[u, v, i] for (u, v, i) in A if v == k) - xsum(x[u, v, i] for (u, v, i) in A if u == k) + flows[k] == 0, 'flow_cst'+str(k) 
         V.add(t)
-        V5=set()
+        V5 = set()
     ### 2nd case: we have O/D pairs. 
     ### Need to make sure passenger demand is transfered to the next bus when a passenger misses their bus.
     else:
+        print('Adding O/D pairs constraints...')
         for k in V3:# node without alighting passengers
             m += xsum(x[u, v, i] for (u, v, i) in A if v == k) - xsum(x[u, v, i] for (u, v, i) in A if u == k) + flows[k] == 0, 'flow_cst'+str(k)
         
@@ -1532,15 +1624,13 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
             bus = bus_dict[k]
             sum0 = xsum(x[u,v,i] for (u,v,i) in A if v==k)
             sum1 = xsum((1-ind[u,v,i]) for (u,v,i) in extras[k])
-            # m+=xsum(x[u,v,i] for (u,v,i) in A if v==k)-xsum((1-ind[u,v,i]) for (u,v,i) in extras[k])==0, 'flow_cst_transferts_missed'+str(k)
             m += sum0 - sum1 == 0, 'flow_cst_transferts_missed'+str(k)
 
         for k in V4:#alighting transfer passengers 
             ### if a passenger missed their bus, the alighting transfer demand is adapted to the real number of passengers that will get off here.
             bus = bus_dict[k]
-            m += xsum(x[u,v,i] for (u,v,i) in A if v==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])==0, 'flow_cst_transferts'+str(k) 
-            # m+=xsum(x[u,v,i] for (u,v,i) in A if v==k)-xsum(x[u,v,i] for (u,v,i) in A if u==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])==0, 'flow_cst_transferts' 
-        
+            m += xsum(x[u,v,i] for (u,v,i) in A if v==k) + flows[k] + xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])==0, 'flow_cst_transferts'+str(k) 
+            
         for k in V5:#'normal' alighting passengers
             bus=bus_dict[k]
             id=ids[k]
@@ -1548,12 +1638,12 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
             if (k in keys[bus])==False: 
                 keys[bus][k]=[]
             if bus_prev!=-1:
-                #This is NOT the first bus in the optimization horizon
-                #We need to retrieve the destinations of passengers that missed the previous bus
+                # This is NOT the first bus in the optimization horizon
+                # We need to retrieve the destinations of passengers that missed the previous bus
                 # and add these to the current bus
                 
                 #1st: find passengers with 'normal' destinations (no transfer) from previous bus
-                k1=next( (k1 for k1 in V5 if ids[k1]==id and k1!=k),-1)
+                k1 = next( (k1 for k1 in V5 if ids[k1]==id and k1!=k),-1)
                 if (k1 in keys[bus_prev])==False: 
                     keys[bus_prev][k1]=[]
 
@@ -1566,66 +1656,47 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
                 # here flows[k]<0.
                 # If ind=0, a passenger could not board the bus so they will not alight the bus. (1-ind)=1 and we get an exogenous flow of flows[k]+1
                 # For passengers from the previous bus, if they missed the previous bus they will board and alight this bus. We get an exogenous flow of flows[k]-1
-                m += xsum(x[u,v,i] for (u,v,i) in A if v==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])- xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus_prev][k1])==0, 'flow_cst_bus'+str(k)  
-                # m += xsum(x[u,v,i] for (u,v,i) in A if v==k)-xsum(x[u,v,i] for (u,v,i) in A if u==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])- xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus_prev][k1])-xsum((1-ind[u,v,i]) for (u,v,i) in transfers)==0, 'flow_cst'  
+                m += xsum(x[u,v,i] for (u,v,i) in A if v==k) + flows[k] + xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])- xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus_prev][k1])==0, 'flow_cst_bus'+str(k)  
             else: 
                 # This is the first bus in the optimization horizon.
                 # No passengers from previous bus to retrieve from previous.  
                 # This constraint takes into account if a passenger boarded the current bus or not, in order to adapt the destination node flow. 
                 m += xsum(x[u,v,i] for (u,v,i) in A if v==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])==0, 'flow_cst'+str(k)
-                # m += xsum(x[u,v,i] for (u,v,i) in A if v==k)-xsum(x[u,v,i] for (u,v,i) in A if u==k)+flows[k]+xsum((1-ind[u,v,i]) for (u,v,i) in keys[bus][k])==0, 'flow_cst' 
-   
-    #"Bus Flow" constraints
+                
+    # "Bus Flow" constraints
     compte_bus=[]
     for u in V:
         compte_bus.append(bus_dict[u])
-    compte_bus=len(np.unique(compte_bus))-1 #we don't count bus=-1 for the source and target nodes
+    compte_bus = len(np.unique(compte_bus))-1 #we don't count bus=-1 for the source and target nodes
     V.remove(s)
     V.remove(t)
     for k in V: 
-        m+=xsum(y[u,v,i] for (u,v,i) in A if v==k)-xsum(y[u,v,i] for (u,v,i) in A if u==k)==0, 'bus_flow_cst'+str(k) 
-    m+=-xsum(y[u,v,i] for (u,v,i) in A if u==s)+compte_bus==0, 'source_bus_flow_cst_s'
-    m+=xsum(y[u,v,i] for (u,v,i) in A if v==t)-compte_bus==0, 'target_bus_flow_cst_final' 
+        m += xsum(y[u,v,i] for (u,v,i) in A if v==k)-xsum(y[u,v,i] for (u,v,i) in A if u == k)==0, 'bus_flow_cst'+str(k) 
+    m += -xsum(y[u,v,i] for (u,v,i) in A if u==s) + compte_bus==0, 'source_bus_flow_cst_s'
+    m += xsum(y[u,v,i] for (u,v,i) in A if v==t) - compte_bus==0, 'target_bus_flow_cst_final' 
     V.add(s)
     V.add(t)
 
     #Path constraint: a bus can choose only one path between two nodes
-    #1st case: there is only one bus in the optimization horizon
-    if bus_dict==False:
-        arcs={}
-        for (u,v,i) in A:
-            id1=ids[u]
-            id2=ids[v]
-            puit_ind=(v in V5)
-            if puit_ind==False: 
-                if (id1,id2) in arcs: 
-                    arcs[(id1,id2)].append((u,v,i))
+    arcs={}
+    for (u,v,i) in A:
+        id1=ids[u]
+        id2=ids[v]
+        puit_ind = (v in V5)
+        bus = bus_dict[v]# doesn't take into account the source and destination nodes
+        if puit_ind == False:
+            if bus in arcs:
+                if (id1,id2) in arcs[bus]: 
+                    arcs[bus][(id1,id2)].append((u,v,i))
                 else: 
-                    arcs[(id1,id2)]=[(u,v,i)]
-        for (id1,id2) in [(id1,id2) for (id1,id2) in arcs if id1!=id2]:
-            for (u,v,i) in [(u,v,i) for (u,v,i) in arcs[(id1,id2)] if i!=0]:
-                m+=x[u,v,i]-100*y[u,v,i]<=0,'bus_path_cst'+str(u)+str(v)+str(i)  #if there are no passengers in the bus, x is equal to 0 bus y is equal to 1
-    #2nd case: there is more than one bus in the optimization horizon
-    else: 
-        arcs={}
-        for (u,v,i) in A:
-            id1=ids[u]
-            id2=ids[v]
-            puit_ind=(v in V5)
-            bus=bus_dict[v]# doesn't take into account the source and destination nodes
-            if puit_ind==False:
-                if bus in arcs:
-                    if (id1,id2) in arcs[bus]: 
-                        arcs[bus][(id1,id2)].append((u,v,i))
-                    else: 
-                        arcs[bus][(id1,id2)]=[(u,v,i)]
-                else: 
-                    arcs[bus]={}
                     arcs[bus][(id1,id2)]=[(u,v,i)]
-        for bus in arcs:
-            for (id1,id2) in [(id1,id2) for (id1,id2) in arcs[bus] if id1!=id2]:
-                for (u,v,i) in [(u,v,i) for (u,v,i) in arcs[bus][(id1,id2)] if i!=0]:
-                    m+=x[u,v,i]-100*y[u,v,i]<=0,'bus_path_cst'+str(u)+str(v)+str(i) #if there are no passengers in the bus, x is equal to 0 bus y is equal to 1
+            else: 
+                arcs[bus]={}
+                arcs[bus][(id1,id2)]=[(u,v,i)]
+    for bus in arcs:
+        for (id1,id2) in [(id1,id2) for (id1,id2) in arcs[bus] if id1!=id2]:
+            for (u,v,i) in [(u,v,i) for (u,v,i) in arcs[bus][(id1,id2)] if i!=0]:
+                m += x[u,v,i]-100*y[u,v,i]<=0,'bus_path_cst'+str(u)+str(v)+str(i) #if there are no passengers in the bus, x is equal to 0 bus y is equal to 1
     
     #### Indicator variable constraints 
     # 1) Ind=1 if x>0 and ind=0 otherwise. Used to see if a passenger boarded a bus or not.
@@ -1639,13 +1710,13 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
     #2)z = x if y=1 and z=0 otherwise.
     # Only needed in the objective function if out_of_bus_price != 1
     if out_of_bus_price != 1:
-        for (u,v,i) in [(u,v,i) for (u,v,i) in A if i!=0 and ids[u]==ids[v]]: 
-            m+=x[u,v,i]-100*y[u,v,i]<=z[u,v,i], 'z_cst_max'+str(u)+str(v)+str(i)
+        for (u,v,i) in [(u,v,i) for (u,v,i) in A if i != 0 and ids[u]==ids[v]]: 
+            m+=x[u,v,i]-100*y[u,v,i] <= z[u,v,i], 'z_cst_max'+str(u)+str(v)+str(i)
             m+=z[u,v,i]<=x[u,v,i], 'z_x_cst'+str(u)+str(v)+str(i)
 
     #write model 
-    # completename=os.path.join(savepath,name+'.lp')
-    # m.write(completename)
+    completename = os.path.join(savepath,name+'.lp')
+    m.write(completename)
     # return(completename)
     return(m)
 
@@ -1672,7 +1743,7 @@ def extract_tactics_from_solution(flows, stop_id, trip_id):
             1: skip-stop
     """
     # keep only keys with positive values
-    bus_flows = {edge: bus_flows[edge] for edge in flows if flows[edge] > 0}
+    bus_flows = {edge: flows[edge] for edge in flows if flows[edge] > 0}
     hold = -1
     skip_stop = 0
     max_departure_time = -1
@@ -1680,7 +1751,7 @@ def extract_tactics_from_solution(flows, stop_id, trip_id):
     # Check the skip-stop tactic
     skip_stop_edges = []
     for edge in bus_flows:
-        if edge.destination.node_bus == trip_id and edge.origin.node_stop_id != stop_id and edge.destination.node_stop_id == stop_id and edge.destination.type == 'skip':
+        if edge.destination.node_bus == trip_id and edge.origin.node_stop_id != stop_id and edge.destination.node_stop_id == stop_id and edge.destination.node_type == 'skip':
             skip_stop_edges.append(edge)
     if len(skip_stop_edges) > 0:
         # The skip-stop tactic is used
@@ -1697,10 +1768,10 @@ def extract_tactics_from_solution(flows, stop_id, trip_id):
                 hold_edges.append(edge)
         if len(hold_edges) > 0:
             # The hold tactic is used
-            nodes = [(edge.destination, edge.destination.time) for edge in hold_edges]
+            nodes = [(edge.destination, edge.destination.node_time) for edge in hold_edges]
             hold_departure_node = np.array(sorted(nodes, key=itemgetter(1)) )[-1][0]
-            max_departure_time = hold_departure_node.time
-            if hold_departure_node.type == 'transfer':
+            max_departure_time = hold_departure_node.node_time
+            if hold_departure_node.node_type == 'transfer':
                 hold = 1 # hold time for transfer passengers
             else: 
                 hold = 0 # hold time for normal passengers (bus arrived before planned arrival time)
@@ -1708,9 +1779,9 @@ def extract_tactics_from_solution(flows, stop_id, trip_id):
             # No hold tactic is used
             departure_nodes = []
             for edge in bus_flows:
-                if edge.destination.node_stop_id == stop_id and edge.destination.node_arrival_departure == 'd' and edge.origin.node_arrival_departure == 'a' and edge.destination.node_bus == trip_id and edge.destination.type != 'puit':
+                if edge.destination.node_stop_id == stop_id and edge.destination.node_arrival_departure == 'd' and edge.origin.node_arrival_departure == 'a' and edge.destination.node_bus == trip_id and edge.destination.node_type != 'puit':
                     departure_nodes.append(edge.destination)
-            max_departure_time = departure_nodes[0].time # only one possible departure node
+            max_departure_time = departure_nodes[0].node_time # only one possible departure node
 
         # Check the speedup tactic 
         speedup_edges = []
@@ -1741,16 +1812,17 @@ def get_all_tactics_used_in_solution(bus_flows : dict,
     tactics[next_trip_id] = {}
     travel_edges_between_stops = {}
     bus_flows = {edge: bus_flows[edge] for edge in bus_flows if bus_flows[edge]>0}
+    # For each bus trip, get edges used to travel between stops (no hold or dwell edges)
     for bus_trip_id in [trip_id, next_trip_id]:
-        travel_edges_between_stops[bus_trip_id]=[]
-        for e in [e for e in bus_flows if (e.destination.node_bus == bus_trip_id or e.origin.node_bus == bus_trip_id) and e.origin.node_bus!=-1 and e.origin.node_stop_id != e.destination.node_stop_id ]:#and (e.d.stop_id!=0 or e.d.ad!='a')]:
+        travel_edges_between_stops[bus_trip_id] = []
+        for e in [e for e in bus_flows if (e.destination.node_bus == bus_trip_id or e.origin.node_bus == bus_trip_id) and e.origin.node_bus != -1 and e.origin.node_stop_id != e.destination.node_stop_id ]:#and (e.d.stop_id!=0 or e.d.ad!='a')]:
             travel_edges_between_stops[bus_trip_id].append((e.origin.node_time, e.destination.node_time, e))
-        travel_edges_between_stops[bus_trip_id] = sorted(travel_edges_between_stops[bus_trip_id], key=itemgetter(0,1))
+        travel_edges_between_stops[bus_trip_id] = sorted(travel_edges_between_stops[bus_trip_id], key = itemgetter(0, 1))
 
-    ### Creation d'un dictionnaire avec les noeuds de passages des bus aux arrets 
+    # Create a dict containing the arrival, start of hold and departure time nodes for each stop
     departures_in_solution = {}
     for bus in travel_edges_between_stops:
-        departures_in_solution[bus]=[]
+        departures_in_solution[bus]={}
         for element in travel_edges_between_stops[bus]:
             e = element[2] 
             o = e.origin # departure node from previous stop
@@ -1762,10 +1834,10 @@ def get_all_tactics_used_in_solution(bus_flows : dict,
                 if int(d.node_level) != 0 : # We do not consider the global target node
                     tmp=[edge for edge in bus_flows if edge.origin == d and edge.destination.node_arrival_departure == "d" and edge.origin.node_stop_id == edge.destination.node_stop_id]
                     if len(tmp)==0 or len(tmp)>1: 
-                        print(len(tmp), 'erreur departs_opt\n')
+                        print(len(tmp), 'Error finding travel edges between stops\n')
                     else: 
                         edge = tmp[0]
-                        d = edge.d
+                        d = edge.destination
             else: # a skip-stop tactic is used so a and d are the same node.
                 tactics[bus][d.node_stop_id] = ('ss', -1)
             l1 = o.node_stop_id
@@ -1776,7 +1848,7 @@ def get_all_tactics_used_in_solution(bus_flows : dict,
                 departures_in_solution[bus][l1]['fin'] = o
             if l2 != 0:
                 if l2 not in departures_in_solution[bus]: 
-                    departures_in_solution[bus][l2]={}
+                    departures_in_solution[bus][l2] = {}
                 departures_in_solution[bus][l2]['deb'] = d
                 departures_in_solution[bus][l2]['arr'] = a
     for bus in [trip_id, next_trip_id]:
@@ -1786,14 +1858,14 @@ def get_all_tactics_used_in_solution(bus_flows : dict,
                                 # Are we waiting for transfer passengers or for planned departure time?
                 if l in tactics[bus]: # This means there is also a speedup tactic at this stop (hold not possible with skip-stop tactic)
                     if departures_in_solution[bus][l]['fin'].node_type == 'transfer': 
-                        tactics[bus][l]=('sp_t', departures_in_solution[bus][l]['fin'].node_time, hold_time) # speedup + hold for transfer
+                        tactics[bus][l]=('sp_t', departures_in_solution[bus][l]['fin'].node_time) # speedup + hold for transfer
                     else:
-                        tactics[bus][l]=('sp_hp', departures_in_solution[bus][l]['fin'].node_time, hold_time) # speedup + hold for planned departure
+                        tactics[bus][l]=('sp_hp', departures_in_solution[bus][l]['fin'].node_time) # speedup + hold for planned departure
                 else: 
                     if departures_in_solution[bus][l]['fin'].node_type == 'transfer': 
-                        tactics[bus][l]=('h_t', departures_in_solution[bus][l]['fin'].node_time, hold_time) # hold for transfer (no speedup)
+                        tactics[bus][l]=('h_t', departures_in_solution[bus][l]['fin'].node_time) # hold for transfer (no speedup)
                     else: 
-                        tactics[bus][l]=('h_hp', departures_in_solution[bus][l]['fin'].node_time, hold_time) # hold for planned departure (no speedup)
+                        tactics[bus][l]=('h_hp', departures_in_solution[bus][l]['fin'].node_time) # hold for planned departure (no speedup)
             else: 
                 if (l in tactics[bus]) == False: # no speedup, no hold, no skip-stop
                     tactics[bus][l]=('none', -1)
@@ -1829,7 +1901,7 @@ def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
         - new_stops: dictionary containing the stops for each non-optimal tactic for the bus trip with trip_id
         """
     new_stops = {}
-    if stop_id in transfers[trip_id] and len(transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'])>0:
+    if stop_id in transfers[trip_id] and len(transfers[trip_id][stop_id]['boarding'] + transfers[trip_id][stop_id]['alighting'])>0:
         final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < bus_trips[trip_id][0].arrival_time + 120])
     else: 
         final_transfer_time = -1
@@ -1923,3 +1995,452 @@ def create_stop_using_tactic(tactic_tuple, stop, final_transfer_time, prev_time,
             new_stop.departure_time = new_stop.arrival_time + 60
     prev_time = new_stop.departure_time
     return(new_stop, prev_time)
+
+def display_graph(G1: Graph,
+                  display_flows = False,
+                  name = 'Graph_Image',
+                  savepath = os.path.join('output','fixed_line','gtfs'),
+                  figsize = (12,18)): 
+    """This function creates an visual representation of the graph using different colors for different node types and edge types.
+    Inputs:
+        - G1: the graph to display
+        - display_flows: dictionary containing the flows on each edge of the graph. The format of the display_flows dictionary is as follows:
+            display_flows[edge : Graph_Edge] = int
+        - name: the name of the image
+        - savepath: the path to save the image
+        - figsize: the size of the image
+    Outputs:
+        - None"""
+
+    lost = False
+    n_d_exo = False
+    n_t_exo = False
+    n_ss = False
+    l_ss = False
+    l_t_nul = False
+    l_t_nnul = False
+
+    nodes = G1.nodes
+    edges = G1.edges
+    if display_flows == False: 
+        display_flows={}
+        for edge in edges:
+            display_flows[edge] = 1
+    t = G1.target
+    s = G1.source
+    temps_min = s.node_time
+    newnodes = {}
+    index = {}
+    distances = {}
+    G = nx.MultiGraph()
+    max_time = temps_min
+    max_dist = 0
+    levels = {}
+    tmp_level_one = []
+    j=0
+    for i in range(len(nodes)): 
+        node = nodes[i] 
+        if node != t and node != s and node.node_level != 0 and (node.node_type != 'puit' or node.node_arrival_departure!='d'):
+            newnodes[node] = j
+            index[j] = node
+            distances[node.node_level] = node.node_dist
+            levels[node.node_level] = (node.node_dist, node.node_stop_id)
+            G.add_node(j, x = node.node_time-temps_min, y = node.node_dist, flow = node.node_flow)
+            if node.node_time>max_time: 
+                max_time = node.node_time
+            if node.node_dist > max_dist:
+                max_dist=node.node_dist
+            if node.node_level == 1 and node.node_arrival_departure == 'a' and node.node_type != 'puit':
+                tmp_level_one.append(j)
+        j+=1
+    max_time = max_time + 50
+    labels = {id: (str)(index[id].node_time-temps_min) for id in G.nodes}
+    pos = {}
+    ids_to_skip = set()
+    nodes_to_skip = set()
+    gc = {} #graph colors
+    gc['n'] = {}#node colors
+    gc['e'] = {}#edge colors 
+    gc['e']['n0'] = ('grey','-')
+    gc['e']['n1'] = ('black','-')
+    gc['e']['p1'] = ('black',':')
+    gc['e']['p0'] = ('none','--')
+    gc['e']['td1'] = ('black','-')
+    gc['e']['td0'] = gc['e']['n0']
+    gc['e']['ta1'] = ('royalblue',':')
+    gc['e']['ta0'] = ('lightblue',':')
+    gc['e']['s1'] = ('yellow','-')
+    gc['e']['s0'] = gc['e']['n0']
+    gc['e']['final'] = ('powderblue','--')
+    gc['n']['p'] = 'none'#'lightgrey'
+    gc['n']['na'] = 'pink'
+    gc['n']['nd0'] = 'lightgreen'
+    gc['n']['nd1'] = 'mediumseagreen'
+    # gc['n']['t']='deepskyblue'
+    gc['n']['source'] = 'red'
+    gc['n']['ta'] = 'lightskyblue'#gc['n']['nd1']#'mediumseagreen'
+    gc['n']['td'] = 'dodgerblue'#gc['n']['na']#'pink''deepskyblue'
+    gc['n']['s'] = 'yellow'
+    for edge in edges:
+        u=edge.origin
+        v=edge.destination
+        edge_labels={}
+        if ( u.node_level != 0 and v.node_level != 0 and u.node_level!=-1 and (node.node_type!='puit' or node.node_arrival_departure!='d')):
+            if u.node_type=="skip":
+                if display_flows[edge]>0:
+                    l_ss = True
+                    edge_labels[(newnodes[u],newnodes[v])]=str(display_flows[edge])
+                    G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1, color=gc['e']['s1'][0], type=gc['e']['s1'][1], label=str(display_flows[edge]))
+                else: 
+                    edge_labels[(newnodes[u], newnodes[v])]=""
+                    G.add_edge(newnodes[u], newnodes[v], w=1,color=gc['e']['s0'][0],type=gc['e']['s0'][1],label="")
+            elif v.node_type=='normal':
+                if display_flows[edge]>0:
+                    edge_labels[(newnodes[u],newnodes[v])]=str(display_flows[edge])
+                    G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1, color=gc['e']['n1'][0],type=gc['e']['n1'][1], label=str(display_flows[edge]))
+                else: 
+                    edge_labels[(newnodes[u],newnodes[v])]=""
+                    G.add_edge(newnodes[u], newnodes[v], w=1, color=gc['e']['n0'][0],type=gc['e']['n0'][1],label="")
+            elif v.node_type=='puit':
+                if v.node_arrival_departure == "a":
+                    if u.node_flow>0 and u.node_level != v.node_level:
+                        if (u in nodes_to_skip) == False:
+                            if display_flows[edge]>0:
+                                lost = True ### add a red dotted arrow indicating that this passenger did not get a bus in the optimization horizon
+                                G.add_node(j, x=G.nodes[newnodes[u]]['x']+1000, y=G.nodes[newnodes[u]]['y'], flow=0,size=1000)
+                                labels[j] = ">"
+                                pos[j] = (G.nodes[j]['x'], G.nodes[j]['y'])
+                                G.nodes[j]['c'] = 'none'
+                                G.nodes[j]['type'] = 'puit'
+                                edge_labels[(newnodes[u],j)] = str(u.node_flow)
+                                G.add_edge(newnodes[u], j, w=display_flows[edge]+1, color='red', type=gc['e']['p1'][1], label=str(display_flows[edge]))
+                                ids_to_skip.add(j)
+                                nodes_to_skip.add(u)
+                                j+=1
+                            else:
+                                edge_labels[(newnodes[u],newnodes[v])]=""
+                                G.add_edge(newnodes[u], newnodes[v], w=1, color=gc['e']['p0'][0], type= gc['e']['p0'][1], label="")
+                    else: # alighting without transfer
+                        if display_flows[edge]>0:
+                            edge_labels[(newnodes[u],newnodes[v])] = str(display_flows[edge])
+                            G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1,color= gc['e']['p1'][0], type= gc['e']['p1'][1], label=str(display_flows[edge]))
+                        else: 
+                            edge_labels[(newnodes[u],newnodes[v])]=""
+                            G.add_edge(newnodes[u], newnodes[v], w=1, color= gc['e']['p0'][0], type= gc['e']['p0'][1], label="")
+                else:# Passenger missed their bus
+                    if display_flows[edge]>0:
+                        lost = True
+                        G.add_node(j, x=G.nodes[newnodes[u]]['x']+100, y=G.nodes[newnodes[u]]['y'], flow=0,size=1000)
+                        labels[j]=">"
+                        pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+                        G.nodes[j]['c']='none'
+                        G.nodes[j]['type']='puit'
+                        edge_labels[(newnodes[u],j)]=str(u.node_flow)
+                        G.add_edge(newnodes[u],j,w=display_flows[edge]+1,color='red',type=gc['e']['p1'][1],label=str(display_flows[edge]))
+                        ids_to_skip.add(j)
+                        nodes_to_skip.add(u)
+                        j+=1
+            elif v.node_type=='transfer':
+                if v.node_arrival_departure=='d':
+                    if display_flows[edge]>0:
+                        edge_labels[(newnodes[u],newnodes[v])]=str(display_flows[edge])
+                        G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1,color=gc['e']['td1'][0],type=gc['e']['td1'][1],label=str(display_flows[edge]))
+                    else: 
+                        edge_labels[(newnodes[u],newnodes[v])]=""
+                        G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1,color=gc['e']['td0'][0],type=gc['e']['td0'][1],label="")
+                else: 
+                    if display_flows[edge]>0:
+                        l_t_nnul=True
+                        edge_labels[(newnodes[u],newnodes[v])]=str(display_flows[edge])
+                        G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1,color=gc['e']['ta1'][0],type=gc['e']['ta1'][1],label=str(display_flows[edge]))
+                    else:
+                        edge_labels[(newnodes[u],newnodes[v])]="test"
+                        l_t_nul=True
+                        G.add_edge(newnodes[u], newnodes[v], w=1,color=gc['e']['ta0'][0],type=gc['e']['ta0'][1],label="")
+            elif v.node_type=="skip":
+                if display_flows[edge]>0:
+                    l_ss=True
+                    edge_labels[(newnodes[u],newnodes[v])]=str(display_flows[edge])
+                    G.add_edge(newnodes[u], newnodes[v], w=display_flows[edge]+1,color=gc['e']['s1'][0],type=gc['e']['s1'][1],label=str(display_flows[edge]))
+                else: 
+                    edge_labels[(newnodes[u],newnodes[v])]=""
+                    G.add_edge(newnodes[u], newnodes[v], w=1,color=gc['e']['s0'][0],type=gc['e']['s0'][1],label="")
+    print('Nodes:', G.number_of_nodes() )
+    print('Edges:',G.number_of_edges() )
+    distances[0]=0
+    for id in [id for id in G.nodes if (id in ids_to_skip)==False]: 
+        node = index[id]
+        if node == s:
+            pos[id] = (0, distances[1]-0.5)
+            G.nodes[id]['c']='green'
+            G.nodes[id]['type']='d'
+        elif node==t:
+            pos[id]=(G.nodes[id]['x'], G.nodes[id]['y'])
+            G.nodes[id]['c']='red'
+            G.nodes[id]['type']='a'
+        elif node.node_dist<0:  #source node
+            pos[id]=(G.nodes[id]['x'], distances[1]-0.4)
+            G.nodes[id]['c']='green'
+            G.nodes[id]['type']='d'
+        else:
+            if distances[node.node_level]==0:
+                d=0.5
+            else:
+                d=distances[node.node_level]
+                d-=distances[node.node_level-1]
+            if node.node_type=='puit':
+                pos[id]=(max_time-temps_min,G.nodes[id]['y']-0.3*d)
+                G.nodes[id]['c']=gc['n']['p']
+                G.nodes[id]['type']='puit'
+            elif node.node_type=='transfer':
+                n_t_exo=True
+                if node.node_arrival_departure=='a':
+                    G.nodes[id]['c']=gc['n']['ta']
+                    pos[id]=(G.nodes[id]['x'], G.nodes[id]['y']-0.2*d)
+                else:
+                    G.nodes[id]['c']=gc['n']['td']
+                    pos[id]=(G.nodes[id]['x'], G.nodes[id]['y'])
+                    if node.node_flow!=0:
+                        pos[id]=(G.nodes[id]['x'], G.nodes[id]['y']+0.1*d)
+                G.nodes[id]['type']='t'
+            elif node.node_type=='normal':
+                if node.node_arrival_departure=='a':
+                    pos[id]=(G.nodes[id]['x'], G.nodes[id]['y']-0.3*d)
+                    G.nodes[id]['c']=gc['n']['na']
+                    G.nodes[id]['type']='a'
+                else: 
+                    G.nodes[id]['type']='d'
+                    if node.node_flow!=0:
+                        G.nodes[id]['c']=gc['n']['nd1']
+                        pos[id]=(G.nodes[id]['x'], G.nodes[id]['y']+0.1*d)
+                    else:
+                        n_d_exo=True
+                        G.nodes[id]['c']=gc['n']['nd0']
+                        pos[id]=(G.nodes[id]['x'], G.nodes[id]['y'])
+                    # pos[id]=(G.nodes[id]['x'], G.nodes[id]['y'])
+            elif node.node_type=='skip':
+                G.nodes[id]['type']='skip'
+                n_ss=True
+                pos[id]=(G.nodes[id]['x'], G.nodes[id]['y'])
+                G.nodes[id]['c']=gc['n']['s']
+
+    for id in [id for id in G.nodes if (id in ids_to_skip)==False]:
+        node=index[id]
+        if node.node_flow!=0: 
+            if node.node_type=='puit':
+                if node.node_arrival_departure=="a":
+                    labels[id]=">"
+                    # labels[id]="sink"
+            else: 
+                if node.node_flow>0:
+                    # labels[id]="+"+str(node.flow)+"\n \n"
+                    labels[id]="+"+str(node.node_flow)+"\n\n"+(str)(node.node_time-temps_min-1)+"\n\n"
+                    labels[id]="+"+str(node.node_flow)
+
+                else:
+                    # labels[id]=str(node.flow)+"\n\n"+labels[id]+"\n\n"
+                    labels[id]=str(node.node_flow)
+        elif node.node_dist<0:
+            labels[id]='source_secondaire'
+        elif node.node_type=='skip':
+            labels[id]='SS'#+(str)(node.level)
+        elif node.node_type=='puit':
+            labels[id]=""
+        else: 
+            labels[id] = (str)(node.node_time-temps_min-1)#(str)(node.level)+","+
+            labels[id] = ""
+
+    max_level = 1
+    tmp_max = 50
+    for l in levels: 
+        if l>max_level:
+            max_level=l
+        if l==1: 
+            dist=levels[l][0]
+            if (l+1) in levels:
+                diff=levels[l+1][0]-dist
+            else:
+                diff=0
+            stop_id=levels[l][1]
+            G.add_node(j, x=temps_min-temps_min, y=dist+0.1*diff, flow=0,size=1000)
+            G.add_node(j+1, x=max_time+tmp_max-temps_min, y=dist+0.1*diff, flow=0,size=1000)
+            labels[j]=""#"stop"+ str(l)
+            labels[j+1]="stop"+str(l)#+"-id:"+str(stop_id)
+            pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+            pos[j+1]=(G.nodes[j+1]['x'], G.nodes[j+1]['y'])
+            G.nodes[j]['c']='white'
+            G.nodes[j+1]['c']='white'
+            G.nodes[j]['type']='other'
+            G.nodes[j+1]['type']='other'
+            G.add_edge(j,j+1,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
+            j+=2
+            G.add_node(j, x=200, y=0.5, flow=0, size=1000)
+            labels[j]="\n SOURCE"
+            pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+            G.nodes[j]['c']='none'
+            G.nodes[j]['type']='other'
+            for node in tmp_level_one:
+                G.add_edge(j,node, w=1,color='grey',type='-',label="")
+            j+=1
+        if l>1:
+            dist=levels[l][0]
+            if (l+1) in levels:
+                diff=levels[l+1][0]-dist
+            else:
+                diff=0
+            diff_min=dist-levels[l-1][0]
+            G.add_node(j, x=temps_min-temps_min, y=dist+0.1*diff, flow=0,size=1000)
+            G.add_node(j+1, x=max_time+tmp_max-temps_min, y=dist+0.1*diff, flow=0,size=1000)
+            G.add_node(j+2, x=temps_min-temps_min, y=dist-0.3*diff_min, flow=0,size=1000)
+            G.add_node(j+3, x=max_time+tmp_max-temps_min, y=dist-0.3*diff_min, flow=0,size=1000)
+            labels[j]=""#"stop"+ str(l)
+            labels[j+1]=""#stop"+str(l)+"-id:"+str(stop_id)
+            labels[j+2]=""#"stop"+ str(l)
+            labels[j+3]=""#stop"+str(l)+"-id:"+str(stop_id)
+            pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+            pos[j+1]=(G.nodes[j+1]['x'], G.nodes[j+1]['y'])
+            pos[j+2]=(G.nodes[j+2]['x'], G.nodes[j+2]['y'])
+            pos[j+3]=(G.nodes[j+3]['x'], G.nodes[j+3]['y'])
+            G.nodes[j]['c']='none'
+            G.nodes[j+1]['c']='none'
+            G.nodes[j+2]['c']='none'
+            G.nodes[j+3]['c']='none'
+            G.nodes[j]['type']='other'
+            G.nodes[j+1]['type']='other'
+            G.nodes[j+2]['type']='other'
+            G.nodes[j+3]['type']='other'
+            G.add_edge(j,j+1,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
+            G.add_edge(j+2,j+3,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
+            G.add_edge(j+1,j+3,w=1,color='none',type=gc['e']['final'][1],label="stop"+str(l))
+            j+=4
+    G.add_node(j,x=455, y=3.7,flow=0,size=1000)
+    labels[j]="SINK \n"
+    pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+    G.nodes[j]['c']='none'
+    G.nodes[j]['type']='other'
+    for id in [id for id in G.nodes if (id in ids_to_skip)==False and id<j-11]:
+        node=index[id]
+        if node.node_level == max_level and node.node_arrival_departure=='d':
+            G.add_edge(id, j, w=1,color='grey',type='-',label="")
+    j+=1
+    dist = levels[max_level][0]
+    weights = {(u,v):w for u,v,w in G.edges(data='w')}
+
+    # Get edge attributes
+    colors = nx.get_edge_attributes(G,'color').values()
+    weights = list(nx.get_edge_attributes(G,'w').values())
+    style = list(nx.get_edge_attributes(G,'type').values())
+    edge_labels={(u,v):w for u,v,w in G.edges(data='label')}
+    w=[]
+    i=0
+    for we in weights: 
+        if style[i]==':':
+            k=max(we,2)
+        else:
+            k=max(we//2, 1)
+        w.append(k)
+        i+=1
+    
+    # Get node attributes (separately to be able to have different markers)
+    node_colors={}
+    nodelist={}
+    for type in ['a', 'd', 'puit', 't', 'skip', 'other']:
+        node_colors[type]=[]
+        nodelist[type]=[]
+    nodeshape={}
+    nodeshape['a']=(5, 0, 180)#'v'#'H'
+    nodeshape['d']='p'#'^'
+    nodeshape['puit']='o'
+    nodeshape['t']='s'
+    nodeshape['skip']='D'
+    nodeshape['other']='o'
+    node_size={}
+    for type in [ 'other','t']:
+        node_size[type] = 10#200
+    for type in ['puit','a', 'd', 'skip']:
+        node_size[type] = 10#200
+    for id in G.nodes: 
+        if G.nodes[id]['type']=='a':
+            nodelist['a'].append(id)
+            node_colors['a'].append(G.nodes[id]['c'])
+        elif G.nodes[id]['type']=='d':
+            nodelist['d'].append(id)
+            node_colors['d'].append(G.nodes[id]['c'])
+        elif G.nodes[id]['type']=='puit':
+            nodelist['puit'].append(id)
+            node_colors['puit'].append(G.nodes[id]['c'])
+        elif G.nodes[id]['type']=='t':
+            nodelist['t'].append(id)
+            node_colors['t'].append(G.nodes[id]['c'])
+        elif G.nodes[id]['type']=='skip':
+            nodelist['skip'].append(id)
+            node_colors['skip'].append(G.nodes[id]['c'])
+        elif G.nodes[id]['type']=='other':
+            nodelist['other'].append(id)
+            node_colors['other'].append(G.nodes[id]['c'])
+    
+    ##Make legend
+    markersize=12
+    linewidth=3
+    legend_elements=[]
+    legend_elements.append(Line2D([0], [0], marker=nodeshape['a'], color='w', label='arrival node', markerfacecolor=gc['n']['na'], markersize=markersize))
+    legend_elements.append(Line2D([0], [0], marker=nodeshape['d'], color='w', label='departure node', markerfacecolor=gc['n']['nd0'], markersize=markersize))
+    if n_d_exo:
+        legend_elements.append(Line2D([0], [0], marker=nodeshape['d'], color='w', label='departure node\n with passengers', markerfacecolor=gc['n']['nd1'], markersize=markersize))
+    if n_t_exo:
+        legend_elements.append(Line2D([0], [0], marker=nodeshape['t'], color='w', label='transfer from feeder line', markerfacecolor=gc['n']['td'], markersize=markersize))
+        legend_elements.append(Line2D([0], [0], marker=nodeshape['t'], color='w', label='transfer to feeder line', markerfacecolor=gc['n']['ta'], markersize=markersize))
+    if n_ss:
+        legend_elements.append(Line2D([0], [0], marker=nodeshape['skip'], color='w', label='skip-stop tactic node', markerfacecolor=gc['n']['s'], markersize=markersize))
+    legend_elements =legend_elements+ [
+                   Line2D([0], [0], marker=r'$+2$', color='none', label='passenger flow at nodes',markerfacecolor='black',markersize=markersize-2),
+                   Line2D([0], [0], marker=r'$470$', color='none', label='time at nodes',markerfacecolor='black',markersize=markersize+2),
+                #    Line2D([0], [0], marker=nodeshape['puit'], color='w', label='sink node', markerfacecolor=gc['n']['p'], markersize=markersize),## attention puit
+                   Line2D([0], [0], marker='o', color='w', label='', markerfacecolor='w', markersize=markersize),
+                   Line2D([0], [0], color=gc['e']['n0'][0],linestyle=gc['e']['n0'][1], lw=linewidth, label='null flow'),
+                   Line2D([0], [0], color=gc['e']['n1'][0],linestyle=gc['e']['n1'][1], lw=linewidth, label='positive flow'),
+                   Line2D([0], [0], color=gc['e']['p1'][0], lw=linewidth,linestyle=gc['e']['p1'][1], label='alighting passenger flow')]
+    if l_ss:
+        legend_elements.append(Line2D([0], [0], color=gc['e']['s1'][0],linestyle=gc['e']['s1'][1], lw=linewidth, label='positive flow in skip-stop tactic'))
+    if l_t_nnul:
+        legend_elements.append(Line2D([0], [0], color=gc['e']['ta1'][0], lw=linewidth,linestyle=gc['e']['ta1'][1], label='positive flow to feeder line'))
+    if l_t_nul:
+        legend_elements.append(Line2D([0], [0], color=gc['e']['ta0'][0],linestyle=gc['e']['ta0'][1], lw=linewidth, label='null flow towards feeder line'))
+    if lost: 
+        legend_elements.append(Line2D([0], [0], color='red',linestyle=':', lw=linewidth, label='passengers without a bus'))
+    #Plot everything
+    fig, ax = plt.subplots(figsize=figsize, dpi=100)
+    nx.draw(G
+            ,ax=ax
+            ,labels=labels
+            ,pos=pos
+            ,node_color='none'
+            ,edge_color=colors
+            ,width=w
+            ,style=style
+            ,font_size=16
+            )
+    tmp_edge_labels={}
+    labels_to_delete=[]
+    for key in edge_labels: 
+        if len(edge_labels[key])>0 and edge_labels[key][0]=='s': 
+            labels_to_delete.append(key)
+            tmp_edge_labels[key]=edge_labels[key]
+    for key in labels_to_delete: 
+        edge_labels.pop(key, None)
+    nx.draw_networkx_edges(G, pos, labels_to_delete, edge_color=gc['e']['final'][0],arrows=True, arrowstyle='<|-|>',arrowsize=15,node_size=500, ax=ax)
+    nx.draw_networkx_edge_labels(G,pos,edge_labels=edge_labels,font_color='red',label_pos=0.5,font_size=16, font_weight='bold', ax=ax, bbox=dict(facecolor='white', edgecolor='none', alpha=1,pad=-0.15))
+    nx.draw_networkx_edge_labels(G,pos,edge_labels=tmp_edge_labels,font_color='black',rotate=False, label_pos=0.5,font_size=16, font_weight='normal', ax=ax)
+    for type in ['a', 'd', 'puit', 't', 'skip', 'other']:
+        nx.draw_networkx_nodes(G,pos,nodelist=nodelist[type],node_size=node_size[type], node_color=node_colors[type], node_shape=nodeshape[type],ax=ax)#, labels=labels)
+    plt.axis('on')
+    plt.xlabel('Time (s)', fontsize=14)
+    plt.ylabel('Distance (km)',fontsize=14)
+    # plt.subplots_adjust(left=0.0, right=1.0, top=0.96, bottom=0.0)
+    # ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    # plt.legend(handles=legend_elements,fontsize=14, loc='upper left')
+    plt.legend(handles=legend_elements,fontsize=16, loc='best')
+    completenamepng=os.path.join(savepath,"graphe_"+name+".png")
+    plt.savefig(completenamepng)
+    plt.show()
+    plt.close()

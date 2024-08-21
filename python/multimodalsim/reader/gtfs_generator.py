@@ -1048,8 +1048,8 @@ class GTFSGenerator:
         trip_id_one_stop = trip_id_count[trip_id_count == 1].index
         stop_times_df = stop_times_df[~stop_times_df["trip_id"].isin(trip_id_one_stop)]
 
-        #Sort the stop_times by date, planned_departure_time_from_origin and stop_sequence
-        colums_to_sort = [self.__date_col, "planned_departure_time_from_origin", "stop_sequence"]
-        self.__stop_times_df = stop_times_df.sort_values(colums_to_sort)
+        #Sort the stop_times by date, planned_departure_time_from_origin, trip_id and stop_sequence
+        colums_to_sort = [self.__date_col, "planned_departure_time_from_origin", "trip_id", "stop_sequence"]
+        stop_times_df = stop_times_df.sort_values(by = colums_to_sort)
 
         return stop_times_df

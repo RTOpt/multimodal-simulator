@@ -9,6 +9,8 @@ from multimodalsim.simulator.optimization_event import Optimize
 from multimodalsim.simulator.passenger_event import PassengerRelease
 from multimodalsim.simulator.vehicle_event import VehicleReady
 
+from operator import itemgetter
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,9 +23,8 @@ class Simulation(object):
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
-                                #  main_line=main_line,
-                                #  next_main_line=next_main_line
                                  )
+        self.__env.next_vehicles = self.define_next_vehicles(routes_by_vehicle_id)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
 
@@ -105,3 +106,15 @@ class Simulation(object):
         for data_collector in self.__environment_observer.data_collectors:
             data_collector.collect(self.__env, current_event,
                                    event_index, event_priority)
+    
+    def define_next_vehicles(self, routes_by_vehicle_id): 
+        all_vehicles_with_start_times_and_route_names = [(vehicle_id, routes_by_vehicle_id[vehicle_id].current_stop.arrival_time, routes_by_vehicle_id[vehicle_id].vehicle.route_name) for vehicle_id in routes_by_vehicle_id]
+        all_vehicles_with_start_times_and_route_names = sorted(all_vehicles_with_start_times_and_route_names, key = itemgetter(2, 1))
+        next_vehicles = {}
+        for i in range(len(all_vehicles_with_start_times_and_route_names) - 1):
+            if all_vehicles_with_start_times_and_route_names[i][2] == all_vehicles_with_start_times_and_route_names[i+1][2]:
+                next_vehicles[all_vehicles_with_start_times_and_route_names[i][0]] = all_vehicles_with_start_times_and_route_names[i+1][0]
+            else:
+                next_vehicles[all_vehicles_with_start_times_and_route_names[i][0]] = None
+        next_vehicles[all_vehicles_with_start_times_and_route_names[-1][0]] = None
+        return next_vehicles

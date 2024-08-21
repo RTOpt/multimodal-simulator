@@ -17,20 +17,21 @@ logger = logging.getLogger(__name__)
 ### This file generates partial data of the day November 1st 2019 to allow for testing on a medium size real instance.
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
-small=True
-only_transfers=True
-main_trip_id="2790970"
+small = True
+main_trip_id = "2790970"
 max_distance = 0.5 #connection max distance in km
 if small:
-    nb_transfers=3
-    small_name="_small"
-    small_folder="-small"
+    only_transfers = True
+    nb_transfers = 3
+    small_name = "_small"
+    small_folder = "-small"
 else: 
-    nb_transfers=5
-    small_name=""
-    small_folder=""
+    only_transfers = False
+    nb_transfers = 5
+    small_name = ""
+    small_folder = ""
 ###CAP files
-###Find relevant passengers and tripsand write into new smaller CAP file
+###Find relevant passengers and trips and write into new smaller CAP file
 cap_file_path_old=os.path.join("D:","","donnees","New donnees","20191101.csv")
 cap_file_path_generated=os.path.join("D:",'',"donnees","Data_Simulator","20191101_relevant"+small_name+".csv")
 

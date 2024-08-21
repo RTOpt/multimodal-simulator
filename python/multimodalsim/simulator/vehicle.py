@@ -3,7 +3,6 @@ import copy
 
 import multimodalsim.state_machine.state_machine as state_machine
 from multimodalsim.state_machine.status import PassengersStatus
-from multimodalsim.simulator.request import Leg
 
 logger = logging.getLogger(__name__)
 
@@ -376,6 +375,7 @@ class Route(object):
         # remove alighting legs from the destination stop
         for trip in trips:
             skipped_stop.passengers_to_alight.remove(trip)
+            skipped_stop.passengers_to_alight_int = max(0, skipped_stop.passengers_to_alight_int - 1)
             # print(len(skipped_stop.passengers_to_alight), 'number of passengers to alight at skipped stop')
             # input()
         # remove the alighting legs from the onboard legs
@@ -474,9 +474,11 @@ class Stop(object):
         self.__departure_time = departure_time
         self.__min_departure_time = min_departure_time
         self.__passengers_to_board = []
+        self.__passengers_to_board_int = 0
         self.__boarding_passengers = []
         self.__boarded_passengers = []
         self.__passengers_to_alight = []
+        self.__passengers_to_alight_int = 0
         self.__alighting_passengers = []
         self.__alighted_passengers = []
         self.__location = location
@@ -553,6 +555,14 @@ class Stop(object):
         self.__passengers_to_board = passengers_to_board
 
     @property
+    def passengers_to_board_int(self):
+        return self.__passengers_to_board_int
+    
+    @passengers_to_board_int.setter
+    def passengers_to_board_int(self, passengers_to_board_int):
+        self.__passengers_to_board_int = passengers_to_board_int
+
+    @property
     def boarding_passengers(self):
         return self.__boarding_passengers
 
@@ -575,6 +585,14 @@ class Stop(object):
     @passengers_to_alight.setter
     def passengers_to_alight(self, passengers_to_alight):
         self.__passengers_to_alight = passengers_to_alight
+
+    @property
+    def passengers_to_alight_int(self):
+        return self.__passengers_to_alight_int
+    
+    @passengers_to_alight_int.setter
+    def passengers_to_alight_int(self, passengers_to_alight_int):
+        self.__passengers_to_alight_int = passengers_to_alight_int
 
     @property
     def alighting_passengers(self):
@@ -637,6 +655,7 @@ class Stop(object):
         vehicle """
         # print('Initiate boarding passenger', trip.id, ' at stop: ', self.__location.label)
         self.passengers_to_board.remove(trip)
+        self.passengers_to_board_int = max(0, self.passengers_to_board_int - 1)
         self.boarding_passengers.append(trip)
 
     def board(self, trip):
@@ -648,6 +667,7 @@ class Stop(object):
     def initiate_alighting(self, trip):
         """Passengers who reached their stop leave the vehicle"""
         self.passengers_to_alight.remove(trip)
+        self.passengers_to_alight_int = max(0, self.passengers_to_alight_int - 1)
         self.alighting_passengers.append(trip)
 
     def alight(self, trip):
