@@ -143,6 +143,10 @@ def extract_simulation_output(simulation, output_folder):
         logger.debug("DataContainer:")
         data_container = simulation.data_collectors[0].data_container
         print_statistics(data_container)
+        
+    # check if the output folder exists, if not create it
+    if output_folder is not None and not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     if data_container is not None and output_folder is not None:
         if "vehicles" in data_container.observations_tables:

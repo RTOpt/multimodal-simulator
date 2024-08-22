@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 ### The main trip id is '2790970' from line 42O. All passengers boarding this bus will be included.
 ### All buses from lines transferring passengers from/to this trip will be included as well.
 small = True
-main_trip_id = "2790970"
+main_trip_ids = ["2790970", "2790309"]
 max_distance = 0.5 #connection max distance in km
 if small:
     only_transfers = True
@@ -41,41 +41,42 @@ cap_file_path_generated=os.path.join("D:",'',"donnees","Data_Simulator","2019110
 # Write a new CAP file with only the relevant passengers.
 
 # Read the cap file and find the relevant trips and passengers
-relevant_trips=[main_trip_id]
-lines_to_use=[]
+relevant_trips = main_trip_ids
+lines_to_use = []
 with open(cap_file_path_old, 'r') as file:
     # Read the header
     header=file.readline()
     # Find at which position the passenger_id, trip_id and validation_time are
-    header_split=header.strip().split(";")
-    passenger_id_index=header_split.index("C_NUM_SUPPORT")
-    trip_id_index=header_split.index("S_VEHJOBID_IDJOURNALIER")
-    validation_time_index=header_split.index("C_SECONDE28")
-    lign_numer_index=header_split.index("S_LIGNE")
+    header_split = header.strip().split(";")
+    passenger_id_index = header_split.index("C_NUM_SUPPORT")
+    trip_id_index = header_split.index("S_VEHJOBID_IDJOURNALIER")
+    validation_time_index = header_split.index("C_SECONDE28")
+    lign_numer_index = header_split.index("S_LIGNE")
     # Sort lines by passenger_id and validation time
-    lines=file.readlines()
-    lines_sorted=[]
+    lines = file.readlines()
+    lines_sorted = []
     for i in range(len(lines)):
-        line=lines[i]
-        line_split=line.strip().split(";")
-        passenger_id=line_split[passenger_id_index]
-        validation_time=line_split[validation_time_index]
-        lines_sorted.append((passenger_id,validation_time,line,i))
-    lines_sorted=sorted(lines_sorted, key=itemgetter(0,1))
-    lines=[(lines_sorted[i][2],lines_sorted[i][3]) for i in range(len(lines_sorted))]
-    written_lines=[]
-    transfers=0
+        line = lines[i]
+        line_split = line.strip().split(";")
+        passenger_id = line_split[passenger_id_index]
+        validation_time = line_split[validation_time_index]
+        trip_id = line_split[trip_id_index]
+        lines_sorted.append((passenger_id, validation_time, line, i))
+    lines_sorted = sorted(lines_sorted, key=itemgetter(0,1))
+    lines = [(lines_sorted[i][2],lines_sorted[i][3]) for i in range(len(lines_sorted))]
+    written_lines = []
+    transfers = 0
     #For each line, check if the trip_id is relevant and if so save the line
     for i in range(len(lines)):
-        line=lines[i][0]
+        line = lines[i][0]
         line_split=line.strip().split(";")
-        trip_id=line_split[trip_id_index]
-        if trip_id==main_trip_id:
-            if (not only_transfers) and (lines[i][1] in written_lines)==False:
+        trip_id = line_split[trip_id_index]
+        if trip_id in main_trip_ids:
+            if (not only_transfers) and (lines[i][1] in written_lines) == False:
                 written_lines.append(lines[i][1])
-            passenger_id=line_split[passenger_id_index]
-            validation_time=int(line_split[validation_time_index])
-            lign_number=line_split[lign_numer_index]
+            passenger_id = line_split[passenger_id_index]
+            validation_time = int(line_split[validation_time_index])
+            lign_number = line_split[lign_numer_index]
             if i>0 and (lines[i-1][1] in written_lines)==False:
                 passenger_id_prev=lines[i-1][0].strip().split(";")[passenger_id_index]
                 validation_time_prev=int(lines[i-1][0].strip().split(";")[validation_time_index])
@@ -361,14 +362,15 @@ if len(relevant_stops)>0:
             stop_lat=line_split[stop_lat_index]
             stop_lon=line_split[stop_lon_index]
             stops_in_stops_file.append([stop_id,stop_name,stop_lat,stop_lon])
-    add_stops=sorted(add_stops, key=itemgetter(1)) # sort by stop_id
+    add_stops = sorted(add_stops, key=itemgetter(1)) # sort by stop_id
     for info in add_stops:
         if info[1] in relevant_stops:
             relevant_stops.remove(info[1])
             if info[1]=='' or info[1]==' ': #stop_id is empty
+                print('stop_id is empty')
                 continue
             stops_in_stops_file.append([info[1],info[2],info[3],info[4]])
-    stops_in_stops_file=sorted(stops_in_stops_file, key=itemgetter(0)) # sort by stop_id
+    stops_in_stops_file = sorted(stops_in_stops_file, key=itemgetter(0)) # sort by stop_id
     with open(stops_file_path_generated, 'w') as file:
         file.write(header)
         for stop_info in stops_in_stops_file:

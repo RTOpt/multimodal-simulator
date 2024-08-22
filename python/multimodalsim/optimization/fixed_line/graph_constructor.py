@@ -1049,7 +1049,7 @@ def get_last_stop(last_stop, level, stops_level):
 
 def initialize_graph_and_parameters(bus_trips: dict, 
                                     transfers: dict,
-                                    prev_times: dict,
+                                    last_departure_times: dict,
                                     price = 3600,
                                     time_step = 20):
     """
@@ -1059,9 +1059,9 @@ def initialize_graph_and_parameters(bus_trips: dict,
         - transfers: dictionary containing the transfer data for passengers transferring on the two bus trips: transfer time, number of transfers, stops, etc.
             The format of the transfers dictionary is as follows:
             transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int), ...]
-        - prev_times: dictionary containing the previous bus trip's arrival time at the stops. 
-            The format of the prev_times dictionary is as follows:
-            prev_times[trip_id] = int
+        - last_departure_times: dictionary containing the previous bus trip's arrival time at the stops. 
+            The format of the last_departure_times dictionary is as follows:
+            last_departure_times[trip_id] = int
         - price: cost of a passenger missing their bus (not equal to the bus interval!!!)
     Outputs:
         - G: the constructed graph
@@ -1070,7 +1070,7 @@ def initialize_graph_and_parameters(bus_trips: dict,
         - global_source_node: the source node for the graph
         - global_target_node: the target node for the graph
     """
-    order = sorted([(prev_times[trip_id], trip_id) for trip_id in bus_trips])
+    order = sorted([(last_departure_times[trip_id], trip_id) for trip_id in bus_trips])
     time_min = order[0][0]
     second_bus = order[-1][1]
     last_stop_second_bus = bus_trips[second_bus][-1]
@@ -1086,7 +1086,7 @@ def initialize_graph_and_parameters(bus_trips: dict,
 
 def build_graph_with_tactics(bus_trips: dict, 
                             transfers: dict,
-                            prev_times: dict,
+                            last_departure_times: dict,
                             initial_flows: dict,
                             time_step: int = 20,
                             price: int = 3600,
@@ -1121,7 +1121,7 @@ def build_graph_with_tactics(bus_trips: dict,
     
     G, order, price, global_source_node, global_target_node = initialize_graph_and_parameters(bus_trips = bus_trips,
                                                                                               transfers = transfers,
-                                                                                              prev_times = prev_times,
+                                                                                              last_departure_times = last_departure_times,
                                                                                               price = price,
                                                                                               time_step = time_step)
     
@@ -1162,7 +1162,7 @@ def build_graph_with_tactics(bus_trips: dict,
         # Initialize dicts
         departs_prev = {}
         departs_prev[sources[trip_id].node_time] = sources[trip_id]
-        prev_departure_time = prev_times[trip_id]
+        prev_departure_time = last_departure_times[trip_id]
 
         # Create nodes and edges at each stop
         for j in range(len(bus_trips[trip_id])):
@@ -1306,7 +1306,7 @@ def build_graph_with_tactics(bus_trips: dict,
 
 def build_graph_without_tactics(bus_trips: dict, 
                                 transfers: dict,
-                                prev_times: dict,
+                                last_departure_times: dict,
                                 initial_flows: dict,
                                 time_step = 20,
                                 price = 3600,
@@ -1332,7 +1332,7 @@ def build_graph_without_tactics(bus_trips: dict,
     
     G, order, price, global_source_node, global_target_node = initialize_graph_and_parameters(bus_trips,
                                                                                               transfers,
-                                                                                              prev_times,
+                                                                                              last_departure_times,
                                                                                               price,
                                                                                               time_step)
     stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
@@ -1388,7 +1388,7 @@ def build_graph_without_tactics(bus_trips: dict,
         # Initialize dicts
         departs_prev = {}
         departs_prev[sources[trip_id].node_time] = sources[trip_id]
-        prev_departure_time = prev_times[trip_id]
+        prev_departure_time = last_departure_times[trip_id]
 
         # Create nodes and edges for each stop
         for j in range(len(bus_trips[trip_id])):
@@ -1878,7 +1878,7 @@ def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
                                                   stop_id, trip_id,
                                                   max_departure_time,
                                                   all,
-                                                  prev_times: dict,
+                                                  last_departure_times: dict,
                                                   speedup_factor = 0.8):
     """
     This function creates a list of stops for each non-optimal tactic for the bus trip with trip_id.
@@ -1896,7 +1896,7 @@ def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
         - trip_id: the id of the main/first bus trip
         - max_departure_time: the latest departure time of the bus from the stop after holding time
         - all: list of all possible tactics (excluding the optimal tactic)
-        - prev_times: dictionary containing the departure time from the last visited stop for each bus trip
+        - last_departure_times: dictionary containing the departure time from the last visited stop for each bus trip
     Outputs:
         - new_stops: dictionary containing the stops for each non-optimal tactic for the bus trip with trip_id
         """
@@ -1912,8 +1912,8 @@ def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
             for tactic in all:
                 new_stops[bus_trip][tactic] = []
                 # First stop with different tactic
-                prev_time_real = prev_times[bus_trip]
-                prev_time_new = prev_times[bus_trip]
+                prev_time_real = last_departure_times[bus_trip]
+                prev_time_new = last_departure_times[bus_trip]
                 travel_time = stops[0].arrival_time - prev_time_real
                 prev_time_real = stops[0].departure_time
                 first_stop, prev_time_new = create_stop_using_tactic((tactic, -1), stops[0], final_transfer_time, prev_time_new, travel_time, speedup_factor)
@@ -1921,7 +1921,7 @@ def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
                 # All other stops
                 new_stops[bus_trip][tactic] += create_bus_stops_with_tactics(stops[1:], prev_time_real, prev_time_new, tactics[bus_trip], speedup_factor)
         else: 
-            new_stops[bus_trip] = create_bus_stops_with_tactics(stops, prev_times[bus_trip], prev_times[bus_trip], tactics[bus_trip], speedup_factor)
+            new_stops[bus_trip] = create_bus_stops_with_tactics(stops, last_departure_times[bus_trip], last_departure_times[bus_trip], tactics[bus_trip], speedup_factor)
     return(new_stops)
 
 def create_bus_stops_with_tactics(stops : List[Stop],

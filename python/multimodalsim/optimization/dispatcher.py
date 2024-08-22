@@ -196,8 +196,6 @@ class Dispatcher:
             # Remove the trip associated with leg from the stops of the route
             if leg not in route_plan.already_onboard_legs:
                 self.__remove_trip_from_stops(leg, route_plan.route)
-                # print('Trip ID: ', leg.trip.id, 'removed from stops of route ', route_plan.route.vehicle.id)
-                # input()
 
 
     def __update_route_next_stops(self, route_plan):
@@ -243,9 +241,6 @@ class Dispatcher:
         else:
             self.__add_passenger_to_board(leg.trip, boarding_stop)
             self.__add_passenger_to_alight(leg.trip, alighting_stop)
-        # if 'walk' in route.vehicle.id:
-        #     print('Passenger', leg.trip.id, ' assigned to walking vehicle: ', route.vehicle.id, 'boarding: ', boarding_stop.location.label, ', alighting: ', alighting_stop.location.label)
-        #     input('Press Enter to continue...')
 
     def __remove_trip_from_stops(self, leg, route):
         """Remove the trip associated with leg from the stops of the route.
@@ -267,13 +262,10 @@ class Dispatcher:
         for stop in route.next_stops:
             if leg.destination == stop.location and not alighting_stop_found:
                 self.__remove_passenger_to_alight(leg.trip, stop)
-                # print('Trip ID: ', leg.trip.id, 'removed from alighting passengers of route ', route.vehicle.id,' at stop: ', stop.location.label)
-                # input()
                 alighting_stop_found = True
         if not alighting_stop_found:
             logger.warning("Trip {} could not be removed from stops of route {}."
                            .format(leg.trip.id, route.vehicle.id))
-            # input()
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
         ### Passenger does not alight at current stop, he would already have alighted before the opt.

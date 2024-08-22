@@ -31,6 +31,16 @@ if __name__ == '__main__':
     # output_folder_name = "gtfs-test"
     # coordinates_file_path = None
     # freeze_interval = 1
+    
+    # # Use whole day : november 5th 2019
+    # freeze_interval = 1
+    # gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-05")
+    # requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
+    # output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-05")
+    # output_folder_name = "gtfs2019-11-05"
+    # coordinates_file_path = None
+
+
     stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                        requests_file_path=requests_file_path,
                        coordinates_file_path=coordinates_file_path,

@@ -67,15 +67,14 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env):
+        # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+
         optimize = False
         if len(env.non_assigned_trips)>0:
             logger.info('Vehicle Waiting: There are non assigned trips, optimize ...')
             optimize = True
-            # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
-        # print('Vehicle Waiting route id:', self.__route.vehicle.id)
+            
         if len(self.__route.requests_to_pickup()) > 0:
-            # Passengers to board
-            # print('requests to pickup', [trip.id for trip in self.__route.requests_to_pickup()])
             if optimize:
                 optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
             VehicleBoarding(self.__route, self.queue).add_to_queue()
@@ -83,9 +82,7 @@ class VehicleWaiting(ActionEvent):
                 VehicleWaiting(
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
-                # print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
         elif len(self.__route.next_stops) > 0:
-            # print('No passengers to board, there are next stops. Vehicle status:', self.__route.vehicle.status)
             if self.__route.current_stop.departure_time > env.current_time:
                 if optimize:
                     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
@@ -162,15 +159,12 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
-        # print('previous stops:', [self.__route.previous_stops[i].location.label for i in range(len(self.__route.previous_stops))])
-
-        # if env.main_line == self.__route.vehicle.id:
-        # print('Main line vehicle is departing, optimize ...')
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
                                     event_priority=Event.HIGH_PRIORITY,
-                                    main_line = self.__route.vehicle.id).add_to_queue() ## reoptimize after all departures from main line stops
+                                    main_line = self.__route.vehicle.id,
+                                    next_main_line = env.next_vehicles[self.__route.vehicle.id]).add_to_queue() ## reoptimize after all departures from main line stops
         
         # ### Use optimized route for the arrival time
         # if env.travel_times is not None:
@@ -198,16 +192,13 @@ class VehicleArrival(ActionEvent):
         self.__update_stop_times(env.current_time)
 
         self.__route.arrive()
-        # print('Arriving route id: ', self.__route.vehicle.id)
+
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
-        # print('Passengers to alight:', [trip.id for trip in passengers_to_alight_copy])
-        # print('current route onboard legs:', [leg.id for leg in self.__route.onboard_legs])
+
         for trip in passengers_to_alight_copy:
-            # print('current leg', trip.current_leg.id, 'assigned vehicle:', trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle is not None else None, 'vehicle status:', trip.current_leg.assigned_vehicle.status if trip.current_leg.assigned_vehicle is not None else None)
             if trip.current_leg in self.__route.onboard_legs:
                 self.__route.initiate_alighting(trip)
-                # print('Passenger alighting for vehicle:', self.__route.vehicle.id)
                 passenger_event.PassengerAlighting(
                     trip, self.queue).add_to_queue()
 

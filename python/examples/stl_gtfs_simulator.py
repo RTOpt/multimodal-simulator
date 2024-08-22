@@ -54,7 +54,7 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     dispatcher = FixedLineDispatcher(ss = ss,
                                      sp = sp,
                                      algo = algo)
-    route_names = [vehicle.route_name for vehicle in vehicles]
+    route_names = list(set([vehicle.route_name for vehicle in vehicles]))
     Data = {}
     for route_name in route_names: 
         logger.info("Getting and clustering data for route %s" % route_name)

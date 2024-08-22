@@ -178,21 +178,14 @@ class EnvironmentUpdate(ActionEvent):
 
     def _process(self, env):
         if self.__bus:
-            # print('number of modified requests: ', len(self.__optimization_result.modified_requests))
+            logger.info('We are in EnvironmentUpdate for bus...')
             for trip in self.__optimization_result.modified_requests:
                 env.update_trip(trip.id, trip)
-            # if len(self.__optimization_result.modified_requests) > 0:
-            #     for trip in env.trips:
-            #         print(trip)
-            #     input('environment updated trips. Press Enter to continue...')
-
         else: 
             for trip in self.__optimization_result.modified_requests:
                 next_legs = trip.next_legs
                 next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
                 current_leg = trip.current_leg
-                # print('trip id is ASSIGNED: ', trip.id)
-                # input('Press Enter to continue...')
                 passenger_update = request.PassengerUpdate(
                     next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
                 passenger_event_process.PassengerAssignment(
@@ -207,7 +200,7 @@ class EnvironmentUpdate(ActionEvent):
                 current_stop_modified_passengers_to_board = \
                     route.current_stop.passengers_to_board
                 # print('current_stop_modified_passengers_to_board: ', [passenger.id for passenger in current_stop_modified_passengers_to_board])
-                # input('Press Enter to continue...')
+
                 current_stop_departure_time = \
                     route.current_stop.departure_time
             else:
@@ -218,19 +211,12 @@ class EnvironmentUpdate(ActionEvent):
             # optimization.
             modified_trips_ids = [modified_trip.id for modified_trip in
                                   self.__optimization_result.modified_requests]
-            # for trip in self.__optimization_result.modified_requests:
-            #     if trip.next_legs is not None and len(trip.next_legs) > 0:
-            #         if 'walk' in trip.next_legs[0].id:
-            #             input('walk leg is in optimization_result.modified requests. Press Enter to continue...')
+
             modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
             if self.__bus:
                 modified_assigned_legs = list(set([leg for leg in route.assigned_legs + route.onboard_legs
                                           if leg.trip.id in modified_trips_ids]))
-            print('modified_assigned_legs: ', [leg.id for leg in modified_assigned_legs])
-            # for leg in modified_assigned_legs:
-            #     if 'walk' in leg.id:
-            #         input('walk leg is in modified_assigned_legs. Press Enter to continue...')
 
             next_stops = route.next_stops
             route_update = RouteUpdate(
