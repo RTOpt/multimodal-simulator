@@ -110,9 +110,9 @@ for trip in bus_trips:
         transfers[trip][i]['boarding'] = []
         transfers[trip][i]['alighting'] = []
 transfers['1'][1]['boarding'] = [(140, 2)]
-transfers['1'][2]['alighting'] = [(270, 1, 1200)]
+transfers['1'][2]['alighting'] = [(270, 1)]
 transfers['2'][2]['boarding'] = [(479, 2)]
-transfers['2'][2]['alighting'] = [(509, 2, 900)]
+transfers['2'][2]['alighting'] = [(509, 2)]
 
 # Create prev_times
 prev_times = {}

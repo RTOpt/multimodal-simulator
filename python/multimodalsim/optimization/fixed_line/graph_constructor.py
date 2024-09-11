@@ -451,28 +451,30 @@ class Graph:
             level = stops_level[stop_id]
             dist = stops_dist[stop_id]
             # Passengers aligting and transfering to other lines
-            for (time, nbr_passengers, transfer_time) in transfers[trip_id][stop_id]['alighting']:
-                if stop_id not in transfer_nodes:
-                    transfer_nodes[stop_id] = []
-                add_flow_to_existing_node = False
-                for node in transfer_nodes[stop_id]:
-                    if node.node_time == time and node.node_transfer_time == transfer_time:
-                        node.node_flow = node.node_flow - nbr_passengers
-                        add_flow_to_existing_node = True
-                        od_d_dict[trip_id].append((stop_id, node))
-                        break
-                if add_flow_to_existing_node == False: 
-                    transfer_node = Graph_Node(stop_id, "a", time, transfer_time, "transfer", -nbr_passengers, level, dist, trip_id)
-                    transfer_nodes[stop_id].append(transfer_node)
-                    self.add_node(transfer_node)
-                    od_d_dict[trip_id].append((stop_id, transfer_node))
+            if len(transfers[trip_id][stop_id]['alighting']) > 0:
+                for (time, nbr_passengers, interval) in transfers[trip_id][stop_id]['alighting']:
+                    if stop_id not in transfer_nodes:
+                        transfer_nodes[stop_id] = []
+                    add_flow_to_existing_node = False
+                    for node in transfer_nodes[stop_id]:
+                        if node.node_time == time:
+                            node.node_flow = node.node_flow - nbr_passengers
+                            add_flow_to_existing_node = True
+                            od_d_dict[trip_id].append((stop_id, node))
+                            break
+                    if add_flow_to_existing_node == False: 
+                        transfer_node = Graph_Node(stop_id, "a", time, interval, "transfer", -nbr_passengers, level, dist, trip_id)
+                        transfer_nodes[stop_id].append(transfer_node)
+                        self.add_node(transfer_node)
+                        od_d_dict[trip_id].append((stop_id, transfer_node))
 
             # Passengers transfering from other lines and boarding main line.
-            for (time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']:
-                if stop_id not in transfer_passengers: 
-                    transfer_passengers[stop_id] = {}
-                transfer_passengers[stop_id][time] = nbr_passengers # all transfer times are unique
-                od_m.append((nbr_passengers, stop_id, time))
+            if len(transfers[trip_id][stop_id]['boarding']) > 0:
+                for (time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']:
+                    if stop_id not in transfer_passengers: 
+                        transfer_passengers[stop_id] = {}
+                    transfer_passengers[stop_id][time] = nbr_passengers # all transfer times are unique
+                    od_m.append((nbr_passengers, stop_id, time))
         return(transfer_nodes, transfer_passengers, od_d_dict, od_m, level)
     
     def add_speedup_tactic_path(self,
@@ -512,6 +514,7 @@ class Graph:
         time_step = self.time_step
         speedup_path_is_added = False
         stop_id = int(stop.location.label)
+        print('time_prev', time_prev, 'type', type(time_prev), 'travel_time', travel_time, 'type', type(travel_time), 'speedup_factor', speedup_factor, 'type', type(speedup_factor))
         speedup_arrival_time = int(time_prev + travel_time * speedup_factor)
         speedup_departure_time = (speedup_arrival_time + dwell + time_step - 1)//time_step * time_step
 
@@ -609,7 +612,7 @@ class Graph:
                             l: int,
                             d: float,
                             trip_id: str,
-                            ss: bool):            
+                            skip_stop_is_allowed: bool):            
         """
         This function adds a skip-stop path to the graph.
         Inputs:
@@ -626,11 +629,11 @@ class Graph:
             - l: the level of the stop
             - d: the distance of the stop
             - trip_id: the bus trip id
-            - ss: indicates if the skip-stop tactic is allowed"""
+            - skip_stop_is_allowed: indicates if the skip-stop tactic is allowed"""
         stop_id = int(stop.location.label)
         time_step = self.time_step
         skip_stop_time = (arrival_time + time_step - 1)//time_step*time_step # here arrival and departure time are the same
-        if l >= last or ss == False or id_in_transfer_passengers or skip_stop_time <= stop.planned_arrival_time - 60:
+        if l > last or skip_stop_is_allowed==False or id_in_transfer_passengers or (skip_stop_time <= stop.planned_arrival_time - 60):
             return
         
         if skip_stop_time in skips: 
@@ -640,8 +643,10 @@ class Graph:
             skips[skip_stop_time] = skip_node
             self.add_node(skip_node)
         if skip_stop_time > time_prev:
+            print('skip-stop time > time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, ss = 1)
         else:
+            print('skip-stop time <= time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, travel_time, ss = 1)
         self.add_edge(skip_node, target_nodes[trip_id][stop_id], walking_time, ss = 1) # for passengers that need to walk to their destination
         return 
@@ -1058,7 +1063,7 @@ def initialize_graph_and_parameters(bus_trips: dict,
         - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
         - transfers: dictionary containing the transfer data for passengers transferring on the two bus trips: transfer time, number of transfers, stops, etc.
             The format of the transfers dictionary is as follows:
-            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int), ...]
+            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int, interval), ...]
         - last_departure_times: dictionary containing the previous bus trip's arrival time at the stops. 
             The format of the last_departure_times dictionary is as follows:
             last_departure_times[trip_id] = int
@@ -1074,7 +1079,7 @@ def initialize_graph_and_parameters(bus_trips: dict,
     time_min = order[0][0]
     second_bus = order[-1][1]
     last_stop_second_bus = bus_trips[second_bus][-1]
-    time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
+    time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers, interval) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
     if time_max - time_min > price: 
         price = time_max - time_min
     global_source_node = Graph_Node(-1, "d", order[0][0]-2, order[0][0]-2, "normal", 0, 0, -0.1) # General source node for all buses. Need a non-zero time difference between source nodes to avoid MIP constraints.
@@ -1102,7 +1107,7 @@ def build_graph_with_tactics(bus_trips: dict,
         - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
         - transfers: dictionary containing the transfer data for passengers transferring on the two bus trips: transfer time, number of transfers, stops, etc.
             The format of the transfers dictionary is as follows:
-            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int), ...]
+            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int, interval : int), ...]
         - initial_flows: dictionary containing the initial flow of passengers on the two bus trips.
             The format of the initial_flows dictionary is as follows:
             initial_flows[trip_id] = int
@@ -1166,7 +1171,6 @@ def build_graph_with_tactics(bus_trips: dict,
 
         # Create nodes and edges at each stop
         for j in range(len(bus_trips[trip_id])):
-
             # Initialize variables
             departs_current = {}
             skips = {}
@@ -1200,8 +1204,15 @@ def build_graph_with_tactics(bus_trips: dict,
                 time_prev = prev_node.node_time
 
                 # Add bus path using the speedup tactic
-                speedup_path_is_added, speedup_arrival_node = G.add_speedup_tactic_path(stop, speedup_factor, travel_time, time_prev, dwell, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
-
+                speedup_path_is_added, speedup_arrival_node = G.add_speedup_tactic_path(stop,
+                                                                                        speedup_factor,
+                                                                                        travel_time,
+                                                                                        time_prev,
+                                                                                        dwell,
+                                                                                        cur_arr,
+                                                                                        departs_current,
+                                                                                        target_nodes[trip_id][stop_id],
+                                                                                        prev_node, l, d, trip_id)
                 # Add bus path without tactics
                 no_tactics_arrival_node, no_tactics_departure_node = G.add_no_tactics_path(stop, travel_time, time_prev, dwell, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
 
@@ -1217,7 +1228,7 @@ def build_graph_with_tactics(bus_trips: dict,
                         # If stop is skipped, the passengers cannot alight here.
                 # Add bus path using the skip-stop tactic
                 else: 
-                    G.add_skip_stop_path(stop, travel_time, time_prev, last, skips, target_nodes, prev_node, no_tactics_arrival_node.node_time, walking_time, (stop_id in transfer_passengers), l, d, trip_id, ss = skip_stop_is_allowed)
+                    G.add_skip_stop_path(stop, travel_time, time_prev, last, skips, target_nodes, prev_node, no_tactics_arrival_node.node_time, walking_time, (stop_id in transfer_passengers), l, d, trip_id, skip_stop_is_allowed = skip_stop_is_allowed)
             # All bus paths are added
 
             # Add paths for passengers boarding without a transfer
@@ -1294,8 +1305,8 @@ def build_graph_with_tactics(bus_trips: dict,
                                                                last_exo,
                                                                exo_current,
                                                                stop_id,
-                                                               skip_stop_is_allowed,
-                                                               speedup_factor)
+                                                               global_skip_stop_is_allowed,
+                                                               global_speedup_factor)
             else:
                 G.finalize_graph_for_current_bus_trip(stop_id, times, exo_current, last_exo, skips, global_target_node, targets, price, start_time, trip_id, order)
             departs_prev = departs_current
@@ -1318,7 +1329,7 @@ def build_graph_without_tactics(bus_trips: dict,
         - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
         - transfers: dictionary containing the transfer data for passengers transferring on the two bus trips: transfer time, number of transfers, stops, etc.
             The format of the transfers dictionary is as follows:
-            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int), ...]
+            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int, interval : int), ...]
         - initial_flows: dictionary containing the initial flow of passengers on the two bus trips.
             The format of the initial_flows dictionary is as follows:
             initial_flows[trip_id] = int
@@ -1469,7 +1480,6 @@ def build_graph_without_tactics(bus_trips: dict,
                 planned_departure_node = -1
             
             # Add paths for passengers boarding with a transfer
-            print('exo_current', exo_current)
             new_transfer_nodes = G.add_boarding_transfer_passenger_edges(stop, trip_id,
                                                                         transfer_passengers,
                                                                         exo_current,
@@ -1482,7 +1492,6 @@ def build_graph_without_tactics(bus_trips: dict,
                                                                         boarding_without_transfer = boarding_without_transfer,
                                                                         l = l,
                                                                         d = d)
-            print('updated exo_current', exo_current)
             # All possible bus and passenger paths have been added.
 
             times = []
@@ -1715,12 +1724,14 @@ def create_opt_model_from_graph_with_mip(V,A,s,t,flows,ids, name='TestSolverMip'
             m+=z[u,v,i]<=x[u,v,i], 'z_x_cst'+str(u)+str(v)+str(i)
 
     #write model 
-    completename = os.path.join(savepath,name+'.lp')
-    m.write(completename)
+    # completename = os.path.join(savepath,name+'.lp')
+    # m.write(completename)
     # return(completename)
     return(m)
 
-def extract_tactics_from_solution(flows, stop_id, trip_id):
+def extract_tactics_from_solution(flows: dict,
+                                  stop_id : int,
+                                  trip_id : str):
     """ 
     This function evaluates the solution of the arc-flow model for a given graph G and returns the tactics used at the stop with stop_id for the bus trip with trip_id.
     The tactics are: Skip-Stop, Speedup and Hold.
@@ -1871,58 +1882,6 @@ def get_all_tactics_used_in_solution(bus_flows : dict,
                     tactics[bus][l]=('none', -1)
                 # else: # nothing to do as speedup and skip-stop are already in the dictionary
     return(tactics)
-
-def create_stops_list_for_all_non_optimal_tactics(bus_trips : dict,
-                                                  transfers : dict,
-                                                  tactics : dict,
-                                                  stop_id, trip_id,
-                                                  max_departure_time,
-                                                  all,
-                                                  last_departure_times: dict,
-                                                  speedup_factor = 0.8):
-    """
-    This function creates a list of stops for each non-optimal tactic for the bus trip with trip_id.
-    Each stop has a arrival and departure time. 
-    Inputs:
-        - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
-            The format of the bus_trips dictionary is as follows:
-            bus_trips[trip_id] = [stop1 : Stop, stop2: Stop,  ...]
-        - transfers: dictionary containing the transfer data for passengers transferring on the two bus trips: transfer time, number of transfers, stops, etc.
-            The format of the transfers dictionary is as follows:
-            transfers[trip_id][stop_id]['boarding'/'alighting'] = [(transfer_time : int, nbr_passengers : int), ...]
-        - tactics: dictionary containing the tactics used at each stop for the two bus trips. The format of the tactics dictionary is as follows:
-            tactics[trip_id][stop_id] = (tactic : str, hold_time : int)
-        - stop_id: the id of the first stop
-        - trip_id: the id of the main/first bus trip
-        - max_departure_time: the latest departure time of the bus from the stop after holding time
-        - all: list of all possible tactics (excluding the optimal tactic)
-        - last_departure_times: dictionary containing the departure time from the last visited stop for each bus trip
-    Outputs:
-        - new_stops: dictionary containing the stops for each non-optimal tactic for the bus trip with trip_id
-        """
-    new_stops = {}
-    if stop_id in transfers[trip_id] and len(transfers[trip_id][stop_id]['boarding'] + transfers[trip_id][stop_id]['alighting'])>0:
-        final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < bus_trips[trip_id][0].arrival_time + 120])
-    else: 
-        final_transfer_time = -1
-    for bus_trip in bus_trips:
-        stops = bus_trips[bus_trip]
-        if bus_trip == trip_id:
-            new_stops[bus_trip] = {}
-            for tactic in all:
-                new_stops[bus_trip][tactic] = []
-                # First stop with different tactic
-                prev_time_real = last_departure_times[bus_trip]
-                prev_time_new = last_departure_times[bus_trip]
-                travel_time = stops[0].arrival_time - prev_time_real
-                prev_time_real = stops[0].departure_time
-                first_stop, prev_time_new = create_stop_using_tactic((tactic, -1), stops[0], final_transfer_time, prev_time_new, travel_time, speedup_factor)
-                new_stops[bus_trip][tactic].append(first_stop)
-                # All other stops
-                new_stops[bus_trip][tactic] += create_bus_stops_with_tactics(stops[1:], prev_time_real, prev_time_new, tactics[bus_trip], speedup_factor)
-        else: 
-            new_stops[bus_trip] = create_bus_stops_with_tactics(stops, last_departure_times[bus_trip], last_departure_times[bus_trip], tactics[bus_trip], speedup_factor)
-    return(new_stops)
 
 def create_bus_stops_with_tactics(stops : List[Stop],
                                   prev_time_real : int,

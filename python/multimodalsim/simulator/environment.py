@@ -211,6 +211,7 @@ class Environment(object):
         state_copy.__travel_times = None
         state_copy.optimize_cv = None
         state_copy.__available_connections = self.__optimization.splitter.available_connections
+        state_copy.__next_vehicles = self.__next_vehicles
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)

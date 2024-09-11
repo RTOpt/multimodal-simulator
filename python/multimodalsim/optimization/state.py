@@ -50,6 +50,7 @@ class State:
         self.__main_line = None
         self.__next_main_line = None
         self.__available_connections = env_deep_copy.available_connections
+        self.__next_vehicles = env_deep_copy.next_vehicles
 
     @property
     def available_connections(self):
@@ -71,6 +72,9 @@ class State:
     def next_main_line(self, next_main_line):
         self.__next_main_line = next_main_line
 
+    @property
+    def next_vehicles(self):
+        return self.__next_vehicles
     
     def get_trip_by_id(self, trip_id):
         found_trip = None

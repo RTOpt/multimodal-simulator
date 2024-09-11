@@ -61,7 +61,7 @@ class Optimize(ActionEvent):
             else:
                 self.__optimize_synchronously(env)
 
-        return 'Optimize process is implemented'
+        return 'Finished processing Optimize'
 
     def add_to_queue(self):
         if self.__multiple_optimize_events or not \
@@ -227,7 +227,7 @@ class EnvironmentUpdate(ActionEvent):
 
         EnvironmentIdle(self.queue).add_to_queue()
 
-        return 'Environment Update process is implemented'
+        return 'Done processing Environment Update'
 
 
 class EnvironmentIdle(ActionEvent):
@@ -236,7 +236,7 @@ class EnvironmentIdle(ActionEvent):
                          state_machine=queue.env.optimization.state_machine)
 
     def _process(self, env):
-        return 'Environment Idle process is implemented'
+        return 'Done processing Environment Idle'
 
 
 class Hold(Event):
@@ -289,7 +289,7 @@ class Hold(Event):
                 if not wait_return:
                     self.__terminate_process()
 
-        return 'Hold process is implemented'
+        return 'Done processing Hold process'
 
     def __terminate_process(self):
         if self.__optimization_process.is_alive():
