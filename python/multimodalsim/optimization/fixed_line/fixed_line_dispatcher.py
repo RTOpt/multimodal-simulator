@@ -4,9 +4,9 @@ from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, Dispatcher
 from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatcherConfig
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop
-from multimodalsim.simulator.request import Leg
+# from multimodalsim.simulator.request import Leg
 from multimodalsim.simulator.vehicle_event import VehicleReady
-from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, build_graph_with_tactics, build_graph_without_tactics, extract_tactics_from_solution, get_all_tactics_used_in_solution, display_graph
+from multimodalsim.optimization.fixed_line.graph_constructor import Graph
 
 import geopy.distance
 import random 
@@ -639,17 +639,18 @@ class FixedLineDispatcher(Dispatcher):
                                                                 transfer_times = transfer_times
                                                                 )
                     # Step b: Create graph from generated instance
-                    G_gen = build_graph_with_tactics(bus_trips = bus_trips,
-                                                    transfers = transfers,
-                                                    last_departure_times = last_departure_times,
-                                                    initial_flows = initial_flows,
-                                                    time_step = self.general_parameters["step"],
-                                                    price = self.general_parameters["price"],
-                                                    global_speedup_factor = self.speedup_factor,
-                                                    global_skip_stop_is_allowed = self.skip_stop,
-                                                    simu = True,
-                                                    last_stop = int(last_stop.location.label) if last_stop != -1 else -1)
-                    display_graph(G_gen, display_flows = False, name = 'Test_graph')
+                    G_gen = Graph.build_graph_with_tactics(first_trip_id = bus_trip_id,
+                                                           bus_trips = bus_trips,
+                                                            transfers = transfers,
+                                                            last_departure_times = last_departure_times,
+                                                            initial_flows = initial_flows,
+                                                            time_step = self.general_parameters["step"],
+                                                            price = self.general_parameters["price"],
+                                                            global_speedup_factor = self.speedup_factor,
+                                                            global_skip_stop_is_allowed = self.skip_stop,
+                                                            simu = True,
+                                                            last_stop = int(last_stop.location.label) if last_stop != -1 else -1)
+                    G_gen.display_graph(display_flows = False, name = 'Test_graph')
                     # Step c: Get Data on optimization results
                     prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
                     prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
@@ -1586,13 +1587,13 @@ class FixedLineDispatcher(Dispatcher):
                 all.remove('h_hp')
             else: 
                 all.remove('h_t')
-        tactics = get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
+        tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, prev_times)
         for tactic in all:
             tactic_bus_trips = {}
             tactic_bus_trips[trip_id] = regret_bus_trips[tactic][trip_id]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
-            regret = self.get_tactic_regret(stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value)
+            regret = self.get_tactic_regret(trip_id, stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value)
             if tactic == 'sp_t' or tactic == 'h_t':
                 tactic_regrets_dict[tactic][0] += regret
                 tactic_regrets_dict[tactic][1].append(tactic_bus_trips[trip_id][0].departure_time)
@@ -1620,7 +1621,7 @@ class FixedLineDispatcher(Dispatcher):
         optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
-        max_departure_time, hold, speedup, skip_stop = extract_tactics_from_solution(bus_flows, stop_id, trip_id)
+        max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     
     def create_stops_list_for_all_non_optimal_tactics(self, 
@@ -1761,11 +1762,12 @@ class FixedLineDispatcher(Dispatcher):
         prev_time = new_stop.departure_time
         return(new_stop, prev_time)
     
-    def get_tactic_regret(self, stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value):
+    def get_tactic_regret(self, trip_id, stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value):
         """
         This function calculates the regret of a tactic given the optimal value.
         
         Inputs:
+            - trip_id: str, the trip_id of the earliest bus (this is the bus to which we apply tactics)
             - stop_id: int, the stop id
             - tactic_bus_trips: dict, the bus trips with the non_optimal_tactic applied to the first stop ot the main route, while all other tactics are kept the same as in the optimal solution
             - transfers: dict, the transfers at the stops in the genrated trips
@@ -1776,7 +1778,7 @@ class FixedLineDispatcher(Dispatcher):
             - regret: int, the regret of the tactic compared to the optimal value"""
         step = self.general_parameters["step"]
         price = self.general_parameters["price"]
-        G, last_trip_id, bus_departures = build_graph_without_tactics(tactic_bus_trips, transfers, prev_times, initial_flows, times_step = step, price = price, od_dict = {})
+        G, last_trip_id, bus_departures = Graph.build_graph_without_tactics(trip_id, tactic_bus_trips, transfers, prev_times, initial_flows, times_step = step, price = price, od_dict = {})
         optimal_value_for_tactic, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Gen_offline"+str(stop_id),
                                                                                           verbose = False,
                                                                                           out_of_bus_price = self.general_parameters["out_of_bus_price"])
