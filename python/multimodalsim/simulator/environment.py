@@ -201,7 +201,8 @@ class Environment:
             self.__filter_state_copy_according_to_partition(state_copy,
                                                             partition_subset)
 
-        if self.__optimization.config.asynchronous:
+        if self.__optimization.config.asynchronous \
+                or not self.__optimization.config.state_deep_copy:
             # No deep copy is needed when asynchronous (state is copied in a
             # new process)
             state_deepcopy = state_module.State(state_copy)

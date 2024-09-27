@@ -54,3 +54,8 @@ class OptimizationConfig(Config):
     def state_includes_partition_subset_only(self) -> bool:
         return self._config_parser.getboolean(
                "asynchronous", "state_includes_partition_subset_only")
+
+    @property
+    def state_deep_copy(self) -> bool:
+        return self._config_parser.getboolean(
+               "general", "state_deep_copy")
