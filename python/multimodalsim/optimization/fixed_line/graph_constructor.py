@@ -514,7 +514,7 @@ class Graph:
         time_step = self.time_step
         speedup_path_is_added = False
         stop_id = int(stop.location.label)
-        print('time_prev', time_prev, 'type', type(time_prev), 'travel_time', travel_time, 'type', type(travel_time), 'speedup_factor', speedup_factor, 'type', type(speedup_factor))
+        # print('time_prev', time_prev, 'type', type(time_prev), 'travel_time', travel_time, 'type', type(travel_time), 'speedup_factor', speedup_factor, 'type', type(speedup_factor))
         speedup_arrival_time = int(time_prev + travel_time * speedup_factor)
         speedup_departure_time = (speedup_arrival_time + dwell + time_step - 1)//time_step * time_step
 
@@ -1079,6 +1079,14 @@ def initialize_graph_and_parameters(bus_trips: dict,
     time_min = order[0][0]
     second_bus = order[-1][1]
     last_stop_second_bus = bus_trips[second_bus][-1]
+
+    # print('*** BUS TRIPS ***')
+    # for trip_id in bus_trips: 
+    #     print('trip_id', trip_id)
+    #     for stop in bus_trips[trip_id]:
+    #         print('stop', stop.location.label, 'arrival time', stop.arrival_time, 'departure time', stop.departure_time, )
+    # print('*** BUS TRIPS ***')
+
     time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers, interval) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
     if time_max - time_min > price: 
         price = time_max - time_min
@@ -2184,7 +2192,7 @@ def display_graph(G1: Graph,
                 G.nodes[id]['c']=gc['n']['s']
 
     for id in [id for id in G.nodes if (id in ids_to_skip)==False]:
-        node=index[id]
+        node = index[id]
         if node.node_flow!=0: 
             if node.node_type=='puit':
                 if node.node_arrival_departure=="a":
@@ -2220,7 +2228,7 @@ def display_graph(G1: Graph,
                 diff=levels[l+1][0]-dist
             else:
                 diff=0
-            stop_id=levels[l][1]
+            stop_id = levels[l][1]
             G.add_node(j, x=temps_min-temps_min, y=dist+0.1*diff, flow=0,size=1000)
             G.add_node(j+1, x=max_time+tmp_max-temps_min, y=dist+0.1*diff, flow=0,size=1000)
             labels[j]=""#"stop"+ str(l)
@@ -2232,6 +2240,8 @@ def display_graph(G1: Graph,
             G.nodes[j]['type']='other'
             G.nodes[j+1]['type']='other'
             G.add_edge(j,j+1,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
+            ids_to_skip.add(j)
+            ids_to_skip.add(j+1)
             j+=2
             G.add_node(j, x=200, y=0.5, flow=0, size=1000)
             labels[j]="\n SOURCE"
@@ -2240,6 +2250,7 @@ def display_graph(G1: Graph,
             G.nodes[j]['type']='other'
             for node in tmp_level_one:
                 G.add_edge(j,node, w=1,color='grey',type='-',label="")
+            ids_to_skip.add(j)
             j+=1
         if l>1:
             dist=levels[l][0]
@@ -2271,14 +2282,19 @@ def display_graph(G1: Graph,
             G.add_edge(j,j+1,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
             G.add_edge(j+2,j+3,w=1,color=gc['e']['final'][0],type=gc['e']['final'][1],label="")
             G.add_edge(j+1,j+3,w=1,color='none',type=gc['e']['final'][1],label="stop"+str(l))
+            ids_to_skip.add(j)
+            ids_to_skip.add(j+1)
+            ids_to_skip.add(j+2)
+            ids_to_skip.add(j+3)
             j+=4
-    G.add_node(j,x=455, y=3.7,flow=0,size=1000)
+    G.add_node(j, x=455, y=3.7,flow=0,size=1000)
     labels[j]="SINK \n"
-    pos[j]=(G.nodes[j]['x'], G.nodes[j]['y'])
+    pos[j] = (G.nodes[j]['x'], G.nodes[j]['y'])
     G.nodes[j]['c']='none'
     G.nodes[j]['type']='other'
+    ids_to_skip.add(j)
     for id in [id for id in G.nodes if (id in ids_to_skip)==False and id<j-11]:
-        node=index[id]
+        node = index[id]
         if node.node_level == max_level and node.node_arrival_departure=='d':
             G.add_edge(id, j, w=1,color='grey',type='-',label="")
     j+=1
@@ -2401,5 +2417,5 @@ def display_graph(G1: Graph,
     plt.legend(handles=legend_elements,fontsize=16, loc='best')
     completenamepng=os.path.join(savepath,"graphe_"+name+".png")
     plt.savefig(completenamepng)
-    plt.show()
+    # plt.show()
     plt.close()

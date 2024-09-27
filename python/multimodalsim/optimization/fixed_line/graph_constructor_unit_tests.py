@@ -109,10 +109,10 @@ for trip in bus_trips:
         transfers[trip][i] = {}
         transfers[trip][i]['boarding'] = []
         transfers[trip][i]['alighting'] = []
-transfers['1'][1]['boarding'] = [(140, 2)]
-transfers['1'][2]['alighting'] = [(270, 1)]
-transfers['2'][2]['boarding'] = [(479, 2)]
-transfers['2'][2]['alighting'] = [(509, 2)]
+transfers['1'][1]['boarding'] = [(140, 2, 0)]
+transfers['1'][2]['alighting'] = [(270, 1, 1800)]
+transfers['2'][2]['boarding'] = [(479, 2, 0)]
+transfers['2'][2]['alighting'] = [(509, 2, 1800)]
 
 # Create prev_times
 prev_times = {}
@@ -123,15 +123,14 @@ od_dict = {}
 #Create time step and price
 time_step = 2
 price = 3600
-
 # G, trip_id, bus_departures = build_graph_without_tactics(bus_trips = bus_trips, 
 #                             transfers = transfers, 
 #                             initial_flows = initial_flows, 
-#                             prev_times = prev_times, 
+#                             last_departure_times = prev_times, 
 #                             od_dict = od_dict, 
 #                             time_step = time_step, 
 #                             price = price)
-# # display_graph(G, display_flows = False, name = 'Graph_Image', savepath = os.path.join('output','fixed_line','gtfs'))
+# display_graph(G, display_flows = False, name = 'Graph_Image', savepath = os.path.join('output','fixed_line','gtfs'))
 # optimal_value, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Model_No_Tactics",
 #                                                                         verbose=False,
 #                                                                         out_of_bus_price= 2)
@@ -145,7 +144,7 @@ price = 3600
 G_with_tactics = build_graph_with_tactics(bus_trips = bus_trips, 
                             transfers = transfers, 
                             initial_flows = initial_flows, 
-                            prev_times = prev_times, 
+                            last_departure_times = prev_times, 
                             time_step = 2,
                             price = 3600,
                             global_speedup_factor = 1,
@@ -153,20 +152,20 @@ G_with_tactics = build_graph_with_tactics(bus_trips = bus_trips,
                             od_dict  = {},
                             simu = False,
                             last_stop = 2)
-# display_graph(G_with_tactics, display_flows = False, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
-optimal_value, bus_flows, display_flows, runtime = G_with_tactics.build_and_solve_model_from_graph("Model_Tactics",
-                                                                                         verbose = False, 
-                                                                                         out_of_bus_price = 2)
-# for edge in [edge for edge in G_with_tactics.edges if edge.origin.node_stop_id == 2 and (edge.origin.node_bus=='2' or edge.destination.node_bus=='2')] :
-#     print('stop_id',edge.origin.node_stop_id, 'time:',edge.origin.node_time, edge.origin.node_type, 'flow:',edge.origin.node_flow,'bus', edge.origin.node_bus,
-#           'stop_id',edge.destination.node_stop_id, 'time:',edge.destination.node_time, edge.destination.node_type, 'flow:',edge.destination.node_flow, 'bus', edge.destination.node_bus,
-#           edge.weight,
-#           display_flows[edge])
-display_graph(G_with_tactics, display_flows = display_flows, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
-max_departure_time, hold, speedup, skip_stop = extract_tactics_from_solution(bus_flows, stop_id=1, trip_id='1')
-print('Max departure time:', max_departure_time
-      , 'Hold:', hold   
-      , 'Speedup:', speedup
-      , 'Skip stop:', skip_stop)
-tactics = get_all_tactics_used_in_solution(bus_flows, trip_id='1', next_trip_id='2')
-print('Tactics:', tactics)
+display_graph(G_with_tactics, display_flows = False, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
+# optimal_value, bus_flows, display_flows, runtime = G_with_tactics.build_and_solve_model_from_graph("Model_Tactics",
+#                                                                                          verbose = False, 
+#                                                                                          out_of_bus_price = 2)
+# # for edge in [edge for edge in G_with_tactics.edges if edge.origin.node_stop_id == 2 and (edge.origin.node_bus=='2' or edge.destination.node_bus=='2')] :
+# #     print('stop_id',edge.origin.node_stop_id, 'time:',edge.origin.node_time, edge.origin.node_type, 'flow:',edge.origin.node_flow,'bus', edge.origin.node_bus,
+# #           'stop_id',edge.destination.node_stop_id, 'time:',edge.destination.node_time, edge.destination.node_type, 'flow:',edge.destination.node_flow, 'bus', edge.destination.node_bus,
+# #           edge.weight,
+# #           display_flows[edge])
+# display_graph(G_with_tactics, display_flows = display_flows, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
+# max_departure_time, hold, speedup, skip_stop = extract_tactics_from_solution(bus_flows, stop_id=1, trip_id='1')
+# print('Max departure time:', max_departure_time
+#       , 'Hold:', hold   
+#       , 'Speedup:', speedup
+#       , 'Skip stop:', skip_stop)
+# tactics = get_all_tactics_used_in_solution(bus_flows, trip_id='1', next_trip_id='2')
+# print('Tactics:', tactics)

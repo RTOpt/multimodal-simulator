@@ -46,7 +46,7 @@ if __name__ == '__main__':
                        coordinates_file_path=coordinates_file_path,
                        ss = False,
                        sp = False,
-                       algo = 0,
+                       algo = 0, # 0: offline, 1: deterministic, 2: regret
                        freeze_interval=freeze_interval,
                        output_folder_name=output_folder_name,
                        logger=logger,

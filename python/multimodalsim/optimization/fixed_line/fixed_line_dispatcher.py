@@ -6,7 +6,7 @@ from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatche
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop
 from multimodalsim.simulator.request import Leg
 from multimodalsim.simulator.vehicle_event import VehicleReady
-from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, build_graph_with_tactics, build_graph_without_tactics, extract_tactics_from_solution, get_all_tactics_used_in_solution
+from multimodalsim.optimization.fixed_line.graph_constructor import Graph_Node, Graph_Edge, Graph, build_graph_with_tactics, build_graph_without_tactics, extract_tactics_from_solution, get_all_tactics_used_in_solution, display_graph
 
 import geopy.distance
 import random 
@@ -576,10 +576,13 @@ class FixedLineDispatcher(Dispatcher):
             - h_and_time: tuple, the result of the OSO algorithm for the hold tactic and the corresponding end of hold time
                 (The output hold time is already treated in the OSO algorithm)"""
         route = self.get_route_by_vehicle_id(state, state.main_line)
+        logger.info('Main line is {}'.format(route.vehicle.id))
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
         if (route is None or next_route is None) or (route.current_stop is not None) or route.next_stops[0] is None:
+            logger.info("Main route bus is None = {}, Next bus on main route is None = {}, bus has not departed yet = {}, there are no next stops = {}".format(route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
+            # input('Error in OSO algorithm')
             return(False, False, (False, -1))
-
+        
         logger.info('We go into the OSO algorithm :) ')
         
         # get stops on both routes
@@ -590,6 +593,7 @@ class FixedLineDispatcher(Dispatcher):
         stop_id = int(stop.location.label)
         bus_trip_id = route.vehicle.id
         bus_next_trip_id = next_route.vehicle.id
+        logger.info('Main line is {} and next main line is {} and first stop is {}, last stop is {}'.format(route.vehicle.id, next_route.vehicle.id, stop_id, last_stop_id))
 
         #Get initial flows and previous times
         initial_flows = {}
@@ -645,6 +649,7 @@ class FixedLineDispatcher(Dispatcher):
                                                     global_skip_stop_is_allowed = self.skip_stop,
                                                     simu = True,
                                                     last_stop = int(last_stop.location.label) if last_stop != -1 else -1)
+                    display_graph(G_gen, display_flows = False, name = 'Test_graph')
                     # Step c: Get Data on optimization results
                     prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
                     prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
@@ -1214,6 +1219,7 @@ class FixedLineDispatcher(Dispatcher):
             transfers[int(new_stop.location.label)] = transfers_at_stop
             new_stops.append(new_stop)
             prev_time = prev_time + travel_time + dwell_time
+            prev_stop = new_stop
         return new_stops, transfers
     
     def generate_dwell_time(self, stop, time):
@@ -1232,6 +1238,7 @@ class FixedLineDispatcher(Dispatcher):
         """
         type_dwell = self.algo_parameters['type_dwell']
         if type_dwell == 2:
+            # print('Real dwell time for stop ', stop.location.label, ' = ', stop.departure_time - stop.arrival_time)
             return stop.departure_time - stop.arrival_time
         
         route_name = self.route_name
@@ -1280,6 +1287,7 @@ class FixedLineDispatcher(Dispatcher):
             return 1
         type_travel_time = self.algo_parameters['type_travel_time']
         if type_travel_time == 2:
+            # print('Real travel time between stops ', stop1.location.label, ' and ', stop2.location.label, ' = ', stop2.arrival_time - stop1.departure_time)
             return stop2.arrival_time - stop1.departure_time
         
         route_name = self.route_name
@@ -1609,7 +1617,7 @@ class FixedLineDispatcher(Dispatcher):
             - bus_flows: dict, the bus flows in the solution, shows the path of each bus in the graph.
             - optimal_value: int, the value of the objective function when using the optimal tactic
             - runtime: int, the runtime of the optimization"""
-        optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("Gen"+str(stop_id),
+        optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
         max_departure_time, hold, speedup, skip_stop = extract_tactics_from_solution(bus_flows, stop_id, trip_id)
