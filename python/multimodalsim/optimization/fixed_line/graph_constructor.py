@@ -300,6 +300,8 @@ class Graph:
                     print(self.edges)
                 edge = Graph_Edge(origin, dest, weight, sp = sp, ss = ss)
                 self.append_edge(edge)
+            else:
+                print('Edge already in graph...')
     
     @property
     def show_graph(self):
@@ -867,8 +869,8 @@ class Graph:
             self.add_edge(skips[time], global_target_node, 0)
         for node_exo in exo_current: 
             self.add_edge(exo_current[node_exo], global_target_node, 0)
+            print('Adding edge from last stop node_exo to target node')
         if (start_time, trip_id) == order[-1]:
-            print('We are treating the last bus trip')
             for id in last_exo: 
                 target_niveau = targets[id]
                 for node_exo in last_exo[id]:
@@ -1084,7 +1086,7 @@ class Graph:
         order.append((last_departure_times[first_trip_id], first_trip_id))
         second_bus = [trip_id for trip_id in bus_trips if trip_id != first_trip_id][0]
         order.append( (last_departure_times[second_bus], second_bus))
-        time_min = order[0][0]
+        time_min = min(order[0][0], order[1][0])
         last_stop_second_bus = bus_trips[second_bus][-1]
 
         # print('*** BUS TRIPS ***')
@@ -1148,7 +1150,9 @@ class Graph:
                                                                                                         last_departure_times = last_departure_times,
                                                                                                         price = price,
                                                                                                         time_step = time_step)
-        
+        if order[0][0] >= order[1][0]:
+            print('First bus: ', order[0][0], 'second bus: ', order[1][0])
+
         # Create a dict with all stops in the two bus trips
         stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
                                                             with_tactics = False)
@@ -1910,7 +1914,6 @@ class Graph:
                     # else: # nothing to do as speedup and skip-stop are already in the dictionary
         return(tactics)
 
-    @staticmethod
     def display_graph(self,
                     display_flows = False,
                     name = 'Graph_Image',
@@ -1955,7 +1958,7 @@ class Graph:
         j=0
         for i in range(len(nodes)): 
             node = nodes[i] 
-            if node != t and node != s and node.node_level != 0 and (node.node_type != 'puit' or node.node_arrival_departure!='d'):
+            if node != t and node != s and node.node_level != 0 and (node.node_type != 'puit' or node.node_arrival_departure !='d'):
                 newnodes[node] = j
                 index[j] = node
                 distances[node.node_level] = node.node_dist
@@ -2000,7 +2003,7 @@ class Graph:
             u=edge.origin
             v=edge.destination
             edge_labels={}
-            if ( u.node_level != 0 and v.node_level != 0 and u.node_level!=-1 and (node.node_type!='puit' or node.node_arrival_departure!='d')):
+            if ( u.node_level != 0 and v.node_level != 0 and u.node_level!=-1):
                 if u.node_type=="skip":
                     if display_flows[edge]>0:
                         l_ss = True
@@ -2241,7 +2244,7 @@ class Graph:
         G.nodes[j]['c']='none'
         G.nodes[j]['type']='other'
         ids_to_skip.add(j)
-        for id in [id for id in G.nodes if (id in ids_to_skip)==False and id<j-11]:
+        for id in [id for id in G.nodes if (id in ids_to_skip)==False]:
             node = index[id]
             if node.node_level == max_level and node.node_arrival_departure=='d':
                 G.add_edge(id, j, w=1,color='grey',type='-',label="")

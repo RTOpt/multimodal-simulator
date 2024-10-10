@@ -602,7 +602,8 @@ class FixedLineDispatcher(Dispatcher):
         last_departure_times = {}
         last_departure_times[bus_trip_id] = route.previous_stops[-1].departure_time if route.previous_stops != [] else route.next_stops[0].arrival_time -1
         last_departure_times[bus_next_trip_id] = next_route.previous_stops[-1].departure_time if next_route.previous_stops != [] else next_route.next_stops[0].arrival_time -1
-        
+        if last_departure_times[bus_trip_id] == last_departure_times[bus_next_trip_id]:
+            last_departure_times[bus_next_trip_id]+=1
 
         # Estimate arrival time of transfers at stops
         transfer_times = {}
@@ -679,7 +680,6 @@ class FixedLineDispatcher(Dispatcher):
                 except Exception as e:
                     traceback.print_exc()
                     logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
-                    input()
             else: 
                 logger.warning('The scenario generation failed after {} tries.'.format(j_try))
                 return(False, False, (False, -1))

@@ -91,7 +91,7 @@ class VehicleWaiting(ActionEvent):
                     self.__route.current_stop.departure_time).add_to_queue()
                 # print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
             else:
-                print('No passengers to board. Vehicle status:', self.__route.vehicle.status, 'adding VehicleDeparture event.')
+                logger.info('No passengers to board. Vehicle status: {} adding VehicleDeparture event.'.format(self.__route.vehicle.status))
                 VehicleDeparture(self.__route, self.queue).add_to_queue()
         else:
             # No next stops for now. If the route of the vehicle is not
@@ -202,13 +202,13 @@ class VehicleArrival(ActionEvent):
                     trip, self.queue).add_to_queue()
 
         if len(passengers_to_alight_copy) == 0:
-            logger.info('Vehicle Arrival: No passengers to alight. Vehicle id: {}, Vehicle status: {}', self.__route.vehicle.id,self.__route.vehicle.status)
+            logger.info('Vehicle Arrival: No passengers to alight. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id, self.__route.vehicle.status))
             VehicleWaiting(self.__route, self.queue).add_to_queue()
             optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         
         if len(self.__route.next_stops) == 0 \
                 and not self.__route.vehicle.reusable:
-            logger.info('Vehicle Arrival: No next stops for now. Vehicle id: {}, Vehicle status: {}', self.__route.vehicle.id,self.__route.vehicle.status)
+            logger.info('Vehicle Arrival: No next stops for now. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id,self.__route.vehicle.status))
             VehicleComplete(self.__route, self.queue,
                             self.queue.env.current_time).add_to_queue()
 
