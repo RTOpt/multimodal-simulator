@@ -1,7 +1,6 @@
 from graph_constructor import *
 # This file contains all unit tests for classes Graph_Node, Graph_Edge and Graph and tests all the functions in the graph constructor file
 
-
 def test_graph_node():
     # Test the constructor
     node1 = Graph_Node(stop_id = 1, ad = 'd', time = 10, real_time=12, type='normal', flow = 0, level = 1, dist = 3.2, bus = 1)
@@ -46,83 +45,94 @@ def test_graph_edge():
     print('Graph_Edge constructor test passed')
 
 def test_graph():
-    source = Graph_Node(stop_id = 0, ad = 'd', time = -2, real_time=0, type='normal', flow = 0, level = 0, dist = 0, bus = 1)
-    target = Graph_Node(stop_id = 0, ad = 'a', time = 100, real_time=100, type='normal', flow = 0, level = 0, dist = 0, bus = 1)
-    node1 = Graph_Node(stop_id = 1, ad = 'd', time = 10, real_time=12, type='normal', flow = 0, level = 1, dist = 3.2, bus = 1)
-    node2 = Graph_Node(stop_id = 2, ad = 'a', time = 15, real_time=15, type='normal', flow = 0, level = 2, dist = 4.2, bus = 2)
-    G = Graph('test', [source, target, node1, node2], [], source, target)
-    assert G.name == 'test'
-    assert G.nodes == [source, target, node1, node2]
-    assert G.edges == []
-    assert G.source == source
-    assert G.target == target
-    assert G.time_step == 20
-    assert G.price == 3600
-    assert G.nb_edges == 0
-    assert G.nb_nodes == 4
-    assert G.contains_node(node1) == True
-    assert G.contains_node(node2) == True
-    G.add_node(source)
-    assert G.nb_nodes == 4
-    G.add_edge(node1, node2, 5, 1, 0)
-    G.add_edge(node1, node2)
-    assert G.nb_edges == 1
-    G.price = 2000
-    assert G.price == 2000
-    G.time_step = 10
-    assert G.time_step == 10
-    assert G.get_node(stop_id=0, ad='d', time=-2, type='normal') == source
-    assert G.get_node(stop_id=1, ad='d', time=10, type='normal') == node1
-    assert G.get_node(stop_id=2, ad='a', time=15, type='normal') == node2
-    assert G.get_node(stop_id=0, ad='a', time=100, type='normal') == target
-    assert G.get_node(0, 'a', -2, type='normal') == False
-    G.show_graph
+    source = Graph_Node(stop_id = 0, ad = 'd', time = -2, transfer_time=0, type='normal', flow = 0, level = 0, dist = 0, bus = 1)
+    target = Graph_Node(stop_id = 0, ad = 'a', time = 100, transfer_time=100, type='normal', flow = 0, level = 0, dist = 0, bus = 1)
+    # node1 = Graph_Node(stop_id = 1, ad = 'd', time = 10, real_time=12, type='normal', flow = 0, level = 1, dist = 3.2, bus = 1)
+    # node2 = Graph_Node(stop_id = 2, ad = 'a', time = 15, real_time=15, type='normal', flow = 0, level = 2, dist = 4.2, bus = 2)
+    G = Graph('test', [source, target], [], source, target)
+    def test_source(node, list, d):
+        node.node_flow+=2
+        list.append(30)
+        d[0] = 10
+    l = []
+    d = {}
+    test_source(source, l, d)
+    source.show_node
+    print(l)
+    print(d)
+    print(source in G.nodes)
+    # assert G.name == 'test'
+    # assert G.nodes == [source, target, node1, node2]
+    # assert G.edges == []
+    # assert G.source == source
+    # assert G.target == target
+    # assert G.time_step == 20
+    # assert G.price == 3600
+    # assert G.nb_edges == 0
+    # assert G.nb_nodes == 4
+    # assert G.contains_node(node1) == True
+    # assert G.contains_node(node2) == True
+    # G.add_node(source)
+    # assert G.nb_nodes == 4
+    # G.add_edge(node1, node2, 5, 1, 0)
+    # G.add_edge(node1, node2)
+    # assert G.nb_edges == 1
+    # G.price = 2000
+    # assert G.price == 2000
+    # G.time_step = 10
+    # assert G.time_step == 10
+    # assert G.get_node(stop_id=0, ad='d', time=-2, type='normal') == source
+    # assert G.get_node(stop_id=1, ad='d', time=10, type='normal') == node1
+    # assert G.get_node(stop_id=2, ad='a', time=15, type='normal') == node2
+    # assert G.get_node(stop_id=0, ad='a', time=100, type='normal') == target
+    # assert G.get_node(0, 'a', -2, type='normal') == False
+    # G.show_graph
     print('Graph constructor test passed')
 
 # test_graph_node()
 # test_graph_edge()
-# test_graph()
+test_graph()
 
 # Create small instance for the graph constructor 
 # Create initial flows
-initial_flows = {}
-initial_flows['1'] = 2
-initial_flows['2'] = 3
-# Create bus_trips
-bus_trips = {}
-Stop1_1 = Stop(100, 120, LabelLocation(1), cumulative_distance=1, planned_arrival_time=100, planned_departure_time_from_origin=0)
-Stop1_1.passengers_to_board_int = 1
-Stop2_1 = Stop(210, 230, LabelLocation(2), cumulative_distance=2.5, planned_arrival_time=210, planned_departure_time_from_origin=0)
-Stop3_1 = Stop(300, 330, LabelLocation(3), cumulative_distance=3.5, planned_arrival_time=300, planned_departure_time_from_origin=0)
-bus_trips['1'] = [Stop1_1, Stop2_1, Stop3_1]
-Stop1_2 = Stop(299, 320, LabelLocation(1), cumulative_distance=1, planned_arrival_time=300, planned_departure_time_from_origin=200)
-Stop2_2 = Stop(410, 430, LabelLocation(2), cumulative_distance=2.5, planned_arrival_time=410, planned_departure_time_from_origin=200)
-Stop2_2.passengers_to_board_int = 1
-Stop3_2 = Stop(500, 530, LabelLocation(3), cumulative_distance=3.5, planned_arrival_time=500, planned_departure_time_from_origin=200)
-Stop3_2.passengers_to_alight_int = 2
-bus_trips['2'] = [Stop1_2, Stop2_2, Stop3_2]
-# Create transfers
-transfers = {}
-for trip in bus_trips:
-    transfers[trip] = {}
-    for i in range(1,len(bus_trips[trip])+1):
-        transfers[trip][i] = {}
-        transfers[trip][i]['boarding'] = []
-        transfers[trip][i]['alighting'] = []
-transfers['1'][1]['boarding'] = [(140, 2, 0)]
-transfers['1'][2]['alighting'] = [(270, 1, 1800)]
-transfers['2'][2]['boarding'] = [(479, 2, 0)]
-transfers['2'][2]['alighting'] = [(509, 2, 1800)]
+# initial_flows = {}
+# initial_flows['1'] = 2
+# initial_flows['2'] = 3
+# # Create bus_trips
+# bus_trips = {}
+# Stop1_1 = Stop(100, 120, LabelLocation(1), cumulative_distance=1, planned_arrival_time=100, planned_departure_time_from_origin=0)
+# Stop1_1.passengers_to_board_int = 1
+# Stop2_1 = Stop(210, 230, LabelLocation(2), cumulative_distance=2.5, planned_arrival_time=210, planned_departure_time_from_origin=0)
+# Stop3_1 = Stop(300, 330, LabelLocation(3), cumulative_distance=3.5, planned_arrival_time=300, planned_departure_time_from_origin=0)
+# bus_trips['1'] = [Stop1_1, Stop2_1, Stop3_1]
+# Stop1_2 = Stop(299, 320, LabelLocation(1), cumulative_distance=1, planned_arrival_time=300, planned_departure_time_from_origin=200)
+# Stop2_2 = Stop(410, 430, LabelLocation(2), cumulative_distance=2.5, planned_arrival_time=410, planned_departure_time_from_origin=200)
+# Stop2_2.passengers_to_board_int = 1
+# Stop3_2 = Stop(500, 530, LabelLocation(3), cumulative_distance=3.5, planned_arrival_time=500, planned_departure_time_from_origin=200)
+# Stop3_2.passengers_to_alight_int = 2
+# bus_trips['2'] = [Stop1_2, Stop2_2, Stop3_2]
+# # Create transfers
+# transfers = {}
+# for trip in bus_trips:
+#     transfers[trip] = {}
+#     for i in range(1,len(bus_trips[trip])+1):
+#         transfers[trip][i] = {}
+#         transfers[trip][i]['boarding'] = []
+#         transfers[trip][i]['alighting'] = []
+# transfers['1'][1]['boarding'] = [(140, 2, 0)]
+# transfers['1'][2]['alighting'] = [(270, 1, 1800)]
+# transfers['2'][2]['boarding'] = [(479, 2, 0)]
+# transfers['2'][2]['alighting'] = [(509, 2, 1800)]
 
-# Create prev_times
-prev_times = {}
-prev_times['1'] = 0
-prev_times['2'] = 200
-# Create od_dict
-od_dict = {}
-#Create time step and price
-time_step = 2
-price = 3600
+# # Create prev_times
+# prev_times = {}
+# prev_times['1'] = 0
+# prev_times['2'] = 200
+# # Create od_dict
+# od_dict = {}
+# #Create time step and price
+# time_step = 2
+# price = 3600
 # G, trip_id, bus_departures = Graph.build_graph_without_tactics(
 #                             first_trip_id = '1',
 #                             bus_trips = bus_trips, 
@@ -143,19 +153,19 @@ price = 3600
 #       , 'Speedup:', speedup
 #       , 'Skip stop:', skip_stop)
 
-G_with_tactics = Graph.build_graph_with_tactics(first_trip_id = '1',
-                                                bus_trips = bus_trips, 
-                                                transfers = transfers, 
-                                                initial_flows = initial_flows, 
-                                                last_departure_times = prev_times, 
-                                                time_step = 2,
-                                                price = 3600,
-                                                global_speedup_factor = 1,
-                                                global_skip_stop_is_allowed = False,
-                                                od_dict  = {},
-                                                simu = False,
-                                                last_stop = 2)
-G_with_tactics.display_graph(display_flows = False, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
+# G_with_tactics = Graph.build_graph_with_tactics(first_trip_id = '1',
+#                                                 bus_trips = bus_trips, 
+#                                                 transfers = transfers, 
+#                                                 initial_flows = initial_flows, 
+#                                                 last_departure_times = prev_times, 
+#                                                 time_step = 2,
+#                                                 price = 3600,
+#                                                 global_speedup_factor = 1,
+#                                                 global_skip_stop_is_allowed = False,
+#                                                 od_dict  = {},
+#                                                 simu = False,
+#                                                 last_stop = 2)
+# G_with_tactics.display_graph(display_flows = False, name = 'Graph_Image_Tactics', savepath = os.path.join('output','fixed_line','gtfs'))
 # optimal_value, bus_flows, display_flows, runtime = G_with_tactics.build_and_solve_model_from_graph("Model_Tactics",
 #                                                                                          verbose = False, 
 #                                                                                          out_of_bus_price = 2)

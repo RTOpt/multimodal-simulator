@@ -1206,6 +1206,7 @@ class FixedLineDispatcher(Dispatcher):
             initial_flow -= nbr_alighting
             if int(stop.location.label) in transfer_times and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
                 nbr_transferring_alighting = self.generate_transferring_alighting(stop, prev_time, initial_flow)
+                nbr_transferring_alighting = 0
                 initial_flow -= nbr_transferring_alighting
                 nbr_transferring_boarding = self.generate_transferring_boarding(stop, prev_time)
                 initial_flow += nbr_transferring_boarding
@@ -1515,6 +1516,7 @@ class FixedLineDispatcher(Dispatcher):
         # count occurrences of transfer_time in transfers['boarding']
         for item, count in Counter(tmp).items():
             transfers['boarding'].append((item, count, 0))
+        print('Stop ', stop_id, ' - boarding transfers = ', transfers['boarding'])
         tmp =[]
         for i in range(nbr_alighting):
             transfer_data = random.choice(transfer_times[stop_id])
@@ -1524,6 +1526,7 @@ class FixedLineDispatcher(Dispatcher):
         for item, count in Counter(tmp).items():
             transfers['alighting'].append((item[0], count, item[1]))
         print('Stop ', stop_id, ' - alighting transfers = ', transfers['alighting'])
+        input()
         return transfers
     
     def choose_tactic(self, T, last_stop):
@@ -1640,14 +1643,23 @@ class FixedLineDispatcher(Dispatcher):
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
         for tactic in all:
+            print('Tactic ', tactic)
             tactic_bus_trips = {}
             tactic_bus_trips[trip_id] = regret_bus_trips[trip_id][tactic]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
+            prev_time = last_departure_times[trip_id]
+            print('Main route')
+            for stop in tactic_bus_trips[trip_id]:
+                travel_time = stop.arrival_time - prev_time
+                prev_time = stop.departure_time
+                print('Stop ', stop.location.label, 'tactic -',tactics[trip_id][int(stop.location.label)],' - arrival time = ', stop.arrival_time,' - departure time = ', stop.departure_time, ' - dwell time = ', stop.departure_time - stop.arrival_time, ' - travel time', travel_time, ' - boarding = ', stop.passengers_to_board_int, ' - alighting = ', stop.passengers_to_alight_int)
+            print('Next route')
+            prev_time = last_departure_times[next_trip_id]
+            for stop in tactic_bus_trips[next_trip_id][0:10]:
+                travel_time = stop.arrival_time - prev_time
+                prev_time = stop.departure_time
+                print('Stop ', stop.location.label, 'tactic -',tactics[next_trip_id][int(stop.location.label)], ' - arrival time = ', stop.arrival_time,' - departure time = ', stop.departure_time, ' - dwell time = ', stop.departure_time - stop.arrival_time, ' - travel time', travel_time, ' - boarding = ', stop.passengers_to_board_int, ' - alighting = ', stop.passengers_to_alight_int)
 
-
-            ##### START HERE
-
-            
             regret = self.get_tactic_regret(trip_id = trip_id,
                                             stop_id = stop_id,
                                             tactic_bus_trips = tactic_bus_trips,
@@ -1682,6 +1694,7 @@ class FixedLineDispatcher(Dispatcher):
         optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
+        G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
         max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     
@@ -1731,10 +1744,10 @@ class FixedLineDispatcher(Dispatcher):
                     prev_time_real = last_departure_times[bus_trip]
                     prev_time_new = last_departure_times[bus_trip]
                     travel_time = stops[0].arrival_time - prev_time_real
-                    prev_time_real = stops[0].departure_time
                     first_stop, prev_time_new = self.create_stop_using_tactic((tactic, -1), stops[0], final_transfer_time, prev_time_new, travel_time, speedup_factor)
                     new_stops[bus_trip][tactic].append(first_stop)
                     # All other stops
+                    prev_time_real = stops[0].departure_time
                     new_stops[bus_trip][tactic] += self.create_bus_stops_with_tactics(stops[1:], prev_time_real, prev_time_new, tactics[bus_trip], speedup_factor)
             else:
                 new_stops[bus_trip] = self.create_bus_stops_with_tactics(stops, last_departure_times[bus_trip], last_departure_times[bus_trip], tactics[bus_trip], speedup_factor)
@@ -1792,6 +1805,8 @@ class FixedLineDispatcher(Dispatcher):
         maximum_transfer_time = time if time != -1 else final_transfer_time
         new_stop = copy.deepcopy(stop) 
         dwell_time = stop.departure_time - stop.arrival_time
+        if dwell_time < 0:
+            logger.warning('Negative dwell time for stop ', stop.location.label, ' -dwell time = ', dwell_time, ' -arrival time = ', stop.arrival_time, ' -departure time = ', stop.departure_time)
         new_stop.arrival_time = prev_time + travel_time
         new_stop.departure_time = new_stop.arrival_time + dwell_time
         if tactic == 'ss':
@@ -1812,14 +1827,14 @@ class FixedLineDispatcher(Dispatcher):
                 if new_stop.departure_time < new_stop.planned_arrival_time - 60:
                     new_stop.departure_time = new_stop.planned_arrival_time - 60
         elif tactic == 'h_hp':
-            if stop.departure_time < new_stop.planned_arrival_time - 60:
+            if new_stop.departure_time < new_stop.planned_arrival_time - 60:
                 new_stop.departure_time = new_stop.planned_arrival_time - 60
         elif tactic == 'h_t':
             if maximum_transfer_time != -1: 
                 if new_stop.departure_time < maximum_transfer_time:
                     new_stop.departure_time = maximum_transfer_time
             else: 
-                new_stop.departure_time = new_stop.arrival_time + 60
+                new_stop.departure_time = new_stop.departure_time + 60
         prev_time = new_stop.departure_time
         return(new_stop, prev_time)
     
