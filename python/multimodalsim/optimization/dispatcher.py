@@ -151,13 +151,13 @@ class Dispatcher:
             self.__process_route_plan(route_plan)
 
             trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
-            print('Modified trips for Optimizations')
-            for trip in route_plan.assigned_legs:
-                print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            for trip in route_plan.already_onboard_legs:
-                print('Trip ID: ', trip.id, 'is ALREADY ON BOARD on vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            for trip in route_plan.legs_to_remove:
-                print('Trip ID: ', trip.id, 'is to be REMOVED from vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            # print('Modified trips for Optimizations')
+            # for trip in route_plan.assigned_legs:
+            #     print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            # for trip in route_plan.already_onboard_legs:
+            #     print('Trip ID: ', trip.id, 'is ALREADY ON BOARD on vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            # for trip in route_plan.legs_to_remove:
+            #     print('Trip ID: ', trip.id, 'is to be REMOVED from vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
@@ -206,10 +206,11 @@ class Dispatcher:
 
         route_plan.route.next_stops = route_plan.next_stops
 
-        # Last stop departure time is set to infinity (since it is unknown).
-        if route_plan.next_stops is not None \
-                and len(route_plan.next_stops) > 0:
-            route_plan.route.next_stops[-1].departure_time = math.inf
+        # # Last stop departure time is set to infinity (since it is unknown).
+        # # Never do this for GTFS data.
+        # if route_plan.next_stops is not None \
+        #         and len(route_plan.next_stops) > 0:
+        #     route_plan.route.next_stops[-1].departure_time = math.inf
 
     def __automatically_assign_trip_to_stops(self, leg, route):
 
@@ -491,7 +492,6 @@ class OptimizedRoutePlan:
 
     def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:
-            # print('Route id: ', self.__route.vehicle.id, 'on ajoute le passager', leg.trip.id,' au stop: ', stop.location.label)
             stop.passengers_to_board.append(leg.trip)
             stop.passengers_to_board_int += 1
             if leg not in self.__legs_manually_assigned_to_stops:

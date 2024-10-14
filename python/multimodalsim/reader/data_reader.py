@@ -340,7 +340,6 @@ class GTFSReader(DataReader):
                 trip_id, stop_time_list)
 
             routes_by_vehicle_id[vehicle.id] = Route(vehicle, next_stops)
-
             vehicles.append(vehicle)
 
         return vehicles, routes_by_vehicle_id
@@ -485,7 +484,6 @@ class GTFSReader(DataReader):
                              planned_arrival_time=planned_arrival_time,
                              planned_departure_time_from_origin=planned_departure_time_from_origin)
             next_stops.append(next_stop)
-
         return next_stops
 
     def __get_timestamp_from_date_and_time_strings(self, date_string,

@@ -244,16 +244,12 @@ class Route(object):
 
     def initiate_boarding(self, trip):
         """Initiate boarding of the passengers who are ready to be picked up"""
-        # print('Initiate boarding at current stop: ', self.__current_stop.location.label)
         self.current_stop.initiate_boarding(trip)
 
     def board(self, trip):
         """Boards passengers who are ready to be picked up"""
         if trip is not None:
-            # print('Boarding Route id: ', self.__vehicle.id)
-            # if 'walk' in trip.current_leg.id: 
-            #     print('boarding walk leg: ', trip.current_leg.id)
-            #     input('Press Enter to continue...')
+
             self.__assigned_legs.remove(trip.current_leg)
             self.__onboard_legs.append(trip.current_leg)
             self.current_stop.board(trip)
@@ -263,29 +259,19 @@ class Route(object):
     def depart(self):
         """Departs the vehicle"""
         if self.__current_stop is not None:
-            # print('Depart Route id: ', self.__vehicle.id)
-            # print("Departing from stop: ", self.__current_stop.location.label)
-            # print("Next stop: ", self.__next_stops[0].location.label)
             self.__previous_stops.append(self.current_stop)
-        # else:
-        #     print('Depart Route id: ', self.__vehicle.id)
-        #     print("Departing from stop: None")
         self.__current_stop = None
 
     def arrive(self):
         """Arrives the vehicle"""
-        # print('Arrive Route id: ', self.__vehicle.id)
-        # print("Arriving at stop: ", self.__next_stops[0].location.label)
         self.__current_stop = self.__next_stops.pop(0)
 
     def initiate_alighting(self, trip):
         """Initiate alighting of the passengers who are ready to alight"""
-        # print('Initiate alighting at current stop: ', self.__current_stop.location.label)
         self.current_stop.initiate_alighting(trip)
 
     def alight(self, leg):
         """Alights passengers who reached their destination from the vehicle"""
-        # print('Alighting Route id: ', self.__vehicle.id,'passenger', leg.trip.id, 'at stop: ', self.__current_stop.location.label)
         self.__onboard_legs.remove(leg)
         self.__alighted_legs.append(leg)
         self.__current_stop.alight(leg.trip)
@@ -354,8 +340,6 @@ class Route(object):
         boarding_legs = [leg for leg in self.assigned_legs if leg.origin == self.next_stops[0].location]
         # Add 'boarding_legs_to_remove' to the new legs
         new_legs['boarding'] = boarding_legs
-        # # Remove the boarding legs from the stop (this stop is skipped so not modified later on)
-        # route.next_stops[0].passengers_to_board = []
         return new_legs
     
     def update_legs_for_passengers_alighting_at_skipped_stop(self, walking_route):
@@ -376,8 +360,6 @@ class Route(object):
         for trip in trips:
             skipped_stop.passengers_to_alight.remove(trip)
             skipped_stop.passengers_to_alight_int = max(0, skipped_stop.passengers_to_alight_int - 1)
-            # print(len(skipped_stop.passengers_to_alight), 'number of passengers to alight at skipped stop')
-            # input()
         # remove the alighting legs from the onboard legs
         self.onboard_legs = [leg for leg in self.onboard_legs if leg not in skipped_legs]
 
@@ -649,6 +631,17 @@ class Stop(object):
     @speedup.setter
     def speedup(self, speedup):
         self.__speedup = speedup
+    
+    @property
+    def show_stop(self):
+        print('***STOP***')
+        print("stop id:", self.location.label) 
+        print("arrival time:", self.arrival_time)
+        print("departure time:", self.departure_time)
+        print("cumulative distance:", self.cumulative_distance)
+        print("planned arrival time:", self.planned_arrival_time)
+        print("planned departure time from origin:", self.planned_departure_time_from_origin)
+        print('***STOP***')
         
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the

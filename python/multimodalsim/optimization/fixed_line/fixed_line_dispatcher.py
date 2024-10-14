@@ -326,6 +326,7 @@ class FixedLineDispatcher(Dispatcher):
         # selected_next_legs, selected_routes = self.bus_prepare_input(state, main_line_id, next_main_line_id)
         state.main_line = main_line_id
         state.next_main_line = next_main_line_id
+        self.route_name = state.route_by_vehicle_id[main_line_id].vehicle.route_name
         
         ### OSO algorithm
         sp, ss, h_and_time = self.OSO_algorithm(state)
@@ -450,6 +451,7 @@ class FixedLineDispatcher(Dispatcher):
                                             stop.min_departure_time)
             delta_time = new_departure_time - stop.departure_time
             stop.departure_time = new_departure_time
+        # print('Last stop id, arrival and departure time',route.next_stops[-1].location.label, route.next_stops[-1].arrival_time, route.next_stops[-1].departure_time)
         if ss: 
             logger.info('Skip-stop implemented at stop '+str(route.next_stops[0].location.label)+'...')
             #Add walking vehicle to the skipped stop
@@ -578,15 +580,16 @@ class FixedLineDispatcher(Dispatcher):
         route = self.get_route_by_vehicle_id(state, state.main_line)
         logger.info('Main line is {}'.format(route.vehicle.id))
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
-        if (route is None or next_route is None) or (route.current_stop is not None) or route.next_stops[0] is None:
+        if (route is None or next_route is None) or (route.current_stop is not None) or len(route.next_stops) == 0:
             logger.info("Main route bus is None = {}, Next bus on main route is None = {}, bus has not departed yet = {}, there are no next stops = {}".format(route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
-            # input('Error in OSO algorithm')
             return(False, False, (False, -1))
         
         logger.info('We go into the OSO algorithm :) ')
         
         # get stops on both routes
-        stops = route.next_stops[0: self.horizon]
+        stop = route.next_stops[-1]
+
+        stops = route.next_stops[: min(self.horizon, len(route.next_stops))]
         last_stop_id = stops[-1].location.label
         stops_second = next_route.get_next_route_stops(last_stop_id)
         stop = route.next_stops[0]
@@ -619,11 +622,11 @@ class FixedLineDispatcher(Dispatcher):
                                                                     time_to_next=1200)
         logger.info('Transfer times computed')
 
-        last_stop = self.allow_tactics_at_stops(state, transfer_times[route.vehicle.id])
+        last_stop = self.allow_tactics_at_stops(state, stops, transfer_times[route.vehicle.id])
         runtimes = []
         # Create dictionnary saving tactics used in all scenarios
         if self.__algo==2: # Regret Algorithm
-            tactic_regrets_dict = self.create_tactics_dict(self, last_stop)
+            tactic_regrets_dict = self.create_tactics_dict(last_stop)
         i=0
         j_try=0
         while i < self.algo_parameters["nbr_simulations"]:
@@ -670,7 +673,8 @@ class FixedLineDispatcher(Dispatcher):
                                                                               bus_trips,
                                                                               transfers,
                                                                               optimal_value,
-                                                                              prev_times = last_departure_times)
+                                                                              last_departure_times = last_departure_times,
+                                                                              initial_flows = initial_flows)
                     elif self.algo == 1 or self.algo == 0: # Offline or Deterministic
                         i = self.algo_parameters["nbr_simulations"]
                         j_try = int(self.algo_parameters["j_try"]) + 1
@@ -682,6 +686,7 @@ class FixedLineDispatcher(Dispatcher):
                     logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
             else: 
                 logger.warning('The scenario generation failed after {} tries.'.format(j_try))
+                input()
                 return(False, False, (False, -1))
         # Get the best tactic
         if self.algo == 2: # Regret
@@ -791,17 +796,17 @@ class FixedLineDispatcher(Dispatcher):
         current_delay = last_visited_stop.arrival_time - last_visited_stop.planned_arrival_time
         return stop.planned_arrival_time + current_delay
     
-    def allow_tactics_at_stops(self, state, transfer_times):
+    def allow_tactics_at_stops(self, state, stops, transfer_times):
         """
         This function returns the last stop at which tactics are allowed.
         Inputs:
             - state: State object, the current state of the environment.
+            - stops: list, the stops to consider.
             - transfer_times: dict, the arrival times of the transfers at the stops.
               The format of the dict is as follows:
               transfer_times[stop_id : int] = [(arrival_time : int, route_name : str "ligne+dir", interval : int), ...]
         Outputs:
             - last: Stop object, the last stop at which tactics are allowed."""
-        stops = state.route_by_vehicle_id[state.main_line].next_stops[:self.horizon]
         if len(stops) == 0:
             return(-1)
         
@@ -1191,10 +1196,12 @@ class FixedLineDispatcher(Dispatcher):
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
         new_stops =[]
         transfers = {}
+
         prev_time = prev_stop.departure_time if prev_stop != None else stops[0].arrival_time -1
-        for stop in stops:
+        for i in range(len(stops)):
+            stop = stops[i]
             dwell_time = self.generate_dwell_time(stop, prev_time)
-            travel_time = self.generate_travel_time(prev_stop, stop, prev_time)
+            travel_time = self.generate_travel_time(prev_stop, stop, prev_time, i, stops)
             nbr_alighting = self.generate_alighting(stop, prev_time, initial_flow)
             initial_flow -= nbr_alighting
             if int(stop.location.label) in transfer_times and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
@@ -1221,6 +1228,7 @@ class FixedLineDispatcher(Dispatcher):
             new_stops.append(new_stop)
             prev_time = prev_time + travel_time + dwell_time
             prev_stop = new_stop
+            # print('Stop ', stop.location.label, ' -dwell time = ', dwell_time, ' -travel time = ', travel_time, ' -b = ', nbr_boarding, ' -a = ', nbr_alighting, ' -tb = ', nbr_transferring_boarding, ' -ta = ', nbr_transferring_alighting)
         return new_stops, transfers
     
     def generate_dwell_time(self, stop, time):
@@ -1243,6 +1251,7 @@ class FixedLineDispatcher(Dispatcher):
             return stop.departure_time - stop.arrival_time
         
         route_name = self.route_name
+        # Print route names in Data
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
@@ -1255,6 +1264,8 @@ class FixedLineDispatcher(Dispatcher):
         """Generate a value from clusters using a specific generation type.
         Inputs:
             - clusters_pair = (C, clusters): tuple of clusters and cluster indices
+                C is a np.array, shape (3,1) with the cluster centers
+                clusters is a np.array, shape (n,1) with the cluster indices, where n is the number of observations for the whole month at this stop
             - values: np.array, shape (n,2), values from which to generate the value
             - time: int, time of occurence for the event
             - type_generation: int, the type of generation (real, mean, random, planned)
@@ -1262,25 +1273,27 @@ class FixedLineDispatcher(Dispatcher):
             - value: int"""
         (C, clusters) = clusters_pair
         (a,b) = values.shape
-        distance = np.zeros(a)
+        distance = np.zeros(len(C))
         for i in range(len(C)):
             distance[i] = abs(C[i][1] - time)
         cluster_index = np.argmin(distance)
-        indices = np.array([j for j in range(a) if clusters[j] == cluster_index])
+        indices = np.array([j for j in range(a) if int(clusters[j]) == cluster_index])
         if type_generation == 0: 
             index = int(random.choice(indices))
             value = values[index][0]
-        elif type_generation == 1: 
+        elif type_generation == 1:
             tmp = mean([values[index][0] for index in indices])
             value = random.choice([math.floor(tmp), math.ceil(tmp)])
         return (value)
     
-    def generate_travel_time(self, stop1, stop2, time):
+    def generate_travel_time(self, stop1, stop2, time, index, stops):
         """Generates a travel time between two stops.
         Inputs:
             - stop1: Stop
             - stop2: Stop
             - time: int, time of occurrence of the event
+            - index: int, index of the stop in the list of stops
+            - stops: list of Stops
         Outputs:
             - travel_time: int
         """
@@ -1288,17 +1301,41 @@ class FixedLineDispatcher(Dispatcher):
             return 1
         type_travel_time = self.algo_parameters['type_travel_time']
         if type_travel_time == 2:
-            # print('Real travel time between stops ', stop1.location.label, ' and ', stop2.location.label, ' = ', stop2.arrival_time - stop1.departure_time)
             return stop2.arrival_time - stop1.departure_time
         
         route_name = self.route_name
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = (int(stop1.location.label), int(stop2.location.label))
-        clusters_pair = TravelTimes[key]
-        values = stop_to_stop_pairs[key]
-        travel_time = self.get_value_from_clusters(clusters_pair, values, time, type_travel_time)
-        return (travel_time)
+        if key in TravelTimes:
+            clusters_pair = TravelTimes[key]
+            values = stop_to_stop_pairs[key]
+            travel_time = self.get_value_from_clusters(clusters_pair, values, time, type_travel_time)
+            return (travel_time)
+        
+        # If the travel time is not in the data, we calculate it using the distance and travel time to further stops
+        found_pair = False
+        for i in range(index+1, len(stops)):
+            key = (int(stop1.location.label), int(stops[i].location.label))
+            if key in TravelTimes:
+                travel_time_long = self.get_value_from_clusters(TravelTimes[key], stop_to_stop_pairs[key], time, type_travel_time)
+                distance = stops[i].cumulative_distance - stop1.cumulative_distance
+                found_pair = True
+                break
+        if not found_pair:
+            for i in range(index-1, -1, -1):
+                key = (int(stops[i].location.label), int(stop2.location.label))
+                if key in TravelTimes:
+                    travel_time_long = self.get_value_from_clusters(TravelTimes[key], stop_to_stop_pairs[key], time, type_travel_time)
+                    distance = stop2.cumulative_distance - stops[i].cumulative_distance
+                    found_pair = True
+                    break
+        if not found_pair:
+            return 1
+        
+        real_distance = stop2.cumulative_distance - stop1.cumulative_distance
+        travel_time = int(travel_time_long * real_distance / distance)
+        return travel_time
 
     def generate_boarding(self, stop, time):
         """Generates the number of boarding passengers at a stop.
@@ -1322,6 +1359,9 @@ class FixedLineDispatcher(Dispatcher):
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
+        if key not in Boarding:
+            return 0
+        
         clusters_pair = Boarding[key]
         values = boarding[key]
         boarding = self.get_value_from_clusters(clusters_pair, values, time, type_boarding)
@@ -1354,6 +1394,9 @@ class FixedLineDispatcher(Dispatcher):
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
+        if key not in Alighting:
+            return 0
+         
         clusters_pair = Alighting[key]
         values = alighting[key]
         alighting = self.get_value_from_clusters(clusters_pair, values, time, type_alighting)
@@ -1393,6 +1436,9 @@ class FixedLineDispatcher(Dispatcher):
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
+        if key not in TBoarding: # no transfers at this stop in the whole month of data
+            return 0
+        
         clusters_pair = TBoarding[key]
         values = transfers_boarding[key]
         transferring_boarding = self.get_value_from_clusters(clusters_pair, values, time, type_boarding_transfer)
@@ -1429,6 +1475,9 @@ class FixedLineDispatcher(Dispatcher):
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
+        if key not in TAlighting: # no transfers at this stop in the whole month of data
+            return 0
+        
         clusters_pair = TAlighting[key]
         values = transfers_alighting[key]
         transferring_alighting = self.get_value_from_clusters(clusters_pair, values, time, type_alighting_transfer)
@@ -1463,17 +1512,18 @@ class FixedLineDispatcher(Dispatcher):
         for i in range(nbr_boarding):
             transfer_time = random.choice(transfer_times[stop_id])[0]
             tmp.append(transfer_time)
-            # count occurrences of transfer_time in transfers['boarding']
-            for item, count in Counter(tmp).items():
-                transfers['boarding'].append((item, count, 0))
+        # count occurrences of transfer_time in transfers['boarding']
+        for item, count in Counter(tmp).items():
+            transfers['boarding'].append((item, count, 0))
         tmp =[]
         for i in range(nbr_alighting):
             transfer_data = random.choice(transfer_times[stop_id])
             transfer_time = transfer_data[0]
             transfer_interval = transfer_data[2]
             tmp.append((transfer_time, transfer_interval))
-            for item, count in Counter(tmp).items():
-                transfers['alighting'].append((item[0], count, item[1]))
+        for item, count in Counter(tmp).items():
+            transfers['alighting'].append((item[0], count, item[1]))
+        print('Stop ', stop_id, ' - alighting transfers = ', transfers['alighting'])
         return transfers
     
     def choose_tactic(self, T, last_stop):
@@ -1531,7 +1581,8 @@ class FixedLineDispatcher(Dispatcher):
                                    bus_trips : dict,
                                    transfers : dict,
                                    optimal_value: int,
-                                   prev_times : dict):
+                                   last_departure_times : dict,
+                                   initial_flows : dict):
         """Updates the tactics dictionary T given the optimal tactic, and calculates the regret of all other tactics.
         Inputs:
             - T: dict, the tactics dictionary
@@ -1547,7 +1598,8 @@ class FixedLineDispatcher(Dispatcher):
             - bus_trips: dict, the generated trips on the main and next routes
             - transfers: dict, the transfers at the stops in the genrated trips
             - optimal_value: int, the optimal cost when using the optimal tactic
-            - prev_times: dict, the departure times from the last visited stop for each bus
+            - last_departure_times: dict, the departure times from the last visited stop for each bus
+            - initial_flows: dict, the initial flows of passengers on the main and next routes
         Outputs:
             - T: dict, the updated tactics dictionary
             """
@@ -1557,9 +1609,6 @@ class FixedLineDispatcher(Dispatcher):
         trip_id = route.vehicle.id
         next_trip_id = next_route.vehicle.id
         stop_id = int(route.next_stops[0].location.label)
-        initial_flows = {}
-        initial_flows[trip_id] = int(len(route.onboard_legs))
-        initial_flows[next_trip_id] = int(len(next_route.onboard_legs))
 
         # List of all tactics
         all = ['none', 'h_hp', 'h_t']
@@ -1571,7 +1620,8 @@ class FixedLineDispatcher(Dispatcher):
             all.append('sp_t')
 
         # Find optimal tactic and remove it from the list of tactics
-        if skip_stop==1: 
+        print('Optimal tactics for first stop ', stop_id, ' : hold = ', hold, ' - speedup = ', speedup, ' - skip-stop = ', skip_stop)
+        if skip_stop == 1: 
             all.remove('ss')
         elif speedup == 1: 
             if hold == -1:
@@ -1588,12 +1638,23 @@ class FixedLineDispatcher(Dispatcher):
             else: 
                 all.remove('h_t')
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
-        regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, prev_times)
+        regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
         for tactic in all:
             tactic_bus_trips = {}
-            tactic_bus_trips[trip_id] = regret_bus_trips[tactic][trip_id]
+            tactic_bus_trips[trip_id] = regret_bus_trips[trip_id][tactic]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
-            regret = self.get_tactic_regret(trip_id, stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value)
+
+
+            ##### START HERE
+
+            
+            regret = self.get_tactic_regret(trip_id = trip_id,
+                                            stop_id = stop_id,
+                                            tactic_bus_trips = tactic_bus_trips,
+                                            transfers = transfers,
+                                            last_departure_times = last_departure_times,
+                                            initial_flows = initial_flows,
+                                            optimal_value = optimal_value)
             if tactic == 'sp_t' or tactic == 'h_t':
                 tactic_regrets_dict[tactic][0] += regret
                 tactic_regrets_dict[tactic][1].append(tactic_bus_trips[trip_id][0].departure_time)
@@ -1631,10 +1692,10 @@ class FixedLineDispatcher(Dispatcher):
                                                       stop_id, trip_id,
                                                       max_departure_time: int,
                                                       all,
-                                                      prev_times: dict):
+                                                      last_departure_times: dict):
         """
-        This function creates bus trips with a list of stops for each non-optimal tactic.
-        Each stop has an arrival and departure time.
+        This function creates bus trips with a list of stops for each non-optimal tactic used at the first stop of the main bus line in the optimization horizon.
+        These bus trips are used to generate a scenario for each non-optimal tactic and then to calculate the regret of each non-optimal tactic.
 
         Inputs:
             - bus_trips: dictionary of bus trips containing the data on the two trips' stops, travel times, dwell times, number of boarding/alighting passengers etc.
@@ -1648,8 +1709,8 @@ class FixedLineDispatcher(Dispatcher):
             - stop_id: the id of the first stop
             - trip_id: the id of the main/first bus trip
             - max_departure_time: the latest departure time of the bus from the stop after holding time
-            - all: list of all possible tactics (excluding the optimal tactic)
-            - prev_times: dictionary containing the departure time from the last visited stop for each bus trip
+            - all: list of all possible non-optimal tactics to use at the first stop
+            - last_departure_times: dictionary containing the departure time from the last visited stop for each bus trip
         Outputs:
             - new_stops: dictionary containing the stops for each non-optimal tactic for the bus trip with trip_id
             """
@@ -1667,16 +1728,16 @@ class FixedLineDispatcher(Dispatcher):
                 for tactic in all:
                     new_stops[bus_trip][tactic] = []
                     # First stop with different tactic
-                    prev_time_real = prev_times[bus_trip]
-                    prev_time_new = prev_times[bus_trip]
+                    prev_time_real = last_departure_times[bus_trip]
+                    prev_time_new = last_departure_times[bus_trip]
                     travel_time = stops[0].arrival_time - prev_time_real
                     prev_time_real = stops[0].departure_time
                     first_stop, prev_time_new = self.create_stop_using_tactic((tactic, -1), stops[0], final_transfer_time, prev_time_new, travel_time, speedup_factor)
                     new_stops[bus_trip][tactic].append(first_stop)
                     # All other stops
                     new_stops[bus_trip][tactic] += self.create_bus_stops_with_tactics(stops[1:], prev_time_real, prev_time_new, tactics[bus_trip], speedup_factor)
-            else: 
-                new_stops[bus_trip] = self.create_bus_stops_with_tactics(stops, prev_times[bus_trip], prev_times[bus_trip], tactics[bus_trip], speedup_factor)
+            else:
+                new_stops[bus_trip] = self.create_bus_stops_with_tactics(stops, last_departure_times[bus_trip], last_departure_times[bus_trip], tactics[bus_trip], speedup_factor)
         return(new_stops)
 
     def create_bus_stops_with_tactics(self,
@@ -1702,7 +1763,7 @@ class FixedLineDispatcher(Dispatcher):
         for stop in stops:
             travel_time = stop.arrival_time - prev_time_real
             prev_time_real = stop.departure_time
-            new_stop, prev_time_new = self.create_stop_using_tactic(tactics[stop.stop_id], stop, -1, prev_time_new, travel_time, speedup_factor)
+            new_stop, prev_time_new = self.create_stop_using_tactic(tactics[int(stop.location.label)], stop, -1, prev_time_new, travel_time, speedup_factor)
             new_stops.append(new_stop)
         return(new_stops)
 
@@ -1762,7 +1823,14 @@ class FixedLineDispatcher(Dispatcher):
         prev_time = new_stop.departure_time
         return(new_stop, prev_time)
     
-    def get_tactic_regret(self, trip_id, stop_id, tactic_bus_trips, transfers, prev_times, initial_flows, optimal_value):
+    def get_tactic_regret(self,
+                          trip_id : str,
+                          stop_id : int,
+                          tactic_bus_trips : dict,
+                          transfers : dict,
+                          last_departure_times : dict,
+                          initial_flows : dict,
+                          optimal_value : int):
         """
         This function calculates the regret of a tactic given the optimal value.
         
@@ -1771,17 +1839,22 @@ class FixedLineDispatcher(Dispatcher):
             - stop_id: int, the stop id
             - tactic_bus_trips: dict, the bus trips with the non_optimal_tactic applied to the first stop ot the main route, while all other tactics are kept the same as in the optimal solution
             - transfers: dict, the transfers at the stops in the genrated trips
-            - prev_times: dict, the departure times from the last visited stop for each bus
+            - last_departure_times: dict, the departure times from the last visited stop for each bus
             - initial_flows: dict, the initial flows of passengers for each bus
             - optimal_value: int, the optimal value of the objective function when using the optimal tactic
         Outputs:
             - regret: int, the regret of the tactic compared to the optimal value"""
-        step = self.general_parameters["step"]
-        price = self.general_parameters["price"]
-        G, last_trip_id, bus_departures = Graph.build_graph_without_tactics(trip_id, tactic_bus_trips, transfers, prev_times, initial_flows, times_step = step, price = price, od_dict = {})
+        G, last_trip_id, bus_departures = Graph.build_graph_without_tactics(first_trip_id = trip_id,
+                                                                            bus_trips = tactic_bus_trips,
+                                                                            transfers = transfers,
+                                                                            last_departure_times = last_departure_times,
+                                                                            initial_flows = initial_flows,
+                                                                            time_step = self.general_parameters["step"],
+                                                                            price = self.general_parameters["price"],
+                                                                            od_dict = {})
         optimal_value_for_tactic, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Gen_offline"+str(stop_id),
-                                                                                          verbose = False,
-                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
+                                                                                                         verbose = False,
+                                                                                                         out_of_bus_price = self.general_parameters["out_of_bus_price"])
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:
             logger.warning('Negative regret value : {}...'.format(regret))

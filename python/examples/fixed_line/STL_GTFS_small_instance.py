@@ -44,9 +44,9 @@ if __name__ == '__main__':
     stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                        requests_file_path=requests_file_path,
                        coordinates_file_path=coordinates_file_path,
-                       ss = False,
-                       sp = False,
-                       algo = 0, # 0: offline, 1: deterministic, 2: regret
+                       ss = False, # Allow the use of speedup tactics
+                       sp = False, # Allow the use of skip-stop tactics
+                       algo = 2, # 0: offline, 1: deterministic, 2: regret
                        freeze_interval=freeze_interval,
                        output_folder_name=output_folder_name,
                        logger=logger,

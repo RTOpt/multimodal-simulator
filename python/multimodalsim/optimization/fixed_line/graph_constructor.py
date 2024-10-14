@@ -34,7 +34,7 @@ class Graph_Node:
     - dist: the distance of the node from the source node
     - bus: the bus to which the node belongs (the bus trip_id)
     """
-    def __init__(self, stop_id, ad, time=0, transfer_time=0, type='normal', flow=0, level=-1, dist=0, bus=-1):
+    def __init__(self, stop_id, ad, time = 0, transfer_time=0, type='normal', flow=0, level=-1, dist=0, bus=-1):
         self.__stop_id = stop_id
         self.__type = type
         self.__time = time
@@ -51,7 +51,7 @@ class Graph_Node:
     def __eq__(self, other):
         """Overrides the default implementation of =="""
         if isinstance(other, Graph_Node):
-            return (self.__stop_id == other.__stop_id and self.__type==other.__type and self.__time==other.__time and self.__ad==other.__ad and self.__flow==other.__flow)
+            return (self.__stop_id == other.__stop_id and self.__type==other.__type and self.__time==other.__time and self.__transfer_time==other.__transfer_time and self.__ad==other.__ad and self.__flow==other.__flow)
         return False
 
     def __ne__(self, other):
@@ -204,7 +204,7 @@ class Graph:
     Un graphe comprend une liste de noeuds "nodes" de la classe Node et une liste d'arcs "edges" de la classe Edge. 
     De plus, chaque graphe a un noeud source "source" et un noeud puit "target" définit dès le départ.
     """
-    def __init__(self,name: str, nodes: List[Graph_Node], edges: List[Graph_Edge], source: Graph_Node, target: Graph_Node):
+    def __init__(self, name: str, nodes: List[Graph_Node], edges: List[Graph_Edge], source: Graph_Node, target: Graph_Node):
         self.__name = name
         if (source in nodes) == False: 
             nodes.insert(0, source)
@@ -272,9 +272,13 @@ class Graph:
     def add_node(self, node : Graph_Node):
         if self.contains_node(node) == False:
             self.__nodes.append(node)
+    
+    def remove_node(self, node: Graph_Node):
+        if self.contains_node(node):
+            self.__nodes.remove(node)
 
-    def contains_edge(self, origin:Graph_Node, dest:Graph_Node, weight: int):
-        edges=[edge for edge in self.edges if edge.origin == origin and edge.destination == dest and edge.weight == weight]
+    def contains_edge(self, origin:Graph_Node, dest:Graph_Node, weight: int, sp : int = 0, ss : int = 0):
+        edges=[edge for edge in self.edges if edge.origin == origin and edge.destination == dest and edge.weight == weight and edge.speedup == sp and edge.skip_stop == ss]
         if len(edges)>0:
             return(True)
         return(False)
@@ -289,19 +293,25 @@ class Graph:
             else:
                 weight = dest.node_time - origin.node_time
         if weight >= 0:
-            if self.contains_edge(origin, dest, weight) == False: 
+            if self.contains_edge(origin, dest, weight, sp = sp, ss = ss) == False: 
                 if self.contains_node(origin) == False:
-                    print("pb origin not in nodes", origin.show_node())
+                    print("pb origin not in nodes", origin.show_node)
                     print(self.edges)
                     self.add_node(origin)
                 if self.contains_node(dest) == False:
-                    print("pb dest not in nodes", dest.show_node())
+                    print("pb dest not in nodes", dest.show_node)
                     self.add_node(dest)
                     print(self.edges)
                 edge = Graph_Edge(origin, dest, weight, sp = sp, ss = ss)
+                if edge.destination.node_type == 'transfer' and edge.destination.node_arrival_departure == 'a':
+                    edge.show_edge
                 self.append_edge(edge)
-            else:
-                print('Edge already in graph...')
+            # else:
+                # edge = Graph_Edge(origin, dest, weight, sp = sp, ss = ss)
+                # if edge.destination.node_type == 'transfer' and edge.destination.node_arrival_departure == 'a':
+                #     print('We do not add a transfer edge... ')
+                #     edge.show_edge
+                # print('Edge already in graph...')
     
     @property
     def show_graph(self):
@@ -458,11 +468,17 @@ class Graph:
                     if stop_id not in transfer_nodes:
                         transfer_nodes[stop_id] = []
                     add_flow_to_existing_node = False
-                    for node in transfer_nodes[stop_id]:
+                    for i in range(len(transfer_nodes[stop_id])):
+                        node = transfer_nodes[stop_id][i]
                         if node.node_time == time:
+                            input("We should never be here as transfers for the same bus are aggregated")
+                            transfer_nodes[stop_id].remove(node)
+                            self.remove_node(node)
                             node.node_flow = node.node_flow - nbr_passengers
                             add_flow_to_existing_node = True
                             od_d_dict[trip_id].append((stop_id, node))
+                            transfer_nodes[stop_id].insert(i, node)
+                            self.add_node(node)
                             break
                     if add_flow_to_existing_node == False: 
                         transfer_node = Graph_Node(stop_id, "a", time, interval, "transfer", -nbr_passengers, level, dist, trip_id)
@@ -587,7 +603,7 @@ class Graph:
             cur_arr[arrival_time] = no_tactics_arrival_node
             self.add_node(no_tactics_arrival_node)
             self.add_edge(no_tactics_arrival_node, target, 0)
-        departure_time = (arrival_time + dwell + time_step-1) //time_step*time_step
+        departure_time = (arrival_time + dwell + time_step-1) //time_step * time_step
         if departure_time in departs_current:
             no_tactics_departure_node = departs_current[departure_time]
         else: 
@@ -793,7 +809,6 @@ class Graph:
             - trip_id: the bus trip id
             - order: list of bus trips with their start times
         Outputs:"""
-        print('stop id', stop_id, 'start time', start_time, 'trip id', trip_id, 'order', order)
         for k in range(len(times)-1): # Add waiting time arcs for passengers waiting at the stop
             if times[k][0] < no_tactics_departure_node.node_time: 
                 self.add_edge(times[k][1], times[k+1][1]) 
@@ -801,9 +816,7 @@ class Graph:
         if times[len(times)-1][1] != no_tactics_departure_node or (start_time, trip_id) == order[-1]:
             exogenous_nodes_to_link_to_next_bus = [exo_current[key] for key in exo_current if key >= no_tactics_departure_node.node_time]
             if len(exogenous_nodes_to_link_to_next_bus) > 0:
-                print('There are nodes with exogenous flows that need to be linked to next bus at stop id', stop_id)
-                for node in exogenous_nodes_to_link_to_next_bus:
-                    node.show_node
+                # print('There are nodes with exogenous flows that need to be linked to next bus (no tactics) at stop id', stop_id)
                 last_exo[stop_id] = exogenous_nodes_to_link_to_next_bus
         return
     
@@ -834,6 +847,7 @@ class Graph:
         else: 
             nodes_to_link_to_next_bus = [exo_current[key] for key in exo_current]
         if len(nodes_to_link_to_next_bus) > 0:
+            # print('There are nodes with exogenous flows that need to be linked to next bus (with tactics) at stop id', stop_id)
             last_exo[stop_id] = nodes_to_link_to_next_bus
         return
     
@@ -869,18 +883,12 @@ class Graph:
             self.add_edge(skips[time], global_target_node, 0)
         for node_exo in exo_current: 
             self.add_edge(exo_current[node_exo], global_target_node, 0)
-            print('Adding edge from last stop node_exo to target node')
         if (start_time, trip_id) == order[-1]:
             for id in last_exo: 
                 target_niveau = targets[id]
                 for node_exo in last_exo[id]:
                     if node_exo.node_bus == str(trip_id):
                         self.add_edge(node_exo, target_niveau, price)
-                        # print('Adding edge from last exo to target node')
-                        # print('All edges connected to last exo')
-                        # for edge in self.edges:
-                        #     if edge.origin == node_exo or edge.destination == node_exo:
-                        #         edge.show_edge
                         
         return
 
@@ -946,7 +954,6 @@ class Graph:
         snew = Vnew[s]
         tnew = Vnew[t]
         Vnewset = set([Vnew[v] for v in V])
-        print('Graph converted to model format')
         return(Vnewset, Anew, snew, tnew, flows, ids, node_dict, edge_dict, bus)
     
     def build_and_solve_model_from_graph(self,
@@ -996,7 +1003,7 @@ class Graph:
         m.optimize() 
         runtime = timeit.default_timer()-runtime
         gap = m.gap
-        print('Optimality GAP=',gap)
+        print('Optimality GAP = ',gap)
 
         #Get results 
         # passenger_flows = {}
@@ -1150,8 +1157,6 @@ class Graph:
                                                                                                         last_departure_times = last_departure_times,
                                                                                                         price = price,
                                                                                                         time_step = time_step)
-        if order[0][0] >= order[1][0]:
-            print('First bus: ', order[0][0], 'second bus: ', order[1][0])
 
         # Create a dict with all stops in the two bus trips
         stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
@@ -1248,6 +1253,7 @@ class Graph:
                             if speedup_path_is_added: #there is a speedup tactic
                                 G.add_alighting_transfer_passenger_edge(speedup_arrival_node, alighting_transfer_node)
                             # Link to bus path without tactics
+                            print('Adding alighting transfer passenger edge from no tactics arrival node to alighting transfer node')
                             G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
                             # If stop is skipped, the passengers cannot alight here.
                     # Add bus path using the skip-stop tactic
@@ -1329,8 +1335,8 @@ class Graph:
                                                                 last_exo,
                                                                 exo_current,
                                                                 stop_id,
-                                                                global_skip_stop_is_allowed,
-                                                                global_speedup_factor)
+                                                                skip_stop_is_allowed,
+                                                                speedup_factor)
                 else:
                     G.finalize_graph_for_current_bus_trip(stop_id, times, exo_current, last_exo, skips, global_target_node, targets, price, start_time, trip_id, order)
                 departs_prev = departs_current
@@ -1477,6 +1483,7 @@ class Graph:
                     if stop_id in transfer_nodes and stop_is_skipped == 0:
                         for alighting_transfer_node in transfer_nodes[stop_id]:
                             # Link to no tactics path
+                            print('*** No tactics*** Adding alighting transfer passenger edge from no tactics arrival node to alighting transfer node')
                             G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
 
                     if stop_id in transfer_nodes and stop_is_skipped == 1: # extra walking time because of skipped stop
@@ -1652,7 +1659,6 @@ class Graph:
         ### 2nd case: we have O/D pairs. 
         ### Need to make sure passenger demand is transfered to the next bus when a passenger misses their bus.
         else:
-            print('Adding O/D pairs constraints...')
             for k in V3:# node without alighting passengers
                 m += xsum(x[u, v, i] for (u, v, i) in A if v == k) - xsum(x[u, v, i] for (u, v, i) in A if u == k) + flows[k] == 0, 'flow_cst'+str(k)
             
@@ -1754,8 +1760,8 @@ class Graph:
 
         #write model 
         # completename = os.path.join(savepath,name+'.lp')
-        # m.write(completename)
-        # return(completename)
+        completename = os.path.join('output','Model_Tactics.lp')
+        m.write(completename)
         return(m)
 
     @staticmethod

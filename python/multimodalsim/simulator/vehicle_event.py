@@ -32,8 +32,6 @@ class VehicleReady(Event):
                 self.__vehicle)
 
         env.add_route(self.__route, self.__vehicle.id)
-        # if env.main_line == self.__route.vehicle.id:
-        # env.main_line == self.__route.vehicle.id
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
@@ -89,7 +87,6 @@ class VehicleWaiting(ActionEvent):
                 VehicleWaiting(
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
-                # print('Vehicle Waiting time:', self.__route.current_stop.departure_time)
             else:
                 logger.info('No passengers to board. Vehicle status: {} adding VehicleDeparture event.'.format(self.__route.vehicle.status))
                 VehicleDeparture(self.__route, self.queue).add_to_queue()
@@ -128,8 +125,7 @@ class VehicleBoarding(ActionEvent):
         # print('Passengers to board:', [trip.id for trip in passengers_to_board_copy])
         passengers_ready = [trip for trip in passengers_to_board_copy
                             if trip.status == PassengersStatus.READY]
-        # print('Passengers ready to board:', [trip.id for trip in passengers_ready])
-        # input('Press Enter to continue...')
+
         for req in passengers_ready:
             self.__route.initiate_boarding(req)
             passenger_event.PassengerToBoard(
