@@ -349,7 +349,9 @@ class Route(object):
             - skipped_legs: list, the legs for passengers alighting at the skipped stop that are onboard the main line.
 
         Outputs:
-            - route: Route object, the updated main line route."""
+            - route: Route object, the updated main line route.
+            - skipped_legs: list, the updated legs for passengers alighting at the skipped stop that are onboard the main line.
+            - new_legs: dict, the new legs for passengers boarding at the skipped stop."""
         skipped_stop = self.next_stops[0]
         next_stop = self.next_stops[1]
 

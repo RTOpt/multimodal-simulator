@@ -666,10 +666,10 @@ class Graph:
             skips[skip_stop_time] = skip_node
             self.add_node(skip_node)
         if skip_stop_time > time_prev:
-            print('skip-stop time > time_prev. Adding edge from previous node to skip node')
+            # print('skip-stop time > time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, ss = 1)
         else:
-            print('skip-stop time <= time_prev. Adding edge from previous node to skip node')
+            # print('skip-stop time <= time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, travel_time, ss = 1)
         self.add_edge(skip_node, target_nodes[trip_id][stop_id], walking_time, ss = 1) # for passengers that need to walk to their destination
         return skips
@@ -726,7 +726,7 @@ class Graph:
                 planned_departure_node_tmp.node_flow = planned_departure_node_tmp.node_flow + transfer_passengers[stop_id][transfer_time]
                 planned_departure_node_tmp.node_type = 'transfer'
                 od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_dep_plan))
-                print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
+                # print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
             else: 
                 # All transfer times are unique so we only need to check for the planned departure time.
                 # Transfer_passengers[stop_id][transfer_time] > 0 for all transfer times
@@ -911,7 +911,7 @@ class Graph:
             - edge_dict: a dictionary that for each edge number gives the corresponding Graph_Edge object
             - bus_dict: a dictionary that for each node number gives its bus trip_id. example: bus_dict[6]='2546781'
          """
-        print('Converting graph to model format')
+        # print('Converting graph to model format')
         V = self.nodes
         A = self.edges
         s = self.source
@@ -1174,7 +1174,7 @@ class Graph:
         od_d_dict = {}
         target_nodes = {}
 
-        print('First bus : ', order[0][1], ' Second bus: ', order[-1][1])
+        # print('First bus : ', order[0][1], ' Second bus: ', order[-1][1])
         # Create nodes and edges for each bus trip
         for (start_time, trip_id) in order:
 
@@ -1598,7 +1598,8 @@ class Graph:
         """
         #Initialize model
         m = Model(solver_name="CBC")
-        m.verbose = 1
+        m.verbose = 2
+        m.presolve = 0
         
         #Initialize Variables
         x = {(u,v,i): m.add_var(name='x({},{},{})'.format(u,v,i), var_type = INTEGER, lb=0, ub=100) for (u,v,i) in A}
@@ -1804,7 +1805,7 @@ class Graph:
         if len(skip_stop_edges) > 0:
             # The skip-stop tactic is used
             skip_stop_departure_node = skip_stop_edges[0].destination 
-            max_departure_time = skip_stop_departure_node.time
+            max_departure_time = skip_stop_departure_node.node_time
             skip_stop = 1
             return(max_departure_time, hold, speedup, skip_stop)
         
