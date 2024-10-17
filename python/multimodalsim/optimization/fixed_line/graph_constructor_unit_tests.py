@@ -89,9 +89,13 @@ def test_graph():
     # G.show_graph
     print('Graph constructor test passed')
 
+all_routes = [(10,0), (11, 12), (13,14)]
+matching_route = next((all_routes.pop(i) for i, route in enumerate(all_routes) if route[0] == 14), None)
+print(matching_route)
+print(all_routes)
 # test_graph_node()
 # test_graph_edge()
-test_graph()
+# test_graph()
 
 # Create small instance for the graph constructor 
 # Create initial flows

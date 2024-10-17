@@ -121,11 +121,13 @@ class FixedLineDispatcher(Dispatcher):
                 leg, selected_routes, current_time)
 
             if optimal_route is not None:
-                optimized_route_plan = OptimizedRoutePlan(optimal_route)
-
-                # Use the current and next stops of the route.
-                optimized_route_plan.copy_route_stops()
-
+                # Check if this route is already part of an optimized route plan.
+                # If it is, we don't need to create a new optimized route plan.
+                optimized_route_plan = next((optimized_route_plans.pop(i) for i, optimized_route_plan in enumerate(optimized_route_plans) if optimized_route_plan.route.vehicle.id == optimal_route.vehicle.id), None)
+                if optimized_route_plan is None:
+                    optimized_route_plan = OptimizedRoutePlan(optimal_route)
+                    # Use the current and next stops of the route.
+                    optimized_route_plan.copy_route_stops()
                 optimized_route_plan.assign_leg(leg)
                 optimized_route_plans.append(optimized_route_plan)
 
@@ -301,16 +303,9 @@ class FixedLineDispatcher(Dispatcher):
         modified_vehicles = []
 
         for route_plan in optimized_route_plans:
-            self.__process_route_plan(route_plan)
+            self._Dispatcher__process_route_plan(route_plan)
 
             trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
-            # print('Modified trips for Optimizations')
-            # for trip in route_plan.assigned_legs:
-            #     print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            # for trip in route_plan.already_onboard_legs:
-            #     print('Trip ID: ', trip.id, 'is ALREADY ON BOARD on vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            # for trip in route_plan.legs_to_remove:
-            #     print('Trip ID: ', trip.id, 'is to be REMOVED from vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
@@ -586,7 +581,7 @@ class FixedLineDispatcher(Dispatcher):
             return(False, False, (False, -1))
         
         logger.info('We go into the OSO algorithm :) ')
-        
+        # input()
         # get stops on both routes
         stop = route.next_stops[-1]
 
@@ -595,6 +590,10 @@ class FixedLineDispatcher(Dispatcher):
         stops_second = next_route.get_next_route_stops(last_stop_id)
         stop = route.next_stops[0]
         stop_id = int(stop.location.label)
+
+        if str(route.vehicle.id) == '2790970' and stop_id==41391:
+            return(False, True, (False, -1))
+        
         bus_trip_id = route.vehicle.id
         bus_next_trip_id = next_route.vehicle.id
         logger.info('Main line is {} and next main line is {} and first stop is {}, last stop is {}'.format(route.vehicle.id, next_route.vehicle.id, stop_id, last_stop_id))

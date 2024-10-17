@@ -3,6 +3,7 @@ import copy
 
 import multimodalsim.state_machine.state_machine as state_machine
 from multimodalsim.state_machine.status import PassengersStatus
+import multimodalsim.simulator.request as request
 
 logger = logging.getLogger(__name__)
 
@@ -385,7 +386,7 @@ class Route(object):
             due_time = leg.due_time
             trip = leg.trip
             cap_vehicle_id = leg.cap_vehicle_id
-            new_leg = Leg(leg_id, LabelLocation(origin),
+            new_leg = request.Leg(leg_id, LabelLocation(origin),
                           LabelLocation(destination),
                           nb_passengers, release_time,
                           ready_time, due_time, trip)
@@ -404,7 +405,7 @@ class Route(object):
 
             # add walk leg to the trip
             walk_leg_id = leg_id + '_walking'
-            walk_leg = Leg(walk_leg_id, LabelLocation(walk_origin),
+            walk_leg = request.Leg(walk_leg_id, LabelLocation(walk_origin),
                            LabelLocation(walk_destination), 
                            nb_passengers, walk_release_time,
                            walk_ready_time, walk_due_time, trip)
