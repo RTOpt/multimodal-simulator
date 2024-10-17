@@ -150,14 +150,7 @@ class Dispatcher:
         for route_plan in optimized_route_plans:
             self.__process_route_plan(route_plan)
 
-            trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
-            # print('Modified trips for Optimizations')
-            # for trip in route_plan.assigned_legs:
-            #     print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            # for trip in route_plan.already_onboard_legs:
-            #     print('Trip ID: ', trip.id, 'is ALREADY ON BOARD on vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
-            # for trip in route_plan.legs_to_remove:
-            #     print('Trip ID: ', trip.id, 'is to be REMOVED from vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            trips = [leg.trip for leg in route_plan.assigned_legs]
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
@@ -189,9 +182,7 @@ class Dispatcher:
                                                           route_plan.route)
         
         for leg in route_plan.legs_to_remove:
-            # Remove leg from route : on en a besoin pour que ce soit update dans le environment
-            # Fait dans VehicleNotification.process
-            # route_plan.route.unassign_leg(leg)
+            # See VehicleNotification.process
 
             # Remove the trip associated with leg from the stops of the route
             if leg not in route_plan.already_onboard_legs:
@@ -223,18 +214,15 @@ class Dispatcher:
             current_location = route.current_stop.location
 
             if leg.origin == current_location:
-                # self.__add_passenger_to_board(leg.trip, route.current_stop)
                 boarding_stop_found = True
                 boarding_stop = route.current_stop
 
         for stop in route.next_stops:
             if leg.origin == stop.location and not boarding_stop_found:
-                # self.__add_passenger_to_board(leg.trip, stop)
                 boarding_stop_found = True
                 boarding_stop = stop
             elif leg.destination == stop.location and boarding_stop_found \
                     and not alighting_stop_found:
-                # self.__add_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
                 alighting_stop = stop
         if not (boarding_stop_found and alighting_stop_found):

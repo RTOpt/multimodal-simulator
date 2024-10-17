@@ -345,11 +345,10 @@ class Route(object):
     def update_legs_for_passengers_alighting_at_skipped_stop(self, walking_route):
         """Update the legs for passengers alighting at the skipped stop.
         Inputs:
-            - route: Route object, the main line route.
+            - self: Route object, the main line route.
             - skipped_legs: list, the legs for passengers alighting at the skipped stop that are onboard the main line.
 
         Outputs:
-            - route: Route object, the updated main line route.
             - skipped_legs: list, the updated legs for passengers alighting at the skipped stop that are onboard the main line.
             - new_legs: dict, the new legs for passengers boarding at the skipped stop."""
         skipped_stop = self.next_stops[0]
@@ -369,7 +368,6 @@ class Route(object):
         new_legs = {}
         new_legs['walk'] = []
         new_legs['onboard'] = []
-        new_legs['boarding'] = []
         walk_origin = walking_route.current_stop.location.label
         walk_destination = walking_route.next_stops[0].location.label
         walk_release_time = walking_route.vehicle.release_time-1

@@ -178,9 +178,16 @@ class EnvironmentUpdate(ActionEvent):
 
     def _process(self, env):
         if self.__bus:
-            logger.info('We are in EnvironmentUpdate for bus...')
             for trip in self.__optimization_result.modified_requests:
-                env.update_trip(trip.id, trip)
+                env.update_changed_assigned_trips(trip.id, trip)
+            for trip in [trip for trip in self.__optimization_result.modified_requests if trip.id in env.non_assigned_trips]:
+                next_legs = trip.next_legs
+                next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
+                current_leg = trip.current_leg
+                passenger_update = request.PassengerUpdate(
+                    next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
+                passenger_event_process.PassengerAssignment(
+                    passenger_update, self.queue).add_to_queue()
         else: 
             for trip in self.__optimization_result.modified_requests:
                 next_legs = trip.next_legs
@@ -192,15 +199,12 @@ class EnvironmentUpdate(ActionEvent):
                     passenger_update, self.queue).add_to_queue()
 
         for veh in self.__optimization_result.modified_vehicles:
-            print("Vehicle ID: ", veh.id)
             route = \
                 self.__optimization_result.state.route_by_vehicle_id[veh.id]#optimized route
             if route.current_stop is not None:
                 # Copy passengers_to_board and departure time of current_stop.
                 current_stop_modified_passengers_to_board = \
                     route.current_stop.passengers_to_board
-                # print('current_stop_modified_passengers_to_board: ', [passenger.id for passenger in current_stop_modified_passengers_to_board])
-
                 current_stop_departure_time = \
                     route.current_stop.departure_time
             else:

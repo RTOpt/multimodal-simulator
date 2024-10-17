@@ -39,6 +39,7 @@ class Environment(object):
 
     def __init__(self, optimization, network=None, coordinates=None,
                  travel_times=None,
+                 optimize_at_passenger_events = True
                    ):
         self.__current_time = 0
         self.__trips = []
@@ -55,6 +56,7 @@ class Environment(object):
 
         self.__optimize_cv = None
         self.__available_connections = None
+        self.__optimize_at_passenger_events = optimize_at_passenger_events
 
     @property
     def available_connections(self):
@@ -93,17 +95,18 @@ class Environment(object):
         """ Removes a trip from the requests list based on its id"""
         self.__trips = [trip for trip in self.__trips if trip.id != trip_id]
 
-    def update_trip(self, trip_id, new_trip):
-        """ Updates the trip in the trips list"""
+    def update_changed_assigned_trips(self, trip_id, new_trip):
+        """ Updates the trip in the trips list.
+            This function updates the trips that were modified during bus_optimize to accomodate a skip-stop tactic, if any.
+            We only update skip-stop trips as the other trips were not modified."""
         old_trip = self.get_trip_by_id(trip_id)
-        assigned = False
         if old_trip is not None:
             self.remove_trip(trip_id)
             self.add_trip(new_trip)
-            if old_trip in self.non_assigned_trips:
-                self.remove_non_assigned_trip(trip_id)
-                self.add_non_assigned_trip(new_trip)
-            elif old_trip in self.assigned_trips:
+            # if old_trip in self.non_assigned_trips:
+            #     self.remove_non_assigned_trip(trip_id)
+            #     self.add_non_assigned_trip(new_trip)
+            if old_trip in self.assigned_trips:
                 self.remove_assigned_trip(trip_id)
                 self.add_assigned_trip(new_trip)
         else:
@@ -271,6 +274,10 @@ class Environment(object):
     @next_vehicles.setter
     def next_vehicles(self, next_vehicles):
         self.__next_vehicles = next_vehicles
+    
+    @property
+    def optimize_at_passenger_events(self):
+        return self.__optimize_at_passenger_events
     
 class EnvironmentStatistics:
 

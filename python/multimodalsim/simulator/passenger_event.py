@@ -25,9 +25,10 @@ class PassengerRelease(Event):
         if self.__trip.current_leg is None:
             legs = env.optimization.split(self.__trip, env)
             self.__trip.assign_legs(legs)
-
-        optimization_event_process.Optimize(
-            env.current_time, self.queue).add_to_queue()
+        
+        if env.optimize_at_passenger_events:
+            optimization_event_process.Optimize(
+                env.current_time, self.queue).add_to_queue()
 
         return 'Done processing Passenger Release'
 
@@ -125,7 +126,8 @@ class PassengerAlighting(ActionEvent):
             env.add_non_assigned_trip(self.__trip)
             print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
 
-            optimization_event_process.Optimize(
-                env.current_time, self.queue).add_to_queue()
+            if env.optimize_at_passenger_events:
+                optimization_event_process.Optimize(
+                    env.current_time, self.queue).add_to_queue()
 
         return 'Done processing Passenger Alighting process'

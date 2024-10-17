@@ -67,14 +67,14 @@ class VehicleWaiting(ActionEvent):
     def _process(self, env):
         # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
 
-        optimize = False
-        if len(env.non_assigned_trips)>0:
-            logger.info('Vehicle Waiting: There are non assigned trips, optimize ...')
-            optimize = True
+        # optimize = False
+        # if len(env.non_assigned_trips)>0:
+        #     logger.info('Vehicle Waiting: There are non assigned trips, optimize ...')
+        #     optimize = True
             
         if len(self.__route.requests_to_pickup()) > 0:
-            if optimize:
-                optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+            # if optimize:
+            #     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
             VehicleBoarding(self.__route, self.queue).add_to_queue()
             if self.__route.current_stop.departure_time > env.current_time:
                 VehicleWaiting(
@@ -82,8 +82,8 @@ class VehicleWaiting(ActionEvent):
                     self.__route.current_stop.departure_time).add_to_queue()
         elif len(self.__route.next_stops) > 0:
             if self.__route.current_stop.departure_time > env.current_time:
-                if optimize:
-                    optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+                # if optimize:
+                #     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
                 VehicleWaiting(
                     self.__route, self.queue,
                     self.__route.current_stop.departure_time).add_to_queue()
@@ -94,8 +94,8 @@ class VehicleWaiting(ActionEvent):
             # No next stops for now. If the route of the vehicle is not
             # modified, its status will remain IDLE until Vehicle.end_time,
             # at which point the VehicleComplete event will be processed.
-            if optimize:
-                optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+            # if optimize:
+            #     optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
             VehicleComplete(self.__route, self.queue).add_to_queue()
 
         return 'Done processing Vehicle Waiting process'
@@ -121,8 +121,6 @@ class VehicleBoarding(ActionEvent):
     def _process(self, env):
         passengers_to_board_copy = self.__route.current_stop. \
             passengers_to_board.copy()
-        # print('Boarding vehicle:', self.__route.vehicle.id, 'current stop:', self.__route.current_stop.location.label)
-        # print('Passengers to board:', [trip.id for trip in passengers_to_board_copy])
         passengers_ready = [trip for trip in passengers_to_board_copy
                             if trip.status == PassengersStatus.READY]
 
@@ -200,7 +198,7 @@ class VehicleArrival(ActionEvent):
         if len(passengers_to_alight_copy) == 0:
             logger.info('Vehicle Arrival: No passengers to alight. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id, self.__route.vehicle.status))
             VehicleWaiting(self.__route, self.queue).add_to_queue()
-            optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+            # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
         
         if len(self.__route.next_stops) == 0 \
                 and not self.__route.vehicle.reusable:
@@ -276,15 +274,13 @@ class VehicleNotification(Event):
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.modified_assigned_legs)
             if self.__bus: #only onboard legs that have to get off at the skipped stop and legs that have to board at the skipped stop have changed.
-                # self.__route.onboard_legs[:] = [l for l in self.__route.onboard_legs if l.id not in [leg.id for leg in actual_modified_assigned_legs]]
-                need_to_optimize = False
                 for leg in actual_modified_assigned_legs:
-                    #Check if onboard leg
+                    # Case 1: Onboard leg that was changed due to a skip-stop tactic (change of alighting stop)
                     onboard_leg_to_remove = next((l for l in self.__route.onboard_legs if l.id == leg.id), None)
                     if onboard_leg_to_remove is not None:
                         self.__route.onboard_legs.remove(onboard_leg_to_remove)
                         self.__route.onboard_legs.append(leg)
-                    #check if assigned leg
+                    # Case 2: Assigned leg that was unassigned due to a skip-stop tactic (impossible to board at the skipped stop)
                     assigned_leg_to_remove = next((l for l in self.__route.assigned_legs if l.id == leg.id), None)
                     if assigned_leg_to_remove is not None:
                         self.__route.assigned_legs.remove(assigned_leg_to_remove)
@@ -292,10 +288,10 @@ class VehicleNotification(Event):
                         self.__env.remove_assigned_trip(assigned_leg_to_remove.trip.id)
                         self.__env.add_non_assigned_trip(leg.trip)
                         need_to_optimize = True
+                    # Case 3: A leg that was unassigned before optimization and is now assigned
                     if assigned_leg_to_remove is None and onboard_leg_to_remove is None:
-                        logger.warning('Leg {} not found in onboard or assigned legs'.format(leg.id))
-                if need_to_optimize:
-                    optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
+                        self.__route.assigned_legs.append(leg)
+                        logger.info('Leg {} not found in onboard or assigned legs'.format(leg.id))
             else:
                 for leg in actual_modified_assigned_legs:
                     if leg not in self.__route.assigned_legs:

@@ -126,13 +126,9 @@ class State:
 
     def __get_next_legs(self, trips):
         next_legs = []
-        # print('Getting next legs')
         for trip in trips:
-            # print(trip.id)
             if len(trip.next_legs) > 0:
-            # if trip.next_legs is not None and len(trip.next_legs) > 0:
                 next_legs.append(trip.next_legs[0])
-
         return next_legs
 
     def __move_stops_backward(self):

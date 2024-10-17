@@ -279,33 +279,52 @@ class FixedLineDispatcher(Dispatcher):
             if second_next_route is not None:
                 selected_routes.append(second_next_route)            
         return selected_next_legs, selected_routes
-    
-    def bus_optimize(self, selected_next_legs, selected_routes, current_time,
-                 state):
-        """Each selected next leg is assigned to the optimal route. The optimal
-        route is the one that has the earliest arrival time at destination
-        (i.e. leg.destination)."""
 
-        optimized_route_plans = []
-        for leg in selected_next_legs:
-            optimal_route = self.__find_optimal_route_for_leg(
-                leg, selected_routes, current_time)
-            if optimal_route is not None:
-                optimized_route_plan = OptimizedRoutePlan(optimal_route)
+    def process_optimized_bus_route_plans(self, optimized_route_plans, state):
+        """Create and modify the simulation objects that correspond to the
+        optimized route plans returned by the optimize method. In other words,
+        this method "translates" the results of optimization into the
+        "language" of the simulator.
 
-                # Use the current and next stops of the route.
-                optimized_route_plan.copy_route_stops()
+        Input:
+          -optimized_route_plans: List of objects of type OptimizedRoutePlan
+           that correspond to the results of the optimization.
+          -state: An object of type State that corresponds to a partial deep
+           copy of the environment.
+        Output:
+          -optimization_result: An object of type OptimizationResult that
+           consists essentially of a list of the modified trips, a list of
+           the modified vehicles and a copy of the (possibly modified) state.
+        """
 
-                optimized_route_plan.assign_leg(leg)
-                optimized_route_plans.append(optimized_route_plan)
-        return optimized_route_plans
+        modified_trips = []
+        modified_vehicles = []
+
+        for route_plan in optimized_route_plans:
+            self.__process_route_plan(route_plan)
+
+            trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
+            # print('Modified trips for Optimizations')
+            # for trip in route_plan.assigned_legs:
+            #     print('Trip ID: ', trip.id, 'is ASSIGNED to vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            # for trip in route_plan.already_onboard_legs:
+            #     print('Trip ID: ', trip.id, 'is ALREADY ON BOARD on vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            # for trip in route_plan.legs_to_remove:
+            #     print('Trip ID: ', trip.id, 'is to be REMOVED from vehicle: ', route_plan.route.vehicle.id, 'in Optimizations')
+            modified_trips.extend(trips)
+            modified_vehicles.append(route_plan.route.vehicle)
+
+        optimization_result = OptimizationResult(state, modified_trips,
+                                                 modified_vehicles)
+
+        return optimization_result
 
     def bus_dispatch(self, state, queue=None, main_line_id=None, next_main_line_id=None):
         """Decide tactics to use on main line after every departure from a bus stop.
         method relies on three other methods:
             1. prepare_input
             2. optimize
-            3. process_optimized_route_plans
+            3. process_optimized_bus_route_plans
         The optimize method must be overriden. The other two methods can be
         overriden to modify some specific behaviors of the dispatching process.
 
@@ -339,6 +358,9 @@ class FixedLineDispatcher(Dispatcher):
         if ss or sp or h_and_time[0]: #if any tactic is used, we need to update the route
             logger.info('We use the following tactics: skip-Stop {}, speedup = {}, hold and time {}'.format(ss, sp, h_and_time))
             input()
+            # Update the route in the state
+            state.route_by_vehicle_id[main_line_id] = updated_main_route
+            # Create the optimized route plan
             optimized_route_plan = OptimizedRoutePlan(updated_main_route)
             # Use the current and next stops of the route.
             optimized_route_plan.copy_route_stops()
@@ -349,50 +371,28 @@ class FixedLineDispatcher(Dispatcher):
                 for leg in updated_legs['boarding']:
                     optimized_route_plan.add_leg_to_remove(leg)
             optimized_route_plans.append(optimized_route_plan)
-            # Update the route in the state
-            state.route_by_vehicle_id[main_line_id] = updated_main_route
         
+        # Consider all unassigned passengers 
+        selected_next_legs, selected_routes = self.prepare_input(state)
+        if len(selected_next_legs) > 0 and len(selected_routes) > 0:
+            # The optimize method is called only if there is at least one leg
+            # and one route to optimize.
+            optimized_route_plans += self.optimize(selected_next_legs,
+                                                  selected_routes,
+                                                  state.current_time, state)
         ### Process OSO algorithm results
         if len(optimized_route_plans) > 0:
-            logger.info('processing optimized route plans for ss...')
-            optimization_result = self.process_optimized_route_plans(
+            logger.info('Processing optimized route plans...')
+            optimization_result = self.process_optimized_bus_route_plans(
                 optimized_route_plans, state)
         else:
-            logger.info('No tactics used, nothing to do...')
             optimization_result = OptimizationResult(state, [], [])
-
         return optimization_result
 
     def get_route_by_vehicle_id(self, state, vehicle_id):
         """Get the route object corresponding to the vehicle_id."""
         route = next(iter([route for route in state.route_by_vehicle_id.values() if route.vehicle.id == vehicle_id]), None)
         return route
-
-    # def OSO_algorithm(self, selected_next_legs, selected_routes, state):
-    #     """Online stochastic optimization algorithm for the bus dispatcher.
-    #     Inputs:
-    #         - selected_next_legs: list, the next legs that are assigned to the main line or onboard the main line.
-    #         - selected_routes: list, current and next routes on the main line as well as connecting bus lines.
-    #         - state: State object, the current state of the environment.
-        
-    #     Outputs:
-    #         - sp: boolean, the result of the OSO algorithm for the speedup tactic.
-    #         - ss: boolean, the result of the OSO algorithm for the skip-stop tactic.
-    #         - h_and_time: tuple, the result of the OSO algorithm for the hold tactic the corresponding end of hold time (hold for planned time or transfer, the output hold time is already treated in the OSO algorithm)"""
-
-    #     sp, ss, h_and_time =  self.OLD_OSO_algorithm( main_route, next_route, selected_next_legs, selected_routes, state)
-        
-    #     # ss, sp, h_and_time = self.OLD_OSO_algorithm(main_route, state)
-    #     sp = False
-    #     ss = False
-    #     next_stop=main_route.next_stops[0]
-    #     if next_stop is not None and str(next_stop.location.label) == '41391' and state.main_line == '2790970':
-    #         ss = True
-    #         input('on est la skip-stop implemented')
-    #     # next_stop_departure_time = main_route.next_stops[0].departure_time
-    #     # h_and_time = (True, next_stop_departure_time)
-    #     h_and_time = (False, -1)
-    #     return sp, ss, h_and_time
 
     def update_main_line(self, state, route, sp, ss, h_and_time, event_queue):
         """Update the main line route based on the OSO algorithm results.
@@ -451,7 +451,6 @@ class FixedLineDispatcher(Dispatcher):
                                             stop.min_departure_time)
             delta_time = new_departure_time - stop.departure_time
             stop.departure_time = new_departure_time
-        # print('Last stop id, arrival and departure time',route.next_stops[-1].location.label, route.next_stops[-1].arrival_time, route.next_stops[-1].departure_time)
         if ss: 
             logger.info('Skip-stop implemented at stop '+str(route.next_stops[0].location.label)+'...')
             #Add walking vehicle to the skipped stop
