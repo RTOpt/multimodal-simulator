@@ -27,7 +27,7 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
                        main_line=None):
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging_level)
-    logger.info(" Start simulation for small instance")
+    logger.info(" Start simulation for small instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
 
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.

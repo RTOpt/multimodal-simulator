@@ -18,7 +18,7 @@ class StreamToLogger:
 
 ## This file runs the Multimodal Simulator for the whole month of November 2019 day by day with real STL Data.
 if __name__ == '__main__':
-    small = True
+    small = False
     # the log level (at INFO, by default)
     logging_level = logging.INFO
     logger = logging.getLogger(__name__)
@@ -37,7 +37,12 @@ if __name__ == '__main__':
         output_folder_name = "gtfs-generated"
         coordinates_file_path = None
         freeze_interval = 1
-    
+    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-01-TestInstance")
+    requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
+    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstance")
+    output_folder_name = "gtfs2019-11-01-TestInstance"
+    coordinates_file_path = None
+    freeze_interval = 1
     # #Set up logging and error file
     # error_file = os.path.join(output_folder_path,"error.log")
     # logger_file = os.path.join(output_folder_path,"simulation.log")
@@ -63,9 +68,9 @@ if __name__ == '__main__':
 stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                 requests_file_path=requests_file_path,
                 coordinates_file_path=coordinates_file_path,
-                ss = False, # Allow the use of skip-stop tactics
-                sp = False, # Allow the use of speedup tactics
-                algo = 0, # 0: offline, 1: deterministic, 2: regret
+                ss = True, # Allow the use of skip-stop tactics
+                sp = True, # Allow the use of speedup tactics
+                algo = 1, # 0: offline, 1: deterministic, 2: regret
                 freeze_interval = freeze_interval,
                 output_folder_name = output_folder_name,
                 logger = logger,
