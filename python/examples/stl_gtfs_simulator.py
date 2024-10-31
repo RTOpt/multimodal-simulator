@@ -17,14 +17,14 @@ import json
 def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
                        requests_file_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small","requests.csv"),
                        coordinates_file_path=None,
+                       routes_to_optimize_names = [],
                        ss = False,
                        sp = False,
                        algo = 0,
                        freeze_interval=5,
                        output_folder_name="gtfs-generated-small",
                        logger=logging.getLogger(__name__),
-                       logging_level=logging.INFO,
-                       main_line=None):
+                       logging_level=logging.INFO):
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging_level)
     logger.info(" Start simulation for small instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
@@ -53,10 +53,11 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     splitter = MultimodalSplitter(g, available_connections=available_connections, freeze_interval=freeze_interval)
     dispatcher = FixedLineDispatcher(ss = ss,
                                      sp = sp,
-                                     algo = algo)
-    route_names = list(set([vehicle.route_name for vehicle in vehicles]))
+                                     algo = algo, 
+                                     routes_to_optimize_names = routes_to_optimize_names)
+    # route_names = list(set([vehicle.route_name for vehicle in vehicles]))
     Data = {}
-    for route_name in route_names: 
+    for route_name in routes_to_optimize_names: 
         logger.info("Getting and clustering data for route %s" % route_name)
         Data[route_name] = dispatcher.get_and_cluster_data(route_name = route_name)
     dispatcher.Data = Data
@@ -72,8 +73,7 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
                             vehicles,
                             routes_by_vehicle_id,
                             environment_observer=environment_observer,
-                            coordinates=coordinates,
-                            main_line=main_line)
+                            coordinates=coordinates)
 
     # Execute the simulation.
     simulation.simulate()

@@ -30,6 +30,7 @@ if __name__ == '__main__':
         output_folder_name = "gtfs-generated-small"
         coordinates_file_path = None
         freeze_interval = 1
+        routes_to_optimize_names = ['70E']
     else:
         gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs-generated")
         requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
@@ -37,12 +38,17 @@ if __name__ == '__main__':
         output_folder_name = "gtfs-generated"
         coordinates_file_path = None
         freeze_interval = 1
+        routes_to_optimize_names = ['70E'] #radial style network
+    
     gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-01-TestInstance")
     requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
     output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstance")
     output_folder_name = "gtfs2019-11-01-TestInstance"
     coordinates_file_path = None
     freeze_interval = 1
+    routes_to_optimize_names = ['70E', '31S', '37S', '39S', '33S'] #radial style network
+    # routes_to_optimize_names = ['24E', '17S', '151S', '56E', '42E'] # grid style network
+
     # #Set up logging and error file
     # error_file = os.path.join(output_folder_path,"error.log")
     # logger_file = os.path.join(output_folder_path,"simulation.log")
@@ -68,8 +74,9 @@ if __name__ == '__main__':
 stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                 requests_file_path=requests_file_path,
                 coordinates_file_path=coordinates_file_path,
-                ss = True, # Allow the use of skip-stop tactics
-                sp = True, # Allow the use of speedup tactics
+                routes_to_optimize_names = routes_to_optimize_names,
+                ss = False, # Allow the use of skip-stop tactics
+                sp = False, # Allow the use of speedup tactics
                 algo = 1, # 0: offline, 1: deterministic, 2: regret
                 freeze_interval = freeze_interval,
                 output_folder_name = output_folder_name,

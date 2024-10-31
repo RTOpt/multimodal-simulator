@@ -137,3 +137,6 @@ non_existent_trips.csv
 output/Model_Tactics.lp
 output/Model_Tactics.lp
 output/Model_Tactics.lp
+
+# Images
+python/examples/fixed_line/figures/

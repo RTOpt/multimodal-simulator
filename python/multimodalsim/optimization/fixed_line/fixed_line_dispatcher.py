@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class FixedLineDispatcher(Dispatcher):
 
-    def __init__(self, config=None, ss = False, sp = False, algo = 0):
+    def __init__(self, config=None, ss = False, sp = False, algo = 0, routes_to_optimize_names = []):
         super().__init__()
         self.__config = FixedLineDispatcherConfig() if config is None else config
         self.__algo = algo
@@ -38,6 +38,7 @@ class FixedLineDispatcher(Dispatcher):
         self.__CAPACITY = 80
         self.__Data = None
         self.__route_name = None
+        self.__routes_to_optimize_names = routes_to_optimize_names
 
     @property
     def algo(self):
@@ -94,6 +95,10 @@ class FixedLineDispatcher(Dispatcher):
     @route_name.setter
     def route_name(self, name):
         self.__route_name = name
+    
+    @property
+    def routes_to_optimize_names(self):
+        return self.__routes_to_optimize_names
     
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
@@ -576,7 +581,7 @@ class FixedLineDispatcher(Dispatcher):
         route = self.get_route_by_vehicle_id(state, state.main_line)
         logger.info('Main line is {}'.format(route.vehicle.id))
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
-        if (route is None or next_route is None) or (route.current_stop is not None) or len(route.next_stops) == 0:
+        if (self.route_name not in self.routes_to_optimize_names) or (route is None or next_route is None) or (route.current_stop is not None) or len(route.next_stops) == 0:
             logger.info("Main route bus is None = {}, Next bus on main route is None = {}, bus has not departed yet = {}, there are no next stops = {}".format(route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
             return(False, False, (False, -1))
         
@@ -749,6 +754,9 @@ class FixedLineDispatcher(Dispatcher):
                 potential_connecting_stops.append(stop)
         all_stops = list(set(all_stops))
 
+        #Get next vehicles
+        next_vehicles = state.next_vehicles
+
         # Get potential transfer routes: consider all routes, not just selected routes as we don't know in advance where passengers will transfer.
         all_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id != state.main_line and route.vehicle.id != state.next_main_line]
         
@@ -773,21 +781,27 @@ class FixedLineDispatcher(Dispatcher):
                     min_time = main_line_stop.arrival_time - time_to_prev
                     max_time = main_line_stop.departure_time + time_to_next
                     if stop.arrival_time > min_time and stop.arrival_time < max_time:
-                        if int(stop.location.label) not in transfer_stop_times:
-                            transfer_stop_times[int(stop.location.label)] = []
                         current_stop_arrival_time_estimation = self.get_arrival_time_estimation(route, stop, type_transfer_arrival_time)
                         interval = 1800 # default interval is 30 minutes
+                        next_route_id = next_vehicles[route.vehicle.id] if route.vehicle.id in next_vehicles else None
                         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
-                        next_route_stop = None
-                        if next_route.current_stop is not None and next_route.current_stop.location.label == stop.location.label:
-                            next_route_stop = next_route.current_stop
-                        elif next_route.next_stops is not None:
-                            next_route_stops = [stop for stop in next_route.next_stops if stop.location.label == stop.location.label]
-                            next_route_stop = next_route_stops[0] if len(next_route_stops) > 0 else None
-                        if next_route_stop is not None:
-                            next_route_stop_arrival_time_estimation = self.get_arrival_time_estimation(next_route, next_route_stop, type_transfer_arrival_time)
-                            interval = next_route_stop_arrival_time_estimation - current_stop_arrival_time_estimation
-                        transfer_stop_times[int(stop.location.label)].append((current_stop_arrival_time_estimation, route.vehicle.route_name, interval))
+                        if next_route_id is not None:
+                            next_route = self.get_route_by_vehicle_id(state, next_route_id)
+                            if next_route is None:
+                                logger.warning('Next route is None, but next vehicle id is {}'.format(next_route_id))
+                            next_route_stop = None
+                            if next_route is not None and next_route.current_stop is not None and next_route.current_stop.location.label == stop.location.label:
+                                next_route_stop = next_route.current_stop
+                            elif next_route is not None and next_route.next_stops is not None:
+                                next_route_stops = [stop for stop in next_route.next_stops if stop.location.label == stop.location.label]
+                                next_route_stop = next_route_stops[0] if len(next_route_stops) > 0 else None
+                            if next_route_stop is not None:
+                                next_route_stop_arrival_time_estimation = self.get_arrival_time_estimation(next_route, next_route_stop, type_transfer_arrival_time)
+                                interval = next_route_stop_arrival_time_estimation - current_stop_arrival_time_estimation
+                        if current_stop_arrival_time_estimation > 0 and interval > 0:
+                            if int(stop.location.label) not in transfer_stop_times:
+                                transfer_stop_times[int(stop.location.label)] = []
+                            transfer_stop_times[int(stop.location.label)].append((current_stop_arrival_time_estimation, route.vehicle.route_name, interval))
         return transfer_stop_times
     
     def get_arrival_time_estimation(self, route, stop, type_transfer_arrival_time):
@@ -1706,7 +1720,7 @@ class FixedLineDispatcher(Dispatcher):
         optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
-        # G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
+        G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
         max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     

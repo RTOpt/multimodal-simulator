@@ -990,8 +990,9 @@ class Graph:
             - display_flows: dict, the passenger flow on each edge, used in the display_graph function.
             - runtime: float, the runtime of the optimization model
         """
+        print('Converting graph to model format')
         V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = self.convert_graph_to_model_format()
-
+        print('Creating optimization model')
         m = Graph.create_opt_model_from_graph_with_mip(V, A, s, t, flows, ids, name,
                                                         bus_dict, 
                                                         savepath=savepath,
@@ -1004,6 +1005,7 @@ class Graph:
 
         #Solve
         runtime = timeit.default_timer()
+        print('Solving optimization model')
         m.optimize() 
         runtime = timeit.default_timer()-runtime
         gap = m.gap
@@ -1177,6 +1179,7 @@ class Graph:
         # print('First bus : ', order[0][1], ' Second bus: ', order[-1][1])
         # Create nodes and edges for each bus trip
         for (start_time, trip_id) in order:
+            print('Building graph for bus trip', trip_id)
 
             # Initialize dictionaries stocking data for the bus trip
             od_m_dict[trip_id] = []
@@ -1188,6 +1191,7 @@ class Graph:
             sources = G.add_source_node(sources, start_time, initial_flows[trip_id], trip_id, global_source_node)
 
             # Create transfer nodes and get transfer data
+            print('Creating transfer nodes and getting transfer data')
             transfer_nodes, transfer_passengers, od_d_dict, od_m, level = G.get_transfer_data(transfers,
                                                                                             stops_level,
                                                                                             stops_dist,
@@ -1195,6 +1199,7 @@ class Graph:
                                                                                             od_d_dict,
                                                                                             od_m)
 
+            print('Done creating transfer nodes and getting transfer data')
             # Decide last stop at which tactics are allowed
             last = Graph.get_last_stop(last_stop, level, stops_level)
 
@@ -1343,9 +1348,10 @@ class Graph:
                 else:
                     G.finalize_graph_for_current_bus_trip(stop_id, times, exo_current, last_exo, skips, global_target_node, targets, price, start_time, trip_id, order)
                 departs_prev = departs_current
-            if simu: 
+            if simu:
                 global_skip_stop_is_allowed = False
                 global_speedup_factor = 1
+        print('Graph built')
         return(G)
 
     @staticmethod
