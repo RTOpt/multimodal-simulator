@@ -23,6 +23,7 @@ class Simulation(object):
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
+                                 optimize_at_passenger_events = False
                                  )
         self.__env.next_vehicles = self.define_next_vehicles(routes_by_vehicle_id)
         self.__queue = EventQueue(self.__env)

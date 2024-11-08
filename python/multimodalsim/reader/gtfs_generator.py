@@ -336,31 +336,32 @@ class GTFSGenerator:
     
     def get_all_lines(self):
         dates=['2019-11-01', '2019-11-04', '2019-11-05', '2019-11-06', '2019-11-07', '2019-11-08', '2019-11-12', '2019-11-13', '2019-11-14', '2019-11-15', '2019-11-18', '2019-11-19', '2019-11-20', '2019-11-21', '2019-11-22', '2019-11-25']
-        all_ligns_SN=[]
-        all_ligns_EO=[]
+        all_ligns_SN = []
+        all_ligns_EO = []
         for date in dates:
-            date_folder=os.path.join("data", "fixed_line", "gtfs", "gtfs" + date.replace('-',''))
+            date_folder = os.path.join("data", "fixed_line", "gtfs", "gtfs" + date.replace('-',''))
             filename = os.path.join(date_folder, "stops_per_line.txt")
-            line_names=np.genfromtxt(filename, delimiter=",", usecols=[0], dtype=[('f0','U12')], names=True)
+            print('filename = ', filename)
+            line_names=np.genfromtxt(filename, delimiter = ",", usecols=[0], dtype = [('f0','U12')], names = True)
             for ligndir in line_names:
                 ligndir=str(ligndir[0])
-                poubelle, lign, dir=re.split(r'(\d+)', ligndir)
-                if dir=='S' or dir=='N': 
+                poubelle, lign, dir = re.split(r'(\d+)', ligndir)
+                if dir == 'S' or dir == 'N': 
                     all_ligns_SN.append(lign)
-                elif dir=='E' or dir=='O':
+                elif dir == 'E' or dir == 'O':
                     all_ligns_EO.append(lign)
         # Remove duplicates from both lists
-        all_ligns_SN=list(dict.fromkeys(all_ligns_SN))
-        all_ligns_EO=list(dict.fromkeys(all_ligns_EO))
+        all_ligns_SN = list(dict.fromkeys(all_ligns_SN))
+        all_ligns_EO = list(dict.fromkeys(all_ligns_EO))
 
-        to_delete= [('31','S'),('39','S'),('40','O'), ('313','S'), ('360','O'),('345','S'),('402','O'),('404','O'), ('12','E'), ('48','O'), ('50','O'),('58','O')]
+        to_delete = [('31','S'),('39','S'),('40','O'), ('313','S'), ('360','O'),('345','S'),('402','O'),('404','O'), ('12','E'), ('48','O'), ('50','O'),('58','O')]
         for lign, dir in to_delete: 
             if lign in all_ligns_EO: 
                 all_ligns_EO.remove(lign)
             if lign in all_ligns_SN: 
                 all_ligns_SN.remove(lign)
-        print('all_ligns_SN=',all_ligns_SN)
-        print('all_ligns_EO=',all_ligns_EO)
+        print('all_ligns_SN =',all_ligns_SN)
+        print('all_ligns_EO =',all_ligns_EO)
         return all_ligns_SN, all_ligns_EO
 
     def create_stops_per_line(self, date_folder):

@@ -358,7 +358,6 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         observations_sorted = observations_sorted[observations_sorted[status_col] != observations_sorted[status_col].shift(1)]
         # print(observations_sorted)
         ### group by id_col
-        observations_grouped_by_id = observations_sorted.groupby(id_col)
         observations_sorted["duration"] = observations_sorted[time_col]. \
             transform(lambda s: s.shift(-1) - s)
         ### if status is 'PassengersStatus.COMPLETE' the 'duration' should be equal to 0

@@ -35,7 +35,7 @@ class VehicleReady(Event):
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
-                                    event_priority=Event.HIGH_PRIORITY,
+                                    # event_priority=Event.HIGH_PRIORITY,
                                     main_line = self.__route.vehicle.id,
                                     next_main_line = env.next_vehicles[self.__route.vehicle.id]).add_to_queue()
 
@@ -155,7 +155,7 @@ class VehicleDeparture(ActionEvent):
         optimization_event.Optimize(env.current_time,
                                     self.queue,
                                     bus=True,
-                                    event_priority=Event.HIGH_PRIORITY,
+                                    # event_priority=Event.HIGH_PRIORITY,
                                     main_line = self.__route.vehicle.id,
                                     next_main_line = env.next_vehicles[self.__route.vehicle.id]).add_to_queue() ## reoptimize after all departures from main line stops
         
@@ -291,7 +291,6 @@ class VehicleNotification(Event):
                     # Case 3: A leg that was unassigned before optimization and is now assigned
                     if assigned_leg_to_remove is None and onboard_leg_to_remove is None:
                         self.__route.assigned_legs.append(leg)
-                        logger.info('Leg {} not found in onboard or assigned legs'.format(leg.id))
             else:
                 for leg in actual_modified_assigned_legs:
                     if leg not in self.__route.assigned_legs:

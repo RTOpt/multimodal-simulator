@@ -218,15 +218,21 @@ class Dispatcher:
                 boarding_stop = route.current_stop
 
         for stop in route.next_stops:
-            if leg.origin == stop.location and not boarding_stop_found:
-                boarding_stop_found = True
-                boarding_stop = stop
+            if leg.origin == stop.location:
+                if not boarding_stop_found:
+                    boarding_stop_found = True
+                    boarding_stop = stop
             elif leg.destination == stop.location and boarding_stop_found \
                     and not alighting_stop_found:
                 alighting_stop_found = True
                 alighting_stop = stop
         if not (boarding_stop_found and alighting_stop_found):
-            logger.warning("Trip {} could not be assigned to stops of route {}.".format(leg.trip.id, route.vehicle.id))
+            logger.warning("Boarding found {}, alighting found {}, Leg ({}, {}, {}) of Trip {} could not be assigned to stops of vehicle id {}. CAP vehicle is {}".format(boarding_stop_found,
+                                                                                                                               alighting_stop_found,
+                                                                                                                               leg.origin.label, leg.destination.label, leg.assigned_vehicle.id,
+                                                                                                                               leg.trip.id, 
+                                                                                                                               route.vehicle.id,  
+                                                                                                                               leg.cap_vehicle_id))
         else:
             self.__add_passenger_to_board(leg.trip, boarding_stop)
             self.__add_passenger_to_alight(leg.trip, alighting_stop)

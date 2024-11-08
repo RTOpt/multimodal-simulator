@@ -22,17 +22,17 @@ def generate_test_instance(date: str,
     - base_path: the base path where the GTFS files are stored
     """
 
-    # Filter GTFS files based on route_ids, H, and N
+    # Filter GTFS files based on route_ids, time and number of buses
     filter_gtfs_files(route_ids, start_time, nbr_buses_per_route_id, base_path, date)
 
     # Filter connections based on selected stop_ids
     output_path = os.path.join(base_path, f"{date}-TestInstance")
-    selected_stop_ids = pd.read_csv(os.path.join(output_path, "output_stops.txt"))['stop_id'].unique()
+    selected_stop_ids = pd.read_csv(os.path.join(output_path, "stops.txt"))['stop_id'].unique()
     input_path = os.path.join(base_path, date)
     filter_connections(input_path, output_path, selected_stop_ids)
 
     # Filter requests based on selected trip_ids
-    selected_trips = pd.read_csv(os.path.join(output_path, "output_trips.txt"))['trip_id'].unique()
+    selected_trips = pd.read_csv(os.path.join(output_path, "trips.txt"))['trip_id'].unique()
     filter_requests(date, selected_trips, base_path)
 
     print("Extraction complete. Output files generated:")
@@ -208,7 +208,7 @@ def filter_requests(date, selected_trip_ids, base_path=os.path.join(os.path.dirn
 if __name__ == "__main__":
     date = "2019-11-01"
     start_time = 20000
-    nbr_buses_per_route_id = 3
+    nbr_buses_per_route_id = 20
 
     #Define the route_ids to plot
     # Route ids for a quadrant style network

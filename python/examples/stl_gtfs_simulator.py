@@ -80,10 +80,14 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
 
     # Extract the simulation output
     output_folder_path = os.path.join("output","fixed_line","gtfs",output_folder_name)
-    output_folder_path = get_output_subfolder(output_folder_path, ss, sp)
+    output_folder_path = get_output_subfolder(output_folder_path, ss, sp, routes_to_optimize_names)
     extract_simulation_output(simulation, output_folder_path)
 
-def get_output_subfolder(output_folder_path, ss, sp):
+def get_output_subfolder(output_folder_path, ss, sp, routes_to_optimize_names):
+    if routes_to_optimize_names == []:
+        add = 'offline'
+        return os.path.join(output_folder_path, add)
+
     if ss and sp:
         add = 'SS_SP'
     elif ss:
