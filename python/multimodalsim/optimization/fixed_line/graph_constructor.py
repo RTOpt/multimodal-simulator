@@ -1016,8 +1016,11 @@ class Graph:
         #Solve
         runtime = timeit.default_timer()
         print('Solving optimization model')
-        m.optimize()
-        print(m.status)
+        try:
+            m.optimize()
+        except Exception as e:
+            print('Error in optimization model:', e)
+
         runtime = timeit.default_timer()-runtime
         gap = m.gap
         print('Optimality GAP = ',gap)
@@ -1026,7 +1029,7 @@ class Graph:
         # passenger_flows = {}
         bus_flows = {}
         display_flows = {}
-        indicator_flows = {}
+        # indicator_flows = {}
         for (u1,v1,i) in A:
             x = m.vars['x({},{},{})'.format(u1,v1,i)]
             y = m.vars['y({},{},{})'.format(u1,v1,i)]
@@ -1653,6 +1656,7 @@ class Graph:
         #Initialize model
         m = Model(solver_name="CBC")
         m.verbose = 2
+        m.solver_verbosity = 3
         m.presolve = 0
         m.store_search_progress_log = False
         m.seed = 42

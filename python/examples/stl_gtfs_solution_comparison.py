@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from stl_gtfs_simulator import get_output_subfolder
+import matplotlib.lines as mlines
 
 def analyze_simulations(simulation1_path, simulation2_path, relative_increase_threshold=1.5):
     # Load the two simulation data files
@@ -117,13 +119,188 @@ def plot_simulation_results(output_data, output_folder_path=None):
         plt.savefig(os.path.join(output_folder_path, name))
     return()
 
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import os
+
+def plot_single_line_comparisons(instance_name, line_name="70E", base_folder="output/fixed_line/gtfs"):
+    # Define base parameters for comparisons
+    base_params = (0, False, False, [line_name], True)  # Offline, smartcard data (baseline)
+    optimal_travel_paths_params = (0, False, False, [line_name], False)  # Optimal travel paths
+
+    # Define parameter sets for groups 3 to 6
+    algo_params = [
+        # Group 3: Algorithms with smartcard data, Hold only
+        (1, False, False, [line_name], True),  # Deterministic
+        (2, False, False, [line_name], True),  # Regret
+        (3, False, False, [line_name], True),  # Perfect Information
+
+        # Group 4: Algorithms with smartcard data, Hold and Speedup allowed
+        (1, False, True, [line_name], True),   # Deterministic
+        (2, False, True, [line_name], True),   # Regret
+        (3, False, True, [line_name], True),   # Perfect Information
+
+        # Group 5: Algorithms with smartcard data, Hold and Skip-Stop allowed
+        (1, True, False, [line_name], True),   # Deterministic
+        (2, True, False, [line_name], True),   # Regret
+        (3, True, False, [line_name], True),   # Perfect Information
+
+        # Group 6: Algorithms with smartcard data, Hold, Speedup and Skip-Stop allowed
+        (1, True, True, [line_name], True),    # Deterministic
+        (2, True, True, [line_name], True),    # Regret
+        (3, True, True, [line_name], True)     # Perfect Information
+    ]
+
+    # Prepare to collect output data for each comparison
+    output_folder_path = os.path.join(base_folder, instance_name)
+    baseline_folder = get_output_subfolder(output_folder_path, *base_params)
+    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
+    group_data = {}
+    missed_transfer_data = {}
+
+    # Ensure the baseline file exists
+    if not os.path.exists(baseline_file):
+        raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
+
+    # Optimal travel paths
+    optimal_travel_paths_folder = get_output_subfolder(output_folder_path, *optimal_travel_paths_params)
+    optimal_travel_paths_file = os.path.join(optimal_travel_paths_folder, "trips_details_observations_df.csv")
+
+    if os.path.exists(optimal_travel_paths_file):
+        output_data = analyze_simulations(baseline_file, optimal_travel_paths_file)
+        group_data["Optimal\ntravel paths"] = [time / 60 for time in output_data["travel_times_sim2"]]
+        missed_transfer_data["Optimal\ntravel paths"] = output_data["missed_transfer_percentage_sim2"]
+    else:
+        print(f"Warning: No results found for optimal travel paths in {optimal_travel_paths_folder}")
+
+    # Define consistent colors for each algorithm across groups
+    algorithm_colors = {
+        "Offline": "grey",
+        "Optimal\ntravel paths": "#f781bf",
+        "Deterministic": "#377eb8",
+        "Regret": "#4daf4a",
+        "Perfect Info": "#ff7f00"
+    }
+    mean_color = "black"
+    median_color = "black"
+    missed_transfers_color = "purple"
+    missed_transfers_marker = "o-"
+    missed_transfers_label = "Missed Transfers (%)"
+    fontsize = 16
+
+    # Initialize group_data with Offline baseline
+    output_data_baseline = analyze_simulations(baseline_file, baseline_file)
+    group_data["Offline"] = [time / 60 for time in output_data_baseline["travel_times_sim1"]]
+    missed_transfer_data["Offline"] = output_data_baseline["missed_transfer_percentage_sim1"]
+
+    # Define the labels for main groups
+    group_labels = ["Offline", "Optimal\ntravel paths", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
+    sub_labels = ["Deterministic", "Regret", "Perfect Info"]
+
+    # Generate comparisons for algo_params
+    for i, params in enumerate(algo_params):
+        sim_folder = get_output_subfolder(output_folder_path, *params)
+        sim_file = os.path.join(sim_folder, "trips_details_observations_df.csv")
+        if os.path.exists(sim_file):
+            output_data = analyze_simulations(baseline_file, sim_file)
+            group_index = 2 + i // 3  # Group index based on the 6 groups specified
+            key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
+            group_data[key] = [time / 60 for time in output_data["travel_times_sim2"]]
+            missed_transfer_data[key] = output_data["missed_transfer_percentage_sim2"]
+        else:
+            print(f"Warning: No results found for {params} in {sim_folder}")
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(14, 8))
+    ax2 = ax.twinx()  # Create secondary y-axis for missed transfer percentages
+    positions = []
+    data = []
+    group_ticks = []  # One tick per main group
+    color_map = []  # Track colors to apply to each box
+    group_tick_labels = []  # Track labels for main groups
+
+    # Prepare data for boxplot with spacing between groups
+    pos = 1
+    missed_transfer_percentages = []  # Track missed transfer percentage for each boxplot
+    for i, group in enumerate(group_labels):
+        if group in group_data:
+            data.append(group_data[group])
+            color_map.append(algorithm_colors.get(group, "#AEC6CF"))  # Default color if missing
+            positions.append(pos)
+            group_ticks.append(pos)  # Position for the x-tick label
+            group_tick_labels.append(group)
+            missed_transfer_percentages.append(missed_transfer_data.get(group, 0))
+            pos += 1
+        else:  # For groups with multiple sub-groups
+            group_ticks.append(pos + 1)
+            group_tick_labels.append(group)
+
+        # Sub-groups for algorithms
+        for j, sub_label in enumerate(sub_labels):
+            key = f"{group} {sub_label}"
+            if key in group_data:
+                data.append(group_data[key])
+                color_map.append(algorithm_colors[sub_label])  # Consistent color per algorithm
+                positions.append(pos)
+                missed_transfer_percentages.append(missed_transfer_data.get(key, 0))
+                pos += 1
+        pos += 1  # Add space between main groups
+
+    # Boxplot with custom colors, mean line, and labels
+    bp = ax.boxplot(data, positions=positions, patch_artist=True, showmeans=True,
+                    meanline=True, meanprops=dict(color=mean_color, linestyle='--', linewidth=2),
+                    medianprops=dict(color=median_color, linewidth=2))
+    
+    for patch, color in zip(bp['boxes'], color_map):  # Apply consistent colors
+        patch.set_facecolor(color)
+
+    # Plot missed transfer percentages as points on the secondary y-axis
+    ax2.plot(positions, missed_transfer_percentages, missed_transfers_marker, color=missed_transfers_color, label=missed_transfers_label)
+    ax2.set_ylabel("Missed Transfers (%)", fontsize=fontsize)
+    ax2.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=False, labelright=True, left=False, right=True)
+
+    # Add group x-ticks and remove individual sub-label x-ticks
+    ax.set_xticks(group_ticks)
+    ax.set_xticklabels(group_tick_labels, fontsize=16)
+
+    # Add legend for algorithm colors with bold font
+    legend_patches = [mlines.Line2D([0], [0], color=color, lw=6, label=label)
+                      for label, color in algorithm_colors.items() if label in sub_labels + ["Offline", "Optimal\ntravel paths"]]
+    
+    # Add mean, median, and missed transfer line entries to the legend
+    mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='--', linewidth=2, label='Mean')
+    median_line = mlines.Line2D([0], [0], color=median_color, linestyle='-', linewidth=2, label='Median')
+    missed_transfers_line = mlines.Line2D([0], [0], color=missed_transfers_color, lw=2, label=missed_transfers_label)
+    legend_patches.extend([mean_line, median_line, missed_transfers_line])
+
+    # Optimize legend position and style
+    ax.legend(handles=legend_patches, title="Algorithm", loc="best", fontsize=fontsize-2, title_fontsize=fontsize,
+             framealpha=0.9, shadow=True,)
+    
+    # Set primary y-axis parameters
+    ax.set_title(f"Comparison of Passenger Travel Times for {line_name}", fontsize=fontsize, fontweight='bold')
+    ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
+    ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
+
+    plt.tight_layout()
+    figure_name = f"{line_name}_travel_time_comparison.png"
+    plt.savefig(os.path.join(base_folder, instance_name, figure_name))
+    plt.show()
+
+
 # Example Usage
 if __name__ == "__main__":
-    # Run analysis on two simulations
-    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstance",)
-    path_to_simulation2 = os.path.join(output_folder_path,'H', 'trips_details_observations_df.csv')
-    path_to_simulation1 = os.path.join(output_folder_path,'offline', 'trips_details_observations_df.csv')
-    output_data = analyze_simulations(path_to_simulation1, path_to_simulation2)
+    # # Run analysis on two simulations
+    # output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstance",)
+    # path_to_simulation2 = os.path.join(output_folder_path,'H', 'trips_details_observations_df.csv')
+    # path_to_simulation1 = os.path.join(output_folder_path,'offline', 'trips_details_observations_df.csv')
+    # output_data = analyze_simulations(path_to_simulation1, path_to_simulation2)
     
-    # Plot the results
-    plot_simulation_results(output_data, output_folder_path)
+    # # Plot the results
+    # plot_simulation_results(output_data, output_folder_path)
+
+    # Define the test instance name
+    instance_name = "gtfs2019-11-01-TestInstance"
+
+    # Run the function to compare and plot passenger travel times across different parameters for line 70E
+    plot_single_line_comparisons(instance_name, line_name = "70E")

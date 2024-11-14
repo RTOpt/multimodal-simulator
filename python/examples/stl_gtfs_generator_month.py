@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 ### This file also generates the requests and available connections for the whole month of November 2019 day by day
 if __name__ == '__main__':
     # #Laura: Import STL files (personal)
-    # #Source file
+    # #Source file (replace with your own path)
     path = r"D:\donnees\Donnees_PASSAGE_ARRET_VLV_2019-11-01_2019-11-30.csv"
     passage_arret_file_path_list = [path]
     #Destination folder
@@ -20,28 +20,29 @@ if __name__ == '__main__':
 
     #Generate GTFS files (do once)
     gtfs_generator = GTFSGenerator()
-    # logger.info("build_calendar_dates")
-    # gtfs_generator.build_calendar_dates(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
-    # logger.info("build_trips")
-    # gtfs_generator.build_trips(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
-    # logger.info("build_stops")
-    # gtfs_generator.build_stops(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
-    # logger.info("build_stop_times")
-    # gtfs_generator.build_stop_times(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=False)
-    # logger.info("build_stop_times_upgrade")
-    # gtfs_generator.build_stop_times_upgrade(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=True)
+    logger.info("build_calendar_dates")
+    gtfs_generator.build_calendar_dates(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
+    logger.info("build_trips")
+    gtfs_generator.build_trips(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
+    logger.info("build_stops")
+    gtfs_generator.build_stops(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder)
+    logger.info("build_stop_times")
+    gtfs_generator.build_stop_times(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=False)
+    logger.info("build_stop_times_upgrade")
+    gtfs_generator.build_stop_times_upgrade(passage_arret_file_path_list=passage_arret_file_path_list, gtfs_folder=gtfs_folder, shape_dist_traveled=True)
     logger.info("Done importing GTFS files")
 
     # #Split large .csv file into daily files (do once)
-    # logger.info("Split large .csv file into daily files")
-    # passage_arret_df = pd.read_csv(r"D:\donnees\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30.csv", delimiter = ',')
-    # new_cap_folder = cap_filepath = os.path.join("D:","donnees","New donnees")
-    # dates_list = passage_arret_df['DATE28'].unique()
-    # for date in dates_list:
-    #     trips_day_df = passage_arret_df[
-    #         passage_arret_df['DATE28'] == date].drop('DATE28', axis=1)
-    #     cap_filename = date.split(" ")[0].replace("-", "") + ".csv"
-    #     trips_day_df.to_csv(os.path.join(new_cap_folder, cap_filename), index = None, sep = ';')
+    logger.info("Split large .csv file into daily files")
+    # #Source file (replace with your own path)
+    passage_arret_df = pd.read_csv(r"D:\donnees\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30\Donnees_CAP_GFI_SPOT_2019-11-01_2019-11-30.csv", delimiter = ',')
+    new_cap_folder = cap_filepath = os.path.join("D:","donnees","New donnees")
+    dates_list = passage_arret_df['DATE28'].unique()
+    for date in dates_list:
+        trips_day_df = passage_arret_df[
+            passage_arret_df['DATE28'] == date].drop('DATE28', axis=1)
+        cap_filename = date.split(" ")[0].replace("-", "") + ".csv"
+        trips_day_df.to_csv(os.path.join(new_cap_folder, cap_filename), index = None, sep = ';')
     
     all_lines_SN, all_lines_EO = gtfs_generator.get_all_lines()      
     # Extract available connections from CAP Data (do once)
