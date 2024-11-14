@@ -227,7 +227,7 @@ class Dispatcher:
                 alighting_stop_found = True
                 alighting_stop = stop
         if not (boarding_stop_found and alighting_stop_found):
-            logger.warning("Boarding found {}, alighting found {}, Leg ({}, {}, {}) of Trip {} could not be assigned to stops of vehicle id {}. CAP vehicle is {}".format(boarding_stop_found,
+            logger.warning("Boarding found {}, alighting found {}, Leg ({}, {}, {}) of Trip {} could not be assigned to stops of vehicle id {}. Smartcard vehicle is {}".format(boarding_stop_found,
                                                                                                                                alighting_stop_found,
                                                                                                                                leg.origin.label, leg.destination.label, leg.assigned_vehicle.id,
                                                                                                                                leg.trip.id, 

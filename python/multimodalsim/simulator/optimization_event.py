@@ -40,7 +40,6 @@ class Optimize(ActionEvent):
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
             with env.optimize_cv:
-                logger.info("Optimize is waiting...")
                 env.optimize_cv.wait()
             self.add_to_queue()
             process_message = 'Optimize process is put back in the event queue'
@@ -179,24 +178,23 @@ class EnvironmentUpdate(ActionEvent):
     def _process(self, env):
         if self.__bus:
             for trip in self.__optimization_result.modified_requests:
+                if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                    print('Udpating chosen trip')
                 env.update_changed_assigned_trips(trip.id, trip)
-            for trip in [trip for trip in self.__optimization_result.modified_requests if trip.id in env.non_assigned_trips]:
-                next_legs = trip.next_legs
-                next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
-                current_leg = trip.current_leg
-                passenger_update = request.PassengerUpdate(
-                    next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
-                passenger_event_process.PassengerAssignment(
-                    passenger_update, self.queue).add_to_queue()
-        else: 
-            for trip in self.__optimization_result.modified_requests:
-                next_legs = trip.next_legs
-                next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
-                current_leg = trip.current_leg
-                passenger_update = request.PassengerUpdate(
-                    next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
-                passenger_event_process.PassengerAssignment(
-                    passenger_update, self.queue).add_to_queue()
+        print('Trips for update: {}'.format([trip.id for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]))
+        for trip in [trip for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]:
+            next_legs = trip.next_legs
+            next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
+            current_leg = trip.current_leg
+            if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                print('PassengerUpdate for chosen trip...')
+                if current_leg:
+                    print('Current leg: ({}, {}, {})'.format(current_leg.origin.label, current_leg.destination.label, current_leg.assigne_vehicle.id))
+                print('Next leg: ({}, {},{})'.format(trip.next_legs[0].origin.label, trip.next_legs[0].destination.label, next_leg_assigned_vehicle_id))
+            passenger_update = request.PassengerUpdate(
+                next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
+            passenger_event_process.PassengerAssignment(
+                passenger_update, self.queue).add_to_queue()
 
         for veh in self.__optimization_result.modified_vehicles:
             route = \

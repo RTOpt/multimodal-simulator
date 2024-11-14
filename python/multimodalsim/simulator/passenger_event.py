@@ -59,7 +59,8 @@ class PassengerAssignment(ActionEvent):
 
         env.remove_non_assigned_trip(self.__trip.id)
         env.add_assigned_trip(self.__trip)
-
+        if self.__trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                print('PassengerUpdate for chosen trip DONE...')
         PassengerReady(self.__trip, self.queue).add_to_queue()
 
         return 'Done processing Passenger Assignment'
@@ -80,6 +81,8 @@ class PassengerReady(ActionEvent):
                          max(trip.ready_time, queue.env.current_time),
                          state_machine=trip.state_machine,
                          event_priority=Event.HIGH_PRIORITY)
+        if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+            print('Adding passenger ready event for chosen trip at {}'.format(max (trip.ready_time, queue.env.current_time)))
         self.__trip = trip
 
     def _process(self, env):
@@ -97,6 +100,8 @@ class PassengerToBoard(ActionEvent):
         self.__trip.start_next_leg()
         self.__trip.current_leg.boarding_time = env.current_time
 
+        if self.__trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+            print('Boarding stop is reached for chosen trip, boarding at stop:', self.__trip.current_leg.origin.label)
         VehicleBoarded(self.__trip, self.queue).add_to_queue()
 
         return 'Done processing Passenger To Board process'
@@ -125,6 +130,9 @@ class PassengerAlighting(ActionEvent):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
             print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
+            if self.__trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                print('Alighting stop is reached for chosen trip, alighting at stop:', self.__trip.previous_legs[-1].destination.label)
+                print('Trip added to non_assigned_trips bis...')
 
             if env.optimize_at_passenger_events:
                 optimization_event_process.Optimize(

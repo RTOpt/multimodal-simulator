@@ -70,7 +70,7 @@ class Simulation(object):
                                          current_event.priority)
 
             process_event = current_event.process(self.__env)
-            logger.info("process_event: {}".format(process_event))
+            logger.info("Current time: {}, {}".format(self.__env.current_time, process_event))
             self.__collect_data(current_event, current_event.index,
                                 current_event.priority)
 

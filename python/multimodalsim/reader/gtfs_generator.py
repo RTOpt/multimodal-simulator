@@ -339,7 +339,7 @@ class GTFSGenerator:
         all_ligns_SN = []
         all_ligns_EO = []
         for date in dates:
-            date_folder = os.path.join("data", "fixed_line", "gtfs", "gtfs" + date.replace('-',''))
+            date_folder = os.path.join("data", "fixed_line", "gtfs", "gtfs" + date)
             filename = os.path.join(date_folder, "stops_per_line.txt")
             print('filename = ', filename)
             line_names=np.genfromtxt(filename, delimiter = ",", usecols=[0], dtype = [('f0','U12')], names = True)
@@ -793,6 +793,7 @@ class GTFSGenerator:
 
         passage_arret_df_list = []
         for passage_arret_file_path in self.__passage_arret_file_path_list:
+            print(passage_arret_file_path)
             passage_arret_df_temp = pd.read_csv(passage_arret_file_path,
                                                 usecols=columns_type_dict.keys(),
                                                 delimiter=",",

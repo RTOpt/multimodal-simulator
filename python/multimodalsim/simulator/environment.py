@@ -97,19 +97,24 @@ class Environment(object):
 
     def update_changed_assigned_trips(self, trip_id, new_trip):
         """ Updates the trip in the trips list.
-            This function updates the trips that were modified during bus_optimize to accomodate a skip-stop tactic, if any.
-            We only update skip-stop trips as the other trips were not modified."""
+            This function updates the trips that were modified during bus_optimize."""
         old_trip = self.get_trip_by_id(trip_id)
         if old_trip is not None:
             self.remove_trip(trip_id)
             self.add_trip(new_trip)
-            # if old_trip in self.non_assigned_trips:
-            #     self.remove_non_assigned_trip(trip_id)
-            #     self.add_non_assigned_trip(new_trip)
+            if old_trip in self.non_assigned_trips:
+                if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                    print('Chosen leg in non_assigned_trips')
+                self.remove_non_assigned_trip(trip_id)
+                self.add_non_assigned_trip(new_trip)
             if old_trip in self.assigned_trips:
+                if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                    print('Chosen leg in assigned_trips')
                 self.remove_assigned_trip(trip_id)
                 self.add_assigned_trip(new_trip)
         else:
+            if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+                    print('Chosen leg not found in environment')
             logger.warning("Trip with id {} not found in the environment."
                            .format(trip_id))
             #Add trip to the environment

@@ -34,7 +34,7 @@ class OneLegSplitter(Splitter):
 class MultimodalSplitter(Splitter):
 
     def __init__(self, network_graph, available_connections=None,
-                 freeze_interval=5):
+                 freeze_interval=5, is_from_smartcard_data = False):
         super().__init__()
         self.__network_graph = network_graph
         self.__available_connections = available_connections \
@@ -42,13 +42,21 @@ class MultimodalSplitter(Splitter):
         self.__freeze_interval = freeze_interval
         self.__trip = None
         self.__state = None
+        self.__is_from_smartcard_data = is_from_smartcard_data
     
     @property
     def available_connections(self):
         return self.__available_connections
+    
+    @property
+    def is_from_smartcard_data(self):
+        return self.__is_from_smartcard_data
 
     def split(self, trip, state):
-
+        
+        if self.is_from_smartcard_data:
+            return trip.next_legs
+        
         self.__state = state
         self.__trip = trip
         optimal_legs = []
@@ -72,7 +80,11 @@ class MultimodalSplitter(Splitter):
         potential_source_nodes = []
         for node in self.__network_graph.nodes():
             if node[0] == trip.origin.label and node[3] >= trip.ready_time:
-                potential_source_nodes.append(node)
+                if self.is_from_smartcard_data:
+                    if node[1] == trip.next_legs[0].cap_vehicle_id:
+                        potential_source_nodes.append(node)
+                else: 
+                    potential_source_nodes.append(node)
 
         return potential_source_nodes
 
@@ -80,7 +92,11 @@ class MultimodalSplitter(Splitter):
         potential_target_nodes = []
         for node in self.__network_graph.nodes():
             if node[0] == trip.destination.label and node[2] <= trip.due_time:
-                potential_target_nodes.append(node)
+                if self.is_from_smartcard_data:
+                    if node[1] == trip.next_legs[-1].cap_vehicle_id:
+                        potential_target_nodes.append(node)
+                else:
+                    potential_target_nodes.append(node)
 
         return potential_target_nodes
 
@@ -127,7 +143,7 @@ class MultimodalSplitter(Splitter):
                           self.__trip.nb_passengers, self.__trip.release_time,
                           self.__trip.ready_time, self.__trip.due_time,
                           self.__trip)
-                leg.set_cap_vehicle_id(node[1])
+                leg.set_cap_vehicle_id(leg_vehicle_id)
                 legs.append(leg)
 
                 leg_vehicle_id = node[1]
@@ -164,3 +180,4 @@ class MultimodalSplitter(Splitter):
                 filtered_legs.append(leg)
 
         return filtered_legs
+    

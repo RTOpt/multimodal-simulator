@@ -34,7 +34,7 @@ class VehicleReady(Event):
         env.add_route(self.__route, self.__vehicle.id)
         optimization_event.Optimize(env.current_time,
                                     self.queue,
-                                    bus=True,
+                                    bus = True,
                                     # event_priority=Event.HIGH_PRIORITY,
                                     main_line = self.__route.vehicle.id,
                                     next_main_line = env.next_vehicles[self.__route.vehicle.id]).add_to_queue()
@@ -186,9 +186,14 @@ class VehicleArrival(ActionEvent):
 
         self.__route.arrive()
 
+        if len(self.__route.next_stops) == 0 \
+                and not self.__route.vehicle.reusable:
+            logger.info('Vehicle Arrival: No next stops for now. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id,self.__route.vehicle.status))
+            VehicleComplete(self.__route, self.queue,
+                            self.queue.env.current_time).add_to_queue(forced_insertion=True)
+            
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
-
         for trip in passengers_to_alight_copy:
             if trip.current_leg in self.__route.onboard_legs:
                 self.__route.initiate_alighting(trip)
@@ -198,13 +203,6 @@ class VehicleArrival(ActionEvent):
         if len(passengers_to_alight_copy) == 0:
             logger.info('Vehicle Arrival: No passengers to alight. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id, self.__route.vehicle.status))
             VehicleWaiting(self.__route, self.queue).add_to_queue()
-            # optimization_event.Optimize(env.current_time, self.queue).add_to_queue()
-        
-        if len(self.__route.next_stops) == 0 \
-                and not self.__route.vehicle.reusable:
-            logger.info('Vehicle Arrival: No next stops for now. Vehicle id: {}, Vehicle status: {}'.format(self.__route.vehicle.id,self.__route.vehicle.status))
-            VehicleComplete(self.__route, self.queue,
-                            self.queue.env.current_time).add_to_queue()
 
         return 'Done processing Vehicle Arrival process'
 
@@ -300,7 +298,7 @@ class VehicleNotification(Event):
         if env.coordinates is not None:
             self.__vehicle.polylines = \
                 env.coordinates.update_polylines(self.__route)
-        return 'Done processing Notify Vehicle process'
+        return 'Notify Vehicle process is implemented'
 
     def __update_stop_with_actual_trips(self, stop):
         stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(

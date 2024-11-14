@@ -47,6 +47,8 @@ class FixedLineDispatcherConfig(Config):
             name = 'deterministic'
         elif algo == 0:
             name = 'offline'
+        elif algo == 3:
+            name = 'perfectinformation'
         algo_parameters = {
             "type_headway": int(self._config_parser[name]["type_headway"]), #always known beforehand
             "type_dwell": int(self._config_parser[name]["type_dwell"]),

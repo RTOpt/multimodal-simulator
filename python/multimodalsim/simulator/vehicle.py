@@ -312,7 +312,9 @@ class Route(object):
     def route_skip_stop(self):
         """Skip the next stop on the route."""
         if len(self.__next_stops)>1:
+            skipped_stop = self.__next_stops[0]
             self.__next_stops = self.__next_stops[1:]
+            self.previous_stops.append(skipped_stop)
 
     def get_next_route_stops(self, last_stop_id):
         """Get the next stops on the route until you reach the last stop id.

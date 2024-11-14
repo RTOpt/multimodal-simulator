@@ -1012,12 +1012,12 @@ class Graph:
                                                         sources=sources,
                                                         puits=puits,
                                                         extras=extras)
-        m.store_search_progress_log = False
 
         #Solve
         runtime = timeit.default_timer()
         print('Solving optimization model')
-        m.optimize() 
+        m.optimize()
+        print(m.status)
         runtime = timeit.default_timer()-runtime
         gap = m.gap
         print('Optimality GAP = ',gap)
@@ -1654,6 +1654,8 @@ class Graph:
         m = Model(solver_name="CBC")
         m.verbose = 2
         m.presolve = 0
+        m.store_search_progress_log = False
+        m.seed = 42
         
         #Initialize Variables
         x = {(u,v,i): m.add_var(name='x({},{},{})'.format(u,v,i), var_type = INTEGER, lb=0, ub=100) for (u,v,i) in A}
@@ -1816,8 +1818,8 @@ class Graph:
 
         #write model 
         # completename = os.path.join(savepath,name+'.lp')
-        completename = os.path.join('output','Model_Tactics.lp')
-        m.write(completename)
+        # completename = os.path.join('output','Model_Tactics.lp')
+        # m.write(completename)
         return(m)
 
     @staticmethod
