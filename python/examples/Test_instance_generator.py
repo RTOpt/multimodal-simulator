@@ -4,7 +4,8 @@ import os
 import json
 import ast
 
-def generate_duration_test_instance(date: str,
+def generate_duration_test_instance(name : str,
+                                    date: str,
                                     start_time : int = 20000,
                                     duration : int = 7200,
                                     base_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'fixed_line', 'gtfs')):
@@ -21,19 +22,19 @@ def generate_duration_test_instance(date: str,
     """
 
     # Filter GTFS files based on start_time and duration
-    filter_gtfs_files_duration(start_time, duration, base_path, date)
+    filter_gtfs_files_duration(start_time, duration, base_path, date, name)
 
     # Filter connections based on selected stop_ids
-    output_path = os.path.join(base_path, f"{date}-TestInstanceDuration")
+    output_path = os.path.join(base_path, f"{date}-{name}")
     selected_stop_ids = pd.read_csv(os.path.join(output_path, "stops.txt"))['stop_id'].unique()
     input_path = os.path.join(base_path, date)
     filter_connections(input_path, output_path, selected_stop_ids)
 
     # Filter requests based on selected trip_ids
     selected_trips = pd.read_csv(os.path.join(output_path, "trips.txt"))['trip_id'].unique()
-    filter_requests(date, selected_trips,"TestInstanceDuration", base_path)
+    filter_requests(date, selected_trips, name, base_path)
 
-    print("Extraction complete. Output files generated for TestInstanceDuration.")
+    print("Extraction complete. Output files generated for test instance with duration")
 
 def generate_test_instance(date: str,
                             route_ids,
@@ -71,7 +72,8 @@ def generate_test_instance(date: str,
 def filter_gtfs_files_duration(start_time : int,
                                duration : int,
                                base_path : str,
-                               date):
+                               date,
+                               name : str = "TestInstanceDuration"):
     """
     Filter GTFS files based on the selected start_time and duration.
     The filtered files are saved in a new directory named "{date}-TestInstanceDuration"
@@ -111,7 +113,7 @@ def filter_gtfs_files_duration(start_time : int,
     final_stops_df = stops_df[stops_df['stop_id'].isin(selected_stop_ids)]
 
     # Create output directory
-    output_path = os.path.join(base_path, f"{date}-TestInstanceDuration")
+    output_path = os.path.join(base_path, f"{date}-{name}")
     os.makedirs(output_path, exist_ok = True)
 
     # Save output files
@@ -221,7 +223,7 @@ def filter_connections(input_path, output_path, selected_stop_ids):
     with open(output_connections_path, 'w') as f:
         json.dump(filtered_connections, f, indent=4)
 
-def filter_requests(date, selected_trip_ids, instance_name, base_path=os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'fixed_line', 'gtfs')):
+def filter_requests(date, selected_trip_ids, name, base_path=os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'fixed_line', 'gtfs')):
     """
     Filter requests.csv based on the selected bus trip_ids.
     The filtered requests are saved in a new filtered_requests.csv file.
@@ -229,10 +231,8 @@ def filter_requests(date, selected_trip_ids, instance_name, base_path=os.path.jo
     Inputs:
     - date: the date for which to generate the test instance (format: "YYYY-MM-DD")
     - selected_trip_ids: a list of selected bus trip_ids to keep in the requests
+    - name: the name of the test instance
     - base_path: the base path where the GTFS files are stored
-
-    Outputs:
-    - filtered_requests.csv: a new CSV file containing the filtered requests
     """
     # Load input files
     input_path = os.path.join(base_path, date)
@@ -272,7 +272,7 @@ def filter_requests(date, selected_trip_ids, instance_name, base_path=os.path.jo
     filtered_requests_df = pd.DataFrame(filtered_requests)
 
     # Create output directory
-    output_path = os.path.join(base_path, f"{date}-"+instance_name)
+    output_path = os.path.join(base_path, f"{date}-{name}")
     print(output_path)
     os.makedirs(output_path, exist_ok=True)
 
@@ -285,14 +285,14 @@ def filter_requests(date, selected_trip_ids, instance_name, base_path=os.path.jo
 
 if __name__ == "__main__":
     date = "2019-11-01"
-    start_time = 28800  # 8:00
+    start_time = 57600 # 4:00 PM
     nbr_buses_per_route_id = 3
 
     #Define the route_ids to plot
-    # # Route ids for a quadrant style network
-    # route_ids = ['24E', '17S', '151S', '56E', '42E']
+    # Route ids for a quadrant style network
+    route_ids = ['24E', '17S', '151S', '56E', '42E']
     #Route ids for a radial style network
     # route_ids = ['70E', '31S', '37S', '39S', '33S']
     # generate_test_instance('gtfs'+date, route_ids, start_time, nbr_buses_per_route_id)
 
-    generate_duration_test_instance('gtfs'+date, start_time, 3600)  # 30 minutes
+    generate_duration_test_instance('TestInstanceDurationShort','gtfs'+date, start_time, 1200)  # 20 minutes
