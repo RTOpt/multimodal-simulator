@@ -260,19 +260,18 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
 
     #Set x and y ticks (longitude and latitude) for the map and their size
     ### x and y ticks should be space by 0.05 and rounded to the second decimal
-    ax.set_xticks(np.arange(lon_min, lon_max, 0.05))
-    ticks = np.arange(lon_min, lon_max, 0.05)
-    rounded_ticks = [round(tick, 2) for tick in ticks]
-    ax.set_xticklabels(rounded_ticks, fontsize = 10)
-    ax.set_yticks(np.arange(lat_min, lat_max, 0.05))
-    ticks = np.arange(lat_min, lat_max, 0.05)
-    rounded_ticks = [round(tick, 2) for tick in ticks]
-    ax.set_yticklabels(rounded_ticks, fontsize = 10)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
-    # Set axes labels and title
-    ax.set_xlabel('Longitude', fontsize = 12)
-    ax.set_ylabel('Latitude', fontsize = 12)
-
+    ### Add a scale bar to the map
+    ### The scale bar should be 1 km long
+    ### The scale bar should be located at the bottom right corner of the map
+    dist = 2/110.574
+    ax.plot([lon_max-2*dist, lon_max-1*dist], [lat_min + 0.01, lat_min + 0.01], color='black', linewidth = 2)
+    ### Add edges
+    ax.plot([lon_max-2*dist, lon_max-2*dist], [lat_min + 0.009, lat_min + 0.011], color='black', linewidth = 2)
+    ax.plot([lon_max-1*dist, lon_max-1*dist], [lat_min + 0.009, lat_min + 0.011], color='black', linewidth = 2)
+    ax.text(lon_max-1.5*dist, lat_min + 0.012, '2 km', fontsize=10, ha='center', color='black')
 
 
     # Set the title including route_ids and stops in Laval, Quebec

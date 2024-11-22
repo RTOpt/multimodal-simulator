@@ -295,4 +295,4 @@ if __name__ == "__main__":
     # route_ids = ['70E', '31S', '37S', '39S', '33S']
     # generate_test_instance('gtfs'+date, route_ids, start_time, nbr_buses_per_route_id)
 
-    generate_duration_test_instance('TestInstanceDurationShort','gtfs'+date, start_time, 1200)  # 20 minutes
+    generate_duration_test_instance('TestInstanceDurationCASPT','gtfs'+date, start_time, 300)  # 5 minutes
