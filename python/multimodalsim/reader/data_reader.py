@@ -309,6 +309,8 @@ class GTFSReader(DataReader):
                                   nb_passengers, release_time,
                                   ready_time, due_time, trip)
                         leg.set_cap_vehicle_id(cap_vehicle_id)
+                        route_name = self.__trip_route_dict[cap_vehicle_id]
+                        leg.set_route_name(route_name)
                         legs.append(leg)
                         leg_number += 1
                     trip.assign_legs(legs)

@@ -51,6 +51,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         self.__extract_requests_from_cap(formatted_cap_df)
         self.__format_requests(release_time_delta, ready_time_delta,
                                due_time_delta)
+        self.__get_first_possible_transfers_for_requests(time_limit=180)
 
         return self.__requests_df
 
@@ -153,6 +154,96 @@ class CAPRequestsGenerator(RequestsGenerator):
         self.__requests_df = self.__requests_df[columns]
 
         return self.__requests_df[columns]
+
+    def __get_first_possible_transfers_for_requests(self, time_limit = 180):
+        """ This functions considers requests with multiple legs (passengers with transfers) and evaluates if these could have been earlier.
+            If an earlier transfer is possible, the request is updated accordingly. All legs will be evaluated sequentially, and assigned to different vehicles if necessary.
+            The function will iterate over all requests until no more improvements are possible.
+            To evaluate this, the function takes into account the planned arrival time of the vehicle at the origin of the next leg and checks if any earlier vehicles could have been more beneficial.
+            The function will update sef.__requests_df accordingly.
+
+            Inputs:
+                time_limit: int, maximum time window to consider before the planned boarding time of the passenger."""
+        
+        ### First read the stop_times file
+        stop_times_df = pd.read_csv(self.__stop_times_file_path, delimiter=";")
+        stop_times_df["arrival_time"] = stop_times_df["arrival_time"].apply(int)
+        stop_times_df["departure_time"] = stop_times_df["departure_time"].apply(int)
+        stop_times_df["stop_id"] = stop_times_df["stop_id"].apply(int)
+        stop_times_df["trip_id"] = stop_times_df["trip_id"].apply(int)
+        stop_times_df["planned_arrival_time"] = stop_times_df["planned_arrival_time"].apply(int)
+
+        ### Create a dictionary with the stop times for each trip_id.
+        stop_times_grouped_by_trip = stop_times_df.groupby("trip_id")
+        stop_times_dict = stop_times_grouped_by_trip.apply(lambda x: list(zip(x["arrival_time"], x["departure_time"], x["stop_id"], x["planned_arrival_time"])))
+        stop_times_dict = stop_times_dict.to_dict()
+
+        ### To get route_id from trip_id we need to read the trips file
+        trips_df = pd.read_csv(self.__trips_file_path, delimiter=";")
+        trips_df["trip_id"] = trips_df["trip_id"].apply(int)
+        trips_df["route_id"] = trips_df["route_id"].apply(str)
+        ### Create a dictionary with the route_id for each trip_id
+        route_id_dict = dict(zip(trips_df["trip_id"], trips_df["route_id"]))      
+
+        ### Create a dictionary that for each route_id, and for each stop_id, contains a tuple with the
+        ### (arrival time, departure time, trip_id) for all trips that stop at that stop for this route.
+        passage_times_at_stops = {}
+        all_route_ids = trips_df["route_id"].unique()
+        for route_id in all_route_ids:
+            passage_times_at_stops[route_id] = {}
+        for trip_id in stop_times_dict.keys():
+            route_id = route_id_dict[trip_id]
+            for arrival_time, departure_time, stop_id, planned_arrival_time in stop_times_dict[trip_id]:
+                if stop_id not in passage_times_at_stops[route_id]:
+                    passage_times_at_stops[route_id][stop_id] = []
+                passage_times_at_stops[route_id][stop_id].append((arrival_time, departure_time, trip_id, planned_arrival_time))
+        for route_id in all_route_ids:
+            for stop_id in passage_times_at_stops[route_id].keys():
+                passage_times_at_stops[route_id][stop_id] = sorted(passage_times_at_stops[route_id][stop_id], key=lambda x: x[3])
+        
+        ### Read all requests
+        requests_df = self.__requests_df.copy()
+        ###For each request, check if there are earlier vehicles that could have been used.
+        ###If so, update the request accordingly.
+        ###The function will iterate over all requests until no more improvements are possible.
+        counter = 0
+        updated_resquests = {}
+        for request_id, request in requests_df.iterrows():
+            legs = request["legs"]
+            for i in range(1, len(legs)):
+                arrival_transfer_stop_id = legs[i-1][1]
+                first_trip_id = legs[i-1][2]
+                first_route_id = route_id_dict[first_trip_id]
+                departure_transfer_stop_id = legs[i][0]
+                second_trip_id = legs[i][2]
+                second_route_id = route_id_dict[second_trip_id]
+                ### Check the planned arrival time of the vehicle at the arrival_transfer_stop_id
+                if arrival_transfer_stop_id not in passage_times_at_stops[first_route_id]:
+                    continue
+                passage_times = passage_times_at_stops[first_route_id][arrival_transfer_stop_id]
+                arrival_at_transfer_tuple = next(((arrival_time, departure_time, trip_id, planned_arrival_time) for arrival_time, departure_time, trip_id, planned_arrival_time in passage_times if trip_id == first_trip_id), None)
+
+                ### Check the planned arrival time of the vehicle at the departure_transfer_stop_id
+                if departure_transfer_stop_id not in passage_times_at_stops[second_route_id] or arrival_at_transfer_tuple is None:
+                    continue
+                passage_times = passage_times_at_stops[second_route_id][departure_transfer_stop_id]
+                first_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[3] >= arrival_at_transfer_tuple[3] - time_limit), None)
+                original_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == second_trip_id), None)
+                if first_departure_from_transfer_tuple is None or original_departure_from_transfer_tuple is None:
+                    continue
+                new_planned_arrival_time = first_departure_from_transfer_tuple[3]
+                original_planned_arrival_time = original_departure_from_transfer_tuple[3]
+                if new_planned_arrival_time < original_planned_arrival_time:
+                    ### Update the leg 
+                    new_second_trip_id = first_departure_from_transfer_tuple[2]
+                    legs[i] = (legs[i][0], legs[i][1], new_second_trip_id)
+                    counter +=1
+            request["legs"] = legs
+            updated_resquests[request_id] = request
+        ### Update the requests_df
+        updated_requests_df = pd.DataFrame.from_dict(updated_resquests, orient="index")
+        self.__requests_df = updated_requests_df
+        print("Number of updated requests: ", counter)
 
 
 class CAPFormatter:

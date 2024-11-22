@@ -377,6 +377,7 @@ class Route(object):
         walk_ready_time = walking_route.vehicle.release_time
         walk_due_time = walking_route.vehicle.end_time+10
         walk_cap_vehicle_id = walking_route.vehicle.id
+        walk_route_name = walking_route.vehicle.route_name
         # replace the onboard legs with new legs with destination next_stop
         for leg in skipped_legs:
             leg_id = leg.id
@@ -388,12 +389,14 @@ class Route(object):
             due_time = leg.due_time
             trip = leg.trip
             cap_vehicle_id = leg.cap_vehicle_id
+            route_name = leg.route_name
             new_leg = request.Leg(leg_id, LabelLocation(origin),
                           LabelLocation(destination),
                           nb_passengers, release_time,
                           ready_time, due_time, trip)
             new_leg.assigned_vehicle = self.vehicle
             new_leg.set_cap_vehicle_id(cap_vehicle_id)
+            new_leg.set_route_name(route_name)
             self.onboard_legs.append(new_leg) # passengers onboard are automatically reassigned to their destination stop in __process_route_plan if they are in RoutePlan()
             new_legs['onboard'].append(new_leg)
 
@@ -412,6 +415,7 @@ class Route(object):
                            nb_passengers, walk_release_time,
                            walk_ready_time, walk_due_time, trip)
             walk_leg.set_cap_vehicle_id(walk_cap_vehicle_id)
+            walk_leg.set_route_name(walk_route_name)
             trip.next_legs = [walk_leg] + trip.next_legs
             new_legs['walk'].append(walk_leg)
         return skipped_legs, new_legs

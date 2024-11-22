@@ -140,44 +140,29 @@ class FixedLineDispatcher(Dispatcher):
         optimized_route_plans.append(optimized_route_plan)
         print('Number of routes in optimized route plans', len(optimized_route_plans))
         return optimized_route_plans
-    
-    def smartcard_optimize(self, selected_next_legs, selected_routes, current_time, queue):
+
+    def smartcard_optimize(self, selected_next_legs, selected_routes, state, queue):
         """Each selected next leg is assigned to the route the passenger boarded in the historical smartcard data."""
-        print('Current time is {}'.format(current_time))
+        current_time = state.current_time
         optimized_route_plans = []
         for leg in selected_next_legs:
-            if leg.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264_1':
-                print('Start of leg')
             cap_vehicle_id = leg.cap_vehicle_id
-            cap_route = next((route for route in selected_routes if route.vehicle.id == cap_vehicle_id), None)
-            if cap_route is not None: # The cap_route is initialized in the environment, else the passenger has to wait until the route is initialized.
-                if leg.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264_1':
-                    print('Current time is {}'.format(current_time))
-                    print('Stops in original smartcard vehicle')
-                    if cap_route.current_stop is not None:
-                        print(cap_route.current_stop.location.label)
-                    for stop in cap_route.next_stops:
-                        print(stop.location.label)
-                    print('Smartcard vehicle id: {}'.format(cap_vehicle_id))
-                    print('********')
-                if self.__find_smartcard_route_for_leg(leg, cap_route, current_time): # The cap_vehicle has not passed the origin stop yet, passenger can board.
-                    optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, cap_route, leg)
-                else: # The cap_vehicle has passed the origin stop, passenger has to wait for the next bus of the same line.
-                    next_vehicle_id = queue.env.next_vehicles[cap_vehicle_id]
-                    next_route = next((route for route in selected_routes if route.vehicle.id == next_vehicle_id), None)
-                    if (next_route is not None) and self.__find_smartcard_route_for_leg(leg, next_route, current_time):
-                        optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, next_route, leg)
-                        # Print stops in original vehicle 
-                        print('Stops in original smartcard vehicle')
-                        if cap_route.current_stop is not None:
-                            print(cap_route.current_stop.location.label)
-                        for stop in cap_route.next_stops:
-                            print(stop.location.label)
-                        print('********')
-                        print('Current time is {}'.format(current_time))
-                        print('Passenger has to wait for the next bus of the same line. Leg id {}, original smartcard vehicle id: {}, next vehicle id: {}'.format(leg.id, cap_vehicle_id, next_vehicle_id))
-            if leg.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264_1':
-                print('End of leg')
+            route_name = leg.route_name
+            if self.algo != 0:
+                smartcard_route = self.__find_optimal_route_for_leg(leg, [route for route in selected_routes if route.vehicle.route_name == route_name], current_time)
+                if smartcard_route is not None:
+                    optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, smartcard_route, leg)
+            else:
+                smartcard_route = next((route for route in selected_routes if route.vehicle.id == cap_vehicle_id), None)
+                if smartcard_route is not None: # The smartcard_route is initialized in the environment, else the passenger has to wait until the route is initialized.
+                    if self.__find_smartcard_route_for_leg(leg, smartcard_route, current_time): # The cap_vehicle has not passed the origin stop yet, passenger can board.
+                        optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, smartcard_route, leg)
+                    else: # The cap_vehicle has passed the origin stop, passenger has to wait for the next bus of the same line.
+                        next_vehicle_id = queue.env.next_vehicles[cap_vehicle_id]
+                        next_route = next((route for route in selected_routes if route.vehicle.id == next_vehicle_id), None)
+                        if (next_route is not None) and self.__find_smartcard_route_for_leg(leg, next_route, current_time):
+                            optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, next_route, leg)
+                            
         return optimized_route_plans
     
     def __find_optimal_route_for_leg(self, leg, selected_routes, current_time):
@@ -433,7 +418,7 @@ class FixedLineDispatcher(Dispatcher):
             # and one route to optimize.
             optimized_route_plans += self.smartcard_optimize(selected_next_legs,
                                                        selected_routes,
-                                                       state.current_time,
+                                                       state,
                                                        queue)
         ### Process OSO algorithm results
         if len(optimized_route_plans) > 0:
@@ -824,8 +809,6 @@ class FixedLineDispatcher(Dispatcher):
         all_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id != state.main_line and route.vehicle.id != state.next_main_line]
         
         # For each stop, note potential transfer routes and their arrival times.
-        min_time = stops[0].arrival_time - time_to_prev
-        max_time = stops[-1].departure_time + time_to_next
         transfer_stop_times = {}
         for route in all_routes:
             stops_to_test = []
@@ -850,8 +833,6 @@ class FixedLineDispatcher(Dispatcher):
                         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
                         if next_route_id is not None:
                             next_route = self.get_route_by_vehicle_id(state, next_route_id)
-                            # if next_route is None:
-                            #     logger.warning('Next route is None, but next vehicle id is {}'.format(next_route_id))
                             next_route_stop = None
                             if next_route is not None and next_route.current_stop is not None and next_route.current_stop.location.label == stop.location.label:
                                 next_route_stop = next_route.current_stop

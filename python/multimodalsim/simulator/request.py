@@ -98,6 +98,7 @@ class Leg(Request):
         self.__assigned_vehicle = None
         self.__trip = trip
         self.__cap_vehicle_id = None
+        self.__route_name = None
 
         self.__boarding_time = None
         self.__alighting_time = None
@@ -115,6 +116,8 @@ class Leg(Request):
         elif self.__cap_vehicle_id is None or self.__cap_vehicle_id != vehicle.id:
             logger.info("Leg did not have assigned cap vehicle id or it was different. Setting it to the vehicle id number {}".format(vehicle.id))
             self.__cap_vehicle_id = vehicle.id
+        if self.__route_name is None or (vehicle!= None and self.__route_name != vehicle.route_name):
+            self.__route_name = vehicle.route_name
     
     @property
     def cap_vehicle_id(self):
@@ -123,6 +126,13 @@ class Leg(Request):
     def set_cap_vehicle_id(self, vehicle_id):
         self.__cap_vehicle_id = vehicle_id
 
+    @property
+    def route_name(self):
+        return self.__route_name
+    
+    def set_route_name(self, route_name):
+        self.__route_name = route_name
+        
     @property
     def trip(self):
         return self.__trip

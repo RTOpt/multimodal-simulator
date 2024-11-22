@@ -80,11 +80,7 @@ class MultimodalSplitter(Splitter):
         potential_source_nodes = []
         for node in self.__network_graph.nodes():
             if node[0] == trip.origin.label and node[3] >= trip.ready_time:
-                if self.is_from_smartcard_data:
-                    if node[1] == trip.next_legs[0].cap_vehicle_id:
-                        potential_source_nodes.append(node)
-                else: 
-                    potential_source_nodes.append(node)
+                potential_source_nodes.append(node)
 
         return potential_source_nodes
 
@@ -92,11 +88,7 @@ class MultimodalSplitter(Splitter):
         potential_target_nodes = []
         for node in self.__network_graph.nodes():
             if node[0] == trip.destination.label and node[2] <= trip.due_time:
-                if self.is_from_smartcard_data:
-                    if node[1] == trip.next_legs[-1].cap_vehicle_id:
-                        potential_target_nodes.append(node)
-                else:
-                    potential_target_nodes.append(node)
+                potential_target_nodes.append(node)
 
         return potential_target_nodes
 
