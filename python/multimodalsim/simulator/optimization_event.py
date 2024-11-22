@@ -181,7 +181,7 @@ class EnvironmentUpdate(ActionEvent):
                 if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
                     print('Udpating chosen trip')
                 env.update_changed_assigned_trips(trip.id, trip)
-        print('Trips for update: {}'.format([trip.id for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]))
+        # print('Trips for update: {}'.format([trip.id for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]))
         for trip in [trip for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]:
             next_legs = trip.next_legs
             next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None

@@ -1001,9 +1001,9 @@ class Graph:
             - display_flows: dict, the passenger flow on each edge, used in the display_graph function.
             - runtime: float, the runtime of the optimization model
         """
-        print('Converting graph to model format')
+        # print('Converting graph to model format')
         V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = self.convert_graph_to_model_format()
-        print('Creating optimization model')
+        # print('Creating optimization model')
         m = Graph.create_opt_model_from_graph_with_mip(V, A, s, t, flows, ids, name,
                                                         bus_dict, 
                                                         savepath=savepath,
@@ -1015,7 +1015,7 @@ class Graph:
 
         #Solve
         runtime = timeit.default_timer()
-        print('Solving optimization model')
+        # print('Solving optimization model')
         try:
             m.optimize()
         except Exception as e:
@@ -1023,7 +1023,7 @@ class Graph:
 
         runtime = timeit.default_timer()-runtime
         gap = m.gap
-        print('Optimality GAP = ',gap)
+        # print('Optimality GAP = ',gap)
 
         #Get results 
         # passenger_flows = {}
@@ -1193,7 +1193,7 @@ class Graph:
         # print('First bus : ', order[0][1], ' Second bus: ', order[-1][1])
         # Create nodes and edges for each bus trip
         for (start_time, trip_id) in order:
-            print('Building graph for bus trip', trip_id)
+            # print('Building graph for bus trip', trip_id)
             if (start_time, trip_id) != order[0]:
                 with_tactics = False
             else:
@@ -1208,7 +1208,7 @@ class Graph:
             sources = G.add_source_node(sources, start_time, initial_flows[trip_id], trip_id, global_source_node)
 
             # Create transfer nodes and get transfer data
-            print('Creating transfer nodes and getting transfer data')
+            # print('Creating transfer nodes and getting transfer data')
             transfer_nodes, transfer_passengers, od_d_dict, od_m, level = G.get_transfer_data(transfers,
                                                                                             stops_level,
                                                                                             stops_dist,
@@ -1216,7 +1216,7 @@ class Graph:
                                                                                             od_d_dict,
                                                                                             od_m)
 
-            print('Done creating transfer nodes and getting transfer data')
+            # print('Done creating transfer nodes and getting transfer data')
             # Decide last stop at which tactics are allowed
             last = Graph.get_last_stop(last_stop, level, stops_level)
 
@@ -1295,7 +1295,7 @@ class Graph:
                     boarding_without_transfer = True
                     planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
                     if planned_departure_time in departs_current:
-                        print('Plannned departure time already in departs_current')
+                        # print('Plannned departure time already in departs_current')
                         planned_departure_node = departs_current[planned_departure_time]
                     else: 
                         planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id)
@@ -1371,7 +1371,7 @@ class Graph:
             if simu:
                 global_skip_stop_is_allowed = False
                 global_speedup_factor = 1
-        print('Graph built')
+        # print('Graph built')
         return(G)
 
     @staticmethod
@@ -1527,7 +1527,7 @@ class Graph:
                     boarding_without_transfer = True
                     planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
                     if planned_departure_time in departs_current:
-                        print('Plannned departure time already in departs_current')
+                        # print('Plannned departure time already in departs_current')
                         planned_departure_node = departs_current[planned_departure_time]
                     else:
                         planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id) 
@@ -1655,8 +1655,8 @@ class Graph:
         """
         #Initialize model
         m = Model(solver_name="CBC")
-        m.verbose = 2
-        m.solver_verbosity = 3
+        m.verbose = 0
+        m.solver_verbosity = 0
         m.presolve = 0
         m.store_search_progress_log = False
         m.seed = 42

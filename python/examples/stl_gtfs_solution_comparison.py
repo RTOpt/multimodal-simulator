@@ -220,7 +220,7 @@ def plot_single_line_comparisons(instance_name,
     group_data["Offline"] = [time / 60 for time in output_data_baseline["travel_times_sim1"]]
     missed_transfer_data["Offline"] = output_data_baseline["missed_transfer_percentage_sim1"]
     missed_transfer_data["Offline"] = output_data_baseline["total_transfers_sim1"]
-    missed_transfer_data["Offline"] = output_data_baseline["transfer_times_sim1"].mean()/60
+    # missed_transfer_data["Offline"] = output_data_baseline["transfer_times_sim1"].mean()/60
 
     # Define the labels for main groups
     # group_labels = ["Offline", "Optimal\ntravel paths", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
@@ -241,7 +241,7 @@ def plot_single_line_comparisons(instance_name,
             group_data[key] = [time / 60 for time in output_data["travel_times_sim2"]]
             missed_transfer_data[key] = output_data["missed_transfer_percentage_sim2"]
             missed_transfer_data[key] = output_data["total_transfers_sim2"]
-            missed_transfer_data[key] = output_data["transfer_times_sim2"].mean()/60
+            # missed_transfer_data[key] = output_data["transfer_times_sim2"].mean()/60
         else:
             print(f"Warning: No results found for {params} in {sim_folder}")
 
@@ -308,8 +308,8 @@ def plot_single_line_comparisons(instance_name,
     ax2.plot(positions, missed_transfer_percentages, missed_transfers_marker, color=missed_transfers_color, label=missed_transfers_label)
     ax2.set_ylim(0, max(missed_transfer_percentages) * 1.2)  # Set y-limit for better visibility
     ax2.set_ylabel("Missed Transfers (%)", fontsize=fontsize)
-    # ax2.set_ylabel("Number of transfers", fontsize=fontsize)
-    ax2.set_ylabel("Mean transfer time (in minutes)", fontsize=fontsize)
+    ax2.set_ylabel("Number of transfers", fontsize=fontsize)
+    # ax2.set_ylabel("Mean transfer time (in minutes)", fontsize=fontsize)
     ax2.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=False, labelright=True, left=False, right=True, color=missed_transfers_color)
 
     # Add group x-ticks and remove individual sub-label x-ticks

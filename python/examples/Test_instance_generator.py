@@ -97,7 +97,7 @@ def filter_gtfs_files_duration(start_time : int,
 
     # Step 1: Filter trips that have planned_departure_time_from_origin after start_time and before start_time+duration
     # Check in stop_times_upgrade.txt for rows that have planned_departure_time_from_origin after start_time and before start_time+duration
-    filtered_stop_times = stop_times_df[(stop_times_df['planned_departure_time_from_origin'] >= start_time) & (stop_times_df['planned_departure_time_from_origin'] <= start_time + duration)]
+    filtered_stop_times = stop_times_df[(stop_times_df['arrival_time'] >= start_time) & (stop_times_df['arrival_time'] <= start_time + duration)]
     # Get the unique trip_ids from the filtered stop times
     selected_trips = filtered_stop_times['trip_id'].unique()
     # Filter trips.txt to keep only the selected trips

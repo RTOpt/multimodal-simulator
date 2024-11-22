@@ -19,7 +19,7 @@ class RequestsGenerator:
 
 class CAPRequestsGenerator(RequestsGenerator):
 
-    def __init__(self, cap_file_path, stop_times_file_path, config=None):
+    def __init__(self, cap_file_path, stop_times_file_path, config=None, trips_file_path = None):
         super().__init__()
 
         config = RequestsGeneratorConfig() if config is None else config
@@ -29,6 +29,8 @@ class CAPRequestsGenerator(RequestsGenerator):
                                             stop_times_file_path, config)
 
         self.__requests_df = None
+        self.__stop_times_file_path = stop_times_file_path
+        self.__trips_file_path = trips_file_path
 
     @property
     def requests_df(self):
@@ -164,9 +166,9 @@ class CAPRequestsGenerator(RequestsGenerator):
 
             Inputs:
                 time_limit: int, maximum time window to consider before the planned boarding time of the passenger."""
-        
+        print("Getting first possible transfers for requests...")
         ### First read the stop_times file
-        stop_times_df = pd.read_csv(self.__stop_times_file_path, delimiter=";")
+        stop_times_df = pd.read_csv(self.__stop_times_file_path, delimiter=",")
         stop_times_df["arrival_time"] = stop_times_df["arrival_time"].apply(int)
         stop_times_df["departure_time"] = stop_times_df["departure_time"].apply(int)
         stop_times_df["stop_id"] = stop_times_df["stop_id"].apply(int)
@@ -179,7 +181,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         stop_times_dict = stop_times_dict.to_dict()
 
         ### To get route_id from trip_id we need to read the trips file
-        trips_df = pd.read_csv(self.__trips_file_path, delimiter=";")
+        trips_df = pd.read_csv(self.__trips_file_path, delimiter=",")
         trips_df["trip_id"] = trips_df["trip_id"].apply(int)
         trips_df["route_id"] = trips_df["route_id"].apply(str)
         ### Create a dictionary with the route_id for each trip_id
@@ -207,9 +209,12 @@ class CAPRequestsGenerator(RequestsGenerator):
         ###If so, update the request accordingly.
         ###The function will iterate over all requests until no more improvements are possible.
         counter = 0
+        all_counter = 0
         updated_resquests = {}
         for request_id, request in requests_df.iterrows():
             legs = request["legs"]
+            if len(legs) > 1:
+                all_counter += 1
             for i in range(1, len(legs)):
                 arrival_transfer_stop_id = legs[i-1][1]
                 first_trip_id = legs[i-1][2]
@@ -244,6 +249,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         updated_requests_df = pd.DataFrame.from_dict(updated_resquests, orient="index")
         self.__requests_df = updated_requests_df
         print("Number of updated requests: ", counter)
+        print("Number of all transfer requests: ", all_counter)
 
 
 class CAPFormatter:

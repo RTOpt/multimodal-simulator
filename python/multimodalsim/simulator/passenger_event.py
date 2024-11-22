@@ -129,10 +129,10 @@ class PassengerAlighting(ActionEvent):
             # The trip is considered as non-assigned again
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
-            print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
-            if self.__trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                print('Alighting stop is reached for chosen trip, alighting at stop:', self.__trip.previous_legs[-1].destination.label)
-                print('Trip added to non_assigned_trips bis...')
+            # print('trip id: ', self.__trip.id, ' is added to non_assigned_trips bis.')
+            # if self.__trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
+            #     print('Alighting stop is reached for chosen trip, alighting at stop:', self.__trip.previous_legs[-1].destination.label)
+            #     print('Trip added to non_assigned_trips bis...')
 
             if env.optimize_at_passenger_events:
                 optimization_event_process.Optimize(

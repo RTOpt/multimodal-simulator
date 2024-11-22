@@ -55,6 +55,7 @@ if __name__ == '__main__':
         date = dateshort[0:4]+"-"+dateshort[4:6]+"-"+dateshort[6:8]
         date_folder = os.path.join("data", "fixed_line", "gtfs", "gtfs"+date)
         stop_times_filepath = os.path.join("data","fixed_line","gtfs","gtfs"+date,"stop_times_upgrade.txt")
+        trips_filepath = os.path.join("data","fixed_line","gtfs","gtfs"+date,"trips.txt")
         requests_savepath = os.path.join("data","fixed_line","gtfs","gtfs"+date,"requests.csv")
         connections_savepath = os.path.join("data","fixed_line","gtfs","gtfs"+date,"available_connections.json")
         logger.info("Fill missing stop times...")
@@ -70,11 +71,12 @@ if __name__ == '__main__':
         parser.add_argument("-c", "--connections", help="path to output file that "
                                                         "will contain the "
                                                         "available connections.")
-        args = parser.parse_args(["--cap",cap_filepath,"-s",stop_times_filepath,"-r",requests_savepath,"-c",connections_savepath])
+        parser.add_argument("-t", "--trips", help="path to the file containing bus trips")
+        args = parser.parse_args(["--cap",cap_filepath,"-s",stop_times_filepath,"-r",requests_savepath,"-c",connections_savepath, "-t", trips_filepath])
 
         # CAPRequestsGenerator
         logger.info("CAPRequestsGenerator for date: "+date)
-        stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes)
+        stl_cap_requests_generator = CAPRequestsGenerator(args.cap, args.stoptimes, trips_file_path = args.trips)
 
         requests_df = stl_cap_requests_generator.generate_requests(max_connection_time = 5400,
                                                                    release_time_delta = 300,

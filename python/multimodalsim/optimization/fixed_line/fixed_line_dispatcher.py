@@ -21,6 +21,8 @@ from statistics import mean
 from collections import Counter
 import traceback
 from typing import List
+import multiprocessing
+
 logger = logging.getLogger(__name__)
 
 class FixedLineDispatcher(Dispatcher):
@@ -132,13 +134,13 @@ class FixedLineDispatcher(Dispatcher):
         # If it is, we don't need to create a new optimized route plan.
         optimized_route_plan = next((optimized_route_plans.pop(i) for i, optimized_route_plan in enumerate(optimized_route_plans) if optimized_route_plan.route.vehicle.id == optimal_route.vehicle.id), None)
         if optimized_route_plan is None:
-            print('New route added to optimized route plan', optimal_route.vehicle.id)
+            # print('New route added to optimized route plan', optimal_route.vehicle.id)
             optimized_route_plan = OptimizedRoutePlan(optimal_route)
             # Use the current and next stops of the route.
             optimized_route_plan.copy_route_stops()
         optimized_route_plan.assign_leg(leg)
         optimized_route_plans.append(optimized_route_plan)
-        print('Number of routes in optimized route plans', len(optimized_route_plans))
+        # print('Number of routes in optimized route plans', len(optimized_route_plans))
         return optimized_route_plans
 
     def smartcard_optimize(self, selected_next_legs, selected_routes, state, queue):
@@ -747,7 +749,7 @@ class FixedLineDispatcher(Dispatcher):
             max_departure_time, hold, speedup, skip_stop, = self.choose_tactic(tactic_regrets_dict, last_stop)
         return(speedup == 1, skip_stop == 1, (hold >= 0 , max_departure_time))
 
-    def genfromtxt_with_lock(filename, dtype, delimiter=",", usecols=None, names=True,encoding='bytes',skip_header=0):
+    def genfromtxt_with_lock(self, filename, dtype, delimiter=",", usecols=None, names=True,encoding='bytes',skip_header=0):
         lock = multiprocessing.Lock()
 
         def file_lock(operation):
@@ -1005,7 +1007,7 @@ class FixedLineDispatcher(Dispatcher):
         # Get stop data
         completename = os.path.join(pathtofile, 'route_stops_' + route_name + '_month.txt')
         alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','f8')]) #stop_id, sequence, distance
-        stops = np.genfromtxt(completename, delimiter=',', dtype=alltype, usecols = [0,1,2], names=True)
+        stops = self.genfromtxt_with_lock(completename, delimiter=',', dtype=alltype, usecols = [0,1,2], names=True)
 
         # Cluster historical data
         # Headways = self.cluster_bus_headways(headways_between_buses)
@@ -1049,7 +1051,7 @@ class FixedLineDispatcher(Dispatcher):
         
         completename_pairs = os.path.join( pathtofile, route_name + "_travel_times_month.csv")
         alltype = np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8'), ('f3', 'i8')])
-        pairs = np.genfromtxt(completename_pairs, delimiter = ',', dtype = alltype, usecols = [0,1,2,3])
+        pairs = self.genfromtxt_with_lock(completename_pairs, delimiter = ',', dtype = alltype, usecols = [0,1,2,3])
         pairs_dict = {}
         headers = list(set([(x[0],x[1]) for x in pairs]))
         for (o,d) in headers:
@@ -1106,7 +1108,7 @@ class FixedLineDispatcher(Dispatcher):
             The format is as follows: 
             dict[stop_id : int] = np.array([[duration/quantity : int, event_time : int], ...])"""
         alltype = np.dtype([('f0','i8'),('f1','i8'),('f2','i8')]) #stop_id, duration/quantity, event_time
-        data = np.genfromtxt(completename, delimiter = ',', dtype = alltype, usecols = [0,1,2])
+        data = self.genfromtxt_with_lock(completename, delimiter = ',', dtype = alltype, usecols = [0,1,2])
         data_dict = {}
         headers = np.unique([x[0] for x in data])
         for stop in headers:
@@ -1604,7 +1606,7 @@ class FixedLineDispatcher(Dispatcher):
             tmp.append((transfer_time + 10, transfer_interval))
         for item, count in Counter(tmp).items():
             transfers['alighting'].append((item[0], count, item[1]))
-        print('Stop ', stop_id ,' -transfers: ', transfers)
+        # print('Stop ', stop_id ,' -transfers: ', transfers)
         return transfers
     
     def choose_tactic(self, T, last_stop):
@@ -1735,7 +1737,7 @@ class FixedLineDispatcher(Dispatcher):
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
         for tactic in all:
-            print('Tactic ', tactic)
+            # print('Tactic ', tactic)
             tactic_bus_trips = {}
             tactic_bus_trips[trip_id] = regret_bus_trips[trip_id][tactic]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
@@ -1808,7 +1810,8 @@ class FixedLineDispatcher(Dispatcher):
             """
         speedup_factor = self.speedup_factor
         new_stops = {}
-        if stop_id in transfers[trip_id] and len(transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'])>0:
+        iterable = [transfer_time for (transfer_time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < max_departure_time]
+        if stop_id in transfers[trip_id] and len(iterable)>0:
             # final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < bus_trips[trip_id][0].arrival_time + 120])
             final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < max_departure_time])
         else: 
