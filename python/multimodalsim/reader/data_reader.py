@@ -547,7 +547,7 @@ class GTFSReader(DataReader):
             for trips_row in trips_reader:
                 route_id = trips_row[0]
                 service_id = trips_row[1]
-                trip_id = trips_row[2]
+                trip_id = str(trips_row[2])
                 self.__trip_service_dict[trip_id] = service_id
                 self.__trip_route_dict[trip_id] = route_id
 

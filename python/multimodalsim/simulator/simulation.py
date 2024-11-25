@@ -75,7 +75,8 @@ class Simulation(object):
                                 current_event.priority)
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
-        self.__visualize_environment()
+        print('\n***************\nEND OF SIMULATION\n***************')
+        # self.__visualize_environment()
 
     def __load_config(self, config):
         self.__max_time = config.max_time
