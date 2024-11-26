@@ -53,7 +53,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         self.__extract_requests_from_cap(formatted_cap_df)
         self.__format_requests(release_time_delta, ready_time_delta,
                                due_time_delta)
-        self.__get_first_possible_transfers_for_requests(time_limit=180)
+        self.__get_first_possible_transfers_for_requests(time_limit=300)
 
         return self.__requests_df
 
@@ -157,7 +157,7 @@ class CAPRequestsGenerator(RequestsGenerator):
 
         return self.__requests_df[columns]
 
-    def __get_first_possible_transfers_for_requests(self, time_limit = 180):
+    def __get_first_possible_transfers_for_requests(self, time_limit = 300):
         """ This functions considers requests with multiple legs (passengers with transfers) and evaluates if these could have been earlier.
             If an earlier transfer is possible, the request is updated accordingly. All legs will be evaluated sequentially, and assigned to different vehicles if necessary.
             The function will iterate over all requests until no more improvements are possible.
@@ -198,10 +198,10 @@ class CAPRequestsGenerator(RequestsGenerator):
             for arrival_time, departure_time, stop_id, planned_arrival_time in stop_times_dict[trip_id]:
                 if stop_id not in passage_times_at_stops[route_id]:
                     passage_times_at_stops[route_id][stop_id] = []
-                passage_times_at_stops[route_id][stop_id].append((arrival_time, departure_time, trip_id, planned_arrival_time))
+                passage_times_at_stops[route_id][stop_id].append((arrival_time, departure_time, trip_id, planned_arrival_time, min(arrival_time, planned_arrival_time)))
         for route_id in all_route_ids:
             for stop_id in passage_times_at_stops[route_id].keys():
-                passage_times_at_stops[route_id][stop_id] = sorted(passage_times_at_stops[route_id][stop_id], key=lambda x: x[3])
+                passage_times_at_stops[route_id][stop_id] = sorted(passage_times_at_stops[route_id][stop_id], key=lambda x: x[4])
         
         ### Read all requests
         requests_df = self.__requests_df.copy()
@@ -215,6 +215,15 @@ class CAPRequestsGenerator(RequestsGenerator):
             legs = request["legs"]
             if len(legs) > 1:
                 all_counter += 1
+            # Adjust request ready time to be shortly before planned arrival time of the vehicle at the origin of the first leg
+            first_leg_origin_stop_id = legs[0][0]
+            first_trip_id = legs[0][2]
+            first_route_id = route_id_dict[first_trip_id]
+            passage_times = passage_times_at_stops[first_route_id][first_leg_origin_stop_id]
+            original_start_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == first_trip_id), None)
+            if original_start_tuple is not None:
+                original_planned_arrival_time = original_start_tuple[3]
+                request['ready_time'] = original_planned_arrival_time - 60
             for i in range(1, len(legs)):
                 arrival_transfer_stop_id = legs[i-1][1]
                 first_trip_id = legs[i-1][2]
@@ -226,13 +235,13 @@ class CAPRequestsGenerator(RequestsGenerator):
                 if arrival_transfer_stop_id not in passage_times_at_stops[first_route_id]:
                     continue
                 passage_times = passage_times_at_stops[first_route_id][arrival_transfer_stop_id]
-                arrival_at_transfer_tuple = next(((arrival_time, departure_time, trip_id, planned_arrival_time) for arrival_time, departure_time, trip_id, planned_arrival_time in passage_times if trip_id == first_trip_id), None)
+                arrival_at_transfer_tuple = next(((arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time) for arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time in passage_times if trip_id == first_trip_id), None)
 
                 ### Check the planned arrival time of the vehicle at the departure_transfer_stop_id
                 if departure_transfer_stop_id not in passage_times_at_stops[second_route_id] or arrival_at_transfer_tuple is None:
                     continue
                 passage_times = passage_times_at_stops[second_route_id][departure_transfer_stop_id]
-                first_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[3] >= arrival_at_transfer_tuple[3] - time_limit), None)
+                first_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if max(stop_tuple[4], stop_tuple[3]) >= arrival_at_transfer_tuple[4] - time_limit), None)
                 original_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == second_trip_id), None)
                 if first_departure_from_transfer_tuple is None or original_departure_from_transfer_tuple is None:
                     continue
@@ -327,9 +336,9 @@ class CAPFormatter:
         self.__cap_df = cap_with_stops_list_df[
             cap_with_stops_list_df["trip_exists"]]
 
-        non_existent_trips_df = \
-            cap_with_stops_list_df[~cap_with_stops_list_df["trip_exists"]]
-        non_existent_trips_df.to_csv("non_existent_trips.csv")
+        # non_existent_trips_df = \
+        #     cap_with_stops_list_df[~cap_with_stops_list_df["trip_exists"]]
+        # non_existent_trips_df.to_csv("non_existent_trips.csv")
 
         return self.__cap_df
 

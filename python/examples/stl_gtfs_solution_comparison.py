@@ -144,6 +144,7 @@ def plot_simulation_results(output_data, output_folder_path=None):
 def get_request_transfer_data(instance_name):
     data_folder = os.path.join('data','fixed_line','gtfs')
     new_instance_name = instance_name.replace('_','-')
+    new_instance_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
     request_file_path = os.path.join(data_folder, new_instance_name, 'requests.csv')
     transfers = {}
     with open(request_file_path, 'r') as requests_file:
@@ -189,7 +190,7 @@ def get_completed_transfers(output_folder_path, transfers, total_transfers):
             trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(completed_transfer)] = row
             continue
     ### Save updated trips_details_observations_df without the index
-    trips_details_observations_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df.csv'), index=False)
+    trips_details_observations_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df2.csv'), index=False)
     print('Number of completed transfers:', number_of_completed_transfers)
     number_missed_transfers = total_transfers - number_of_completed_transfers
     percentage_missed_transfers = (number_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
@@ -432,8 +433,10 @@ if __name__ == "__main__":
 
     # Define the test instance name
     instance_name = "gtfs2019-11-01_TestInstanceDurationShort"
+    instance_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     transfer_time = False
-    for line_name in [[ '17N', '151N', '26O', '42E', '56O'], ['42E']]:
+    for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
+    # for line_name in [[ '17N', '151N', '26O', '42E', '56O'], ['42E']]:
         for transfer_type in [0, 1, 2]:
             # Run the function to compare and plot passenger travel times across different parameters for line 70E
             plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.4, transfer_type = transfer_type)

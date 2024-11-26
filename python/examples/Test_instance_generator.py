@@ -347,6 +347,12 @@ def get_start_time_of_bus(date, number, route_id):
     return start_times[number]
 
 if __name__ == "__main__":
+    date = "2019-11-01"
+    #start time = 8:26:40 AM
+    start_time = 30400
+    route_ids = ['17N', '151N', '26O', '42E','56O']
+    # generate_duration_test_instance('TestInstanceDurationShort_NEW','gtfs'+date, start_time, 1200)  # 20 minutes
+
     date = "2019-11-25"
     start_time = 57600 # 4:00 PM
     nbr_buses_per_route_id = 3
@@ -360,4 +366,6 @@ if __name__ == "__main__":
     trip_id, start_time = get_start_time_of_bus('gtfs'+date, 29, '42O')
     print('Trip id:', trip_id, 'Start time:', start_time)
     route_ids = [ '151S', '17N', '26E', '42E', '56E']
-    generate_duration_test_instance('TestInstanceDurationCASPT','gtfs'+date, start_time, 120, route_ids = route_ids)  # 5 minutes
+    generate_duration_test_instance('TestInstanceDurationCASPT_NEW','gtfs'+date, start_time, 1800, route_ids = route_ids)  # 5 minutes
+    
+    

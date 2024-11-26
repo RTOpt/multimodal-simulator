@@ -65,7 +65,8 @@ def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs",
     dispatcher = FixedLineDispatcher(ss = ss,
                                      sp = sp,
                                      algo = algo, 
-                                     routes_to_optimize_names = routes_to_optimize_names)
+                                     routes_to_optimize_names = routes_to_optimize_names,
+                                     output_folder_path = output_folder_path)
     Data = {}
     for route_name in routes_to_optimize_names: 
         logger.info("Getting and clustering data for route %s" % route_name)

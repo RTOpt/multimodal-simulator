@@ -64,3 +64,7 @@ class RequestsGeneratorConfig(Config):
     @property
     def destination_stop_lon_col(self):
         return self._config_parser["cap_columns"]["destination_stop_lon_col"]
+    
+    @property
+    def planned_arrival_time_col(self):
+        return self._config_parser["cap_columns"]["planned_arrival_time"]

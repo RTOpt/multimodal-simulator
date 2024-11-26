@@ -3,6 +3,7 @@ sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 from stl_gtfs_simulator import*
 import winsound
 import datetime
+import traceback
 
 ## This file runs the Multimodal Simulator for the whole month of November 2019 day by day with real STL Data.
 if __name__ == '__main__':
@@ -38,10 +39,10 @@ if __name__ == '__main__':
     routes_to_optimize_names = [ '17S', '151N', '26O', '42E'] # grid style network
 
     ### Test for all lines in the bus network over a shorter period (considering passengers that touche these lines only)
-    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-25-TestInstanceDurationCASPT")
+    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-25-TestInstanceDurationCASPT_NEW")
     requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
-    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-25-TestInstanceDurationCASPT")
-    output_folder_name = "gtfs2019-11-25_TestInstanceDurationCASPT"
+    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-25_TestInstanceDurationCASPT_NEW")
+    output_folder_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     coordinates_file_path = None
     freeze_interval = 1
     routes_to_optimize_names = [ '17N', '151S', '26E', '42E', '56E']
@@ -56,19 +57,19 @@ if not os.path.exists(error_file_path):
     f.close()
 
 # Offline
-stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
-                    requests_file_path = requests_file_path,
-                    coordinates_file_path = coordinates_file_path,
-                    routes_to_optimize_names = routes_to_optimize_names,
-                    ss = False, # Allow the use of skip-stop tactics
-                    sp = False, # Allow the use of speedup tactics
-                    algo = 0, # 0: offline, 1: deterministic, 2: regret, 3: Perfect Information
-                    freeze_interval = freeze_interval,
-                    output_folder_name = output_folder_name,
-                    logger = logger,
-                    logging_level = logging_level,
-                    is_from_smartcard_data = True
-                    )
+# stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
+#                     requests_file_path = requests_file_path,
+#                     coordinates_file_path = coordinates_file_path,
+#                     routes_to_optimize_names = routes_to_optimize_names,
+#                     ss = False, # Allow the use of skip-stop tactics
+#                     sp = False, # Allow the use of speedup tactics
+#                     algo = 0, # 0: offline, 1: deterministic, 2: regret, 3: Perfect Information
+#                     freeze_interval = freeze_interval,
+#                     output_folder_name = output_folder_name,
+#                     logger = logger,
+#                     logging_level = logging_level,
+#                     is_from_smartcard_data = True
+#                     )
 # # # Intelligent splitter 
 # stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
 #                     requests_file_path = requests_file_path,
@@ -90,6 +91,8 @@ for routes_to_optimize_names in [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]
         for sp in [False, True]:
             for ss in [False, True]:
                 try:
+                    if (ss == False and sp== False):
+                        continue
                     stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
                                         requests_file_path=requests_file_path,
                                         coordinates_file_path=coordinates_file_path,
@@ -104,13 +107,17 @@ for routes_to_optimize_names in [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]
                                         is_from_smartcard_data = True
                                         )
                 except Exception as e:
-                    print(e)
+                    error_message = "Error in running the simulator with the following parameters: algo: {}, ss: {}, sp: {}, routes: {}\n".format(algo, ss, sp, routes_to_optimize_names)
+                    error_traceback = traceback.format_exc()  # Get full traceback
+
+                    # Append error details to the log file
                     with open(error_file_path, "a") as f:
-                        f.write("Error in running the simulator with the following parameters: algo: {}, ss: {}, sp: {}, routes: {}\n".format(algo, ss, sp, routes_to_optimize_names))
+                        f.write(error_message)
                         f.write('Error message: {}\n'.format(e))
-                    f.close()
+                        f.write("Traceback:\n")
+                        f.write(error_traceback)
+
                     ### Make a beep
                     duration = 1000
                     freq = 440
                     winsound.Beep(freq, duration)
-                    print("Error in running the simulator with the following parameters: algo: {}, ss: {}, sp: {}, routes: {}".format(algo, ss, sp, routes_to_optimize_names))

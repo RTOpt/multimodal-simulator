@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 class FixedLineDispatcher(Dispatcher):
 
-    def __init__(self, config=None, ss = False, sp = False, algo = 0, routes_to_optimize_names = []):
+    def __init__(self, config=None, ss = False, sp = False, algo = 0, routes_to_optimize_names = [],
+                 output_folder_path = None):
         super().__init__()
         self.__config = FixedLineDispatcherConfig() if config is None else config
         self.__algo = algo
@@ -41,6 +42,20 @@ class FixedLineDispatcher(Dispatcher):
         self.__Data = None
         self.__route_name = None
         self.__routes_to_optimize_names = routes_to_optimize_names
+        self.__tactics_file_path = None
+        self.__error_file_path = None
+        if output_folder_path is not None:
+            #create file to log all tactics
+            self.__tactics_file_path = os.path.join(output_folder_path, "tactics.txt")
+            with open(self.__tactics_file_path, "w") as f:
+                f.write("Tactics file path created at {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+            f.close()
+
+            #Create file to log all errors
+            self.__error_file_path = os.path.join(output_folder_path, "OSO_algorithm_errors.txt")
+            with open(self.__error_file_path, "w") as f:
+                f.write("Error file path created at {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+            f.close()
 
     @property
     def algo(self):
@@ -738,15 +753,41 @@ class FixedLineDispatcher(Dispatcher):
                     runtimes.append(runtime)
                     i += 1
                 except Exception as e:
+                    # Log the error message and traceback
+                    error_message = 'Problem in OSO with route {} trip {} at stop {}: scenario {}/{}'.format(self.route_name, bus_trip_id, stop_id, j_try, self.algo_parameters["j_try"])
+                    error_traceback = traceback.format_exc()  # Get full traceback
+                    with open(self.__error_file_path, "a") as f:
+                        f.write('Error message: {}\n'.format(error_message))
+                        f.write('Error traceback: {}\n'.format(error_traceback))
+                    f.close()
+                    # Print the error message and traceback
                     traceback.print_exc()
                     logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
-            else: 
+            else:
+                # Log the error message
+                error_message = 'The scenario generation failed after {} tries.'.format(j_try)
+                with open(self.__error_file_path, "a") as f:
+                    f.write('Error message: {}\n'.format(error_message))
+                f.close()
+                # Print the error message
                 logger.warning('The scenario generation failed after {} tries.'.format(j_try))
                 return(False, False, (False, -1))
                
         # Extract optimal tactics from the solution (or tactics dictionary)
         if self.algo == 2: # Regret
             max_departure_time, hold, speedup, skip_stop, = self.choose_tactic(tactic_regrets_dict, last_stop)
+        if self.__tactics_file_path is not None and (speedup == 1 or skip_stop == 1 or hold >= 0):
+            if hold == 0:
+                hold_type ='Hold for planned'
+            elif hold == 1:
+                hold_type = 'Hold for transfer'
+            else: 
+                hold_type = 'No Hold'
+            skip_stop_type = 'Skip-Stop' if skip_stop == 1 else 'No Skip-Stop'
+            speedup_type = 'Speedup' if speedup == 1 else 'No speedup'
+            with open(self.__tactics_file_path, "a") as f:
+                f.write('Tactics used for route {} - trip {} at stop {}: {}, {}, ({}, {})\n'.format(self.route_name, bus_trip_id, stop_id, skip_stop_type, speedup_type, hold_type, max_departure_time))
+            f.close()
         return(speedup == 1, skip_stop == 1, (hold >= 0 , max_departure_time))
 
     def genfromtxt_with_lock(self, filename, dtype, delimiter=",", usecols=None, names=True,encoding='bytes',skip_header=0):
@@ -1775,7 +1816,7 @@ class FixedLineDispatcher(Dispatcher):
         optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
-        # G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
+        G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
         max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     
