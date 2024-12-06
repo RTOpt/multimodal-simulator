@@ -137,3 +137,5 @@ dmypy.json
 python/examples/fixed_line/figures/
 python/examples/Small_instance_generator.py
 python/multimodalsim/optimization/fixed_line/graph_constructor_unit_tests.py
+python/examples/fixed_line/test_files/
+python/examples/fixed_line/test_files_multi/
