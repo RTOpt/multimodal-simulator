@@ -26,7 +26,7 @@ class PassengerRelease(Event):
             legs = env.optimization.split(self.__trip, env)
             self.__trip.assign_legs(legs)
         
-        if env.optimize_at_passenger_events:
+        if env.transfer_synchro == False:
             optimization_event_process.Optimize(
                 env.current_time, self.queue).add_to_queue()
 
@@ -123,7 +123,7 @@ class PassengerAlighting(ActionEvent):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
 
-            if env.optimize_at_passenger_events:
+            if env.transfer_synchro == False:
                 optimization_event_process.Optimize(
                     env.current_time, self.queue).add_to_queue()
 

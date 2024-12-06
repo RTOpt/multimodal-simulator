@@ -39,7 +39,7 @@ class Environment(object):
 
     def __init__(self, optimization, network=None, coordinates=None,
                  travel_times=None,
-                 optimize_at_passenger_events = True
+                 transfer_synchro = False
                    ):
         self.__current_time = 0
         self.__trips = []
@@ -56,7 +56,7 @@ class Environment(object):
 
         self.__optimize_cv = None
         self.__available_connections = None
-        self.__optimize_at_passenger_events = optimize_at_passenger_events
+        self.__transfer_synchro = transfer_synchro
 
     @property
     def available_connections(self):
@@ -103,18 +103,12 @@ class Environment(object):
             self.remove_trip(trip_id)
             self.add_trip(new_trip)
             if old_trip in self.non_assigned_trips:
-                if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                    print('Chosen leg in non_assigned_trips')
                 self.remove_non_assigned_trip(trip_id)
                 self.add_non_assigned_trip(new_trip)
             if old_trip in self.assigned_trips:
-                if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                    print('Chosen leg in assigned_trips')
                 self.remove_assigned_trip(trip_id)
                 self.add_assigned_trip(new_trip)
         else:
-            if trip_id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                    print('Chosen leg not found in environment')
             logger.warning("Trip with id {} not found in the environment."
                            .format(trip_id))
             #Add trip to the environment
@@ -281,8 +275,8 @@ class Environment(object):
         self.__next_vehicles = next_vehicles
     
     @property
-    def optimize_at_passenger_events(self):
-        return self.__optimize_at_passenger_events
+    def transfer_synchro(self):
+        return self.__transfer_synchro
     
 class EnvironmentStatistics:
 

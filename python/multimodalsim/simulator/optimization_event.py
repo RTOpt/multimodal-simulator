@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 class Optimize(ActionEvent):
     def __init__(self, time, queue, multiple_optimize_events=None,
                  batch=None, max_optimization_time=None, asynchronous=None,
-                 bus = False,
-                 event_priority = Event.STANDARD_PRIORITY,
+                 transfer_synchro = False,
                  main_line = None, next_main_line = None):
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
@@ -28,11 +27,11 @@ class Optimize(ActionEvent):
             # Round to the smallest integer greater than or equal to time that
             # is also a multiple of batch.#
             time = time + (batch - (time % batch)) % batch
-        self.__bus = bus
+        self.__transfer_synchro = transfer_synchro
         super().__init__('Optimize', queue, time,
-                         event_priority=event_priority,
+                         event_priority=self.VERY_LOW_PRIORITY,
                          state_machine=queue.env.optimization.state_machine)
-        self.__bus = bus
+        self.__transfer_synchro = transfer_synchro
         self.__main_line = main_line
         self.__next_main_line = next_main_line
 
@@ -70,8 +69,8 @@ class Optimize(ActionEvent):
     def __optimize_synchronously(self, env):
         env.optimization.state.freeze_routes_for_time_interval(
             env.optimization.freeze_interval)
-        if self.bus:
-            optimization_result = env.optimization.bus_dispatch(
+        if self.transfer_synchro:
+            optimization_result = env.optimization.transfer_synchro_dispatch(
                 env.optimization.state, self.queue, self.__main_line, self.__next_main_line)
         else:
             optimization_result = env.optimization.dispatch(
@@ -141,8 +140,8 @@ class Optimize(ActionEvent):
             hold_event.cv.notify()
     
     @property
-    def bus(self):
-        return self.__bus
+    def transfer_synchro(self):
+        return self.__transfer_synchro
     
     @staticmethod
     def dispatch(dispatch_function, state):
@@ -178,19 +177,11 @@ class EnvironmentUpdate(ActionEvent):
     def _process(self, env):
         if self.__bus:
             for trip in self.__optimization_result.modified_requests:
-                if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                    print('Udpating chosen trip')
                 env.update_changed_assigned_trips(trip.id, trip)
-        # print('Trips for update: {}'.format([trip.id for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]))
         for trip in [trip for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]:
             next_legs = trip.next_legs
             next_leg_assigned_vehicle_id = trip.next_legs[0].assigned_vehicle.id if trip.next_legs[0].assigned_vehicle is not None else None
             current_leg = trip.current_leg
-            if trip.id == 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264':
-                print('PassengerUpdate for chosen trip...')
-                if current_leg:
-                    print('Current leg: ({}, {}, {})'.format(current_leg.origin.label, current_leg.destination.label, current_leg.assigne_vehicle.id))
-                print('Next leg: ({}, {},{})'.format(trip.next_legs[0].origin.label, trip.next_legs[0].destination.label, next_leg_assigned_vehicle_id))
             passenger_update = request.PassengerUpdate(
                 next_leg_assigned_vehicle_id, trip.id, next_legs, current_leg = current_leg)
             passenger_event_process.PassengerAssignment(

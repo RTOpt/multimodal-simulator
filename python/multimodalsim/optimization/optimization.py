@@ -48,8 +48,8 @@ class Optimization(object):
     def dispatch(self, state):
         return self.__dispatcher.dispatch(state)
     
-    def bus_dispatch(self, state, queue=None, main_line_id=None, next_main_line_id=None):
-        return self.__dispatcher.bus_dispatch(state, queue, main_line_id, next_main_line_id)
+    def transfer_synchro_dispatch(self, state, queue = None, main_line_id = None, next_main_line_id = None):
+        return self.__dispatcher.transfer_synchro_dispatch(state, queue, main_line_id, next_main_line_id)
 
     def need_to_optimize(self, env_stats):
         # By default, reoptimize every time the Optimize event is processed.

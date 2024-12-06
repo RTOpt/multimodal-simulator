@@ -4,7 +4,6 @@ from multimodalsim.optimization.optimization import OptimizationResult
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, Dispatcher
 from multimodalsim.config.fixed_line_dispatcher_config import FixedLineDispatcherConfig
 from multimodalsim.simulator.vehicle import Vehicle, Route, Stop
-# from multimodalsim.simulator.request import Leg
 from multimodalsim.simulator.vehicle_event import VehicleReady
 from multimodalsim.optimization.fixed_line.graph_constructor import Graph
 
@@ -130,36 +129,22 @@ class FixedLineDispatcher(Dispatcher):
         selected_routes = state.route_by_vehicle_id.values()
 
         return selected_next_legs, selected_routes
-
-    def optimize(self, selected_next_legs, selected_routes, current_time,
-                 state):
-        """Each selected next leg is assigned to the optimal route. The optimal
-        route is the one that has the earliest arrival time at destination
-        (i.e. leg.destination)."""
-        optimized_route_plans = []
-        for leg in selected_next_legs:
-            optimal_route = self.__find_optimal_route_for_leg(
-                leg, selected_routes, current_time)
-            if optimal_route is not None:
-                optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, optimal_route, leg)
-        return optimized_route_plans
     
     def add_route_to_optimized_route_plans(self, optimized_route_plans, optimal_route, leg):
         # Check if this route is already part of an optimized route plan.
         # If it is, we don't need to create a new optimized route plan.
         optimized_route_plan = next((optimized_route_plans.pop(i) for i, optimized_route_plan in enumerate(optimized_route_plans) if optimized_route_plan.route.vehicle.id == optimal_route.vehicle.id), None)
         if optimized_route_plan is None:
-            # print('New route added to optimized route plan', optimal_route.vehicle.id)
             optimized_route_plan = OptimizedRoutePlan(optimal_route)
             # Use the current and next stops of the route.
             optimized_route_plan.copy_route_stops()
         optimized_route_plan.assign_leg(leg)
         optimized_route_plans.append(optimized_route_plan)
-        # print('Number of routes in optimized route plans', len(optimized_route_plans))
         return optimized_route_plans
 
     def smartcard_optimize(self, selected_next_legs, selected_routes, state, queue):
-        """Each selected next leg is assigned to the route the passenger boarded in the historical smartcard data."""
+        """Each selected next leg is assigned to the route the passenger boarded in the historical smartcard data.
+           If that bus has already passed the origin stop, the passenger has to wait for the next bus of the same line."""
         current_time = state.current_time
         optimized_route_plans = []
         for leg in selected_next_legs:
@@ -244,106 +229,6 @@ class FixedLineDispatcher(Dispatcher):
 
         return found_stop
 
-    def bus_prepare_input(self, state, main_line_id = None, next_main_line_id = None):
-        """Before optimizing, we extract the legs and the routes that we want to be considered by the optimization algorithm.
-        For the FixedLineDispatcher, we want to keep only the legs that will cross the main line or next main line in
-        the stops in the optimization horizon (assigned to , onboard , or potentially boarding in future stops).
-        """
-        state.main_line = main_line_id
-        state.next_main_line = next_main_line_id
-
-        # Get the selected routes
-        selected_routes = [route for route in state.route_by_vehicle_id.values() if route.vehicle.id == main_line_id or route.vehicle.id == next_main_line_id]
-
-        # Get the next stops in the horizon on the main line
-        main_line = state.route_by_vehicle_id[main_line_id]
-        if main_line.vehicle.route_name == 'Walking_route':
-            return [], []
-        self.route_name = main_line.vehicle.route_name
-        main_line_stops = main_line.next_stops[0:self.horizon]
-        
-        # The next legs assigned and onboard the selected routes
-        selected_next_legs = [leg for route in selected_routes for leg in route.onboard_legs]
-        selected_next_legs += [leg for route in selected_routes for leg in route.assigned_legs if leg.origin in [stop.location for stop in main_line_stops] or leg.destination in [stop.location for stop in main_line_stops]]
-        
-        # Get trips associated with the selected legs
-        selected_trips = [leg.trip for leg in selected_next_legs]
-        for trip in selected_trips:
-            route=None
-            second_next_route=None
-            if trip.current_leg is not None: #Onboard legs
-                current_vehicle_id=trip.current_leg.assigned_vehicle.id if trip.current_leg.assigned_vehicle != None else trip.current_leg.cap_vehicle_id
-                if current_vehicle_id == main_line_id: #passenger on board main line, check if transfer to other lines
-                    if len(trip.next_legs)>0 and trip.current_leg.destination in [stop.location for stop in main_line_stops]: #transfer to other line in the horizon
-                        next_leg = trip.next_legs[0]
-                        next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                        route = self.get_route_by_vehicle_id(state, next_vehicle_id)
-                    # else: #No transfer to other lines, no route_id to add.
-                    #if passenger transferred from another bus to main line, it is already done so we don't need the info
-                else: #passenger on board other line, transfer to main line
-                    if len(trip.next_legs)>0:
-                        next_leg = trip.next_legs[0]
-                        next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                        previous_vehicle_id = current_vehicle_id
-                        i=0
-                        while next_vehicle_id != main_line_id and i<len(trip.next_legs)-1: #find the next leg that is on the main line
-                            previous_vehicle_id = next_vehicle_id
-                            i+=1
-                            next_leg = trip.next_legs[i]
-                            next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                        if next_vehicle_id == main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]: #passenger boards main line bus in the horizon
-                            route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
-                        if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]: #passenger also transfers to another bus in the horizon
-                            second_next_leg = trip.next_legs[i+1]
-                            second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
-                            second_next_route = self.get_route_by_vehicle_id(state,second_next_vehicle_id)
-            else: #Assigned legs, not on any bus. Passenger either hasn't started trip or is transferring. 
-                if len(trip.previous_legs)>0: #passenger transferring
-                    previous_leg = trip.previous_legs[-1]
-                    previous_vehicle_id = previous_leg.assigned_vehicle.id if previous_leg.assigned_vehicle != None else previous_leg.cap_vehicle_id
-                    if len(trip.next_legs)>0:
-                        next_leg = trip.next_legs[0]
-                        next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                        if previous_vehicle_id == main_line_id and previous_leg.destination in [stop.location for stop in main_line_stops]: #passenger transferred from main line and is going to other line
-                            route = self.get_route_by_vehicle_id(state, next_vehicle_id)
-                            input('transfer main-> feeder we should never be here')
-                        else: #passenger transferred from other line and is going to main line
-                            i=0
-                            while next_vehicle_id != main_line_id and i<len(trip.next_legs)-1: #find the next leg that is on the main line
-                                previous_vehicle_id = next_vehicle_id
-                                i+=1
-                                next_leg = trip.next_legs[i]
-                                next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                            if next_vehicle_id == main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]:
-                                route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
-                            if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]:
-                                second_next_leg = trip.next_legs[i+1]
-                                second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
-                                second_next_route = self.get_route_by_vehicle_id(state, second_next_vehicle_id)
-                elif len(trip.next_legs)>0: #Passenger starting their trip
-                    next_leg = trip.next_legs[0]
-                    next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                    previous_vehicle_id = next_vehicle_id
-                    i=0
-                    while next_vehicle_id != main_line_id and i<len(trip.next_legs)-1: #find the next leg that is on the main line
-                        previous_vehicle_id = next_vehicle_id
-                        i+=1
-                        next_leg = trip.next_legs[i]
-                        next_vehicle_id = next_leg.assigned_vehicle.id if next_leg.assigned_vehicle != None else next_leg.cap_vehicle_id
-                    if next_vehicle_id == main_line_id and previous_vehicle_id != main_line_id and next_leg.origin in [stop.location for stop in main_line_stops]:
-                        # print('tranfser feeder->main')
-                        route = self.get_route_by_vehicle_id(state, previous_vehicle_id)
-                    if i < len(trip.next_legs)-1 and next_leg.destination in [stop.location for stop in main_line_stops]:
-                        # print('tranfser feeder->main->feeder')
-                        second_next_leg = trip.next_legs[i+1]
-                        second_next_vehicle_id = second_next_leg.assigned_vehicle.id if second_next_leg.assigned_vehicle != None else second_next_leg.cap_vehicle_id
-                        second_next_route = self.get_route_by_vehicle_id(state, second_next_vehicle_id)
-            if route is not None:
-                selected_routes.append(route)
-            if second_next_route is not None:
-                selected_routes.append(second_next_route)            
-        return selected_next_legs, selected_routes
-
     def process_optimized_bus_route_plans(self, optimized_route_plans, state):
         """Create and modify the simulation objects that correspond to the
         optimized route plans returned by the optimize method. In other words,
@@ -370,15 +255,12 @@ class FixedLineDispatcher(Dispatcher):
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
-        # Check if trip is in mofifier trips: 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264'
-        if 'FBB245FE5EEB71A4A666208E7F7FD99366012BF7_18264' in [trip.id for trip in modified_trips]:
-            print('Trip found in modified trips')
         optimization_result = OptimizationResult(state, modified_trips,
                                                  modified_vehicles)
 
         return optimization_result
 
-    def bus_dispatch(self, state, queue=None, main_line_id=None, next_main_line_id=None):
+    def transfer_synchro_dispatch(self, state, queue=None, main_line_id=None, next_main_line_id=None):
         """Decide tactics to use on main line after every departure from a bus stop.
         method relies on three other methods:
             1. prepare_input
@@ -400,7 +282,6 @@ class FixedLineDispatcher(Dispatcher):
                 specifies, based on the results of the optimization, how the
                 environment should be modified.
         """
-        logger.info('STARTING BUS OPTIMIZE...')
         state.main_line = main_line_id
         state.next_main_line = next_main_line_id
         self.route_name = state.route_by_vehicle_id[main_line_id].vehicle.route_name
@@ -439,7 +320,6 @@ class FixedLineDispatcher(Dispatcher):
                                                        queue)
         ### Process OSO algorithm results
         if len(optimized_route_plans) > 0:
-            logger.info('Processing optimized route plans...')
             optimization_result = self.process_optimized_bus_route_plans(
                 optimized_route_plans, state)
         else:
@@ -475,7 +355,6 @@ class FixedLineDispatcher(Dispatcher):
         
         # Find the arrival time at the next stop after tactics
         if sp:
-            logger.info('Speedup implemented...')
             travel_time = int((planned_arrival_time - prev_departure_time) * self.speedup_factor)
         else: #also true for ss = True
             travel_time = planned_arrival_time - prev_departure_time
@@ -489,7 +368,6 @@ class FixedLineDispatcher(Dispatcher):
             dwell_time = 0
         elif h: # add additional dwell time for hold tactic
             dwell_time = max(h_and_time[1] - arrival_time, dwell_time)
-            logger.info('Hold time implemented...')
         departure_time = arrival_time + dwell_time
 
         # Update the arrival and departure times of the next stop
@@ -509,7 +387,6 @@ class FixedLineDispatcher(Dispatcher):
             delta_time = new_departure_time - stop.departure_time
             stop.departure_time = new_departure_time
         if ss: 
-            logger.info('Skip-stop implemented at stop '+str(route.next_stops[0].location.label)+'...')
             #Add walking vehicle to the skipped stop
             walking_route = self.create_walk_vehicle_and_route(route, walking_time, event_queue)
             
@@ -636,15 +513,13 @@ class FixedLineDispatcher(Dispatcher):
             - h_and_time: tuple, the result of the OSO algorithm for the hold tactic and the corresponding end of hold time
                 (The output hold time is already treated in the OSO algorithm)"""
         route = self.get_route_by_vehicle_id(state, state.main_line)
-        logger.info('Main line is {}'.format(route.vehicle.id))
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
         if (self.route_name not in self.routes_to_optimize_names) or \
            (self.algo == 0) or \
            (route is None) or (next_route is None) or (route.current_stop is not None) or len(route.next_stops) == 0:
-            logger.info("Algo={}, Main route= {}, Next bus on main route = {}, bus has not departed yet = {}, number next stops = {}".format(str(self.algo), route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
+            # logger.info("Algo={}, Main route= {}, Next bus on main route = {}, bus has not departed yet = {}, number next stops = {}".format(str(self.algo), route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
             return(False, False, (False, -1))
         
-        logger.info('We go into the OSO algorithm :) ')
         # Get bus trip ids for the main line and the next main line
         bus_trip_id = route.vehicle.id
         bus_next_trip_id = next_route.vehicle.id
@@ -658,7 +533,7 @@ class FixedLineDispatcher(Dispatcher):
         last_stop_id = stops[-1].location.label
         stops_second = next_route.get_next_route_stops(last_stop_id)
         
-        logger.info('Main line is {} and next main line is {} and first stop is {}, last stop is {}'.format(route.vehicle.id, next_route.vehicle.id, stop_id, last_stop_id))
+        # logger.info('Main line is {} and next main line is {} and first stop is {}, last stop is {}'.format(route.vehicle.id, next_route.vehicle.id, stop_id, last_stop_id))
 
         #Get initial flows for both buses
         initial_flows = {}
@@ -1080,15 +955,7 @@ class FixedLineDispatcher(Dispatcher):
             - pathtofile: path to the file containing the data
         Outputs:
             - pairs_dict: dictionary of stop-to-stop travel time pairs
-            #- frequence: frequency of the route
             - dwells_dict: dwell times at stops for the route"""
-        # completename_frequence = os.path.join(pathtofile, route_name + "_frequence_month.csv")
-        # alltype=np.dtype([('f0', 'i8'), ('f1', 'i8'), ('f2', 'i8')])
-        # frequence=np.genfromtxt(completename_frequence, delimiter=",", dtype=alltype , usecols = [0,1,2])
-        # new_frequence=[]
-        # for intervalle in frequence:
-        #     new_frequence.append([intervalle[1]],)
-        # new_frequence=np.array(new_frequence)
 
         completename_dwells = os.path.join(pathtofile, route_name + "_dwell_times_month.csv")
         dwells_dict = self.create_data_dict(completename_dwells, passengers = False)
@@ -1101,15 +968,12 @@ class FixedLineDispatcher(Dispatcher):
         for (o,d) in headers:
             pairs_dict[(o,d)]=[]
         for x in pairs:
-            # if x[2]<0: ### ALL GOOD: ONLY 1 NEGATIVE VALUE AT THE START OF EACH NEW LINE
-            #     print('Travel time is negative...', x[2])
+            # if x[2]<0: ONLY 1 'NEGATIVE' VALUE AT THE START OF EACH NEW LINE and it is ignored
             if x[2]>=0: 
                 pairs_dict[(x[0],x[1])].append([x[2], x[3]],) # [travel_time, event_time]
         for key in pairs_dict:
             pairs_dict[key] = np.array(pairs_dict[key])
-        return(pairs_dict,
-            #    new_frequence, 
-               dwells_dict)
+        return(pairs_dict, dwells_dict)
 
     def get_passenger_historical_data(self, route_name, pathtofile):
         """
@@ -1355,7 +1219,6 @@ class FixedLineDispatcher(Dispatcher):
             new_stops.append(new_stop)
             prev_time = prev_time + travel_time + dwell_time
             prev_stop = new_stop
-            # print('Stop ', stop.location.label, ' -dwell time = ', dwell_time, ' -travel time = ', travel_time, ' -b = ', nbr_boarding, ' -a = ', nbr_alighting, ' -tb = ', nbr_transferring_boarding, ' -ta = ', nbr_transferring_alighting)
         return new_stops, transfers
     
     def generate_dwell_time(self, stop, time):
@@ -1374,11 +1237,9 @@ class FixedLineDispatcher(Dispatcher):
         """
         type_dwell = self.algo_parameters['type_dwell']
         if type_dwell == 2:
-            # print('Real dwell time for stop ', stop.location.label, ' = ', stop.departure_time - stop.arrival_time)
             return stop.departure_time - stop.arrival_time
         
         route_name = self.route_name
-        # Print route names in Data
         Data = self.Data[route_name]
         stop_to_stop_pairs, dwells, boarding, alighting, transfers_boarding, transfers_alighting, TravelTimes, Dwells, Boarding, Alighting, TBoarding, TAlighting = Data
         key = int(stop.location.label)
@@ -1650,9 +1511,9 @@ class FixedLineDispatcher(Dispatcher):
             tmp.append((transfer_time + 10, transfer_interval))
         for item, count in Counter(tmp).items():
             transfers['alighting'].append((item[0], count, item[1]))
-        # print('Stop ', stop_id ,' -transfers: ', transfers)
         return transfers
     
+    #Optimization functions
     def choose_tactic(self, T, last_stop):
         """ Chooses the tactic with the lowest regret in the tactics dictionary T.
         Inputs:
@@ -1682,7 +1543,6 @@ class FixedLineDispatcher(Dispatcher):
             T['ss'] = 1000000
         all_tactic_regrets = [ T['none'], T['h_hp'], T['sp'], T['sp_hp'], T['h_t'][0], T['sp_t'][0], T['ss']]
         index = np.argmin(all_tactic_regrets)
-        # print("All tactics- none:", T['none'], ' - h_hp:', T['h_hp'], ' - sp:', T['sp'], ' - sp_hp:', T['sp_hp'], ' - h_t:', T['h_t'], ' - sp_t:', T['sp_t'], ' - ss:', T['ss'])
         ss = 0
         speedup = 0
         hold = -1
@@ -1750,7 +1610,7 @@ class FixedLineDispatcher(Dispatcher):
                 all.append('sp_t')
 
         # Find optimal tactic and remove it from the list of tactics
-        logger.info('Optimal tactics for first stop {} : hold = {}, speedup = {}, skip-stop = {}'.format(stop_id, hold, speedup, skip_stop))
+        # logger.info('Optimal tactics for first stop {} : hold = {}, speedup = {}, skip-stop = {}'.format(stop_id, hold, speedup, skip_stop))
         if last_stop != -1:
             if skip_stop == 1: 
                 all.remove('ss')
@@ -1781,7 +1641,6 @@ class FixedLineDispatcher(Dispatcher):
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
         for tactic in all:
-            print('Tactic ', tactic)
             tactic_bus_trips = {}
             tactic_bus_trips[trip_id] = regret_bus_trips[trip_id][tactic]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
@@ -1824,6 +1683,7 @@ class FixedLineDispatcher(Dispatcher):
         max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     
+    #REGRET algorithm functions
     def create_stops_list_for_all_non_optimal_tactics(self, 
                                                       bus_trips : dict,
                                                       transfers : dict,
@@ -1987,12 +1847,6 @@ class FixedLineDispatcher(Dispatcher):
             - optimal_value: int, the optimal value of the objective function when using the optimal tactic
         Outputs:
             - regret: int, the regret of the tactic compared to the optimal value"""
-        print('Trip_id:', trip_id, '-Initial flow:', initial_flows[trip_id])
-        for stop in tactic_bus_trips[trip_id]:
-            print('Stop_id:', stop.location.label, ' -arrival time:', stop.arrival_time, ' -departure time:', stop.departure_time, ' -planned arrival time: ', stop.planned_arrival_time, '-nbr boarding: ', stop.passengers_to_board_int, ' -nbr alighting: ', stop.passengers_to_alight_int)
-        print('Transfers:')
-        for stop_id in transfers[trip_id]:
-            print('Stop_id:', stop_id, ' -boarding:', transfers[trip_id][stop_id]['boarding'], ' -alighting:', transfers[trip_id][stop_id]['alighting'])
         G, last_trip_id, bus_departures = Graph.build_graph_without_tactics(first_trip_id = trip_id,
                                                                             bus_trips = tactic_bus_trips,
                                                                             transfers = transfers,

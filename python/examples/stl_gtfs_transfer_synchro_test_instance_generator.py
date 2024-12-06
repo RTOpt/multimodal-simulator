@@ -206,15 +206,13 @@ def filter_requests(date, selected_trip_ids, name, all_trip_ids =[], base_path=o
 
     # Create output directory
     output_path = os.path.join(base_path, f"{date}-{name}")
-    print(output_path)
     os.makedirs(output_path, exist_ok=True)
 
     # Save the filtered requests to a new CSV file
     output_requests_path = os.path.join(output_path, "requests.csv")
     filtered_requests_df.to_csv(output_requests_path, sep=';', index=False)
 
-    # print("Requests filtering complete. Output file generated:")
-    print(f"- {output_requests_path}")
+    print('All outputs generated in the folder:', output_path)
     return all_trip_ids
 
 def get_start_time_of_bus(date, number, route_id):

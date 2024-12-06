@@ -1,5 +1,4 @@
-from multimodalsim.optimization.optimization import OptimizationResult
-from multimodalsim.simulator.vehicle import Stop, LabelLocation
+from multimodalsim.simulator.vehicle import Stop
 
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -537,7 +536,6 @@ class Graph:
         time_step = self.time_step
         speedup_path_is_added = False
         stop_id = int(stop.location.label)
-        # print('time_prev', time_prev, 'type', type(time_prev), 'travel_time', travel_time, 'type', type(travel_time), 'speedup_factor', speedup_factor, 'type', type(speedup_factor))
         speedup_arrival_time = int(time_prev + travel_time * speedup_factor)
         speedup_departure_time = (speedup_arrival_time + dwell + time_step - 1)//time_step * time_step
 
@@ -666,10 +664,8 @@ class Graph:
             skips[skip_stop_time] = skip_node
             self.add_node(skip_node)
         if skip_stop_time > time_prev:
-            # print('skip-stop time > time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, ss = 1)
         else:
-            # print('skip-stop time <= time_prev. Adding edge from previous node to skip node')
             self.add_edge(prev_node, skip_node, travel_time, ss = 1)
         self.add_edge(skip_node, target_nodes[trip_id][stop_id], walking_time, ss = 1) # for passengers that need to walk to their destination
         return skips
@@ -726,7 +722,6 @@ class Graph:
                 planned_departure_node_tmp.node_flow = planned_departure_node_tmp.node_flow + transfer_passengers[stop_id][transfer_time]
                 planned_departure_node_tmp.node_type = 'transfer'
                 od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_dep_plan))
-                print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
             else: 
                 # All transfer times are unique so we only need to check for the planned departure time.
                 # Transfer_passengers[stop_id][transfer_time] > 0 for all transfer times
@@ -922,7 +917,7 @@ class Graph:
             - edge_dict: a dictionary that for each edge number gives the corresponding Graph_Edge object
             - bus_dict: a dictionary that for each node number gives its bus trip_id. example: bus_dict[6]='2546781'
          """
-        # print('Converting graph to model format')
+        # Converting graph to model format
         V = self.nodes
         A = self.edges
         s = self.source
@@ -1001,9 +996,9 @@ class Graph:
             - display_flows: dict, the passenger flow on each edge, used in the display_graph function.
             - runtime: float, the runtime of the optimization model
         """
-        # print('Converting graph to model format')
+        ### Convert graph to model format
         V, A, s, t, flows, ids, node_dict, edge_dict, bus_dict = self.convert_graph_to_model_format()
-        # print('Creating optimization model')
+        #### Create optimization model'
         m = Graph.create_opt_model_from_graph_with_mip(V, A, s, t, flows, ids, name,
                                                         bus_dict, 
                                                         savepath=savepath,
@@ -1015,7 +1010,6 @@ class Graph:
 
         #Solve
         runtime = timeit.default_timer()
-        # print('Solving optimization model')
         try:
             m.optimize()
         except Exception as e:
@@ -1117,13 +1111,6 @@ class Graph:
         time_min = min(order[0][0], order[1][0])
         last_stop_second_bus = bus_trips[second_bus][-1]
 
-        # print('*** BUS TRIPS ***')
-        # for trip_id in bus_trips: 
-        #     print('trip_id', trip_id)
-        #     for stop in bus_trips[trip_id]:
-        #         print('stop', stop.location.label, 'arrival time', stop.arrival_time, 'departure time', stop.departure_time, )
-        # print('*** BUS TRIPS ***')
-
         time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers, interval) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
         if time_max - time_min > price: 
             price = time_max - time_min
@@ -1179,26 +1166,24 @@ class Graph:
                                                                                                         price = price,
                                                                                                         time_step = time_step)
 
-        # Create a dict with all stops in the two bus trips
+        ## Create a dict with all stops in the two bus trips
         stops_level, stops_dist, targets = G.create_stops_dict(bus_trips,
                                                                with_tactics = False)
 
-        # Initialize variables
+        ## Initialize variables
         sources = {}
         last_exo = {}
         od_m_dict = {}
         od_d_dict = {}
         target_nodes = {}
 
-        # print('First bus : ', order[0][1], ' Second bus: ', order[-1][1])
-        # Create nodes and edges for each bus trip
+        ## Create nodes and edges for each bus trip
         for (start_time, trip_id) in order:
-            # print('Building graph for bus trip', trip_id)
             if (start_time, trip_id) != order[0]:
                 with_tactics = False
             else:
                 with_tactics = True
-            # Initialize dictionaries stocking data for the bus trip
+            ## Initialize dictionaries stocking data for the bus trip
             od_m_dict[trip_id] = []
             od_m = []
             od_d_dict[trip_id] = []
@@ -1207,8 +1192,7 @@ class Graph:
             speedup_factor = global_speedup_factor
             sources = G.add_source_node(sources, start_time, initial_flows[trip_id], trip_id, global_source_node)
 
-            # Create transfer nodes and get transfer data
-            # print('Creating transfer nodes and getting transfer data')
+            ## Create transfer nodes and get transfer data
             transfer_nodes, transfer_passengers, od_d_dict, od_m, level = G.get_transfer_data(transfers,
                                                                                             stops_level,
                                                                                             stops_dist,
@@ -1216,18 +1200,17 @@ class Graph:
                                                                                             od_d_dict,
                                                                                             od_m)
 
-            # print('Done creating transfer nodes and getting transfer data')
-            # Decide last stop at which tactics are allowed
+            ## Decide last stop at which tactics are allowed
             last = Graph.get_last_stop(last_stop, level, stops_level)
 
-            # Initialize dicts
+            ## Initialize dicts
             departs_prev = {}
             departs_prev[sources[trip_id].node_time] = sources[trip_id]
             prev_departure_time = last_departure_times[trip_id]
 
-            # Create nodes and edges at each stop
+            ## Create nodes and edges at each stop
             for j in range(len(bus_trips[trip_id])):
-                # Initialize variables
+                ## Initialize variables
                 departs_current = {}
                 skips = {}
                 exo_current = {}
@@ -1238,14 +1221,14 @@ class Graph:
                 if l > last:
                     speedup_factor = 1
                     skip_stop_is_allowed = False
-                travel_time = max(1, stop.arrival_time - prev_departure_time) #dwell at previous stop. We need the dwell time to be non-null for the constraints in the MIP solver.
+                travel_time = max(1, stop.arrival_time - prev_departure_time) ## dwell at previous stop. We need the dwell time to be non-null for the constraints in the MIP solver.
                 dwell = stop.departure_time - stop.arrival_time
                 prev_departure_time = stop.departure_time
 
-                # Add target node and the flow corresponding to passengers alighting at this stop without a transfer
+                ## Add target node and the flow corresponding to passengers alighting at this stop without a transfer
                 target_nodes, od_d_dict = G.add_target_node(target_nodes, od_d_dict, trip_id, stop, start_time, l, d)
 
-                # In this modelization we want to separate transfers and normal alighting passengers
+                ## In this modelization we want to separate transfers and normal alighting passengers
                 #  *** TRANSFER PASSENGERS ARE NOT INCLUDED IN THE NUMBER OF ALIGHTING PASSENGERS ***
                 # ***
                 # if stop_id in transfer_nodes: 
@@ -1253,13 +1236,14 @@ class Graph:
                 #         target.flow += -node.get_node_flow()
                 # *** 
 
-                # Add all possible paths from previous stop to current stop, given the current existing paths
+                ### ******************************************* ###
+                ## Add all possible bus paths from previous stop to current stop, given the current existing paths
                 for node_time in departs_prev:
                     cur_arr = {}
                     prev_node = departs_prev[node_time]
                     time_prev = prev_node.node_time
 
-                    # Add bus path using the speedup tactic
+                    ## Add bus path using the speedup tactic
                     speedup_path_is_added, speedup_arrival_node, cur_arr, departs_current = G.add_speedup_tactic_path(stop,
                                                                                                                     speedup_factor,
                                                                                                                     travel_time,
@@ -1269,25 +1253,25 @@ class Graph:
                                                                                                                     departs_current,
                                                                                                                     target_nodes[trip_id][stop_id],
                                                                                                                     prev_node, l, d, trip_id)
-                    # Add bus path without tactics
+                    ## Add bus path without tactics
                     no_tactics_arrival_node, no_tactics_departure_node, cur_arr, departs_current = G.add_no_tactics_path(stop, travel_time, time_prev, dwell, cur_arr, departs_current, target_nodes[trip_id][stop_id], prev_node, l, d, trip_id)
 
-                    # Add path for alighting passengers with transfers
+                    ## Add path for alighting passengers with transfers
                     walking_time = int(max(0, (d-prev_node.node_dist)/4 * 3600 - travel_time))
                     if stop_id in transfer_nodes:
                         for alighting_transfer_node in transfer_nodes[stop_id]:
-                            # Link to bus path using speedup tactic
+                            ## Link to bus path using speedup tactic
                             if speedup_path_is_added: #there is a speedup tactic
                                 G.add_alighting_transfer_passenger_edge(speedup_arrival_node, alighting_transfer_node)
-                            # Link to bus path without tactics
+                            ## Link to bus path without tactics
                             G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node)
-                            # If stop is skipped, the passengers cannot alight here.
-                    # Add bus path using the skip-stop tactic
+                            ## If stop is skipped, the passengers cannot alight here.
+                    ## Add bus path using the skip-stop tactic
                     else: 
                         skips = G.add_skip_stop_path(stop, travel_time, time_prev, last, skips, target_nodes, prev_node, no_tactics_arrival_node.node_time, walking_time, (stop_id in transfer_passengers), l, d, trip_id, skip_stop_is_allowed = skip_stop_is_allowed)
-                # All bus paths are added
+                ## All bus paths are added
 
-                # Add paths for passengers boarding without a transfer
+                ## Add arcs for passengers boarding without a transfer
                 min_departure_time = min([time for time in departs_current])
                 planned_departure_time = stop.planned_arrival_time - 60
                 boarding_without_transfer = False
@@ -1295,7 +1279,6 @@ class Graph:
                     boarding_without_transfer = True
                     planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
                     if planned_departure_time in departs_current:
-                        # print('Plannned departure time already in departs_current')
                         planned_departure_node = departs_current[planned_departure_time]
                     else: 
                         planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id)
@@ -1315,7 +1298,7 @@ class Graph:
                     planned_departure_node_tmp = -1
                     edge_dep_plan = -1
                     planned_departure_node = -1
-                # Add paths for passengers boarding with a transfer
+                ## Add arcs for passengers boarding with a transfer
                 new_transfer_nodes, exo_current, od_m_dict = G.add_boarding_transfer_passenger_edges(stop, trip_id,
                                                                                                     transfer_passengers,
                                                                                                     exo_current,
@@ -1328,7 +1311,8 @@ class Graph:
                                                                                                     boarding_without_transfer = boarding_without_transfer,
                                                                                                     l = l,
                                                                                                     d = d)
-                # All bus and passenger paths have been added 
+                ## All bus and passenger paths have been added 
+                ## ******************************************* ###
 
                 times = G.create_possible_departures_list(stop_id,
                                                          transfer_passengers,
@@ -1337,7 +1321,7 @@ class Graph:
                                                          departs_current,
                                                          with_tactics = with_tactics)
                 
-                # Get all possible passenger ready times and bus departure times for the current stop
+                ## Get all possible passenger ready times and bus departure times for the current stop
                 times = Graph.get_all_passenger_ready_times_and_bus_departure_times(times,
                                                                                     departs_current,
                                                                                     boarding_without_transfer,
@@ -1351,7 +1335,7 @@ class Graph:
                     else:
                         input('how rare is this?')
 
-                # Add paths for passengers who missed the previous bus
+                ## Add paths for passengers who missed the previous bus
                 times, last_exo, exo_current, departs_current = G.link_passengers_from_previous_bus(times, stop_id, last_exo, exo_current, departs_current, with_tactics = with_tactics)
 
                 if j != len(bus_trips[trip_id])-1:
@@ -1371,7 +1355,6 @@ class Graph:
             if simu:
                 global_skip_stop_is_allowed = False
                 global_speedup_factor = 1
-        # print('Graph built')
         return(G)
 
     @staticmethod
@@ -1518,7 +1501,7 @@ class Graph:
                             # Link to skip stop path (# ONLY WHEN EVALUATING REGRETS)
                             G.add_alighting_transfer_passenger_edge(no_tactics_arrival_node, alighting_transfer_node, walking_time, ss = stop_is_skipped)
 
-                # Add paths for passengers boarding without a transfer
+                ## Add paths for passengers boarding without a transfer
                 boarding_without_transfer = False
                 additional_time = 0 if stop_is_skipped == 0 else walking_time
                 edge_weigth = 1 if stop_is_skipped == 0 else walking_time
@@ -1527,7 +1510,6 @@ class Graph:
                     boarding_without_transfer = True
                     planned_departure_node_tmp = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", stop.passengers_to_board_int, l, d, trip_id)
                     if planned_departure_time in departs_current:
-                        # print('Plannned departure time already in departs_current')
                         planned_departure_node = departs_current[planned_departure_time]
                     else:
                         planned_departure_node = Graph_Node(stop_id, "d", planned_departure_time, 0, "normal", 0, l, d, trip_id) 
@@ -1542,7 +1524,7 @@ class Graph:
                     edge_dep_plan = -1
                     planned_departure_node = -1
                 
-                # Add paths for passengers boarding with a transfer
+                ## Add paths for passengers boarding with a transfer
                 new_transfer_nodes, exo_current, od_m_dict = G.add_boarding_transfer_passenger_edges(stop, trip_id,
                                                                                                     transfer_passengers,
                                                                                                     exo_current,

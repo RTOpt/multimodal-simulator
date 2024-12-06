@@ -356,7 +356,6 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         observations_sorted = observations_sorted.sort_values(by=[id_col, time_col], ascending =[True, True], inplace=False)
         # if previous row has same id_col and same status_col, then remove the row
         observations_sorted = observations_sorted[observations_sorted[status_col] != observations_sorted[status_col].shift(1)]
-        # print(observations_sorted)
         ### group by id_col
         observations_sorted["duration"] = observations_sorted[time_col]. \
             transform(lambda s: s.shift(-1) - s)
@@ -365,7 +364,6 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         table_name = 'trips_details'
         ### For each group, wait before boarding is the duration of the first row with status 'PassengersStatus.Ready' before the first row with status 'PassengersStatus.ONBOARD'
         all_id_values = observations_sorted[id_col].unique()
-        # print(observations_sorted)
         for id in all_id_values:
             group = observations_sorted[observations_sorted[id_col] == id]
             ready_row = group[group[status_col] == PassengersStatus.READY].head(1)

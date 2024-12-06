@@ -341,7 +341,6 @@ class GTFSGenerator:
         for date in dates:
             date_folder = os.path.join("data", "fixed_line", "gtfs", "gtfs" + date)
             filename = os.path.join(date_folder, "stops_per_line.txt")
-            print('filename = ', filename)
             line_names=np.genfromtxt(filename, delimiter = ",", usecols=[0], dtype = [('f0','U12')], names = True)
             for ligndir in line_names:
                 ligndir=str(ligndir[0])
@@ -360,8 +359,6 @@ class GTFSGenerator:
                 all_ligns_EO.remove(lign)
             if lign in all_ligns_SN: 
                 all_ligns_SN.remove(lign)
-        print('all_ligns_SN =',all_ligns_SN)
-        print('all_ligns_EO =',all_ligns_EO)
         return all_ligns_SN, all_ligns_EO
 
     def create_stops_per_line(self, date_folder):
@@ -563,7 +560,6 @@ class GTFSGenerator:
                 for dwell_time, event_time in dwells_dict[route][stop_id]:
                     if dwell_time>=0:
                         data.append([stop_id, dwell_time, event_time],)
-            # print(len(data))
             dwell_filename = os.path.join("data", "fixed_line", "gtfs", "route_data", route+"_dwell_times_month.csv")
             with open(dwell_filename, 'w', newline='') as dwell_file:
                 writer = csv.writer(dwell_file)
@@ -578,7 +574,6 @@ class GTFSGenerator:
                 for travel_time, event_time in travel_times_dict[route][stop_pair]:
                     if travel_time>=0:
                         data.append( [stop_pair[0], stop_pair[1], travel_time, event_time],)
-            # print(len(data))
             with open(travel_time_filename, 'w', newline='') as travel_times_file:
                 writer = csv.writer(travel_times_file)
                 # Write the header
@@ -793,7 +788,6 @@ class GTFSGenerator:
 
         passage_arret_df_list = []
         for passage_arret_file_path in self.__passage_arret_file_path_list:
-            print(passage_arret_file_path)
             passage_arret_df_temp = pd.read_csv(passage_arret_file_path,
                                                 usecols=columns_type_dict.keys(),
                                                 delimiter=",",

@@ -18,12 +18,12 @@ class Simulation(object):
 
     def __init__(self, optimization, trips, vehicles, routes_by_vehicle_id,
                  network=None, environment_observer=None, coordinates=None,
-                 travel_times=None, config=None):
+                 travel_times=None, config=None, transfer_synchro = False):
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
-                                 optimize_at_passenger_events = False
+                                 transfer_synchro = transfer_synchro
                                  )
         self.__env.next_vehicles = self.define_next_vehicles(routes_by_vehicle_id)
         self.__queue = EventQueue(self.__env)

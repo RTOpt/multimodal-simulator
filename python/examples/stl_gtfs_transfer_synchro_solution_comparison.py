@@ -84,7 +84,6 @@ def get_request_transfer_data(instance_name):
             next(requests_reader, None)
             total_transfers = 0
             for row in requests_reader:
-                # print(row)
                 request_id = row[0] 
                 legs_stops_pairs_list = None
                 if len(row) - 1 == 7:
@@ -128,7 +127,6 @@ def get_completed_transfers(output_folder_path, transfers, total_transfers):
             continue
     ### Save updated trips_details_observations_df without the index
     trips_details_observations_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df2.csv'), index=False)
-    # print('Number of completed transfers:', number_of_completed_transfers)
     number_missed_transfers = total_transfers - number_of_completed_transfers
     percentage_missed_transfers = (number_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
     return(number_of_completed_transfers, number_missed_transfers, percentage_missed_transfers)
@@ -185,7 +183,6 @@ def plot_single_line_comparisons(instance_name,
 
     ### Get the total number of transfers
     transfers, total_transfers = get_request_transfer_data(instance_name)
-    # print('Total transfers:', total_transfers)
 
     # Define the labels for main groups
     group_labels = ["No tactics", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
@@ -217,11 +214,8 @@ def plot_single_line_comparisons(instance_name,
         sim_file = os.path.join(sim_folder, "trips_details_observations_df2.csv")
         if os.path.exists(sim_file):
             output_data = analyze_simulations(baseline_file, sim_file, relative_increase_threshold)
-            # print('Output data for algos:', output_data)
-            # group_index = 2 + i // 3  # Group index based on the 6 groups specified
             group_index = 1 + i // 3  # Group index based on the 6 groups specified
             key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
-            print(key)
             group_data[key] = [time / 60 for time in output_data["travel_times_sim2"]]
             if transfer_type == 0:
                 missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"] 

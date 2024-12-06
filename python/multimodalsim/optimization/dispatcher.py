@@ -82,15 +82,6 @@ class Dispatcher:
 
         return selected_next_legs, selected_routes
     
-    def bus_prepare_input(self, state):
-        raise NotImplementedError('optimize of {} not implemented'.
-                                  format(self.__class__.__name__))
-    
-    def bus_optimize(self, selected_next_legs, selected_routes, current_time,
-                    state):
-        raise NotImplementedError('optimize of {} not implemented'.
-                                  format(self.__class__.__name__))
-    
     def optimize(self, selected_next_legs, selected_routes, current_time,
                  state):
         """Determine the vehicle routing and the trip-route assignment
@@ -122,7 +113,7 @@ class Dispatcher:
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def bus_dispatch(self, state, queue, main_line_id, next_main_line_id):
+    def transfer_synchro_dispatch(self, state, queue, main_line_id, next_main_line_id):
         raise NotImplementedError('optimize of {} not implemented'.
                                   format(self.__class__.__name__))
 
@@ -271,14 +262,12 @@ class Dispatcher:
                 break
 
     def __add_passenger_to_board(self, trip, stop):
-        # print('on est la, on ajoute le passenger_to_board ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_board]
         if trip.id not in trip_ids_list:
             stop.passengers_to_board.append(trip)
             stop.passengers_to_board_int +=1
 
     def __add_passenger_to_alight(self, trip, stop):
-        # print('on est la, on ajoute le passenger_to_alight ', trip.id,' au stop: ', stop.location.label)
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
