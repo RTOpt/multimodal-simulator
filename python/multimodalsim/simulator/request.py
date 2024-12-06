@@ -114,7 +114,6 @@ class Leg(Request):
         if vehicle is None:
             self.__cap_vehicle_id = None
         elif self.__cap_vehicle_id is None or self.__cap_vehicle_id != vehicle.id:
-            logger.info("Leg did not have assigned cap vehicle id or it was different. Setting it to the vehicle id number {}".format(vehicle.id))
             self.__cap_vehicle_id = vehicle.id
         if self.__route_name is None or (vehicle!= None and self.__route_name != vehicle.route_name):
             self.__route_name = vehicle.route_name

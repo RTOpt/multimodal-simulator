@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 class Optimize(ActionEvent):
     def __init__(self, time, queue, multiple_optimize_events=None,
                  batch=None, max_optimization_time=None, asynchronous=None,
-                 bus=False,
-                 event_priority=Event.STANDARD_PRIORITY,
-                 main_line=None, next_main_line=None):
+                 bus = False,
+                 event_priority = Event.STANDARD_PRIORITY,
+                 main_line = None, next_main_line = None):
         self.__load_parameters_from_config(queue.env.optimization,
                                            multiple_optimize_events, batch,
                                            max_optimization_time, asynchronous)

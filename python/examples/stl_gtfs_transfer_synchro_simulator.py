@@ -7,12 +7,10 @@ from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
 from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
     FixedLineSynchroDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import MultimodalSplitter, \
-    OneLegSplitter
+from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader, os
 from multimodalsim.simulator.coordinates import CoordinatesFromFile, CoordinatesOSRM
 from multimodalsim.simulator.simulation import Simulation
-import json
 
 def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
                        requests_file_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small","requests.csv"),

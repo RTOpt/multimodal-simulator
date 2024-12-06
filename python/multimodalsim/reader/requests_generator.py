@@ -160,13 +160,9 @@ class CAPRequestsGenerator(RequestsGenerator):
     def __get_first_possible_transfers_for_requests(self, time_limit = 300):
         """ This functions considers requests with multiple legs (passengers with transfers) and evaluates if these could have been earlier.
             If an earlier transfer is possible, the request is updated accordingly. All legs will be evaluated sequentially, and assigned to different vehicles if necessary.
-            The function will iterate over all requests until no more improvements are possible.
-            To evaluate this, the function takes into account the planned arrival time of the vehicle at the origin of the next leg and checks if any earlier vehicles could have been more beneficial.
-            The function will update sef.__requests_df accordingly.
 
             Inputs:
-                time_limit: int, maximum time window to consider before the planned boarding time of the passenger."""
-        print("Getting first possible transfers for requests...")
+                time_limit: int, time window to consider."""
         ### First read the stop_times file
         stop_times_df = pd.read_csv(self.__stop_times_file_path, delimiter=",")
         stop_times_df["arrival_time"] = stop_times_df["arrival_time"].apply(int)
@@ -188,7 +184,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         route_id_dict = dict(zip(trips_df["trip_id"], trips_df["route_id"]))      
 
         ### Create a dictionary that for each route_id, and for each stop_id, contains a tuple with the
-        ### (arrival time, departure time, trip_id) for all trips that stop at that stop for this route.
+        ### (arrival time, departure time, trip_id, planned_arrival_time, min(arrival_time, planned_arrival_time)) for all trips that stop at that stop for this route.
         passage_times_at_stops = {}
         all_route_ids = trips_df["route_id"].unique()
         for route_id in all_route_ids:
@@ -205,9 +201,9 @@ class CAPRequestsGenerator(RequestsGenerator):
         
         ### Read all requests
         requests_df = self.__requests_df.copy()
-        ###For each request, check if there are earlier vehicles that could have been used.
-        ###If so, update the request accordingly.
-        ###The function will iterate over all requests until no more improvements are possible.
+        ### For each request, check if there are earlier vehicles that could have been used.
+        ### If so, update the request accordingly.
+        ### The function will iterate over all requests until no more improvements are possible.
         counter = 0
         all_counter = 0
         updated_resquests = {}
@@ -224,6 +220,7 @@ class CAPRequestsGenerator(RequestsGenerator):
             if original_start_tuple is not None:
                 original_planned_arrival_time = original_start_tuple[3]
                 request['ready_time'] = original_planned_arrival_time - 60
+            ### Check if an earlier transfer was possible
             for i in range(1, len(legs)):
                 arrival_transfer_stop_id = legs[i-1][1]
                 first_trip_id = legs[i-1][2]
@@ -257,9 +254,6 @@ class CAPRequestsGenerator(RequestsGenerator):
         ### Update the requests_df
         updated_requests_df = pd.DataFrame.from_dict(updated_resquests, orient="index")
         self.__requests_df = updated_requests_df
-        print("Number of updated requests: ", counter)
-        print("Number of all transfer requests: ", all_counter)
-
 
 class CAPFormatter:
     def __init__(self, cap_file_path, stop_times_file_path, config):

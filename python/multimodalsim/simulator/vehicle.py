@@ -406,7 +406,7 @@ class Route(object):
             trip.current_leg = new_leg
 
             # add alighting passenger to the following stop
-            # No need, done in process route plans.
+            # No need, done in 'process_route_plans' function.
 
             # add walk leg to the trip
             walk_leg_id = leg_id + '_walking'
@@ -653,14 +653,12 @@ class Stop(object):
     def initiate_boarding(self, trip):
         """Passengers who are ready to be picked up in the stop get in the
         vehicle """
-        # print('Initiate boarding passenger', trip.id, ' at stop: ', self.__location.label)
         self.passengers_to_board.remove(trip)
         self.passengers_to_board_int = max(0, self.passengers_to_board_int - 1)
         self.boarding_passengers.append(trip)
 
     def board(self, trip):
         """Passenger who is boarding becomes boarded"""
-        # print('Boarded passenger: ', trip.id, 'at stop: ', self.__location.label)
         self.boarding_passengers.remove(trip)
         self.boarded_passengers.append(trip)
 

@@ -1987,7 +1987,7 @@ class Graph:
                     name = 'Graph_Image',
                     savepath = os.path.join('output','fixed_line','gtfs'),
                     figsize = (12,18)): 
-        """This function creates an visual representation of the graph using different colors for different node types and edge types.
+        """This function creates a visual representation of the graph using different colors for different node types and edge types (mainly used for debugging).
         Inputs:
             - self: the graph to display
             - display_flows: dictionary containing the flows on each edge of the graph. The format of the display_flows dictionary is as follows:
@@ -2058,15 +2058,14 @@ class Graph:
         gc['e']['s1'] = ('yellow','-')
         gc['e']['s0'] = gc['e']['n0']
         gc['e']['final'] = ('powderblue','--')
-        gc['n']['p'] = 'none'#'lightgrey'
+        gc['n']['p'] = 'none' #puit
         gc['n']['na'] = 'pink'
         gc['n']['nd0'] = 'lightgreen'
         gc['n']['nd1'] = 'mediumseagreen'
-        # gc['n']['t']='deepskyblue'
         gc['n']['source'] = 'red'
-        gc['n']['ta'] = 'lightskyblue'#gc['n']['nd1']#'mediumseagreen'
-        gc['n']['td'] = 'dodgerblue'#gc['n']['na']#'pink''deepskyblue'
-        gc['n']['s'] = 'yellow'
+        gc['n']['ta'] = 'lightskyblue'
+        gc['n']['td'] = 'dodgerblue'
+        gc['n']['s'] = 'yellow'#skipped-stop
         for edge in edges:
             u=edge.origin
             v=edge.destination

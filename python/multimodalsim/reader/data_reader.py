@@ -308,6 +308,7 @@ class GTFSReader(DataReader):
                                   LabelLocation(second_stop_id),
                                   nb_passengers, release_time,
                                   ready_time, due_time, trip)
+                        # Assign cap vehicle and route_name to leg (used in transfer synchro dispatcher)
                         leg.set_cap_vehicle_id(cap_vehicle_id)
                         route_name = self.__trip_route_dict[cap_vehicle_id]
                         leg.set_route_name(route_name)

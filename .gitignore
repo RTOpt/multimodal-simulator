@@ -30,7 +30,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 output/
-output/fixed_line/gtfs/gtfs-generated-small/vehicles_observations_df.csv
+output/fixed_line_travel_times
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -133,9 +133,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Large .csv files
-non_existent_trips.csv
-output/Model_Tactics.lp
-
-# Images
+# Images and old test instance generator files
 python/examples/fixed_line/figures/
+python/examples/Small_instance_generator.py
+python/multimodalsim/optimization/fixed_line/graph_constructor_unit_tests.py

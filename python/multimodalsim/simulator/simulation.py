@@ -18,7 +18,7 @@ class Simulation(object):
 
     def __init__(self, optimization, trips, vehicles, routes_by_vehicle_id,
                  network=None, environment_observer=None, coordinates=None,
-                 travel_times=None, config=None, main_line=None, next_main_line=None):
+                 travel_times=None, config=None):
 
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
@@ -75,7 +75,6 @@ class Simulation(object):
                                 current_event.priority)
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
-        print('\n***************\nEND OF SIMULATION\n***************')
         # self.__visualize_environment()
 
     def __load_config(self, config):
