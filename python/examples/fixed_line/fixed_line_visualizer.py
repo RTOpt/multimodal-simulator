@@ -302,11 +302,12 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     # plt.show()
     plt.close()
 
-#Define the route_ids to plot
+# Define the route_ids to plot
 # Route ids for a quadrant style network
-route_ids = ['26E', '17S', '151S', '56O', '42E']
-# route_ids = ['26O', '17S', '151N', '42E']
 route_ids = [ '17N', '151N', '26O', '42E', '56O']
+# #Route ids for a radial style network
+# route_ids = ['70E', '31S', '37S', '39S', '33S']
+
 # Read all other routes from new_trips_df
 other_routes = new_trips_df['route_id'].unique()
 other_routes = [route_id for route_id in other_routes if route_id not in route_ids]
@@ -315,8 +316,4 @@ other_routes = [route_id for route_id in other_routes if route_id not in route_i
 # Plot the map with the specified routes using dynamic extent
 plot_map_with_dynamic_extent(route_ids, other_routes=other_routes, radial = False)
 
-# #Route ids for a radial style network
-# route_ids = ['70E', '31S', '37S', '39S', '33S']
 
-# # Plot the map with the specified routes using dynamic extent 
-# plot_map_with_dynamic_extent(route_ids, radial = True)

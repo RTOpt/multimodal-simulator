@@ -1,7 +1,0 @@
-fixed \
---gtfs \
---gtfs-folder data/fixed_line/gtfs/gtfs2019-11-01/ \
--r data/fixed_line/stl/gtfs/generated/2019-11-01/day_requests.csv --log-level INFO\
--c data/fixed_line/stl/available_connections/available_connections_0p25.json\
--g data/fixed_line/stl/network_graph/bus_network_graph_20191101.txt
---multimodal

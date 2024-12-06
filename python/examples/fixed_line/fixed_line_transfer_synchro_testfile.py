@@ -1,6 +1,6 @@
 import sys
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
-from stl_gtfs_simulator import*
+from stl_gtfs_transfer_synchro_simulator import*
 import winsound
 import datetime
 import traceback
@@ -61,7 +61,7 @@ else:
     f.close()
 
 # Offline
-stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
+stl_gtfs_transfer_synchro_simulator(gtfs_folder_path = gtfs_folder_path,
                     requests_file_path = requests_file_path,
                     coordinates_file_path = coordinates_file_path,
                     routes_to_optimize_names = routes_to_optimize_names,
@@ -75,7 +75,7 @@ stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
                     is_from_smartcard_data = True
                     )
 # # # Intelligent splitter 
-# stl_gtfs_simulator(gtfs_folder_path = gtfs_folder_path,
+# stl_gtfs_transfer_synchro_simulator(gtfs_folder_path = gtfs_folder_path,
 #                     requests_file_path = requests_file_path,
 #                     coordinates_file_path = coordinates_file_path,
 #                     routes_to_optimize_names = routes_to_optimize_names,
@@ -95,7 +95,8 @@ for routes_to_optimize_names in [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]
         for sp in [True, False]:
             for ss in [False, True]:
                 try:
-                    stl_gtfs_simulator(gtfs_folder_path=gtfs_folder_path,
+                    stl_gtfs_transfer_synchro_simulator(
+                                        gtfs_folder_path=gtfs_folder_path,
                                         requests_file_path=requests_file_path,
                                         coordinates_file_path=coordinates_file_path,
                                         routes_to_optimize_names = routes_to_optimize_names,

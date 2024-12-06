@@ -14,7 +14,7 @@ from multimodalsim.simulator.coordinates import CoordinatesFromFile, Coordinates
 from multimodalsim.simulator.simulation import Simulation
 import json
 
-def stl_gtfs_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
+def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small"),
                        requests_file_path=os.path.join("data","fixed_line","gtfs","gtfs-generated-small","requests.csv"),
                        coordinates_file_path=None,
                        routes_to_optimize_names = [],

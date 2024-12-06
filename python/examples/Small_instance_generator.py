@@ -11,7 +11,6 @@ from collections import defaultdict
 from operator import itemgetter
 import copy
 
-# base_folder=r"C:\Users\kklau\Desktop\Simulator"
 logger = logging.getLogger(__name__)
 
 ### This file generates partial data of the day November 1st 2019 to allow for testing on a medium size real instance.
