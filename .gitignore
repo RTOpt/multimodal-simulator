@@ -30,6 +30,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 output/
+output/fixed_line/gtfs/gtfs-generated-small/vehicles_observations_df.csv
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
