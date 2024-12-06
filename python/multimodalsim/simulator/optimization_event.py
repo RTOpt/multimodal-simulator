@@ -79,7 +79,7 @@ class Optimize(ActionEvent):
         env.optimization.state.unfreeze_routes_for_time_interval(
             env.optimization.freeze_interval)
 
-        EnvironmentUpdate(optimization_result, self.queue, self.bus).add_to_queue()
+        EnvironmentUpdate(optimization_result, self.queue, self.transfer_synchro).add_to_queue()
 
     def __optimize_asynchronously(self, env):
         hold_cv = Condition()
@@ -168,14 +168,14 @@ class Optimize(ActionEvent):
 
 
 class EnvironmentUpdate(ActionEvent):
-    def __init__(self, optimization_result, queue, bus=False):
+    def __init__(self, optimization_result, queue, transfer_synchro=False):
         super().__init__('EnvironmentUpdate', queue,
                          state_machine=queue.env.optimization.state_machine)
         self.__optimization_result = optimization_result
-        self.__bus = bus
+        self.__transfer_synchro = transfer_synchro
 
     def _process(self, env):
-        if self.__bus:
+        if self.__transfer_synchro:
             for trip in self.__optimization_result.modified_requests:
                 env.update_changed_assigned_trips(trip.id, trip)
         for trip in [trip for trip in self.__optimization_result.modified_requests if trip in env.non_assigned_trips]:
@@ -207,7 +207,7 @@ class EnvironmentUpdate(ActionEvent):
 
             modified_assigned_legs = [leg for leg in route.assigned_legs
                                       if leg.trip.id in modified_trips_ids]
-            if self.__bus:
+            if self.__transfer_synchro:
                 modified_assigned_legs = list(set([leg for leg in route.assigned_legs + route.onboard_legs
                                           if leg.trip.id in modified_trips_ids]))
 
@@ -216,7 +216,7 @@ class EnvironmentUpdate(ActionEvent):
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
                 current_stop_departure_time, modified_assigned_legs)
             vehicle_event_process.VehicleNotification(
-                route_update, self.queue, self.__bus).add_to_queue()
+                route_update, self.queue, self.__transfer_synchro).add_to_queue()
 
         EnvironmentIdle(self.queue).add_to_queue()
 

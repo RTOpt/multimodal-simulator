@@ -198,13 +198,13 @@ class VehicleArrival(ActionEvent):
 
 
 class VehicleNotification(Event):
-    def __init__(self, route_update, queue, bus=False):
+    def __init__(self, route_update, queue, transfer_synchro=False):
         self.__env = None
         self.__route_update = route_update
         self.__vehicle = queue.env.get_vehicle_by_id(
             self.__route_update.vehicle_id)
         self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
-        self.__bus = bus
+        self.__transfer_synchro = transfer_synchro
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env):
@@ -246,7 +246,7 @@ class VehicleNotification(Event):
             actual_modified_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.modified_assigned_legs)
-            if self.__bus:
+            if self.__transfer_synchro:
                 for leg in actual_modified_assigned_legs:
                     # Case 1: Onboard leg that was changed due to a skip-stop tactic (change of alighting stop)
                     onboard_leg_to_remove = next((l for l in self.__route.onboard_legs if l.id == leg.id), None)

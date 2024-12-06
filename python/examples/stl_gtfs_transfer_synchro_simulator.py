@@ -83,7 +83,8 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                             vehicles,
                             routes_by_vehicle_id,
                             environment_observer=environment_observer,
-                            coordinates=coordinates)
+                            coordinates=coordinates,
+                            transfer_synchro = True)
 
     # Execute the simulation.
     simulation.simulate()

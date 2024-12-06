@@ -30,23 +30,24 @@ if __name__ == '__main__':
         routes_to_optimize_names = ['70E']
     
     # Test for all lines in the bus network over a shorter period.
-    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-01-TestInstanceDurationShort")
-    requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
-    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstanceDurationShort")
-    output_folder_name = "gtfs2019-11-01_TestInstanceDurationShort"
-    coordinates_file_path = None
-    freeze_interval = 1
-    routes_to_optimize_names = [ '17N', '151S', '26E', '42E', '56E'] # grid style network
-
-    # ### Test for all lines in the bus network over a shorter period (considering passengers that touche these lines only)
-    # gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-25-TestInstanceDurationCASPT_NEW")
+    # gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-01-TestInstanceDurationShort")
     # requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
-    # output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-25_TestInstanceDurationCASPT_NEW")
-    # output_folder_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
+    # output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstanceDurationShort")
+    # output_folder_name = "gtfs2019-11-01_TestInstanceDurationShort"
     # coordinates_file_path = None
     # freeze_interval = 1
-    # routes_to_optimize_names = [ '17N', '151S', '26E', '42E', '56E']
-    # routes_to_optimize_names = ['42E']
+    # routes_to_optimize_names = [ '17N', '151S', '26E', '42E', '56E'] # grid style network
+
+    # ### Test for all lines in the bus network over a shorter period (considering passengers that touche these lines only)
+    gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-25-TestInstanceDurationCASPT_NEW")
+    requests_file_path = os.path.join(gtfs_folder_path,"requests.csv")
+    output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-25_TestInstanceDurationCASPT_NEW")
+    output_folder_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
+    coordinates_file_path = None
+    freeze_interval = 1
+    routes_to_optimize_names = [ '17N', '151S', '26E', '42E', '56E']
+    routes_to_optimize_names = ['42E']
+    
 #Create error file and create it if it does not exist with timestamp
 error_file_path = os.path.join(output_folder_path, "error.txt")
 if not os.path.exists(output_folder_path):
