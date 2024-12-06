@@ -153,7 +153,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     Plot the map with thinner transfer stop markers, an updated legend, and dynamic extent to focus on the plotted routes.
     The padding parameter controls how much extra space is added around the routes.
     """
-    fig, ax = plt.subplots(figsize=(9, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.imshow(Image.open(background_image_path), extent=[map_bounds[3], map_bounds[2], map_bounds[1], map_bounds[0]])
     route_stop_lists = {}
     plotted_routes = []  # Track plotted routes to handle offsets for shared segments
@@ -278,14 +278,14 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     if radial: 
         title = "Radial style instance including transfer stops"
     else:
-        title = "Map of five main lines and multiple feeder lines\n in the case study on the STL bus transit network"
-    ax.set_title(title, fontsize=14)
+        title = "Map of case study network in Laval, Canada"
+    ax.set_title(title, fontsize=18)
     # Add a legend with a white background and black border
     handles, labels = ax.get_legend_handles_labels()
     unique = dict(zip(labels, handles))
 
     # Create the legend with unique labels
-    legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 10, title = 'Legend', markerscale = 1.5)
+    legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 14, markerscale = 1.5)
     legend.get_frame().set_facecolor('white')  # Set the background color to white
     legend.get_frame().set_edgecolor('black')  # Set the edge color to black
     legend.get_frame().set_alpha(1)  # Make the legend fully opaque

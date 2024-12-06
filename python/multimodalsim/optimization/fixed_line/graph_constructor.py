@@ -726,7 +726,7 @@ class Graph:
                 planned_departure_node_tmp.node_flow = planned_departure_node_tmp.node_flow + transfer_passengers[stop_id][transfer_time]
                 planned_departure_node_tmp.node_type = 'transfer'
                 od_m_dict[trip_id].append((transfer_passengers[stop_id][transfer_time], stop, edge_dep_plan))
-                # print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
+                print('Adding transfer passengers to planned departure node, adding flow', transfer_passengers[stop_id][transfer_time])
             else: 
                 # All transfer times are unique so we only need to check for the planned departure time.
                 # Transfer_passengers[stop_id][transfer_time] > 0 for all transfer times
@@ -2151,8 +2151,8 @@ class Graph:
                     else: 
                         edge_labels[(newnodes[u],newnodes[v])]=""
                         G.add_edge(newnodes[u], newnodes[v], w=1,color=gc['e']['s0'][0],type=gc['e']['s0'][1],label="")
-        print('Nodes:', G.number_of_nodes() )
-        print('Edges:',G.number_of_edges() )
+        # print('Nodes:', G.number_of_nodes() )
+        # print('Edges:',G.number_of_edges() )
         distances[0]=0
         for id in [id for id in G.nodes if (id in ids_to_skip)==False]: 
             node = index[id]
@@ -2306,7 +2306,8 @@ class Graph:
                 ids_to_skip.add(j+2)
                 ids_to_skip.add(j+3)
                 j+=4
-        G.add_node(j, x=455, y=3.7,flow=0,size=1000)
+        # G.add_node(j, x=455, y=3.7,flow=0,size=1000)
+        G.add_node(j, x = (max_time - temps_min)//2, y = max_dist + 0.1, flow = 0, size = 1000)
         labels[j]="SINK \n"
         pos[j] = (G.nodes[j]['x'], G.nodes[j]['y'])
         G.nodes[j]['c']='none'

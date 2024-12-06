@@ -365,7 +365,7 @@ if __name__ == "__main__":
     # generate_test_instance('gtfs'+date, route_ids, start_time, nbr_buses_per_route_id)
     trip_id, start_time = get_start_time_of_bus('gtfs'+date, 29, '42O')
     print('Trip id:', trip_id, 'Start time:', start_time)
-    route_ids = [ '151S', '17N', '26E', '42E', '56E']
+    route_ids = [ '17N', '151S', '26E', '42E', '56E']
     generate_duration_test_instance('TestInstanceDurationCASPT_NEW','gtfs'+date, start_time, 1800, route_ids = route_ids)  # 5 minutes
     
     

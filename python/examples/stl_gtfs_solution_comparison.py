@@ -80,8 +80,8 @@ def analyze_simulations(simulation1_path, simulation2_path, total_transfers, rel
     return output_data
 
 def plot_simulation_results(output_data, output_folder_path=None):
-    # Define colors for "Offline", "H", and median line
-    offline_color = "#AEC6CF"  # Light pastel blue for "Offline"
+    # Define colors for "No tactics", "H", and median line
+    notactics_color = "#AEC6CF"  # Light pastel blue for "No tactics"
     h_color = "#FFB347"        # Light pastel orange for "H"
     median_color = "#000000"   # Black color for median lines
 
@@ -90,13 +90,13 @@ def plot_simulation_results(output_data, output_folder_path=None):
 
     # 1. Boxplot for total travel times
     box1 = axs[0].boxplot([output_data["travel_times_sim1"], output_data["travel_times_sim2"]],
-                          patch_artist=True, labels=["Offline", "H"], showfliers=False)
+                          patch_artist=True, labels=["Na tactics", "H"], showfliers=False)
     axs[0].set_title("Total Travel Time Comparison")
     axs[0].set_ylabel("Total Travel Time (seconds)")
     axs[0].set_xticklabels([])  # Remove x-axis labels
 
     # Apply colors to the boxplots for total travel times
-    for patch, color in zip(box1['boxes'], [offline_color, h_color]):
+    for patch, color in zip(box1['boxes'], [notactics_color, h_color]):
         patch.set_facecolor(color)
     for median in box1['medians']:
         median.set_color(median_color)
@@ -112,7 +112,7 @@ def plot_simulation_results(output_data, output_folder_path=None):
     axs[1].set_xticklabels([])  # Remove x-axis labels
 
     # Apply colors to the boxplots for transfer times
-    for patch, color in zip(box2['boxes'], [offline_color, h_color]):
+    for patch, color in zip(box2['boxes'], [notactics_color, h_color]):
         patch.set_facecolor(color)
     for median in box2['medians']:
         median.set_color(median_color)
@@ -123,20 +123,20 @@ def plot_simulation_results(output_data, output_folder_path=None):
         output_data["missed_transfer_percentage_sim1"],
         output_data["missed_transfer_percentage_sim2"]
     ]
-    ax2.bar([1, 2], missed_transfer_percentages, color=[offline_color, h_color], alpha=0.6, width=0.5, align='center')
-    ax2.set_ylim(0, max(missed_transfer_percentages) * 1.2)  # Set y-limit for better visibility
+    ax2.bar([1, 2], missed_transfer_percentages, color=[notactics_color, h_color], alpha=0.6, width=0.5, align='center')
+    ax2.set_ylim(min(missed_transfer_percentages)*0.5, max(missed_transfer_percentages) * 1.2)  # Set y-limit for better visibility
     ax2.set_ylabel("Missed Transfer Percentage (%)")
 
     # Center x-ticks below the boxplots and bars
     axs[1].set_xticks([1, 2])
-    axs[1].set_xticklabels(["Offline", "H"])
+    axs[1].set_xticklabels(["No\ntactics", "H"])
 
     # Display the plots
     plt.tight_layout()
     plt.show()
 
     # Save in the output folder
-    name = "simulation_comparison_Offline_H.png"
+    name = "simulation_comparison_NoTactics_H.png"
     if output_folder_path:
         plt.savefig(os.path.join(output_folder_path, name))
     return()
@@ -162,7 +162,7 @@ def get_request_transfer_data(instance_name):
                     current_transfer = -1
                     for stops_pair in legs_stops_pairs_list:
                         current_transfer += 1
-                    total_transfers += current_transfer if current_transfer >= 0 else 0
+                    total_transfers += current_transfer if current_transfer > 0 else 0
                     if current_transfer > 0:
                         transfers[request_id] = current_transfer
     return(transfers, total_transfers)
@@ -179,6 +179,11 @@ def get_completed_transfers(output_folder_path, transfers, total_transfers):
     completed_transfers = []
     for request_id, num_transfers in transfers.items():
         if trips_observations_df[(trips_observations_df['ID'].astype(str) == str(request_id)) & (trips_observations_df['Next legs'].astype(str) == '[]')].shape[0] > 0:
+            # check if transfer time is under 10 minutes in trips_details_observations_df
+            row = trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(request_id)]
+            transfer_time = row['transfer_time'].values[0]
+            if transfer_time < 600:
+                number_of_completed_transfers += 1
             number_of_completed_transfers += num_transfers
             completed_transfers.append(request_id)
     for completed_transfer in completed_transfers:
@@ -191,14 +196,14 @@ def get_completed_transfers(output_folder_path, transfers, total_transfers):
             continue
     ### Save updated trips_details_observations_df without the index
     trips_details_observations_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df2.csv'), index=False)
-    print('Number of completed transfers:', number_of_completed_transfers)
+    # print('Number of completed transfers:', number_of_completed_transfers)
     number_missed_transfers = total_transfers - number_of_completed_transfers
     percentage_missed_transfers = (number_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
     return(number_of_completed_transfers, number_missed_transfers, percentage_missed_transfers)
 
 def plot_single_line_comparisons(instance_name,
                                  line_name="70E",
-                                 relative_increase_threshold = 1.5,
+                                 relative_increase_threshold = 1.1,
                                  base_folder="output/fixed_line/gtfs",
                                  transfer_type = 0):
     """ 
@@ -215,7 +220,7 @@ def plot_single_line_comparisons(instance_name,
 
     """
     # Define base parameters for comparisons
-    base_params = (0, False, False, line_name, True)  # Offline, smartcard data (baseline)
+    base_params = (0, False, False, line_name, True)  # No tactics, smartcard data (baseline)
     # optimal_travel_paths_params = (0, False, False, [line_name], False)  # Optimal travel paths
 
     # Define parameter sets for groups 3 to 6
@@ -248,29 +253,29 @@ def plot_single_line_comparisons(instance_name,
 
     ### Get the total number of transfers
     transfers, total_transfers = get_request_transfer_data(instance_name)
-    print('Total transfers:', total_transfers)
+    # print('Total transfers:', total_transfers)
 
     # Define the labels for main groups
-    group_labels = ["Offline", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
+    group_labels = ["No tactics", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
     
     sub_labels = ["Deterministic", "Regret", "Perfect Info"]
 
-    # Initialize group_data with Offline baseline
+    # Initialize group_data with No tactics baseline
     baseline_folder = get_output_subfolder(output_folder_path, *base_params)
     baseline_file = os.path.join(baseline_folder, "trips_details_observations_df2.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
-        number_of_completed_transfers_offline, number_missed_transfers_offline, percentage_missed_transfers_offline = get_completed_transfers(baseline_folder, transfers, total_transfers)
+        number_of_completed_transfers_notactics, number_missed_transfers_notactics, percentage_missed_transfers_notactics = get_completed_transfers(baseline_folder, transfers, total_transfers)
      # Ensure the baseline file exists
     if not os.path.exists(baseline_file):
         raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
     output_data_baseline = analyze_simulations(baseline_file, baseline_file, relative_increase_threshold)
-    group_data["Offline"] = [time / 60 for time in output_data_baseline["travel_times_sim1"]]
+    group_data["No tactics"] = [time / 60 for time in output_data_baseline["travel_times_sim1"]]
     if transfer_type == 0:
-        missed_transfer_data["Offline"] = percentage_missed_transfers_offline #output_data_baseline["missed_transfer_percentage_sim1"]
+        missed_transfer_data["No tactics"] = percentage_missed_transfers_notactics #output_data_baseline["missed_transfer_percentage_sim1"] 
     elif transfer_type == 1:
-        missed_transfer_data["Offline"] = number_of_completed_transfers_offline #output_data_baseline["total_transfers_sim1"]
+        missed_transfer_data["No tactics"] = number_of_completed_transfers_notactics #output_data_baseline["total_transfers_sim1"]
     else:
-        missed_transfer_data["Offline"] = output_data_baseline["transfer_times_sim1"].mean()/60
+        missed_transfer_data["No tactics"] = output_data_baseline["transfer_times_sim1"].mean()/60
 
     # Generate comparisons for algo_params
     for i, params in enumerate(algo_params):
@@ -284,9 +289,10 @@ def plot_single_line_comparisons(instance_name,
             # group_index = 2 + i // 3  # Group index based on the 6 groups specified
             group_index = 1 + i // 3  # Group index based on the 6 groups specified
             key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
+            print(key)
             group_data[key] = [time / 60 for time in output_data["travel_times_sim2"]]
             if transfer_type == 0:
-                missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"]
+                missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"] 
             elif transfer_type == 1:
                 missed_transfer_data[key] = number_of_completed_transfers_key#output_data["total_transfers_sim2"]
             else:
@@ -297,26 +303,27 @@ def plot_single_line_comparisons(instance_name,
 
     # Define consistent colors for each algorithm across groups
     algorithm_colors = {
-        "Offline": "grey",
+        "No tactics": "grey",
         "Optimal\ntravel paths": "#f781bf",
-        "Deterministic": "#377eb8",
-        "Regret": "#4daf4a",
-        "Perfect Info": "#ff7f00"
+        "Deterministic": '#4daf4a',#"#377eb8",
+        "Regret": "#ff7f00",
+        "Perfect Info": '#f781bf'
     }
     mean_color = "black"
     median_color = "black"
-    transfers_color = "purple"
+    transfers_color = 'blue'#"#377eb8"#'dodgerblue'
     transfers_marker = "o-"
+    transfers_marker_size = 8
     if transfer_type == 0:
         transfers_label = "Missed Transfers (%)"
     elif transfer_type == 1:
         transfers_label = "Number of transfers"
     else:
-        transfers_label = "Mean transfer time (in minutes)"
+        transfers_label = "Mean transfer time\n(in minutes)"
     fontsize = 16
 
     # Plotting
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax2 = ax.twinx()  # Create secondary y-axis for missed transfer percentages
     positions = []
     data = []
@@ -335,7 +342,7 @@ def plot_single_line_comparisons(instance_name,
             group_ticks.append(pos)  # Position for the x-tick label
             group_tick_labels.append(group)
             missed_transfer_percentages.append(missed_transfer_data.get(group, 0))
-            pos += 1
+            pos += 0.7
         else:  # For groups with multiple sub-groups
             group_ticks.append(pos + 1)
             group_tick_labels.append(group)
@@ -348,8 +355,8 @@ def plot_single_line_comparisons(instance_name,
                 color_map.append(algorithm_colors[sub_label])  # Consistent color per algorithm
                 positions.append(pos)
                 missed_transfer_percentages.append(missed_transfer_data.get(key, 0))
-                pos += 1
-        pos += 1  # Add space between main groups
+                pos += 0.7
+        pos += 0.7  # Add space between main groups
 
     # Boxplot with custom colors, mean line, and labels
     bp = ax.boxplot(data, positions=positions, patch_artist=True, showmeans=True,
@@ -368,45 +375,54 @@ def plot_single_line_comparisons(instance_name,
         mean_value = mean.get_ydata()[0]
 
         # Annotate the median value above the median line
-        ax.text(pos, median_value, f'{median_value:.1f}', ha='center', va='top', fontsize=fontsize-2, color=median_color)
+        ax.text(pos, median_value-0.5, f'{median_value:.1f}', ha='center', va='top', fontsize=fontsize-2, color=median_color)
 
         # Annotate the mean value below the mean line
         ax.text(pos, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=mean_color)
-
+    # Set ylim for first y-axis
+    ax.set_ylim(0, max([max(group) for group in data]) * 0.9)  # Set y-limit for better visibility
 
     # Plot missed transfer percentages as points on the secondary y-axis
-    ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label)
-    # ax2.set_ylim(0, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
+    ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label, markersize=transfers_marker_size)
+    # Add values as text annotations above the points
+    for i, value in enumerate(missed_transfer_percentages):
+        ax2.text(positions[i]-0.05, value+0.1, f'{value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=transfers_color)
+    ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
+    # Set tick label color for the secondary y-axis
+
     if transfer_type == 0:
-        ax2.set_ylabel("Missed Transfers (%)", fontsize=fontsize)
+        ax2.set_ylabel("Missed Transfers (%)", fontsize=fontsize, color=transfers_color)
     elif transfer_type == 1:
-        ax2.set_ylabel("Number of transfers", fontsize=fontsize)
+        ax2.set_ylabel("Number of transfers", fontsize=fontsize, color=transfers_color)
     else:
-        ax2.set_ylabel("Mean transfer time (in minutes)", fontsize=fontsize)
-    ax2.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=False, labelright=True, left=False, right=True, color=transfers_color)
+        ax2.set_ylabel("Mean transfer time\n(in minutes)", fontsize=fontsize, color=transfers_color)
+    ax2.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=False, labelright=True, left=False, right=True, color=transfers_color, labelcolor=transfers_color)
 
     # Add group x-ticks and remove individual sub-label x-ticks
     ax.set_xticks(group_ticks)
     ax.set_xticklabels(group_tick_labels, fontsize=16)
 
-    # Set primary y-axis parameters
-    ax.set_title(f"Comparison of Passenger Travel Times for line(s) {line_name}", fontsize=fontsize, fontweight='bold')
+    # Set primary y-axis parameters, remove last character from line_name for title
+    all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
+    # all_lines_string = ', '.join([str(line_name_single) for line_name_single in line_name])
+    ax.set_title(f"Comparison of passenger travel and transfer times for line(s) {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
     
     # Add legend for algorithm colors with bold font
-    legend_patches = [mlines.Line2D([0], [0], color=color, lw=6, label=label)
-                      for label, color in algorithm_colors.items() if label in sub_labels + ["Offline"]]
+    legend_patches = [mlines.Line2D([0], [0], color=color, lw=7, label=label)
+                      for label, color in algorithm_colors.items() if label in sub_labels + ["No tactics"]]
     
     # Add mean, median, and missed transfer line entries to the legend
     mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='--', linewidth=2, label='Mean')
     median_line = mlines.Line2D([0], [0], color=median_color, linestyle='-', linewidth=2, label='Median')
     missed_transfers_line = mlines.Line2D([0], [0], color=transfers_color, lw=2, label=transfers_label)
     legend_patches.extend([mean_line, median_line, missed_transfers_line])
+    # ordered_legend_patches = [legend_patches[0], legend_patches[2], legend_patches[4], legend_patches[6], legend_patches[1], legend_patches[3], legend_patches[5]]
 
     # Optimize legend position and style
-    ax.legend(handles=legend_patches, title="Algorithm", loc="best", fontsize=fontsize-2, title_fontsize=fontsize,
-             framealpha=0.9, shadow=True,)
+    ax.legend(handles=legend_patches, loc='upper left', fontsize=fontsize-2, title_fontsize=fontsize,
+             framealpha=0.9, shadow=True, ncol = 4)
 
     plt.tight_layout()
     if transfer_type == 0:
@@ -425,7 +441,7 @@ if __name__ == "__main__":
     # # Run analysis on two simulations
     # output_folder_path = os.path.join("output","fixed_line","gtfs","gtfs2019-11-01-TestInstance",)
     # path_to_simulation2 = os.path.join(output_folder_path,'H', 'trips_details_observations_df.csv')
-    # path_to_simulation1 = os.path.join(output_folder_path,'offline', 'trips_details_observations_df.csv')
+    # path_to_simulation1 = os.path.join(output_folder_path,'No tactics', 'trips_details_observations_df.csv')
     # output_data = analyze_simulations(path_to_simulation1, path_to_simulation2)
     
     # # Plot the results
@@ -437,6 +453,6 @@ if __name__ == "__main__":
     transfer_time = False
     for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
     # for line_name in [[ '17N', '151N', '26O', '42E', '56O'], ['42E']]:
-        for transfer_type in [0, 1, 2]:
+        for transfer_type in [2]:
             # Run the function to compare and plot passenger travel times across different parameters for line 70E
-            plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.4, transfer_type = transfer_type)
+            plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)

@@ -695,6 +695,7 @@ class FixedLineDispatcher(Dispatcher):
             tactic_regrets_dict = self.create_tactics_dict(last_stop)
 
         # Start the simulation
+        G_gen = None
         i = 0
         j_try = 0
         while i < self.algo_parameters["nbr_simulations"]:
@@ -753,6 +754,8 @@ class FixedLineDispatcher(Dispatcher):
                     runtimes.append(runtime)
                     i += 1
                 except Exception as e:
+                    if G_gen is not None:
+                        G_gen.display_graph(display_flows = False, name = 'Error_OSO')
                     # Log the error message and traceback
                     error_message = 'Problem in OSO with route {} trip {} at stop {}: scenario {}/{}'.format(self.route_name, bus_trip_id, stop_id, j_try, self.algo_parameters["j_try"])
                     error_traceback = traceback.format_exc()  # Get full traceback
@@ -1778,7 +1781,7 @@ class FixedLineDispatcher(Dispatcher):
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
         for tactic in all:
-            # print('Tactic ', tactic)
+            print('Tactic ', tactic)
             tactic_bus_trips = {}
             tactic_bus_trips[trip_id] = regret_bus_trips[trip_id][tactic]
             tactic_bus_trips[next_trip_id] = regret_bus_trips[next_trip_id]
@@ -1788,7 +1791,8 @@ class FixedLineDispatcher(Dispatcher):
                                             transfers = transfers,
                                             last_departure_times = last_departure_times,
                                             initial_flows = initial_flows,
-                                            optimal_value = optimal_value)
+                                            optimal_value = optimal_value,
+                                            display_graph_bool = (tactic in ['ss', 'sp', 'sp_hp', 'sp_t']))
             if tactic == 'sp_t' or tactic == 'h_t':
                 tactic_regrets_dict[tactic][0] += regret
                 tactic_regrets_dict[tactic][1].append(tactic_bus_trips[trip_id][0].departure_time)
@@ -1816,7 +1820,7 @@ class FixedLineDispatcher(Dispatcher):
         optimal_value, bus_flows, display_flows, runtime = G_generated.build_and_solve_model_from_graph("GenGraph",
                                                                                          verbose = False, 
                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
-        G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
+        # G_generated.display_graph(display_flows = display_flows, name = 'Test_graph')
         max_departure_time, hold, speedup, skip_stop = Graph.extract_tactics_from_solution(bus_flows, stop_id, trip_id)
         return(max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime)
     
@@ -1854,7 +1858,7 @@ class FixedLineDispatcher(Dispatcher):
         iterable = [transfer_time for (transfer_time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < max_departure_time]
         if stop_id in transfers[trip_id] and len(iterable)>0:
             # final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < bus_trips[trip_id][0].arrival_time + 120])
-            final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < max_departure_time])
+            final_transfer_time = max([transfer_time for (transfer_time, nbr_passengers, interval) in transfers[trip_id][stop_id]['boarding']+transfers[trip_id][stop_id]['alighting'] if transfer_time < max_departure_time+20])
         else: 
             final_transfer_time = -1
         for bus_trip in bus_trips:
@@ -1968,7 +1972,8 @@ class FixedLineDispatcher(Dispatcher):
                           transfers : dict,
                           last_departure_times : dict,
                           initial_flows : dict,
-                          optimal_value : int):
+                          optimal_value : int,
+                          display_graph_bool = False):
         """
         This function calculates the regret of a tactic given the optimal value.
         
@@ -1982,6 +1987,12 @@ class FixedLineDispatcher(Dispatcher):
             - optimal_value: int, the optimal value of the objective function when using the optimal tactic
         Outputs:
             - regret: int, the regret of the tactic compared to the optimal value"""
+        print('Trip_id:', trip_id, '-Initial flow:', initial_flows[trip_id])
+        for stop in tactic_bus_trips[trip_id]:
+            print('Stop_id:', stop.location.label, ' -arrival time:', stop.arrival_time, ' -departure time:', stop.departure_time, ' -planned arrival time: ', stop.planned_arrival_time, '-nbr boarding: ', stop.passengers_to_board_int, ' -nbr alighting: ', stop.passengers_to_alight_int)
+        print('Transfers:')
+        for stop_id in transfers[trip_id]:
+            print('Stop_id:', stop_id, ' -boarding:', transfers[trip_id][stop_id]['boarding'], ' -alighting:', transfers[trip_id][stop_id]['alighting'])
         G, last_trip_id, bus_departures = Graph.build_graph_without_tactics(first_trip_id = trip_id,
                                                                             bus_trips = tactic_bus_trips,
                                                                             transfers = transfers,
@@ -1990,9 +2001,16 @@ class FixedLineDispatcher(Dispatcher):
                                                                             time_step = self.general_parameters["step"],
                                                                             price = self.general_parameters["price"],
                                                                             od_dict = {})
-        optimal_value_for_tactic, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Gen_offline"+str(stop_id),
+        try:
+            optimal_value_for_tactic, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Gen_offline"+str(stop_id),
                                                                                                          verbose = False,
                                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
+            if display_graph_bool:
+                G.display_graph(display_flows = display_flows, name = 'Regret_success')
+        except:
+            #Display graph for debugging
+            G.display_graph(display_flows = False, name = 'Regret_error')
+            # input('Error in graph building for regret calculation ...')
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:
             logger.warning('Negative regret value : {}...'.format(regret))
