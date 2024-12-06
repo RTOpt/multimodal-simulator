@@ -116,7 +116,7 @@ class CoordinatesOSRM(Coordinates):
                                                         current_coordinates[0],
                                                         current_coordinates[1])
             except Exception as e:
-                logger.warning("Error while updating position for vehicle {}".format(vehicle.id))
+                # logger.warning("Error while updating position for vehicle {}".format(vehicle.id))
                 current_position = route.previous_stops[-1].location
         return current_position
 

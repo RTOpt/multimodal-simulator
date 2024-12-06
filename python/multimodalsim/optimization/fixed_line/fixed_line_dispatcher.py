@@ -1859,11 +1859,12 @@ class FixedLineDispatcher(Dispatcher):
             optimal_value_for_tactic, bus_flows, display_flows, runtime = G.build_and_solve_model_from_graph("Gen_offline"+str(stop_id),
                                                                                                          verbose = False,
                                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
-            if display_graph_bool:
-                G.display_graph(display_flows = display_flows, name = 'Regret_success')
+            # if display_graph_bool:
+            #     G.display_graph(display_flows = display_flows, name = 'Regret_success')
         except:
+            logger.warning('Error in graph building for regret calculation ...')
             #Display graph for debugging
-            G.display_graph(display_flows = False, name = 'Regret_error')
+            # G.display_graph(display_flows = False, name = 'Regret_error')
             # input('Error in graph building for regret calculation ...')
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:
