@@ -2,7 +2,7 @@ import pandas as pd
 import csv
 import os
 import matplotlib.pyplot as plt
-from stl_gtfs_transfer_synchro_simulator import get_output_subfolder
+from stl_gtfs_transfer_synchro import get_output_subfolder
 import matplotlib.lines as mlines
 from ast import literal_eval
 
@@ -362,7 +362,6 @@ def plot_single_line_comparisons(instance_name,
     plt.show()
 
 # Define the test instance name
-instance_name = "gtfs2019-11-01_TestInstanceDurationShort"
 instance_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
 transfer_time = False
 for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:

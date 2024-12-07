@@ -30,7 +30,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 output/
-output/fixed_line_travel_times
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
