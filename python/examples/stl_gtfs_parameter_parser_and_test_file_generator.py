@@ -1,5 +1,6 @@
 import sys
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
+sys.path.append(r"/home/kollau/Recherche_Kolcheva/multimodal-simulator/python/examples")
 from itertools import product
 import os
 

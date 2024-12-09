@@ -26,6 +26,7 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                        logging_level = logging.INFO,
                        is_from_smartcard_data = True):
     sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
+    sys.path.append(r"/home/kollau/Recherche_Kolcheva/multimodal-simulator/python/examples")
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging_level)
     logger.info(" Start simulation for small instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
