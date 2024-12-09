@@ -13,8 +13,8 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
-from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
-    FixedLineSynchroDispatcher
+# from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
+#     FixedLineSynchroDispatcher
 from multimodalsim.optimization.shuttle.shuttle_hub_simple_network_dispatcher \
     import ShuttleHubSimpleNetworkDispatcher
 from multimodalsim.simulator.coordinates import CoordinatesOSRM, \

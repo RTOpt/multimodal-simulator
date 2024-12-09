@@ -4,8 +4,8 @@ from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
-from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
-    FixedLineSynchroDispatcher
+# from multimodalsim.optimization.fixed_line.fixed_line_synchro_dispatcher import \
+#     FixedLineSynchroDispatcher
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader, os
