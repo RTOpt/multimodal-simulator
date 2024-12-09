@@ -8,15 +8,16 @@ output_folder_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
 routes_to_optimize_names = ['17N', '151S', '26E', '42E','56E']
 algo = 0
 sp = False
-ss = True
+ss = False
 ### END OF PARAMETERS ###
 
 import sys
 import time
 import logging
+sys.path.append(os.path.abspath('../../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/multimodal-simulator/python/examples")
-from stl_gtfs_transfer_synchro import stl_gtfs_transfer_synchro_simulator
+from examples.stl_gtfs_transfer_synchro import stl_gtfs_transfer_synchro_simulator
 logging_level = logging.WARNING
 logger = logging.getLogger(__name__)
 start_time=time.time()
