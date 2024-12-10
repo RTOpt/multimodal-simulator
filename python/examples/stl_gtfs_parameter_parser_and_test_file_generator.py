@@ -2,9 +2,8 @@ import sys
 import os
 sys.path.append(os.path.abspath('../../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
-sys.path.append(r"/home/kollau/Recherche_Kolcheva/multimodal-simulator/python/examples")
+sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 from itertools import product
-
 
 def parse_parameters_for_transfer_synchro():
     all_ligns_SN= ['151', '17', '27', '33', '37', '41', '43', '45', '46', '55', '61', '63', '65', '901', '902', '903', '925']
