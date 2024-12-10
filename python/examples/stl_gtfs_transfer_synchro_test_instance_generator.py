@@ -244,5 +244,7 @@ if __name__ == "__main__":
     for date in dates:
         trip_id, start_time = get_start_time_of_bus('gtfs'+date, 1, '42O')
         route_ids = [ '17N', '151S', '26E', '42E', '56E']
-        generate_duration_test_instance('LargeInstance','gtfs'+date, start_time, 1800, route_ids = route_ids)  # 30 minutes
+        route_ids = ['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '52E', '56E', '60E', '66E', '74E', '76E', '942E']
+        start_time = 21000 #6AM
+        generate_duration_test_instance('LargeInstance','gtfs'+date, start_time, 10800, route_ids = route_ids)  # 3 hours
     
