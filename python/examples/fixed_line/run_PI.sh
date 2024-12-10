@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --mem-per-cpu=8G
-#SBATCH --time=00:14:00
-#SBATCH --partition=testing
+#SBATCH --time=22:14:00
+#SBATCH --partition=optimum
 #SBATCH --cpus-per-task=2
 #SBATCH --output=python/examples/fixed_line/test_files_multi/PI/slurm_output_%A_%a.out
 #SBATCH --error=python/examples/fixed_line/test_files_multi/PI/slurm_error_%A_%a.err
-#SBATCH --array=0-1 # Dynamically adjust array range
+#SBATCH --array=0-23 # Dynamically adjust array range
 
 # Change to the correct working directory
 cd /home/kollau/Recherche_Kolcheva/Simulator
