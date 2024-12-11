@@ -363,8 +363,10 @@ def plot_single_line_comparisons(instance_name,
 
 # Define the test instance name
 instance_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
+instance_name = "gtfs2019-11-25_LargeInstance"
 transfer_time = False
-for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
+# for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
+for line_name in [['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '52E', '56E', '60E', '66E', '74E', '76E', '942E'], ['24E']]:
     for transfer_type in [2]:
         # Run the function to compare and plot passenger travel times across different parameters for line 70E
         plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
