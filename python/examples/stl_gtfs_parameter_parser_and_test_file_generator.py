@@ -7,7 +7,7 @@ from itertools import product
 
 def parse_parameters_for_transfer_synchro():
     all_ligns_SN= ['151', '17', '27', '33', '37', '41', '43', '45', '46', '55', '61', '63', '65', '901', '902', '903', '925']
-    all_ligns_EO= ['144', '20', '222', '22', '24','252', '26', '2', '36', '52', '56', '60', '66', '74', '76', '942']
+    all_ligns_EO= ['144', '20', '222', '22', '24','252', '26', '2', '36', '42', '52', '56', '60', '66', '70', '74', '76', '942']
     Case={}
     Case['EO']={}
     Case['EO']['ligns']=all_ligns_EO
@@ -18,6 +18,7 @@ def parse_parameters_for_transfer_synchro():
     Case['SN']['dirs']=['S','N']
 
     index = {}
+    all_lines_indiv = []
     for i in range(4):
         index[i] = 0
     index_multi = {}
@@ -26,70 +27,59 @@ def parse_parameters_for_transfer_synchro():
     combinations = {}
     combinations_multi = {}
     for case in Case:
-        params = {
-                "algo": [0, 1, 2, 3],
-                'lign':Case[case]['ligns'],
-                'dir':Case[case]['dirs'],
-                "sp": [False, True],
-                "ss": [False, True],
-                'dates': [25, 26, 27]
-            }
-        keys = list(params.keys())
-        values = list(params.values())
+        ligns = Case[case]['ligns']
+        dirs = Case[case]['dirs']
+        all_lines_indiv.extend([lign+dir for lign, dir in product(ligns, dirs)])
+    print(all_lines_indiv)
+    params = {
+            "algo": [0, 1, 2, 3],
+            "sp": [False, True],
+            "ss": [False, True],
+            'dates': [25, 26, 27]
+        }
+    keys = list(params.keys())
+    values = list(params.values())
 
-        # Separate 'lign' and 'dir' values
-        lign_values = values[keys.index('lign')]
-        dir_values = values[keys.index('dir')]
+    #Create a list with : all individual lines
+    routes_to_optimize_names=[]
+    for route_name in all_lines_indiv:
+        routes_to_optimize_names.append([route_name,])
+    print(routes_to_optimize_names)
+    # Generate combinations with other parameters
+    other_combinations = list(product(*values))
 
-        # Remove 'lign' and 'dir' from keys and values
-        keys.remove('lign')
-        keys.remove('dir')
-        values.remove(lign_values)
-        values.remove(dir_values)
-        # Create combinations of 'lign' and 'dir'
-        all_lines_indiv = list(product(lign_values, dir_values))
-        all_lines_indiv = [line[0]+line[1] for line in all_lines_indiv]
-        #Create a list with : all individual lines
-        routes_to_optimize_names=[]
-        for line in all_lines_indiv:
-            routes_to_optimize_names.append([line,])
-        # routes_to_optimize_names.append(all_lines_indiv)
-        print(routes_to_optimize_names)
-        # Generate combinations with other parameters
-        other_combinations = list(product(*values))
-
-        # Single line combinations
-        for i, (routes_to_optimize_name, other_combination) in enumerate(product(routes_to_optimize_names, other_combinations)):
-            algo = int(other_combination[keys.index('algo')])
-            if algo == 0 and (bool(other_combination[keys.index('sp')]) == True or bool(other_combination[keys.index('ss')]) == True):
-                continue
-            combination_name = 'Combination{}_{}'.format(algo, index[algo])
-            combinations[combination_name] = {
-                'routes_to_optimize_names': routes_to_optimize_name,
-                'algo': algo,
-                'sp': other_combination[keys.index('sp')],
-                'ss': other_combination[keys.index('ss')],
-                'date': other_combination[keys.index('dates')],
-                'index': index[algo]
-            }
-            index[algo] += 1
-        
-        # Multi line combinations
-        routes_to_optimize_names = all_lines_indiv
-        for i, other_combination in enumerate(other_combinations):
-            algo = int(other_combination[keys.index('algo')])
-            if algo == 0 and (bool(other_combination[keys.index('sp')]) == True or bool(other_combination[keys.index('ss')]) == True):
-                continue
-            combination_name = 'Combination{}_{}'.format(algo, index_multi[algo])
-            combinations_multi[combination_name] = {
-                'routes_to_optimize_names': routes_to_optimize_names,
-                'algo': other_combination[keys.index('algo')],
-                'sp': other_combination[keys.index('sp')],
-                'ss': other_combination[keys.index('ss')],
-                'date': other_combination[keys.index('dates')],
-                'index': index_multi[algo]
-            }
-            index_multi[algo] += 1
+    # Single line combinations
+    for i, (routes_to_optimize_name, other_combination) in enumerate(product(routes_to_optimize_names, other_combinations)):
+        algo = int(other_combination[keys.index('algo')])
+        if algo == 0 and (bool(other_combination[keys.index('sp')]) == True or bool(other_combination[keys.index('ss')]) == True):
+            continue
+        combination_name = 'Combination{}_{}'.format(algo, index[algo])
+        combinations[combination_name] = {
+            'routes_to_optimize_names': routes_to_optimize_name,
+            'algo': algo,
+            'sp': other_combination[keys.index('sp')],
+            'ss': other_combination[keys.index('ss')],
+            'date': other_combination[keys.index('dates')],
+            'index': index[algo]
+        }
+        index[algo] += 1
+    
+    # Multi line combinations
+    routes_to_optimize_names = all_lines_indiv
+    for i, other_combination in enumerate(other_combinations):
+        algo = int(other_combination[keys.index('algo')])
+        if algo == 0 and (bool(other_combination[keys.index('sp')]) == True or bool(other_combination[keys.index('ss')]) == True):
+            continue
+        combination_name = 'Combination{}_{}'.format(algo, index_multi[algo])
+        combinations_multi[combination_name] = {
+            'routes_to_optimize_names': routes_to_optimize_names,
+            'algo': other_combination[keys.index('algo')],
+            'sp': other_combination[keys.index('sp')],
+            'ss': other_combination[keys.index('ss')],
+            'date': other_combination[keys.index('dates')],
+            'index': index_multi[algo]
+        }
+        index_multi[algo] += 1
 
     #Write the combinations to a file
     combinations_file_name = os.path.join('data','fixed_line','gtfs','combinations.txt')
