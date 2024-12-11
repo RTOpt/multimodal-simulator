@@ -629,8 +629,8 @@ class FixedLineDispatcher(Dispatcher):
                     runtimes.append(runtime)
                     i += 1
                 except Exception as e:
-                    if G_gen is not None:
-                        G_gen.display_graph(display_flows = False, name = 'Error_OSO')
+                    # if G_gen is not None:
+                    #     G_gen.display_graph(display_flows = False, name = 'Error_OSO')
                     # Log the error message and traceback
                     error_message = 'Problem in OSO with route {} trip {} at stop {}: scenario {}/{}'.format(self.route_name, bus_trip_id, stop_id, j_try, self.algo_parameters["j_try"])
                     error_traceback = traceback.format_exc()  # Get full traceback

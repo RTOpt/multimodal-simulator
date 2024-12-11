@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem-per-cpu=8G
-#SBATCH --time==47:59:00
+#SBATCH --time=47:59:00
 #SBATCH --partition=optimum
 #SBATCH --cpus-per-task=2
 #SBATCH --output=python/examples/fixed_line/test_files_multi/PI/slurm_output_%A_%a.out
