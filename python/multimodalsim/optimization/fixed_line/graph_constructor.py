@@ -1333,7 +1333,11 @@ class Graph:
                     elif (time+1 in departs_current) == False:
                         departs_current[time+1] = skips[time]
                     else:
-                        input('how rare is this?')
+                        time = time+1
+                        while (time in departs_current) == True:
+                            time = time+1
+                        departs_current[time] = skips[time]
+                        print('how rare is this?')
 
                 ## Add paths for passengers who missed the previous bus
                 times, last_exo, exo_current, departs_current = G.link_passengers_from_previous_bus(times, stop_id, last_exo, exo_current, departs_current, with_tactics = with_tactics)

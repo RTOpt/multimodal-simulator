@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --mem-per-cpu=8G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --time=22:14:00
 #SBATCH --partition=optimum
 #SBATCH --cpus-per-task=2

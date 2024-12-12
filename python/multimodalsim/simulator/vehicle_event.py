@@ -216,7 +216,7 @@ class VehicleNotification(Event):
                 self.__update_stop_with_actual_trips(stop)
 
         if self.__route_update.current_stop_modified_passengers_to_board \
-                is not None:
+                is not None and self.__route.current_stop is not None:
             # Modify passengers_to_board of current_stop according to the
             # results of the optimization.
             actual_modified_passengers_to_board = \
