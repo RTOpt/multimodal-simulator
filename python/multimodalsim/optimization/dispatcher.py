@@ -244,7 +244,7 @@ class Dispatcher:
             if leg.destination == current_location:
                 self.__remove_passenger_to_alight(leg.trip, route.current_stop)
                 alighting_stop_found = True
-                input('We should never be here...')
+                print('We should never be here...')
         for stop in route.next_stops:
             if leg.destination == stop.location and not alighting_stop_found:
                 self.__remove_passenger_to_alight(leg.trip, stop)

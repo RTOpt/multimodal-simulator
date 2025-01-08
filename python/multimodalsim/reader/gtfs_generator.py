@@ -311,7 +311,7 @@ class GTFSGenerator:
                         i += 1
                         stop = all_stops[i]
                     else:
-                        input('On ne devrait jamais etre la...')
+                        print('On ne devrait jamais etre la...')
                         break
 
                 # Add line to the list

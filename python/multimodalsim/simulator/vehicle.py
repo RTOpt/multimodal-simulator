@@ -349,7 +349,7 @@ class Route(object):
         """Update the legs for passengers alighting at the skipped stop.
         Inputs:
             - self: Route object, the main line route.
-            - skipped_legs: list, the legs for passengers alighting at the skipped stop that are onboard the main line.
+            - walking_route: Route object, the walking route.
 
         Outputs:
             - skipped_legs: list, the updated legs for passengers alighting at the skipped stop that are onboard the main line.

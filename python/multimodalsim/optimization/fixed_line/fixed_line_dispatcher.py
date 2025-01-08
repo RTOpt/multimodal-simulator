@@ -254,7 +254,9 @@ class FixedLineDispatcher(Dispatcher):
             trips = [leg.trip for leg in route_plan.assigned_legs + route_plan.already_onboard_legs + route_plan.legs_to_remove]
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
-
+        # Make unique the modified trips and vehicles
+        modified_trips = list(set(modified_trips))
+        modified_vehicles = list(set(modified_vehicles))
         optimization_result = OptimizationResult(state, modified_trips,
                                                  modified_vehicles)
 
@@ -347,11 +349,13 @@ class FixedLineDispatcher(Dispatcher):
         if (not h) and (not ss) and (not sp): # no tactics
             return route, -1, -1
         
-        # Get the planned arrival and departure times, and the dwell time at the next stop
+        # Get the arrival and departure times, and the dwell time at the next stop
         planned_arrival_time = route.next_stops[0].arrival_time
         planned_departure_time = route.next_stops[0].departure_time
         dwell_time = max(0, planned_departure_time - planned_arrival_time)
-        prev_departure_time = route.previous_stops[-1].departure_time ### since the bus just departed from a stop
+        # Laura: this must be changed if re-opt happens at arrival. We need to consider the arrival time of the current stop + real dwell time
+        # prev_departure_time = route.previous_stops[-1].departure_time ### since the bus just departed from a stop
+        prev_departure_time = route.current_stop.departure_time ### since the bus just arrived at a stop
         
         # Find the arrival time at the next stop after tactics
         if sp:
@@ -371,6 +375,7 @@ class FixedLineDispatcher(Dispatcher):
         departure_time = arrival_time + dwell_time
 
         # Update the arrival and departure times of the next stop
+        # Laura: the departure time of the current stop is not modified (any tactics for the current stop were applied during re-opt at the previous stop)
         next_stop = route.next_stops[0]
         next_stop.arrival_time = arrival_time
         next_stop.departure_time = departure_time
@@ -514,9 +519,12 @@ class FixedLineDispatcher(Dispatcher):
                 (The output hold time is already treated in the OSO algorithm)"""
         route = self.get_route_by_vehicle_id(state, state.main_line)
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
+        ### If re-optimizing at arrival, current stop is not None. If optimizing at departure, current stop is None.
         if (self.route_name not in self.routes_to_optimize_names) or \
            (self.algo == 0) or \
-           (route is None) or (next_route is None) or (route.current_stop is not None) or len(route.next_stops) == 0:
+           (route is None) or (next_route is None) or \
+           (route.current_stop is None) or \
+           len(route.next_stops) == 0:
             # logger.info("Algo={}, Main route= {}, Next bus on main route = {}, bus has not departed yet = {}, number next stops = {}".format(str(self.algo), route is None, next_route is None, route.current_stop is not None, len(route.next_stops)==0))
             return(False, False, (False, -1))
         
@@ -524,8 +532,8 @@ class FixedLineDispatcher(Dispatcher):
         bus_trip_id = route.vehicle.id
         bus_next_trip_id = next_route.vehicle.id
 
-        # get first stop on firts main line bus
-        stop = route.next_stops[0]
+        # get first stop on first main line bus
+        stop = route.next_stops[0] # Laura: next stops are the same for re-opt at arrival or departure
         stop_id = int(stop.location.label)
 
         # Get all stops in horizon for both routes
@@ -537,12 +545,17 @@ class FixedLineDispatcher(Dispatcher):
 
         #Get initial flows for both buses
         initial_flows = {}
-        initial_flows[bus_trip_id] = int(len(route.onboard_legs))
+        initial_flows[bus_trip_id] = int(len(route.onboard_legs)) # Laura: onboard legs are the same for re-opt at arrival or departure (alighting passengers already alighted)
         initial_flows[bus_next_trip_id] = int(len(next_route.onboard_legs))
 
         # Get departure times from last visited stop before the control horizon
         last_departure_times = {}
-        last_departure_times[bus_trip_id] = route.previous_stops[-1].departure_time if route.previous_stops != [] else route.next_stops[0].arrival_time -1
+        # Laura: this needs to be changed if re-opt happens at arrival, need to use the current stop departure time.
+        # Laura: At this point in time tactics for the current stop have been decided and applied so the departure time is known. 
+        ### OLD start 
+        # last_departure_times[bus_trip_id] = route.previous_stops[-1].departure_time if route.previous_stops != [] else route.next_stops[0].arrival_time -1
+        ### OLD end
+        last_departure_times[bus_trip_id] = route.current_stop.departure_time # we know current stop is not None.
         last_departure_times[bus_next_trip_id] = next_route.previous_stops[-1].departure_time if next_route.previous_stops != [] else next_route.next_stops[0].arrival_time -1
         if last_departure_times[bus_trip_id] == last_departure_times[bus_next_trip_id]:
             last_departure_times[bus_next_trip_id]+=1
@@ -602,9 +615,6 @@ class FixedLineDispatcher(Dispatcher):
                     # G_gen.display_graph(display_flows = False, name = 'Test_graph')
 
                     # Step c: Build and solve model based on graph, and get solution
-                    prev_stop = route.previous_stops[-1] if route.previous_stops != [] else None
-                    prev_stop_departure_time = prev_stop.departure_time if prev_stop != None else bus_trips[bus_trip_id][0].arrival_time -1
-                    last_travel_time = bus_trips[bus_trip_id][0].arrival_time - prev_stop_departure_time
                     max_departure_time, hold, speedup, skip_stop, bus_flows, optimal_value, runtime = self.get_solution_for_graph(G_gen,
                                                                                                                                   stop_id,
                                                                                                                                   bus_trip_id)
@@ -890,7 +900,9 @@ class FixedLineDispatcher(Dispatcher):
         """
         transfers = {}
         bus_trips = {}
-        prev_stop = main_route.previous_stops[-1] if main_route.previous_stops != [] else None
+        # Laura: if re-opt is at arrival time, prev_stop becomes the current stop.
+        # prev_stop = main_route.previous_stops[-1] if main_route.previous_stops != [] else None
+        prev_stop = main_route.current_stop # We know current stop is not None.
         bus_trips[main_route.vehicle.id], transfers[main_route.vehicle.id] = self.generate_bus_trip(stops, prev_stop, transfer_times[main_route.vehicle.id], last_stop)
         next_route_prev_stop = next_route.previous_stops[-1] if next_route.previous_stops != [] else None
         bus_trips[next_route.vehicle.id], transfers[next_route.vehicle.id] = self.generate_bus_trip(next_stops, next_route_prev_stop, transfer_times[next_route.vehicle.id], second_trip=True)
@@ -1178,7 +1190,7 @@ class FixedLineDispatcher(Dispatcher):
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
         new_stops =[]
         transfers = {}
-
+        # Laura: If  re-opt at arrival, prev_stop becomes the current stop. Prev_time becomes current_stop.departure_time
         prev_time = prev_stop.departure_time if prev_stop != None else stops[0].arrival_time -1
         for i in range(len(stops)):
             stop = stops[i]

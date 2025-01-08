@@ -140,11 +140,11 @@ class VehicleDeparture(ActionEvent):
             actual_arrival_time = self.__route.next_stops[0].arrival_time
 
         self.__route.depart()
-        optimization_event.Optimize(env.current_time,
-                                    self.queue,
-                                    transfer_synchro = env.transfer_synchro,
-                                    main_line = self.__route.vehicle.id if env.transfer_synchro else None,
-                                    next_main_line = env.next_vehicles[self.__route.vehicle.id] if env.transfer_synchro else None).add_to_queue()
+        # optimization_event.Optimize(env.current_time,
+        #                             self.queue,
+        #                             transfer_synchro = env.transfer_synchro,
+        #                             main_line = self.__route.vehicle.id if env.transfer_synchro else None,
+        #                             next_main_line = env.next_vehicles[self.__route.vehicle.id] if env.transfer_synchro else None).add_to_queue()
         VehicleArrival(self.__route, self.queue,
                        actual_arrival_time).add_to_queue()
 
@@ -163,6 +163,8 @@ class VehicleArrival(ActionEvent):
 
         self.__route.arrive()
 
+        ### REALLY IMPORTANT TO RE-OPTIMIZE AFTER ARRIVE() because of the current and next stops update ###
+
         if len(self.__route.next_stops) == 0 \
                 and not self.__route.vehicle.reusable:
             VehicleComplete(self.__route, self.queue,
@@ -176,6 +178,13 @@ class VehicleArrival(ActionEvent):
                 passenger_event.PassengerAlighting(
                     trip, self.queue).add_to_queue()
 
+        ### REALLY IMPORTANT TO RE-OPTIMIZE AFTER PASSENGERALIGHTING BECAUSE RELEASED PASSENGERS CAN BE RE-ASSIGNED###
+        optimization_event.Optimize(env.current_time,
+                                    self.queue,
+                                    transfer_synchro = env.transfer_synchro,
+                                    main_line = self.__route.vehicle.id if env.transfer_synchro else None,
+                                    next_main_line = env.next_vehicles[self.__route.vehicle.id] if env.transfer_synchro else None).add_to_queue()
+        
         if len(passengers_to_alight_copy) == 0:
             VehicleWaiting(self.__route, self.queue).add_to_queue()
 
@@ -260,9 +269,8 @@ class VehicleNotification(Event):
                         leg.assigned_vehicle = None
                         self.__env.remove_assigned_trip(assigned_leg_to_remove.trip.id)
                         self.__env.add_non_assigned_trip(leg.trip)
-                        need_to_optimize = True
                     # Case 3: A leg that was unassigned before optimization and is now assigned
-                    if assigned_leg_to_remove is None and onboard_leg_to_remove is None:
+                    if assigned_leg_to_remove is None and onboard_leg_to_remove is None and leg not in self.__route.assigned_legs:
                         self.__route.assigned_legs.append(leg)
             else:
                 for leg in actual_modified_assigned_legs:
