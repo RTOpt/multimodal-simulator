@@ -11,9 +11,10 @@
 cd /home/kollau/Recherche_Kolcheva/Simulator
 
 # Load Conda and activate the SimulatorKolcheva environment
-module load anaconda
-conda activate SimulatorKolcheva
+source /home/kollau/.conda/envs/SimulatorKolcheva/bin/activate
+# module load anaconda
+# conda activate SimulatorKolcheva
 
 # Run the specific test file for this array task
 nohup python python/examples/fixed_line/test_files_multi/R/Test_${SLURM_ARRAY_TASK_ID}.py > python/examples/fixed_line/test_files_multi/R/output_${SLURM_ARRAY_TASK_ID}.out 2> python/examples/fixed_line/test_files_multi/R/error_${SLURM_ARRAY_TASK_ID}.err
-
+conda deactivate
