@@ -163,13 +163,7 @@ class VehicleArrival(ActionEvent):
 
         self.__route.arrive()
 
-        ### REALLY IMPORTANT TO RE-OPTIMIZE AFTER ARRIVE() because of the current and next stops update ###
-
-        if len(self.__route.next_stops) == 0 \
-                and not self.__route.vehicle.reusable:
-            VehicleComplete(self.__route, self.queue,
-                            self.queue.env.current_time).add_to_queue(forced_insertion=True)
-            
+        ### REALLY IMPORTANT TO RE-OPTIMIZE AFTER ARRIVE() because of the current and next stops are updated ###
         passengers_to_alight_copy = self.__route.current_stop. \
             passengers_to_alight.copy()
         for trip in passengers_to_alight_copy:
@@ -183,10 +177,15 @@ class VehicleArrival(ActionEvent):
                                     self.queue,
                                     transfer_synchro = env.transfer_synchro,
                                     main_line = self.__route.vehicle.id if env.transfer_synchro else None,
-                                    next_main_line = env.next_vehicles[self.__route.vehicle.id] if env.transfer_synchro else None).add_to_queue()
+                                    next_main_line = env.next_vehicles[self.__route.vehicle.id] if env.transfer_synchro else None).add_to_queue()            
         
         if len(passengers_to_alight_copy) == 0:
             VehicleWaiting(self.__route, self.queue).add_to_queue()
+        
+        # if len(self.__route.next_stops) == 0 \
+        #         and not self.__route.vehicle.reusable:
+        #     VehicleComplete(self.__route, self.queue,
+        #                     self.queue.env.current_time).add_to_queue(forced_insertion=True)
 
         return 'Done processing Vehicle Arrival process'
 
@@ -382,7 +381,7 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env):
-        return 'Vehicle Complete process is implemented'
+        return 'Vehicle Complete process is implemented for route'+str(self.__route.vehicle.id)
 
     def add_to_queue(self, forced_insertion=False):
         if not self.queue.is_event_type_in_queue(self.__class__,

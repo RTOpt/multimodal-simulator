@@ -659,12 +659,21 @@ class FixedLineDispatcher(Dispatcher):
                 f.close()
                 # Print the error message
                 logger.warning('The scenario generation failed after {} tries.'.format(j_try))
+                #Stop the solution process
+                with open(self.__tactics_file_path, "a") as f:
+                    f.write('Tactics used for route {} - trip {} at stop {}: None because of error\n'.format(self.route_name, bus_trip_id, stop_id))
+                f.close()
                 return(False, False, (False, -1))
                
         # Extract optimal tactics from the solution (or tactics dictionary)
         if self.algo == 2: # Regret
             max_departure_time, hold, speedup, skip_stop, = self.choose_tactic(tactic_regrets_dict, last_stop)
-        if self.__tactics_file_path is not None and (speedup == 1 or skip_stop == 1 or hold >= 0):
+        if self.__tactics_file_path is not None:
+            if not (speedup == 1 or skip_stop == 1 or hold >= 0):
+                with open(self.__tactics_file_path, "a") as f:
+                    f.write('Tactics used for route {} - trip {} at stop {}: None\n'.format(self.route_name, bus_trip_id, stop_id))
+                f.close()
+                return(speedup == 1, skip_stop == 1, (hold >= 0 , max_departure_time))
             if hold == 0:
                 hold_type ='Hold for planned'
             elif hold == 1:
@@ -1626,29 +1635,39 @@ class FixedLineDispatcher(Dispatcher):
         if last_stop != -1:
             if skip_stop == 1: 
                 all.remove('ss')
+                optimal_tactic = 'ss'
             elif speedup == 1: 
                 if hold == -1:
                     all.remove('sp')
+                    optimal_tactic = 'sp'
                 elif hold == 0: 
                     all.remove('sp_hp')
+                    optimal_tactic = 'sp_hp'
                 else: 
                     all.remove('sp_t')
+                    optimal_tactic = 'sp_t'
                     tactic_regrets_dict['sp_t'][1].append(max_departure_time)
             else: 
                 if hold == -1: 
                     all.remove('none')
+                    optimal_tactic = 'none'
                 elif hold == 0:
                     all.remove('h_hp')
+                    optimal_tactic = 'h_hp'
                 else: 
                     all.remove('h_t')
+                    optimal_tactic = 'h_t'
                     tactic_regrets_dict['h_t'][1].append(max_departure_time)
         else:
             if hold == -1: 
                 all.remove('none')
+                optimal_tactic = 'none'
             elif hold == 0:
                 all.remove('h_hp')
+                optimal_tactic = 'h_hp'
             else: 
                 all.remove('h_t')
+                optimal_tactic = 'h_t'
                 tactic_regrets_dict['h_t'][1].append(max_departure_time)
         tactics = Graph.get_all_tactics_used_in_solution(bus_flows_in_solution, trip_id, next_trip_id)
         regret_bus_trips = self.create_stops_list_for_all_non_optimal_tactics(bus_trips, transfers, tactics, stop_id, trip_id, max_departure_time, all, last_departure_times)
@@ -1663,7 +1682,9 @@ class FixedLineDispatcher(Dispatcher):
                                             last_departure_times = last_departure_times,
                                             initial_flows = initial_flows,
                                             optimal_value = optimal_value,
-                                            display_graph_bool = (tactic in ['ss', 'sp', 'sp_hp', 'sp_t']))
+                                            display_graph_bool = (tactic in ['ss', 'sp', 'sp_hp', 'sp_t']),
+                                            tactic = tactic,
+                                            optimal_tactic = optimal_tactic)
             if tactic == 'sp_t' or tactic == 'h_t':
                 tactic_regrets_dict[tactic][0] += regret
                 tactic_regrets_dict[tactic][1].append(tactic_bus_trips[trip_id][0].departure_time)
@@ -1834,6 +1855,10 @@ class FixedLineDispatcher(Dispatcher):
                     new_stop.departure_time = maximum_transfer_time
             else: 
                 new_stop.departure_time = new_stop.departure_time + 60
+        # else: # tactic = none and nothing to do
+        #     print('No tactic applied')
+        #     # Show new stop
+        #     print('Stop ', stop.location.label, ' - arrival time = ', new_stop.arrival_time, ' - departure time = ', new_stop.departure_time)
         prev_time = new_stop.departure_time
         return(new_stop, prev_time)
     
@@ -1845,7 +1870,9 @@ class FixedLineDispatcher(Dispatcher):
                           last_departure_times : dict,
                           initial_flows : dict,
                           optimal_value : int,
-                          display_graph_bool = False):
+                          display_graph_bool = False,
+                          tactic = '',
+                          optimal_tactic = ''):
         """
         This function calculates the regret of a tactic given the optimal value.
         
@@ -1872,12 +1899,18 @@ class FixedLineDispatcher(Dispatcher):
                                                                                                          verbose = False,
                                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
             # if display_graph_bool:
-            #     G.display_graph(display_flows = display_flows, name = 'Regret_success')
-        except:
-            logger.warning('Error in graph building for regret calculation ...')
+            G.display_graph(display_flows = display_flows, name = 'Regret_success')
+        except Exception as e:
+            error_message = 'Optimal tactic is '+ optimal_tactic + '. Error in graph solving for regret calculation for tactic ' + tactic+ ' ...'
+            logger.warning(error_message)
+            error_traceback = traceback.format_exc()  # Get full traceback
+            with open(self.__error_file_path, "a") as f:
+                f.write('Error message: {}\n'.format(error_message))
+                f.write('Error traceback: {}\n'.format(error_traceback))
+            f.close()
             #Display graph for debugging
-            # G.display_graph(display_flows = False, name = 'Regret_error')
-            # input('Error in graph building for regret calculation ...')
+            G.display_graph(display_flows = False, name = 'Regret_error')
+
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:
             logger.warning('Negative regret value : {}...'.format(regret))
