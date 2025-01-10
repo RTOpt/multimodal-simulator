@@ -147,6 +147,9 @@ class ConsoleVisualizer(Visualizer):
 
     def __print_statistics(self):
 
+        stats = self.__data_analyzer.get_statistics()
+        logger.info("Statistics: {}".format(stats))
+
         vehicles_stats = self.__data_analyzer.get_vehicles_statistics()
         logger.info(vehicles_stats)
         modes = self.__data_analyzer.modes
