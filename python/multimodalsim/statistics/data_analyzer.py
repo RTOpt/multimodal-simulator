@@ -37,6 +37,10 @@ class DataAnalyzer:
         raise NotImplementedError("DataAnalyzer.modes has not been "
                                   "implemented")
 
+    def get_statistics(self):
+        raise NotImplementedError("DataAnalyzer.get_statistics has not been "
+                                  "implemented")
+
     def get_vehicles_statistics(self, mode: Optional[str] = None) -> dict:
         raise NotImplementedError("DataAnalyzer.get_vehicles_statistics has "
                                   "not been implemented")
@@ -199,6 +203,17 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         total_distance_travelled = self.get_vehicles_distance_travelled(mode)
 
         return total_distance_travelled * self.__default_ghg_e
+
+    def get_statistics(self):
+
+        statistics = {
+            "trips": {mode: self.get_trips_statistics(mode)
+                      for mode in self.modes},
+            "vehicles": {mode: self.get_vehicles_statistics(mode)
+                         for mode in self.modes}
+        }
+
+        return statistics
 
     def get_vehicles_statistics(self, mode: Optional[str] = None) -> dict:
 

@@ -119,7 +119,7 @@ class StandardDataCollector(DataCollector):
             if vehicle.polylines is not None and len(vehicle.polylines) > 0 \
             else None
 
-        mode = vehicle.mode if vehicle.mode is not None else "bus2"
+        mode = vehicle.mode if vehicle.mode is not None else ""
 
         obs_dict = {"id": vehicle.id,
                     "time": self.__time,
