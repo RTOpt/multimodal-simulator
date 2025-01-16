@@ -152,7 +152,6 @@ def create_test_files(combinations, multi = False, clean = True):
     test_folder_path_Offline = os.path.join(test_folder_path, 'Offline')
     if not os.path.exists(test_folder_path_Offline):
         os.makedirs(test_folder_path_Offline)
-
     
     for combination_name, combination in combinations.items():
         routes_to_optimize_names = combination['routes_to_optimize_names']

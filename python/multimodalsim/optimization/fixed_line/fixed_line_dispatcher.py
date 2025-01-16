@@ -1899,7 +1899,7 @@ class FixedLineDispatcher(Dispatcher):
                                                                                                          verbose = False,
                                                                                                          out_of_bus_price = self.general_parameters["out_of_bus_price"])
             # if display_graph_bool:
-            G.display_graph(display_flows = display_flows, name = 'Regret_success')
+            # G.display_graph(display_flows = display_flows, name = 'Regret_success')
         except Exception as e:
             error_message = 'Optimal tactic is '+ optimal_tactic + '. Error in graph solving for regret calculation for tactic ' + tactic+ ' ...'
             logger.warning(error_message)
@@ -1909,7 +1909,7 @@ class FixedLineDispatcher(Dispatcher):
                 f.write('Error traceback: {}\n'.format(error_traceback))
             f.close()
             #Display graph for debugging
-            G.display_graph(display_flows = False, name = 'Regret_error')
+            # G.display_graph(display_flows = False, name = 'Regret_error')
 
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:

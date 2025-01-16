@@ -18,7 +18,7 @@ sys.path.append(os.path.abspath('../../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 from stl_gtfs_transfer_synchro import stl_gtfs_transfer_synchro_simulator
-logging_level = logging.WARNING
+logging_level = logging.DEBUG
 logger = logging.getLogger(__name__)
 start_time=time.time()
 print('Begin testing...')
