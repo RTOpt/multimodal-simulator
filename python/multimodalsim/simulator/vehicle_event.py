@@ -345,16 +345,21 @@ class VehicleUpdatePositionEvent(Event):
         self.__queue = queue
         self.__time_step = time_step
 
+    @property
+    def time_step(self) -> float:
+        return self.__time_step
+
     def _process(self, env: 'environment.Environment') -> str:
         self.__vehicle.position = env.coordinates.update_position(
             self.__vehicle, self.__route, self.__event_time)
 
+        time_step = env.simulation_config.update_position_time_step
+
         if self.__vehicle.status != VehicleStatus.COMPLETE \
-                and self.__time_step is not None:
-            VehicleUpdatePositionEvent(
-                self.__vehicle, self.__queue,
-                self.__event_time + self.__time_step,
-                self.__time_step).add_to_queue()
+                and time_step is not None:
+            VehicleUpdatePositionEvent(self.__vehicle, self.__queue,
+                                       self.__event_time + time_step,
+                                       time_step).add_to_queue()
 
         return 'VehicleUpdatePositionEvent processed'
 

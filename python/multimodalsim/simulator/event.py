@@ -223,11 +223,22 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
         self.__time_step = time_step
         self.__event_priority = event_priority
 
+    @property
+    def time_step(self) -> float:
+        return self.__time_step
+
+    @property
+    def speed(self) -> Optional[float]:
+        return self.__speed
+
     def _process(self, env: 'environment.Environment') -> str:
+
         if not self.__queue.is_empty():
+            time_step = env.simulation_config.time_step
+            speed = env.simulation_config.speed
+
             RecurrentTimeSyncEvent(
-                self.__queue, self.__event_time + self.__time_step,
-                self.__time_step, self.__speed,
+                self.__queue, self.__event_time + time_step, time_step, speed,
                 self.__event_priority).add_to_queue()
 
         return super()._process(env)

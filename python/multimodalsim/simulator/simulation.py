@@ -30,13 +30,14 @@ class Simulation:
                  travel_times: Optional[TravelTimes] = None,
                  config: Optional[str | SimulationConfig] = None) -> None:
 
-        self.__env = Environment(optimization, network=network,
+        self.__load_config(config)
+
+        self.__env = Environment(optimization, self.__config,
+                                 network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times)
         self.__queue = EventQueue(self.__env)
         self.__environment_observer = environment_observer
-
-        self.__load_config(config)
 
         self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
 
@@ -53,7 +54,8 @@ class Simulation:
         return data_collectors
 
     def simulate(self, max_time: Optional[float] = None) -> None:
-        max_time = self.__max_time if max_time is None else max_time
+        self.__config.max_time = self.__max_time if max_time is None \
+            else max_time
 
         # main loop of the simulation
         while not self.__queue.is_empty():
@@ -62,7 +64,8 @@ class Simulation:
 
             self.__env.current_time = current_event.time
 
-            if max_time is not None and self.__env.current_time > max_time:
+            if self.__config.max_time is not None \
+                    and self.__env.current_time > self.__config.max_time:
                 break
 
             self.__visualize_environment(current_event, current_event.index,
@@ -78,14 +81,17 @@ class Simulation:
 
     def __load_config(self, config):
         if isinstance(config, str):
-            config = SimulationConfig(config)
+            self.__config = SimulationConfig(config)
         elif not isinstance(config, SimulationConfig):
-            config = SimulationConfig()
+            self.__config = SimulationConfig()
+        else:
+            self.__config = config
 
-        self.__max_time = config.max_time
-        self.__speed = config.speed
-        self.__time_step = config.time_step
-        self.__update_position_time_step = config.update_position_time_step
+        self.__max_time = self.__config.max_time
+        self.__speed = self.__config.speed
+        self.__time_step = self.__config.time_step
+        self.__update_position_time_step = \
+            self.__config.update_position_time_step
 
     def __create_vehicle_ready_events(self, vehicles, routes_by_vehicle_id):
         for vehicle in vehicles:
