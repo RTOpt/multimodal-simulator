@@ -139,11 +139,13 @@ def get_output_subfolder(output_folder_path, algo, ss, sp, routes_to_optimize_na
         add +='SINGLE_'+ routes_to_optimize_names[0]
     else: # Optimize multiple routes
         add += 'MULTIPLE'
-        for route in routes_to_optimize_names:
-            add += '_'+ route
+        # for route in routes_to_optimize_names:
+        #     add += '_'+ route
     
     # Create the output folder
     output_folder_path_with_addendum = os.path.join(output_folder_path, add)
     if not os.path.exists(output_folder_path_with_addendum):
+        print(len(output_folder_path_with_addendum))
+        print(output_folder_path_with_addendum) 
         os.makedirs(output_folder_path_with_addendum)
     return output_folder_path_with_addendum
