@@ -480,7 +480,7 @@ class Stop(object):
     def __str__(self):
         class_string = str(self.__class__) + ": {"
         for attribute, value in self.__dict__.items():
-            if "__passengers_to_board" in attribute:
+            if "__passengers_to_board" in attribute and "__passengers_to_board_int" not in attribute:
                 class_string += str(attribute) + ": " \
                                 + str(list(str(x.id) for x in value)) + ", "
             elif "__boarding_passengers" in attribute:
@@ -489,7 +489,7 @@ class Stop(object):
             elif "__boarded_passengers" in attribute:
                 class_string += str(attribute) + ": " \
                                 + str(list(str(x.id) for x in value)) + ", "
-            elif "__passengers_to_alight" in attribute:
+            elif "__passengers_to_alight" in attribute and "__passengers_to_alight_int" not in attribute:
                 class_string += str(attribute) + ": " \
                                 + str(list(str(x.id) for x in value)) + ", "
             elif "alighting_passengers" in attribute:
