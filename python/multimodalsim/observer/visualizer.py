@@ -36,7 +36,8 @@ class ConsoleVisualizer(Visualizer):
                               event_priority: Optional[int] = None) -> None:
 
         if self.__last_time is None or env.current_time != self.__last_time:
-            logger.info("current_time={}".format(env.current_time))
+            logger.info("current_time={} | estimated_end_time={}".format(
+                env.current_time, env.estimated_end_time))
             self.__last_time = env.current_time
 
         if logger.parent.level == logging.DEBUG:

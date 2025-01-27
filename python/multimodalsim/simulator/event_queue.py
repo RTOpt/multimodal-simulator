@@ -26,6 +26,7 @@ class EventQueue:
         event.index = self.__index
         self.__queue.put(event)
         self.__index += 1
+        self.__update_estimated_end_time(event.time)
 
     def pop(self) -> 'event_module.Event':
         """pop an element based on Priority time"""
@@ -77,3 +78,8 @@ class EventQueue:
         elif time is None and isinstance(event, event_type):
             is_event = True
         return is_event
+
+    def __update_estimated_end_time(self, event_time):
+        if (self.__env.estimated_end_time is None) \
+                or (event_time > self.__env.estimated_end_time):
+            self.__env.estimated_end_time = event_time

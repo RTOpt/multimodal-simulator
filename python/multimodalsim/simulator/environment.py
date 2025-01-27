@@ -49,7 +49,9 @@ class Environment:
                  network: Optional[Any] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None) -> None:
+
         self.__current_time = 0
+        self.__estimated_end_time = None
         self.__trips = []
         self.__assigned_trips = []
         self.__non_assigned_trips = []
@@ -76,6 +78,14 @@ class Environment:
             raise ValueError("The attribute current_time of Environment "
                              "cannot decrease.")
         self.__current_time = current_time
+
+    @property
+    def estimated_end_time(self) -> float:
+        return self.__estimated_end_time
+
+    @estimated_end_time.setter
+    def estimated_end_time(self, estimated_end_time: float) -> None:
+        self.__estimated_end_time = estimated_end_time
 
     @property
     def trips(self) -> list['request.Trip']:
