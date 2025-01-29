@@ -9,9 +9,11 @@ from multimodalsim.simulator.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
+from multimodalsim.simulator.optimization_event import Optimize
 
 from multimodalsim.simulator.passenger_event import PassengerRelease
 from multimodalsim.simulator.request import Trip
+from multimodalsim.simulator.state_storage import StateStorage
 from multimodalsim.simulator.travel_times import TravelTimes
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.vehicle_event import VehicleReady
@@ -28,21 +30,41 @@ class Simulation:
                  environment_observer: Optional[EnvironmentObserver] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
+                 state_storage: Optional[StateStorage] = None,
+                 save_simulation: bool = False,
                  config: Optional[str | SimulationConfig] = None) -> None:
 
-        self.__env = Environment(optimization, network=network,
-                                 coordinates=coordinates,
-                                 travel_times=travel_times)
-        self.__queue = EventQueue(self.__env)
+        if state_storage is not None:
+            env_copy = state_storage.env
+            queue_copy = state_storage.queue
+        else:
+            env_copy = None
+            queue_copy = None
+
+        if save_simulation:
+            self.__env = Environment(optimization, network=network,
+                                     coordinates=coordinates,
+                                     travel_times=travel_times,
+                                     state_storage=state_storage,
+                                     env_copy=env_copy)
+        else:
+            self.__env = Environment(optimization, network=network,
+                                     coordinates=coordinates,
+                                     travel_times=travel_times,
+                                     env_copy=env_copy)
+
+        self.__queue = EventQueue(self.__env, queue_copy)
+
         self.__environment_observer = environment_observer
 
         self.__load_config(config)
 
-        self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
+        if state_storage is None or state_storage.env is None:
+            self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
+            self.__create_passenger_release_events(trips)
+            self.__initialize_time(vehicles, trips)
 
-        self.__create_passenger_release_events(trips)
-
-        self.__initialize_time(vehicles, trips)
+        self.__init_state_storage(state_storage, save_simulation)
 
     @property
     def data_collectors(self) -> Optional[list[DataCollector]]:
@@ -57,6 +79,9 @@ class Simulation:
 
         # main loop of the simulation
         while not self.__queue.is_empty():
+
+            next_event = self.__queue[0]
+            self.__save_state_if_needed(next_event)
 
             current_event = self.__queue.pop()
 
@@ -137,3 +162,15 @@ class Simulation:
             for data_collector in self.__environment_observer.data_collectors:
                 data_collector.collect(self.__env, current_event,
                                        event_index, event_priority)
+
+    def __init_state_storage(self, state_storage, save_simulation):
+
+        if save_simulation and state_storage is not None:
+            self.__state_storage = state_storage
+            self.__state_storage.env = self.__env
+            self.__state_storage.queue = self.__queue
+
+    def __save_state_if_needed(self, current_event):
+        if self.__env.state_storage is not None \
+                and isinstance(current_event, Optimize):
+            self.__env.state_storage.save_state()

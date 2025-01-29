@@ -1,17 +1,31 @@
+import copy
+import logging
 from queue import PriorityQueue
 from typing import Type, Optional, Any
 
 import multimodalsim.simulator.event as event_module
 import multimodalsim.simulator.environment as environment
+import multimodalsim.simulator.optimization_event as optimization_event
+import multimodalsim.state_machine.state_machine as state_machine
+
+logger = logging.getLogger(__name__)
 
 
 class EventQueue:
-    def __init__(self, env: 'environment.Environment') -> None:
+    def __init__(self, env: 'environment.Environment',
+                 queue_copy:
+                 Optional['EventQueue'] = None) -> None:
         self.__queue = PriorityQueue()
 
         self.__index = 0
 
         self.__env = env
+
+        if queue_copy is not None:
+            self.__init_queue_from_queue_copy(queue_copy)
+
+    def __getitem__(self, key):
+        return self.__queue.queue[key]
 
     @property
     def env(self) -> 'environment.Environment':
@@ -68,6 +82,34 @@ class EventQueue:
     def cancel_events(self, events: list['event_module.Event']) -> None:
         for event in events:
             event.cancelled = True
+
+    def get_queue_copy(self) -> 'EventQueue':
+        """Return a copy of the current EventQueue object after removing
+        objects that are not necessary to determine the state of the
+        simulation."""
+
+        queue_copy = copy.copy(self)
+        queue_copy.__queue = PriorityQueue()
+        for event in self.__queue.queue:
+            event_copy = copy.copy(event)
+            event_copy.queue = None
+
+            if isinstance(event_copy, optimization_event.Optimize):
+                event_copy.state_machine = None
+
+            queue_copy.__queue.put(event_copy)
+        queue_copy.__env = None
+
+        return queue_copy
+
+    def __init_queue_from_queue_copy(self, queue_copy):
+        self.__index = queue_copy.__index
+        for event in queue_copy.__queue.queue:
+            event.queue = self
+            if isinstance(event, optimization_event.Optimize):
+                event.state_machine = state_machine.OptimizationStateMachine(
+                    self.__env.optimization)
+            self.__queue.put(event)
 
     def __is_event_looked_for(self, event, event_type, time):
         is_event = False

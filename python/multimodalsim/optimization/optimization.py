@@ -1,3 +1,4 @@
+import copy
 import logging
 from multiprocessing import Pool
 from typing import Optional, Union
@@ -160,6 +161,17 @@ class Optimization:
     @property
     def config(self) -> OptimizationConfig:
         return self.__config
+
+    def get_optimization_copy(self):
+        """Return a copy of the current Optimization object after removing
+        objects that are not necessary to determine the state of the
+        simulation."""
+        optimization_copy = copy.copy(self)
+        optimization_copy.__config = None
+        optimization_copy.__state = None
+        optimization_copy.__state_machine = None
+
+        return optimization_copy
 
     def __create_state_machines(self):
         if self.__partition is None:
