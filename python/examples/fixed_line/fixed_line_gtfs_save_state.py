@@ -1,4 +1,5 @@
 import logging  # Required to modify the log level
+import random
 
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
@@ -44,6 +45,8 @@ if __name__ == '__main__':
 
     # Initialize the observer.
     environment_observer = StandardEnvironmentObserver()
+
+    random.seed(1)
 
     # Initialize the simulation.
     simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
