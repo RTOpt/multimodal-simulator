@@ -87,6 +87,7 @@ def mark_first_and_last_stops_with_offsets(route_stop_lists, stops_data, ax, rou
 
             # Retrieve the offsets applied for this route
             lat_offset, lon_offset = offsets_applied.get(route_id, (0, 0))
+            lat_offset, lon_offset = 0, 0 # Remove offsets for now
 
             if not first_stop_data.empty:
                 first_stop_name = first_stop_data['stop_name'].values[0]  # Get the stop_name
@@ -136,16 +137,16 @@ def mark_metro_stations(stops_data, ax, stop_connections):
     Mark metro stations on the map by selecting one representative stop from each set of connected stops
     that contain 'METRO' in their name, and show its stop_name as a label.
     """
-    color = 'black'
+    color = 'red'
     marker_shape = '^'
     label_size = 14
-    marker_size = 100
+    marker_size = 150
 
     metro_stations = [(47911,'Cartier',-73.682497,45.559958, 45.565, 'center'),
                       (41006,'Concorde',-73.70785,45.561048,45.564, 'center'),
                       (48002,'Montmorrency',-73.720829,45.557936, 45.55, 'center')]
     for stop_id, stop_name, lon, lat, lat2, alignment in metro_stations:
-        ax.scatter(lon, lat, color=color, s=marker_size, marker=marker_shape, zorder=6)
+        ax.scatter(lon, lat, color=color, s=marker_size, marker=marker_shape, zorder=10)
         # ax.text(lon, lat2, stop_name, fontsize=label_size, ha=alignment, color=color, zorder=10)
 
 def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.0004, padding=0.01, radial = False):
@@ -176,9 +177,10 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         ordered_stop_list = get_ordered_stop_list(route_id, new_trips_df, new_stop_times_df)
 
         # Plot the adjusted shape
+        print('route_id', route_id)
         latitudes = shape_points['shape_pt_lat'].values
         longitudes = shape_points['shape_pt_lon'].values
-        ax.plot(longitudes, latitudes, color=color, linewidth=1.5, zorder=2, label="Feeder lines")
+        # ax.plot(longitudes, latitudes, color=color, linewidth=1.5, zorder=2, label="Feeder lines")
 
         # Plot the route stops
         # stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
@@ -188,6 +190,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         color = contrasting_color_palette[idx % len(contrasting_color_palette)]
         if color == 'black':
             color = 'dodgerblue'
+        color = 'blue'
 
         # Get the shape points for the current route
         shape_points = get_first_shape_for_route(route_id, shapes_df)
@@ -197,6 +200,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         route_stop_lists[route_id] = ordered_stop_list
 
         # Update the lat/lon boundaries for dynamic extent calculation
+        print('route_id', route_id)
         latitudes = shape_points['shape_pt_lat'].values
         longitudes = shape_points['shape_pt_lon'].values
         lat_min = min(lat_min, np.min(latitudes))
@@ -216,9 +220,11 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
                 lon_diff = np.max(longitudes) - np.min(longitudes)
                 if lon_diff > lat_diff:  # More horizontal
                     lat_offset = offset_distance * (idx % 2 * 2 - 1)  # Apply offset to latitude
+                    lat_offset = 0
                     latitudes += lat_offset
                 else:  # More vertical
                     lon_offset = offset_distance * (idx % 2 * 2 - 1)  # Apply offset to longitude
+                    lon_offset = 0
                     longitudes += lon_offset
 
         # Store the offsets for use when plotting the first and last stops
@@ -227,7 +233,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         # Plot the adjusted shape
         ## Get route_id without last caracter
         route_name = route_id[:-1]
-        ax.plot(longitudes, latitudes, label=f"Line {route_name}", color=color, linewidth=4, zorder=3)
+        ax.plot(longitudes, latitudes, label=f"Line {route_name}", color=color, linewidth=2, zorder=3)
 
         # Plot the route stops
         # stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
@@ -247,7 +253,9 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     # Add legend entries for first/last stops and transfer stops
     # ax.scatter([], [], color='none', edgecolor='black', s=60, marker='o', label="First/Last Stop", zorder=5)
     ax.scatter([], [], color='black', s=20, marker='.', linewidths=0.5, label = "Transfer stop \nbetween main lines", zorder=10)
-    ax.scatter([], [], color='black', s = 80, marker='^', label = "Metro Station", zorder=6)
+    ax.scatter([], [], color='red', s = 100, marker='^', label = "Metro Station", zorder=2)
+    ## Add legend handle with only one color for all routes
+    ax.plot([], [], color='blue', linewidth=2, label="Main lines", zorder=3)
 
     # Adjust map extent to fit the plotted routes with some padding
     # Make sure to stay in map bounds
@@ -278,14 +286,21 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     if radial: 
         title = "Radial style instance including transfer stops"
     else:
-        title = "Map of case study network in Laval, Canada"
+        title = "Map of main lines in case study network of Laval, Canada"
     ax.set_title(title, fontsize=18)
     # Add a legend with a white background and black border
     handles, labels = ax.get_legend_handles_labels()
     unique = dict(zip(labels, handles))
 
     # Create the legend with unique labels
-    legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 14, markerscale = 1.5)
+        # Create a custom legend with only the desired entries
+    handles, labels = ax.get_legend_handles_labels()  # Get all handles and labels
+    desired_labels = ["Main lines", "Metro Station", "Transfer stop \nbetween main lines",   "Feeder lines"]
+    desired_handles = [handles[labels.index(label)] for label in desired_labels if label in labels]  # Filter handles
+
+    # Set the legend with only the desired handles and labels
+    legend = ax.legend(handles=desired_handles, labels=desired_labels, loc='best', fontsize=14, markerscale=1.5)
+    # legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 14, markerscale = 1.5)
     legend.get_frame().set_facecolor('white')  # Set the background color to white
     legend.get_frame().set_edgecolor('black')  # Set the edge color to black
     legend.get_frame().set_alpha(1)  # Make the legend fully opaque
@@ -305,6 +320,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
 # Define the route_ids to plot
 # Route ids for a quadrant style network
 route_ids = [ '17N', '151N', '26O', '42E', '56O']
+route_ids = ['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '42E', '52E', '56E', '60E', '66E', '70E', '74E', '76E', '151S', '17S', '27S', '33S', '37S', '43S', '45S','46S', '55S', '61S', '63S', '65S', '901S', '902S', '903S','925S']
 # #Route ids for a radial style network
 # route_ids = ['70E', '31S', '37S', '39S', '33S']
 

@@ -11,6 +11,7 @@ import matplotlib
 import copy
 import os
 import networkx as nx
+import traceback
 from matplotlib.lines import Line2D
 
 print(matplotlib.__version__)
@@ -1013,6 +1014,8 @@ class Graph:
         try:
             m.optimize()
         except Exception as e:
+            error_traceback = traceback.format_exc()
+            print('Traceback error:', error_traceback)
             print('Error in optimization model:', e)
 
         runtime = timeit.default_timer()-runtime

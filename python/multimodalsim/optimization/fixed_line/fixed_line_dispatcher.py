@@ -286,6 +286,9 @@ class FixedLineDispatcher(Dispatcher):
         """
         state.main_line = main_line_id
         state.next_main_line = next_main_line_id
+        if main_line_id not in state.route_by_vehicle_id:
+            return OptimizationResult(state, [], [])
+        
         self.route_name = state.route_by_vehicle_id[main_line_id].vehicle.route_name
         
         # OSO algorithm
@@ -1903,6 +1906,7 @@ class FixedLineDispatcher(Dispatcher):
         except Exception as e:
             error_message = 'Optimal tactic is '+ optimal_tactic + '. Error in graph solving for regret calculation for tactic ' + tactic+ ' ...'
             logger.warning(error_message)
+            traceback.print_exc()
             error_traceback = traceback.format_exc()  # Get full traceback
             with open(self.__error_file_path, "a") as f:
                 f.write('Error message: {}\n'.format(error_message))
