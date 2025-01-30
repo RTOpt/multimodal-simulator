@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
@@ -45,6 +46,11 @@ class Simulation:
 
         self.__initialize_time(vehicles, trips)
 
+        # To control the execution of the simulation (pause, resume, stop)
+        self.__simulation_cv = threading.Condition()
+        self.__simulation_paused = False
+        self.__simulation_stopped = False
+
     @property
     def data_collectors(self) -> Optional[list[DataCollector]]:
         if self.__environment_observer is not None:
@@ -59,6 +65,12 @@ class Simulation:
 
         # main loop of the simulation
         while not self.__queue.is_empty():
+
+            with self.__simulation_cv:
+                if self.__simulation_stopped:
+                    break
+
+            self.__check_if_paused()
 
             current_event = self.__queue.pop()
 
@@ -78,6 +90,19 @@ class Simulation:
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
+
+    def pause(self):
+        with self.__simulation_cv:
+            self.__simulation_paused = True
+
+    def resume(self):
+        with self.__simulation_cv:
+            self.__simulation_paused = False
+            self.__simulation_cv.notify()
+
+    def stop(self):
+        with self.__simulation_cv:
+            self.__simulation_stopped = True
 
     def __load_config(self, config):
         if isinstance(config, str):
@@ -143,3 +168,8 @@ class Simulation:
             for data_collector in self.__environment_observer.data_collectors:
                 data_collector.collect(self.__env, current_event,
                                        event_index, event_priority)
+
+    def __check_if_paused(self):
+        with self.__simulation_cv:
+            if self.__simulation_paused:
+                self.__simulation_cv.wait()
