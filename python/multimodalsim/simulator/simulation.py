@@ -4,7 +4,7 @@ from typing import Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.observer.data_collector import DataCollector
-from multimodalsim.observer.environment_observer import EnvironmentObserver
+import multimodalsim.observer.environment_observer as env_obs_module
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.simulator.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
@@ -26,7 +26,8 @@ class Simulation:
                  vehicles: list[Vehicle],
                  routes_by_vehicle_id: dict[str | int, Route],
                  network: Optional[Any] = None,
-                 environment_observer: Optional[EnvironmentObserver] = None,
+                 environment_observer:
+                 Optional['env_obs_module.EnvironmentObserver'] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
                  config: Optional[str | SimulationConfig] = None) -> None:
@@ -38,7 +39,8 @@ class Simulation:
                                  coordinates=coordinates,
                                  travel_times=travel_times)
         self.__queue = EventQueue(self.__env)
-        self.__environment_observer = environment_observer
+
+        self.__initialize_environment_observer(environment_observer)
 
         self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
 
@@ -92,15 +94,18 @@ class Simulation:
         self.__visualize_environment()
 
     def pause(self):
+        logger.info("Simulation paused")
         with self.__simulation_cv:
             self.__simulation_paused = True
 
     def resume(self):
+        logger.info("Simulation resumed")
         with self.__simulation_cv:
             self.__simulation_paused = False
             self.__simulation_cv.notify()
 
     def stop(self):
+        logger.info("Simulation stopped")
         with self.__simulation_cv:
             self.__simulation_stopped = True
 
@@ -117,6 +122,14 @@ class Simulation:
         self.__time_step = self.__config.time_step
         self.__update_position_time_step = \
             self.__config.update_position_time_step
+
+    def __initialize_environment_observer(self, environment_observer):
+
+        for visualizer in environment_observer.visualizers:
+            visualizer.attach_simulation(self)
+            visualizer.attach_environment(self.__env)
+
+        self.__environment_observer = environment_observer
 
     def __create_vehicle_ready_events(self, vehicles, routes_by_vehicle_id):
         for vehicle in vehicles:

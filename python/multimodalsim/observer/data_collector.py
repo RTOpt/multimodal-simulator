@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class DataCollector:
+    """A DataCollector object can be passed to the Simulation object (through
+    an EnvironmentObserver) to collect data about the environment at each
+    iteration of the simulation."""
 
     def __init__(self) -> None:
         pass
@@ -24,7 +27,10 @@ class DataCollector:
                 current_event: Optional[Event] = None,
                 event_index: Optional[int] = None,
                 event_priority: Optional[int] = None) -> None:
-        raise NotImplementedError('DataCollector.collect not implemented')
+        """This method can be used to collect data about the environment (env)
+         after an event is processed."""
+        raise NotImplementedError('collect of {} not implemented'
+                                  .format(self.__class__.__name__))
 
 
 class StandardDataCollector(DataCollector):

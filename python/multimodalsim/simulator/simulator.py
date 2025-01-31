@@ -47,15 +47,12 @@ class Simulator:
         self.__simulation.simulate()
 
     def pause(self) -> None:
-        logger.warning("Simulation paused")
         self.__simulation.pause()
 
     def resume(self) -> None:
-        logger.warning("Simulation resumed")
         self.__simulation.resume()
 
     def stop(self) -> None:
-        logger.warning("Simulation stopped")
         self.__simulation.stop()
 
     def __init_simulation_from_directory(self, simulation_directory):
