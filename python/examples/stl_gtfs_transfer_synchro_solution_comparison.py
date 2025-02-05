@@ -363,7 +363,7 @@ def plot_single_line_comparisons(instance_name,
 
 # Define the test instance name
 instance_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
-instance_name = "gtfs2019-11-25_LargeInstance"
+instance_name = "gtfs2019-11-25_LargeInstanceAll"
 transfer_time = False
 # for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
 for line_name in [['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '42E', '52E', '56E', '60E', '66E', '70E', '74E', '76E', '942E', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N'], ['42E']]:
