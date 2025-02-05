@@ -216,6 +216,18 @@ def filter_requests(date, selected_trip_ids, name, all_trip_ids =[], base_path=o
     return all_trip_ids
 
 def get_start_time_of_bus(date, number, route_id):
+    """
+    Get the start time of the bus number for the route_id.
+    The start time is the planned_departure_time_from_origin of the first stop_time of the trip_id.
+    
+    Inputs:
+    - date: the date for which to generate the test instance (format: "YYYY-MM-DD")
+    - number: the number of the bus in the route_id
+    - route_id: the route_id of the bus
+
+    Outputs:
+    The start time.
+    """
     base_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'fixed_line', 'gtfs')
     input_path = os.path.join(base_path, date)
     stop_times_path = os.path.join(input_path, "stop_times_upgrade.txt")
@@ -224,7 +236,6 @@ def get_start_time_of_bus(date, number, route_id):
     all_trips = pd.read_csv(trips_path)
     trips = all_trips[all_trips['route_id'] == route_id]
     unique_trips = trips['trip_id'].unique()
-    print(unique_trips)
 
     ### Get first times for the each trip_id
     stop_times = pd.read_csv(stop_times_path)
@@ -232,7 +243,7 @@ def get_start_time_of_bus(date, number, route_id):
     for trip_id in unique_trips:
         ### If the trip is in the stop_times, get the first row
         if len(stop_times[stop_times['trip_id'] == trip_id]) == 0:
-            print('There is a missing trip_id:', trip_id)
+            # print('There is a missing trip_id:', trip_id)
             continue
         row = stop_times[stop_times['trip_id'] == trip_id].iloc[0]
         start_times.append((trip_id, row['planned_departure_time_from_origin']))
@@ -243,8 +254,7 @@ if __name__ == "__main__":
     dates = ["2019-11-25", "2019-11-26", "2019-11-27"]
     for date in dates:
         trip_id, start_time = get_start_time_of_bus('gtfs'+date, 1, '42O')
-        route_ids = [ '17N', '151S', '26E', '42E', '56E']
-        route_ids = ['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '52E', '56E', '60E', '66E', '74E', '76E', '942E']
-        start_time = 21000 #6AM
-        generate_duration_test_instance('LargeInstance','gtfs'+date, start_time, 10800, route_ids = route_ids)  # 3 hours
+        route_ids = ['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '2E', '2O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']
+        duration = 21600 # 6 hours
+        generate_duration_test_instance('LargeInstanceAll','gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)  # 3 hours
     

@@ -1,22 +1,48 @@
 import sys
 import os
+import json
+
 sys.path.append(os.path.abspath('../../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 from itertools import product
 
+def keep_routes_to_optimize(Case):
+    """ Reads the test_trip_dir.json file containing all routes to keep for the optimization and returns a list of valid routes to optimize. """
+
+    completename = os.path.join('data','fixed_line','gtfs', 'test_trip_dir.json')
+    with open(completename, 'r') as fp:
+        dict = json.load(fp)
+    fp.close()
+    for case in Case:
+        all_ligns = Case[case]['ligns']
+        all_dirs = Case[case]['dirs']
+        for lign in all_ligns:
+            for dir in all_dirs:
+                if lign not in dict:
+                    print(f"Route {lign} not found in test_trip_dir.json")
+                    all_ligns.remove(lign)
+                    break
+                else: 
+                    if dir not in dict[lign]:
+                        print(f"Route {lign}{dir} not found in test_trip_dir.json")
+                        all_ligns.remove(lign)
+                        break
+    return Case
+
 def parse_parameters_for_transfer_synchro():
     all_ligns_SN= ['151', '17', '27', '33', '37', '41', '43', '45', '46', '55', '61', '63', '65', '901', '902', '903', '925']
-    all_ligns_EO= ['144', '20', '222', '22', '24','252', '26', '2', '36', '42', '52', '56', '60', '66', '70', '74', '76', '942']
+    all_ligns_EO= ['144', '20', '222', '22', '24','252', '26', '2', '42', '52', '56', '60', '66', '70', '74', '76', '942']
     Case={}
     Case['EO']={}
     Case['EO']['ligns']=all_ligns_EO
     Case['EO']['dirs']=['E','O']
-    Case['EO']['dirs']=['E']
     Case['SN']={}
     Case['SN']['ligns']=all_ligns_SN
     Case['SN']['dirs']=['S','N']
+    Case = keep_routes_to_optimize(Case)
 
+    
     index = {}
     all_lines_indiv = []
     for i in range(4):
@@ -31,6 +57,7 @@ def parse_parameters_for_transfer_synchro():
         dirs = Case[case]['dirs']
         all_lines_indiv.extend([lign+dir for lign, dir in product(ligns, dirs)])
     print(all_lines_indiv)
+    input()
     params = {
             "algo": [0, 1, 2, 3],
             "sp": [False, True],

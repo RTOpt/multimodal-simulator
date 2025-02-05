@@ -246,6 +246,7 @@ class GTFSReader(DataReader):
         self.__trip_route_dict = None
         self.__route_mode_dict = None
         self.__network_graph = None
+        self.__trip_ids_to_remove = None
 
         self.__release_time_interval = None
         self.__min_departure_time_interval = None
@@ -294,7 +295,7 @@ class GTFSReader(DataReader):
                             LabelLocation(origin), LabelLocation(destination),
                             nb_passengers, release_time, ready_time, due_time,
                             name=name)
-
+                keep_trip = True
                 if legs_stops_pairs_list is not None:
                     leg_number = 1
                     legs = []
@@ -303,6 +304,9 @@ class GTFSReader(DataReader):
                         first_stop_id = str(stops_pair[0])
                         second_stop_id = str(stops_pair[1])
                         cap_vehicle_id = str(stops_pair[2])
+                        if self.__trip_ids_to_remove is not None and cap_vehicle_id in self.__trip_ids_to_remove:
+                            keep_trip = False
+                            break
 
                         leg = Leg(leg_id, LabelLocation(first_stop_id),
                                   LabelLocation(second_stop_id),
@@ -315,9 +319,11 @@ class GTFSReader(DataReader):
                         legs.append(leg)
                         leg_number += 1
                     trip.assign_legs(legs)
-
-                trips.append(trip)
-                nb_requests += 1
+                if keep_trip:
+                    trips.append(trip)
+                    nb_requests += 1
+                else:
+                    logger.warning("Request {} is removed because it uses the vehicle {}.".format(trip_id, cap_vehicle_id))
         return trips
 
     def get_vehicles(self, release_time_interval=None,
@@ -524,7 +530,46 @@ class GTFSReader(DataReader):
                 else:
                     self.__stop_times_by_trip_id_dict[stop_time.trip_id] = \
                         [stop_time]
-
+                    
+    def __test_trip_direction(self):
+        """ This function to check if the stop times are in the right order.
+        Errors may occur in the data and this function is used to detect them."""
+        # Read dictionnary with stop times by route.
+        completename = os.path.join("data","fixed_line","gtfs","test_trip_dir.json")
+        with open(completename) as f:
+            stop_order_by_route_and_direction = json.load(f)
+        f.close()
+        trip_ids_to_remove = []
+        # Read the stop times file.
+        count_all = 0
+        for trip_id, stop_time_list in self.__stop_times_by_trip_id_dict.items():
+            count_all += 1
+            keep_trip_id = False
+            route_id = self.__trip_route_dict[trip_id]
+            # Split route_id in route and direction. The last caracter of route_id is the direction (E,O,N,S).
+            route = route_id[:-1]
+            direction = route_id[-1]
+            if route in stop_order_by_route_and_direction:
+                if direction in stop_order_by_route_and_direction[route]:
+                    first_stops_route_dir = stop_order_by_route_and_direction[route][direction]["first_stops"]
+                    last_stops_route_dir = stop_order_by_route_and_direction[route][direction]["last_stops"]
+                    first_stops_trip = [stop_time_list[i].stop_id for i in range(6)]
+                    last_stops_trip = [stop_time_list[-i-1].stop_id for i in range(6)]
+                    for stop_id in first_stops_trip:
+                        if int(stop_id) in first_stops_route_dir:
+                            keep_trip_id = True
+                    for stop_id in last_stops_trip:
+                        if int(stop_id) in last_stops_route_dir:
+                            keep_trip_id = True
+            if not keep_trip_id:
+                logger.warning("Trip_id {} is removed because it does not respect the direction.".format(trip_id))
+                trip_ids_to_remove.append(trip_id)
+        # Update __stop_times_by_trip_id_dict
+        for trip_id in trip_ids_to_remove:
+            self.__stop_times_by_trip_id_dict.pop(trip_id)
+        self.__trip_ids_to_remove = trip_ids_to_remove
+        logger.info("Number of trips removed: {}/{}".format(len(trip_ids_to_remove), count_all))
+    
     def __read_calendar_dates(self):
         self.__service_dates_dict = {}
         with open(self.__calendar_dates_path, 'r') as calendar_dates_file:
@@ -551,6 +596,7 @@ class GTFSReader(DataReader):
                 trip_id = str(trips_row[2])
                 self.__trip_service_dict[trip_id] = service_id
                 self.__trip_route_dict[trip_id] = route_id
+        self.__test_trip_direction()
 
     def __read_routes(self):
         if os.path.isfile(self.__routes_path):
