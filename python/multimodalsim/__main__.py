@@ -6,6 +6,8 @@ import json
 
 from networkx.readwrite import json_graph
 
+from multimodalsim.coordinates.coordinates_from_file import CoordinatesFromFile
+from multimodalsim.coordinates.coordinates_osrm import CoordinatesOSRM
 from multimodalsim.logger.formatter import ColoredFormatter
 from multimodalsim.observer.environment_observer import \
     StandardEnvironmentObserver
@@ -13,8 +15,6 @@ from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.shuttle.shuttle_hub_simple_network_dispatcher \
     import ShuttleHubSimpleNetworkDispatcher
-from multimodalsim.simulator.coordinates import CoordinatesOSRM, \
-    CoordinatesFromFile
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import OneLegSplitter, \

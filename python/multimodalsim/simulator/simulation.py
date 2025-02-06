@@ -6,7 +6,7 @@ from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.observer.data_collector import DataCollector
 import multimodalsim.observer.environment_observer as env_obs_module
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.simulator.coordinates import Coordinates
+from multimodalsim.coordinates.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
@@ -125,9 +125,10 @@ class Simulation:
 
     def __initialize_environment_observer(self, environment_observer):
 
-        for visualizer in environment_observer.visualizers:
-            visualizer.attach_simulation(self)
-            visualizer.attach_environment(self.__env)
+        if environment_observer is not None:
+            for visualizer in environment_observer.visualizers:
+                visualizer.attach_simulation(self)
+                visualizer.attach_environment(self.__env)
 
         self.__environment_observer = environment_observer
 

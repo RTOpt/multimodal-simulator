@@ -6,7 +6,7 @@ from typing import Optional, Any
 import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 from multimodalsim.config.simulation_config import SimulationConfig
-from multimodalsim.simulator.coordinates import Coordinates
+from multimodalsim.coordinates.coordinates import Coordinates
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.travel_times import TravelTimes
 from multimodalsim.simulator.vehicle import Vehicle, Route

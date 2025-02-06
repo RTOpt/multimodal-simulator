@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
     logging.getLogger().setLevel(logging.INFO)
 
-    simulation_directory = "../../../data/stl/instance_10/"
+    simulation_directory = "../../../data/taxi/small/"
 
     simulator = Simulator(simulation_directory)
 

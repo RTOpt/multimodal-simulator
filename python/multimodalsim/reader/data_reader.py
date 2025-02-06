@@ -1,6 +1,7 @@
 import csv
 import ast
 import logging
+import math
 from ast import literal_eval
 from datetime import datetime, timedelta
 import json
@@ -34,7 +35,6 @@ class DataReader(object):
 class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path: str, vehicles_file_path: str,
                  graph_from_json_file_path: Optional[str] = None,
-                 sim_end_time: Optional[str] = None,
                  vehicles_end_time: Optional[int] = None) -> None:
         super().__init__()
         self.__network = None
@@ -44,7 +44,6 @@ class ShuttleDataReader(DataReader):
 
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
-        self.__sim_end_time = sim_end_time
         self.__vehicles_end_time = vehicles_end_time
 
     def get_trips(self) -> list[Trip]:
@@ -113,7 +112,8 @@ class ShuttleDataReader(DataReader):
                 start_stop_location = LabelLocation(stop_id, lon=lon, lat=lat)
 
                 start_stop = Stop(start_time,
-                                  Vehicle.MAX_TIME,
+                                  # Vehicle.MAX_TIME,
+                                  math.inf,
                                   start_stop_location)
 
                 # reusable=True since the vehicles are shuttles.
