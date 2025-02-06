@@ -57,7 +57,6 @@ def parse_parameters_for_transfer_synchro():
         dirs = Case[case]['dirs']
         all_lines_indiv.extend([lign+dir for lign, dir in product(ligns, dirs)])
     print(all_lines_indiv)
-    input()
     params = {
             "algo": [0, 1, 2, 3],
             "sp": [False, True],

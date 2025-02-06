@@ -11,6 +11,7 @@
 cd /home/kollau/Recherche_Kolcheva/Simulator
 
 # Load Conda and activate the SimulatorKolcheva environment
+
 module load anaconda
 conda activate SimulatorKolcheva
 
