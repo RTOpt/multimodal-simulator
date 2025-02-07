@@ -12,17 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class EventQueue:
-    def __init__(self, env: 'environment.Environment',
-                 queue_copy:
-                 Optional['EventQueue'] = None) -> None:
+    def __init__(self, env: 'environment.Environment') -> None:
         self.__queue = PriorityQueue()
 
         self.__index = 0
 
         self.__env = env
 
-        if queue_copy is not None:
-            self.__init_queue_from_queue_copy(queue_copy)
+        state_storage = self.__env.state_storage
+        if state_storage is not None and state_storage.load:
+            self.__init_queue_from_queue_copy(state_storage.queue)
 
     def __getitem__(self, key):
         return self.__queue.queue[key]

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     # To modify the log level (at INFO, by default)
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
@@ -25,7 +25,8 @@ if __name__ == '__main__':
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
     # Set to None if coordinates of the vehicles are not available.
-    coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
+    coordinates_file_path = \
+        "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
     coordinates = CoordinatesFromFile(coordinates_file_path)
 
     # To estimate the coordinates from an OSRM server, use the following:
@@ -52,18 +53,23 @@ if __name__ == '__main__':
     simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
                             environment_observer=environment_observer,
                             coordinates=coordinates,
-                            state_storage=StateStorageJSON("../../../data/saved_simulations/"),
-                            save_simulation=True)
+                            state_storage=StateStorageJSON(
+                                "../../../data/saved_simulations/"))
 
     # Execute the simulation.
     simulation.simulate()
 
-    state_storage = StateStorageJSON()
-    state_storage.load_state("../../../data/saved_simulations/state_8.json")
+    state_storage = StateStorageJSON("../../../data/saved_simulations/",
+                                     save=False)
+    state_storage.load_state("state_57900.json")
+
+    environment_observer2 = StandardEnvironmentObserver()
+
+    coordinates2 = CoordinatesFromFile(coordinates_file_path)
 
     loaded_simulation = Simulation(opt, [], [], {},
-                                   environment_observer=environment_observer,
-                                   coordinates=coordinates,
+                                   environment_observer=environment_observer2,
+                                   coordinates=coordinates2,
                                    state_storage=state_storage)
 
     # Execute the simulation.

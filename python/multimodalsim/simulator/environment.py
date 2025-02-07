@@ -49,8 +49,7 @@ class Environment:
                  network: Optional[Any] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
-                 state_storage: Optional[StateStorage] = None,
-                 env_copy: Optional['Environment'] = None) -> None:
+                 state_storage: Optional[StateStorage] = None) -> None:
         self.__current_time = 0
         self.__trips = []
         self.__assigned_trips = []
@@ -66,9 +65,8 @@ class Environment:
         self.__optimize_cv = None
 
         self.__state_storage = state_storage
-
-        if env_copy is not None:
-            self.__init_env_from_copy(env_copy)
+        if self.__state_storage is not None and self.__state_storage.load:
+            self.__init_env_from_state_storage()
 
     @property
     def current_time(self) -> float:
@@ -283,7 +281,8 @@ class Environment:
                 filtered_vehicles.append(vehicle)
         return filtered_vehicles
 
-    def __init_env_from_copy(self, env_copy):
+    def __init_env_from_state_storage(self):
+        env_copy = self.__state_storage.env
         self.__current_time = env_copy.__current_time
         self.__trips = env_copy.__trips
         self.__assigned_trips = env_copy.__assigned_trips

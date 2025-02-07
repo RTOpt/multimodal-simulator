@@ -31,40 +31,27 @@ class Simulation:
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
                  state_storage: Optional[StateStorage] = None,
-                 save_simulation: bool = False,
                  config: Optional[str | SimulationConfig] = None) -> None:
 
-        if state_storage is not None:
-            env_copy = state_storage.env
-            queue_copy = state_storage.queue
-        else:
-            env_copy = None
-            queue_copy = None
+        self.__env = Environment(optimization, network=network,
+                                 coordinates=coordinates,
+                                 travel_times=travel_times,
+                                 state_storage=state_storage)
 
-        if save_simulation:
-            self.__env = Environment(optimization, network=network,
-                                     coordinates=coordinates,
-                                     travel_times=travel_times,
-                                     state_storage=state_storage,
-                                     env_copy=env_copy)
-        else:
-            self.__env = Environment(optimization, network=network,
-                                     coordinates=coordinates,
-                                     travel_times=travel_times,
-                                     env_copy=env_copy)
-
-        self.__queue = EventQueue(self.__env, queue_copy)
+        self.__queue = EventQueue(self.__env)
 
         self.__environment_observer = environment_observer
 
+        self.__init_state_storage(state_storage)
+
+
+
         self.__load_config(config)
 
-        if state_storage is None or state_storage.env is None:
+        if state_storage is None or not state_storage.load:
             self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
             self.__create_passenger_release_events(trips)
             self.__initialize_time(vehicles, trips)
-
-        self.__init_state_storage(state_storage, save_simulation)
 
     @property
     def data_collectors(self) -> Optional[list[DataCollector]]:
@@ -80,23 +67,28 @@ class Simulation:
         # main loop of the simulation
         while not self.__queue.is_empty():
 
-            next_event = self.__queue[0]
-            self.__save_state_if_needed(next_event)
+            try:
+                self.__save_state_if_needed()
 
-            current_event = self.__queue.pop()
+                current_event = self.__queue.pop()
 
-            self.__env.current_time = current_event.time
+                self.__env.current_time = current_event.time
 
-            if max_time is not None and self.__env.current_time > max_time:
-                break
+                if max_time is not None and self.__env.current_time > max_time:
+                    break
 
-            self.__visualize_environment(current_event, current_event.index,
-                                         current_event.priority)
+                self.__visualize_environment(current_event,
+                                             current_event.index,
+                                             current_event.priority)
 
-            process_event = current_event.process(self.__env)
-            logger.debug("process_event: {}".format(process_event))
-            self.__collect_data(current_event, current_event.index,
-                                current_event.priority)
+                process_event = current_event.process(self.__env)
+                logger.debug("process_event: {}".format(process_event))
+                self.__collect_data(current_event, current_event.index,
+                                    current_event.priority)
+            except Exception:
+                if self.__state_storage is not None \
+                        and self.__state_storage.save:
+                    self.__state_storage.save_state()
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
@@ -163,14 +155,21 @@ class Simulation:
                 data_collector.collect(self.__env, current_event,
                                        event_index, event_priority)
 
-    def __init_state_storage(self, state_storage, save_simulation):
+    def __init_state_storage(self, state_storage):
 
-        if save_simulation and state_storage is not None:
+        if state_storage is not None:
+
+            if self.__env.optimization.config.asynchronous:
+                raise ValueError("A state storage cannot be used with "
+                                 "asynchronous optimization!")
+
             self.__state_storage = state_storage
             self.__state_storage.env = self.__env
             self.__state_storage.queue = self.__queue
 
-    def __save_state_if_needed(self, current_event):
+    def __save_state_if_needed(self):
+        next_event = self.__queue[0]
         if self.__env.state_storage is not None \
-                and isinstance(current_event, Optimize):
+                and self.__env.state_storage.save \
+                and isinstance(next_event, Optimize):
             self.__env.state_storage.save_state()
