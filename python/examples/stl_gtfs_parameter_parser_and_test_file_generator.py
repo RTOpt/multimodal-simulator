@@ -192,6 +192,7 @@ def create_test_files(combinations, multi = False, clean = True):
             f.write(f"### DO NOT CHANGE THESE LINES: Parameters are auto-filled in stl_gtfs_parameter_parser_and_test_file_generator.py\n")
             f.write(f"### BEGINNING OF PARAMETERS ###\n")
             f.write(f'import os\n')
+            f.write(f'import traceback\n')
             f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-LargeInstanceAll")\n')
             f.write(f"requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')\n")
             f.write(f"output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str({date})+'_LargeInstanceAll')\n")
@@ -201,7 +202,7 @@ def create_test_files(combinations, multi = False, clean = True):
             f.write(f"sp = {sp}\n")
             f.write(f"ss = {ss}\n")
             f.write(f"### END OF PARAMETERS ###\n")
-            for line in lines[12:]:
+            for line in lines[13:]:
                 f.write(line)
         f.close()
     
