@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --mem-per-cpu=4G
-#SBATCH --time=47:59:00
-#SBATCH --partition=optimum
-#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=16G
+#SBATCH --time=72:00:00
+#SBATCH --partition=optimumlong
+#SBATCH --cpus-per-task=1
 #SBATCH --output=python/examples/fixed_line/test_files_multi/PI/slurm_output_%A_%a.out
 #SBATCH --error=python/examples/fixed_line/test_files_multi/PI/slurm_error_%A_%a.err
 #SBATCH --array=0-11 # Dynamically adjust array range
