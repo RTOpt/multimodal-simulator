@@ -68,11 +68,11 @@ class Simulation:
         # main loop of the simulation
         while not self.__queue.is_empty():
 
+            self.__check_if_paused()
+
             with self.__simulation_cv:
                 if self.__simulation_stopped:
                     break
-
-            self.__check_if_paused()
 
             current_event = self.__queue.pop()
 
@@ -107,6 +107,11 @@ class Simulation:
     def stop(self):
         logger.info("Simulation stopped")
         with self.__simulation_cv:
+            # If simulation is paused, resume it first so that it can be
+            # stopped.
+            self.__simulation_paused = False
+            self.__simulation_cv.notify()
+
             self.__simulation_stopped = True
 
     def __load_config(self, config):
