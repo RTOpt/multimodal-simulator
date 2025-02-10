@@ -195,8 +195,10 @@ class Location:
     structure for storing basic information about the location of a vehicle
     or a passenger (i.e., Request). """
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, lon: Optional[float] = None,
+                 lat: Optional[float] = None) -> None:
+        self.lon = lon
+        self.lat = lat
 
     def __eq__(self, other: 'Location') -> bool:
         pass
@@ -205,10 +207,8 @@ class Location:
 class LabelLocation(Location):
     def __init__(self, label: str, lon: Optional[float] = None,
                  lat: Optional[float] = None) -> None:
-        super().__init__()
+        super().__init__(lon, lat)
         self.label = label
-        self.lon = lon
-        self.lat = lat
 
     def __str__(self) -> str:
 
@@ -235,10 +235,8 @@ class LabelLocation(Location):
 
 class TimeCoordinatesLocation(Location):
     def __init__(self, time: float, lon: float, lat: float) -> None:
-        super().__init__()
+        super().__init__(lon, lat)
         self.time = time
-        self.lon = lon
-        self.lat = lat
 
     def __str__(self) -> str:
         return "{}: ({},{})".format(self.time, self.lon, self.lat)
