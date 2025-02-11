@@ -138,3 +138,9 @@ python/examples/Small_instance_generator.py
 python/multimodalsim/optimization/fixed_line/graph_constructor_unit_tests.py
 python/examples/fixed_line/test_files/
 python/examples/fixed_line/test_files_multi/
+python/examples/fixed_line/test_files_multi_all/
+python/examples/fixed_line/test_files_multi_grid/
+python/examples/fixed_line/test_files_multi_radial/
+python/examples/fixed_line/test_files_grid/
+python/examples/fixed_line/test_files_all/
+python/examples/fixed_line/test_files_radial/

@@ -34,13 +34,20 @@ def generate_duration_test_instance(name : str,
 
     # filter requests based on the selected trip_ids and only keep trip_ids that are associated to a route_id in route_ids
     selected_trip_ids = pd.read_csv(os.path.join(output_path, "trips.txt"))
-    selected_trip_ids = selected_trip_ids[selected_trip_ids['route_id'].isin(route_ids)]['trip_id'].unique()
+    if route_ids != []:
+        selected_trip_ids = selected_trip_ids[selected_trip_ids['route_id'].isin(route_ids)]['trip_id'].unique()
+    else:
+        selected_trip_ids = selected_trip_ids['trip_id'].unique()
+    print('Selected trip ids:', selected_trip_ids)
     all_trip_ids = pd.read_csv(os.path.join(output_path, "trips.txt"))['trip_id'].unique()
     trip_ids_to_keep = filter_requests(date, selected_trip_ids, name, all_trip_ids, base_path)
 
     #filter the trip_ids in the os.path.join(output_path, "trips.txt")
     trips_df = pd.read_csv(os.path.join(output_path, "trips.txt"))
-    filtered_trips_df = trips_df[trips_df['route_id'].isin(route_ids)]
+    if route_ids != []:
+        filtered_trips_df = trips_df[trips_df['route_id'].isin(route_ids)]
+    else:
+        filtered_trips_df = trips_df
     # concatenate the trip_ids to keep
     trip_ids_to_keep = list(trip_ids_to_keep)
     trip_ids_to_keep += list(filtered_trips_df['trip_id'].unique())
@@ -251,10 +258,15 @@ def get_start_time_of_bus(date, number, route_id):
     return start_times[number]
 
 if __name__ == "__main__":
-    dates = ["2019-11-25", "2019-11-26", "2019-11-27"]
-    for date in dates:
-        trip_id, start_time = get_start_time_of_bus('gtfs'+date, 1, '42O')
-        route_ids = ['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '2E', '2O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']
-        duration = 21600 # 6 hours
-        generate_duration_test_instance('LargeInstanceAll','gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)  # 3 hours
-    
+    # dates = ["2019-11-25", "2019-11-26", "2019-11-27"]
+    # for date in dates:
+    #     trip_id, start_time = get_start_time_of_bus('gtfs'+date, 1, '42O')
+    #     route_ids = ['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '2E', '2O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']
+    #     duration = 21600 # 6 hours
+    #     generate_duration_test_instance('LargeInstanceAll','gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)  # 3 hours
+    date = "2019-11-25"
+    route_ids=[]
+    start_time = 13.5*3600  # 2pm with 30 minutes of slack
+    duration = 5.5*3600  # 5 hours to account for the slack time.
+    instance_name = "EveningRushHour"
+    generate_duration_test_instance(instance_name, 'gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)

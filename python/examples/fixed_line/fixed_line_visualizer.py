@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
+from stl_network_analysis import get_color_dict, analyze_network
 
 # Define the base directory for the data
 base_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'fixed_line')
@@ -29,6 +30,14 @@ map_bounds = (45.73201, 45.50393, -73.47764, -73.90119)
 # Define the contrasting color palette
 contrasting_color_palette =  ['red', 'blue', 'green', 'deeppink', 'dodgerblue']
 fourty_colors_paletter = ['red', 'blue', 'green', 'brown','purple', 'darkcyan',  'gray', 'olive', 'cyan', 'black', 'pink', 'orange', 'yellow', 'magenta', 'lime', 'teal', 'indigo', 'maroon', 'navy', 'peru', 'plum', 'salmon', 'sienna', 'tan', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'yellowgreen', 'aquamarine', 'bisque', 'blueviolet', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson']
+
+def get_route_dictionary():
+        # Define the route_ids to plot
+    route_ids_dict = {}  # route_ids for each network type.
+    route_ids_dict['grid'] = [ '17N', '151N', '26O', '42E', '56O']  # route_ids for a quadrant style network.
+    route_ids_dict['radial'] = ['70O', '31N', '37S', '39N', '33S']  # route_ids for a radial style network.
+    route_ids_dict['all'] = ['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']
+    return route_ids_dict
 
 def load_connections(connections_file):
     """
@@ -147,15 +156,20 @@ def mark_metro_stations(stops_data, ax, stop_connections):
                       (48002,'Montmorrency',-73.720829,45.557936, 45.55, 'center')]
     for stop_id, stop_name, lon, lat, lat2, alignment in metro_stations:
         ax.scatter(lon, lat, color=color, s=marker_size, marker=marker_shape, zorder=10)
-        # ax.text(lon, lat2, stop_name, fontsize=label_size, ha=alignment, color=color, zorder=10)
 
-def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.0004, padding=0.01, radial = False):
+def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=0.01):
     """
     Plot the map with thinner transfer stop markers, an updated legend, and dynamic extent to focus on the plotted routes.
     The padding parameter controls how much extra space is added around the routes.
     """
+    route_ids = get_route_dictionary[network_style]
+    # Read all other routes from new_trips_df
+    other_routes = [route_id for route_id in new_trips_df['route_id'].unique() if route_id not in route_ids]
+    color_dict = get_color_dict(route_ids)
     fig, ax = plt.subplots(figsize=(12, 8))
-    ax.imshow(Image.open(background_image_path), extent=[map_bounds[3], map_bounds[2], map_bounds[1], map_bounds[0]])
+
+    # Make background image transparent
+    ax.imshow(Image.open(background_image_path), extent=[map_bounds[3], map_bounds[2], map_bounds[1], map_bounds[0]], alpha=0.7, zorder=0)
     route_stop_lists = {}
     plotted_routes = []  # Track plotted routes to handle offsets for shared segments
     lat_min, lat_max = float('inf'), float('-inf')
@@ -170,17 +184,17 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
 
         # Get the shape points for the current route
         shape_points = get_first_shape_for_route(route_id, shapes_df)
-        if shape_points is None: 
+        if shape_points is None or shape_points['shape_pt_lat'] is None or shape_points['shape_pt_lon'] is None:
             continue
 
         # Get the ordered list of stops for the current route
         ordered_stop_list = get_ordered_stop_list(route_id, new_trips_df, new_stop_times_df)
 
         # Plot the adjusted shape
-        print('route_id', route_id)
         latitudes = shape_points['shape_pt_lat'].values
         longitudes = shape_points['shape_pt_lon'].values
-        # ax.plot(longitudes, latitudes, color=color, linewidth=1.5, zorder=2, label="Feeder lines")
+        if network_style != 'all':
+            ax.plot(longitudes, latitudes, color=color, linewidth=1.5, zorder=2, label="Feeder lines")
 
         # Plot the route stops
         # stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
@@ -188,9 +202,11 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         
     for idx, route_id in enumerate(route_ids):
         color = contrasting_color_palette[idx % len(contrasting_color_palette)]
+        color = color_dict[route_id]
         if color == 'black':
             color = 'dodgerblue'
-        color = 'blue'
+        if network_style=='all':
+            color = 'blue'
 
         # Get the shape points for the current route
         shape_points = get_first_shape_for_route(route_id, shapes_df)
@@ -201,6 +217,8 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
 
         # Update the lat/lon boundaries for dynamic extent calculation
         print('route_id', route_id)
+        if shape_points is None or shape_points['shape_pt_lat'] is None or shape_points['shape_pt_lon'] is None:
+            continue
         latitudes = shape_points['shape_pt_lat'].values
         longitudes = shape_points['shape_pt_lon'].values
         lat_min = min(lat_min, np.min(latitudes))
@@ -220,11 +238,13 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
                 lon_diff = np.max(longitudes) - np.min(longitudes)
                 if lon_diff > lat_diff:  # More horizontal
                     lat_offset = offset_distance * (idx % 2 * 2 - 1)  # Apply offset to latitude
-                    lat_offset = 0
+                    if network_style=='all':
+                        lat_offset = 0
                     latitudes += lat_offset
                 else:  # More vertical
                     lon_offset = offset_distance * (idx % 2 * 2 - 1)  # Apply offset to longitude
-                    lon_offset = 0
+                    if network_style=='all':
+                        lon_offset = 0
                     longitudes += lon_offset
 
         # Store the offsets for use when plotting the first and last stops
@@ -233,7 +253,7 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
         # Plot the adjusted shape
         ## Get route_id without last caracter
         route_name = route_id[:-1]
-        ax.plot(longitudes, latitudes, label=f"Line {route_name}", color=color, linewidth=2, zorder=3)
+        ax.plot(longitudes, latitudes, label=f"Line {route_name}", color=color, linewidth=4, zorder=3)
 
         # Plot the route stops
         # stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
@@ -252,13 +272,16 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
 
     # Add legend entries for first/last stops and transfer stops
     # ax.scatter([], [], color='none', edgecolor='black', s=60, marker='o', label="First/Last Stop", zorder=5)
-    ax.scatter([], [], color='black', s=20, marker='.', linewidths=0.5, label = "Transfer stop \nbetween main lines", zorder=10)
+    ax.scatter([], [], color='black', s = 20, marker='.', linewidths=0.5, label = "Transfer stop \nbetween main lines", zorder=10)
     ax.scatter([], [], color='red', s = 100, marker='^', label = "Metro Station", zorder=2)
     ## Add legend handle with only one color for all routes
-    ax.plot([], [], color='blue', linewidth=2, label="Main lines", zorder=3)
+    if network_style== 'all':
+        ax.plot([], [], color='blue', linewidth=2, label="Main lines", zorder=3)
 
     # Adjust map extent to fit the plotted routes with some padding
     # Make sure to stay in map bounds
+    if network_style!= 'all':
+        padding = 0
     lat_min = max(lat_min - padding, map_bounds[1])
     lat_max = min(lat_max + padding, map_bounds[0])
     lon_min = max(lon_min - padding, map_bounds[3])
@@ -267,7 +290,6 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     ax.set_ylim(lat_min, lat_max)
 
     #Set x and y ticks (longitude and latitude) for the map and their size
-    ### x and y ticks should be space by 0.05 and rounded to the second decimal
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -281,55 +303,39 @@ def plot_map_with_dynamic_extent(route_ids, other_routes =[], offset_distance=0.
     ax.plot([lon_max-1*dist, lon_max-1*dist], [lat_min + 0.009, lat_min + 0.011], color='black', linewidth = 2)
     ax.text(lon_max-1.5*dist, lat_min + 0.012, '2 km', fontsize=10, ha='center', color='black')
 
-
     # Set the title including route_ids and stops in Laval, Quebec
-    if radial: 
-        title = "Radial style instance including transfer stops"
+    if network_style!= 'all': 
+        title = network_style +" style instance including transfer stops"
     else:
         title = "Map of main lines in case study network of Laval, Canada"
     ax.set_title(title, fontsize=18)
     # Add a legend with a white background and black border
     handles, labels = ax.get_legend_handles_labels()
     unique = dict(zip(labels, handles))
-
-    # Create the legend with unique labels
-        # Create a custom legend with only the desired entries
-    handles, labels = ax.get_legend_handles_labels()  # Get all handles and labels
-    desired_labels = ["Main lines", "Metro Station", "Transfer stop \nbetween main lines",   "Feeder lines"]
-    desired_handles = [handles[labels.index(label)] for label in desired_labels if label in labels]  # Filter handles
-
     # Set the legend with only the desired handles and labels
-    legend = ax.legend(handles=desired_handles, labels=desired_labels, loc='best', fontsize=14, markerscale=1.5)
-    # legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 14, markerscale = 1.5)
+    if network_style== 'all':
+        desired_labels = ["Main lines", "Metro Station", "Transfer stop \nbetween main lines",   "Feeder lines"]
+        desired_handles = [handles[labels.index(label)] for label in desired_labels if label in labels]  # Filter handles
+        legend = ax.legend(handles=desired_handles, labels = desired_labels, loc = 'best', fontsize = 14, markerscale=1.5)
+    else:
+        legend = ax.legend(unique.values(), unique.keys(), loc = 'best', fontsize = 14, markerscale = 1.5)
     legend.get_frame().set_facecolor('white')  # Set the background color to white
     legend.get_frame().set_edgecolor('black')  # Set the edge color to black
     legend.get_frame().set_alpha(1)  # Make the legend fully opaque
 
     ### Make sure there is no empty space around the plot
     plt.tight_layout()
-
-    if radial:
-        name = 'stl_radial_instance_map'
-    else:
-        name = 'stl_grid_instance_map'
-    completename = os.path.join(os.path.dirname(__file__),'figures', name+'.png')
+    # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
+    name = 'stl_'+network_style+'_instance_map.png'
+    folder_name = 'figures_'+network_style
+    folder = os.path.join(os.path.dirname(__file__),'figures', folder_name)
+    if not os.path.exists(folder):  # Check if the folder exists
+        os.makedirs(folder)  # Create the folder if it doesn't exist
+    completename = os.path.join(os.path.dirname(__file__),'figures', folder_name, name)
     plt.savefig(completename, dpi=300)
-    # plt.show()
     plt.close()
 
-# Define the route_ids to plot
-# Route ids for a quadrant style network
-route_ids = [ '17N', '151N', '26O', '42E', '56O']
-route_ids = ['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '42E', '52E', '56E', '60E', '66E', '70E', '74E', '76E', '151S', '17S', '27S', '33S', '37S', '43S', '45S','46S', '55S', '61S', '63S', '65S', '901S', '902S', '903S','925S']
-# #Route ids for a radial style network
-# route_ids = ['70E', '31S', '37S', '39S', '33S']
-
-# Read all other routes from new_trips_df
-other_routes = new_trips_df['route_id'].unique()
-other_routes = [route_id for route_id in other_routes if route_id not in route_ids]
-
-
 # Plot the map with the specified routes using dynamic extent
-plot_map_with_dynamic_extent(route_ids, other_routes=other_routes, radial = False)
-
-
+for network_style in ['radial', 'grid', 'all']:
+    plot_map_with_dynamic_extent(network_style = network_style)
+    analyze_network(network_style = network_style, route_ids = get_route_dictionary[network_style])
