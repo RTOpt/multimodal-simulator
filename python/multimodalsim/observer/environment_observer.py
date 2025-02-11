@@ -1,7 +1,7 @@
 from typing import Optional
 
 from multimodalsim.observer.data_collector import StandardDataCollector, \
-    DataContainer, DataCollector
+    DataCollector, StandardDataContainer
 from multimodalsim.observer.visualizer import ConsoleVisualizer, Visualizer
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 
@@ -12,7 +12,8 @@ class EnvironmentObserver:
             self, data_collectors: Optional[
                 DataCollector | list[DataCollector]] = None,
             visualizers: Optional[
-                Visualizer | list[Visualizer]] = None) -> None:
+                Visualizer | list[Visualizer]] = None
+            ) -> None:
 
         if data_collectors is not None and type(data_collectors) is not list:
             self.__data_collectors = [data_collectors]
@@ -40,7 +41,7 @@ class EnvironmentObserver:
 class StandardEnvironmentObserver(EnvironmentObserver):
 
     def __init__(self) -> None:
-        data_container = DataContainer()
+        data_container = StandardDataContainer()
 
         super().__init__(data_collectors=StandardDataCollector(data_container),
                          visualizers=ConsoleVisualizer(

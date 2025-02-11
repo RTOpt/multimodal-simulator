@@ -2,8 +2,9 @@ import logging
 from typing import Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
-from multimodalsim.observer.data_collector import DataCollector
+from multimodalsim.observer.data_collector import DataCollector, DataContainer
 from multimodalsim.observer.environment_observer import EnvironmentObserver
+from multimodalsim.observer.visualizer import Visualizer
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.simulator.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
@@ -33,6 +34,8 @@ class Simulation:
                  state_storage: Optional[StateStorage] = None,
                  config: Optional[str | SimulationConfig] = None) -> None:
 
+        self.__state_storage = state_storage
+
         self.__env = Environment(optimization, network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
@@ -40,11 +43,9 @@ class Simulation:
 
         self.__queue = EventQueue(self.__env)
 
-        self.__environment_observer = environment_observer
+        self.__init_environment_observer(environment_observer)
 
-        self.__init_state_storage(state_storage)
-
-
+        self.__init_state_storage_from_env()
 
         self.__load_config(config)
 
@@ -142,7 +143,8 @@ class Simulation:
 
     def __visualize_environment(self, current_event=None, event_index=None,
                                 event_priority=None):
-        if self.__environment_observer is not None:
+        if self.__environment_observer is not None \
+                and self.__environment_observer.visualizers is not None:
             for visualizer in self.__environment_observer.visualizers:
                 visualizer.visualize_environment(self.__env, current_event,
                                                  event_index,
@@ -150,22 +152,80 @@ class Simulation:
 
     def __collect_data(self, current_event=None, event_index=None,
                        event_priority=None):
-        if self.__environment_observer is not None:
+        if self.__environment_observer is not None \
+                and self.__environment_observer.data_collectors is not None:
             for data_collector in self.__environment_observer.data_collectors:
                 data_collector.collect(self.__env, current_event,
                                        event_index, event_priority)
 
-    def __init_state_storage(self, state_storage):
+    def __init_environment_observer(self, environment_observer):
 
-        if state_storage is not None:
+        self.__environment_observer = environment_observer
+        if self.__state_storage is not None and self.__state_storage.load:
+            self.__init_data_collectors_from_state_storage()
+            self.__init_visualizers_from_state_storage()
+
+    def __init_data_collectors_from_state_storage(self):
+        if isinstance(self.__state_storage.data_collector_data_containers,
+                      DataContainer):
+            dc_data_containers = \
+                [self.__state_storage.data_collector_data_containers]
+        else:
+            dc_data_containers = \
+                self.__state_storage.data_collector_data_containers
+
+        if isinstance(self.__environment_observer.data_collectors,
+                      DataCollector):
+            data_collectors = [self.__environment_observer.data_collectors]
+        else:
+            data_collectors = self.__environment_observer.data_collectors
+
+        for data_collector, data_container in zip(data_collectors,
+                                                  dc_data_containers):
+            data_collector.data_container = data_container
+
+    def __init_visualizers_from_state_storage(self):
+        if isinstance(self.__state_storage.data_collector_data_containers,
+                      DataContainer):
+            da_data_containers = \
+                [self.__state_storage.data_collector_data_containers]
+        else:
+            da_data_containers = \
+                self.__state_storage.data_collector_data_containers
+
+        if isinstance(self.__environment_observer.visualizers,
+                      Visualizer):
+            visualizers = [self.__environment_observer.visualizers]
+        else:
+            visualizers = self.__environment_observer.visualizers
+
+        for visualizer, data_container in zip(visualizers, da_data_containers):
+            visualizer.data_analyzer.data_container = data_container
+
+    def __init_state_storage_from_env(self):
+
+        if self.__state_storage is not None:
 
             if self.__env.optimization.config.asynchronous:
                 raise ValueError("A state storage cannot be used with "
                                  "asynchronous optimization!")
 
-            self.__state_storage = state_storage
             self.__state_storage.env = self.__env
             self.__state_storage.queue = self.__queue
+            self.__init_state_storage_data_collector_data_containers()
+            self.__init_state_storage_data_analyzer_data_containers()
+
+    def __init_state_storage_data_collector_data_containers(self):
+        self.__state_storage.data_collector_data_containers = []
+        for data_collector in self.__environment_observer.data_collectors:
+            self.__state_storage.data_collector_data_containers.append(
+                data_collector.data_container)
+
+    def __init_state_storage_data_analyzer_data_containers(self):
+        self.__state_storage.data_analyzer_data_containers = []
+        for visualizer in self.__environment_observer.visualizers:
+            self.__state_storage.data_analyzer_data_containers.append(
+                visualizer.data_analyzer.data_container)
 
     def __save_state_if_needed(self):
         next_event = self.__queue[0]

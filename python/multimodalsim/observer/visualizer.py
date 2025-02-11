@@ -10,8 +10,16 @@ logger = logging.getLogger(__name__)
 
 class Visualizer(object):
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, data_analyzer: Optional['DataAnalyzer'] = None) -> None:
+        self.__data_analyzer = data_analyzer
+
+    @property
+    def data_analyzer(self) -> 'DataAnalyzer':
+        return self.__data_analyzer
+
+    @data_analyzer.setter
+    def data_analyzer(self, data_analyzer: 'DataAnalyzer') -> None:
+        self.__data_analyzer = data_analyzer
 
     def visualize_environment(self, env: 'environment.Environment',
                               current_event: Optional[Event] = None,
@@ -24,8 +32,7 @@ class ConsoleVisualizer(Visualizer):
 
     def __init__(self, data_analyzer: Optional[DataAnalyzer] = None,
                  stats_delta_time: float = 10) -> None:
-        super().__init__()
-        self.__data_analyzer = data_analyzer
+        super().__init__(data_analyzer)
         self.__last_time = None
         self.__stats_time = 0
         self.__stats_delta_time = stats_delta_time
@@ -42,7 +49,7 @@ class ConsoleVisualizer(Visualizer):
         if logger.parent.level == logging.DEBUG:
             self.__print_debug(env, current_event, event_index, event_priority)
 
-        if self.__data_analyzer is not None and env.current_time \
+        if self.data_analyzer is not None and env.current_time \
                 > self.__stats_time + self.__stats_delta_time:
             self.__print_statistics()
             self.__stats_time = env.current_time
@@ -147,21 +154,21 @@ class ConsoleVisualizer(Visualizer):
 
     def __print_statistics(self):
 
-        vehicles_stats = self.__data_analyzer.get_vehicles_statistics()
+        vehicles_stats = self.data_analyzer.get_vehicles_statistics()
         logger.info(vehicles_stats)
-        modes = self.__data_analyzer.modes
+        modes = self.data_analyzer.modes
         if len(modes) > 1:
             for mode in modes:
                 mode_vehicles_stats = \
-                    self.__data_analyzer.get_vehicles_statistics(mode)
+                    self.data_analyzer.get_vehicles_statistics(mode)
                 logger.info("{}: {}".format(mode, mode_vehicles_stats))
 
-        trips_stats = self.__data_analyzer.get_trips_statistics()
+        trips_stats = self.data_analyzer.get_trips_statistics()
         logger.info(trips_stats)
-        modes = self.__data_analyzer.modes
+        modes = self.data_analyzer.modes
         if len(modes) > 1:
             for mode in modes:
                 mode_trips_stats = \
-                    self.__data_analyzer.get_trips_statistics(mode)
+                    self.data_analyzer.get_trips_statistics(mode)
                 logger.info("{}: {}".format(mode, mode_trips_stats))
 

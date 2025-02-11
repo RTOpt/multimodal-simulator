@@ -8,6 +8,8 @@ import multimodalsim.simulator.environment as environment_module
 import multimodalsim.simulator.event_queue as event_queue_module
 from multimodalsim.config.state_storage_config import StateStorageConfig
 
+import multimodalsim.observer.data_collector as data_collector_module
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,6 +19,8 @@ class StateStorage:
                  config: Optional[str | StateStorageConfig]):
         self.__queue = None
         self.__env = None
+        self.__data_collector_data_containers = None
+        self.__data_analyzer_data_containers = None
 
         self.__save = save
         self.__load = load
@@ -60,6 +64,32 @@ class StateStorage:
     def queue(self, queue: Optional['event_queue_module.EventQueue']) \
             -> None:
         self.__queue = queue
+
+    @property
+    def data_collector_data_containers(self) \
+            -> Optional[list['data_collector_module.DataContainer']]:
+        return self.__data_collector_data_containers
+
+    @data_collector_data_containers.setter
+    def data_collector_data_containers(
+            self,
+            data_collector_data_containers:
+            Optional[list['data_collector_module.DataContainer']]) \
+            -> None:
+        self.__data_collector_data_containers = data_collector_data_containers
+
+    @property
+    def data_analyzer_data_containers(self) \
+            -> Optional[list['data_collector_module.DataContainer']]:
+        return self.__data_analyzer_data_containers
+
+    @data_analyzer_data_containers.setter
+    def data_analyzer_data_containers(
+            self,
+            data_analyzer_data_containers:
+            Optional[list['data_collector_module.DataContainer']]) \
+            -> None:
+        self.__data_analyzer_data_containers = data_analyzer_data_containers
 
     @property
     def save(self) -> bool:
@@ -113,7 +143,6 @@ class StateStorageJSON(StateStorage):
         self.saved_states_folder__ = saved_states_folder
 
     def _load_state(self, state_file_name: str):
-
         state_file_path = self.saved_states_folder__ + state_file_name
         with open(state_file_path, 'r') as json_file:
             json_string = json_file.read()
@@ -121,6 +150,10 @@ class StateStorageJSON(StateStorage):
 
         self.env = simulation_state.env
         self.queue = simulation_state.queue
+        self.data_collector_data_containers = \
+            simulation_state.data_collector_data_containers
+        self.data_analyzer_data_containers = \
+            simulation_state.data_analyzer_data_containers
         random.setstate(simulation_state.random_state)
 
     def _save_state(self):
@@ -129,7 +162,17 @@ class StateStorageJSON(StateStorage):
 
         random_state = random.getstate()
 
+        # Make the DataContainer objects pickable (for example, remove the
+        # DataFrame objects) before saving to file.
+        for data_container in self.data_collector_data_containers:
+            data_container.make_pickable()
+
+        for data_container in self.data_analyzer_data_containers:
+            data_container.make_pickable()
+
         simulation_state = SimulationState(env_copy, queue_copy,
+                                           self.data_collector_data_containers,
+                                           self.data_analyzer_data_containers,
                                            random_state)
 
         self.__save_to_file(simulation_state)
@@ -141,16 +184,23 @@ class StateStorageJSON(StateStorage):
 
         with open(self.saved_states_folder__ + filename + ".json", 'w') \
                 as json_file:
-            json_string = jsonpickle.encode(simulation_state, indent=4)
+            json_string = jsonpickle.encode(simulation_state,
+                                            indent=self.config.indent)
             json_file.write(json_string)
 
 
 class SimulationState:
     def __init__(self, env: 'environment_module.Environment',
                  queue: 'event_queue_module.EventQueue',
+                 data_collector_data_containers:
+                 list['data_collector_module.DataContainer'],
+                 data_analyzer_data_containers:
+                 list['data_collector_module.DataContainer'],
                  random_state: Optional[tuple[Any, ...]]):
         self.__env = env
         self.__queue = queue
+        self.__data_collector_data_containers = data_collector_data_containers
+        self.__data_analyzer_data_containers = data_analyzer_data_containers
         self.__random_state = random_state
 
     @property
@@ -160,6 +210,16 @@ class SimulationState:
     @property
     def queue(self) -> 'event_queue_module.EventQueue':
         return self.__queue
+
+    @property
+    def data_collector_data_containers(self) \
+            -> list['data_collector_module.DataContainer']:
+        return self.__data_collector_data_containers
+
+    @property
+    def data_analyzer_data_containers(self) \
+            -> list['data_collector_module.DataContainer']:
+        return self.__data_analyzer_data_containers
 
     @property
     def random_state(self) -> Optional[tuple[Any, ...]]:

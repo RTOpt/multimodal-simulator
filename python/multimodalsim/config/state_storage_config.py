@@ -9,6 +9,7 @@ class StateStorageConfig(Config):
     SAVING_STEP_DEFAULT = 5
     OVERWRITE_FILE_DEFAULT = True
     FILENAME_DEFAULT = "state"
+    INDENT_DEFAULT = 0
 
     def __init__(
             self,
@@ -21,6 +22,8 @@ class StateStorageConfig(Config):
         self.__init_overwrite_file()
 
         self.__init_filename()
+
+        self.__init_indent()
 
     @property
     def saving_time_step(self) -> float:
@@ -46,6 +49,14 @@ class StateStorageConfig(Config):
     def filename(self, filename: str) -> None:
         self.__filename = filename
 
+    @property
+    def indent(self) -> str:
+        return self.__indent
+
+    @indent.setter
+    def indent(self, indent: str) -> None:
+        self.__indent = indent
+
     def __init_saving_time_step(self):
         if not self._config_parser.has_option("general", "saving_time_step") \
                 or len(self._config_parser["general"]["saving_time_step"]) \
@@ -69,3 +80,10 @@ class StateStorageConfig(Config):
             self.__filename = self.FILENAME_DEFAULT
         else:
             self.__filename = self._config_parser.get("file", "filename")
+
+    def __init_indent(self):
+        if not self._config_parser.has_option("file", "indent") \
+                or len(self._config_parser["file"]["indent"]) == 0:
+            self.__indent = self.INDENT_DEFAULT
+        else:
+            self.__indent = int(self._config_parser.get("file", "indent"))
