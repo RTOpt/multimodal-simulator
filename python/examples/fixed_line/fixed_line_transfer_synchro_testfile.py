@@ -47,7 +47,9 @@ try:
     print('End testing...')
 except Exception as e:
     print('An error occured during the simulation')
-    traceback.print_exc()
+    # traceback.print_exc()
+    error_traceback = traceback.format_exc()
+    print('Error traceback: ', error_traceback)
     final_time = time.time() - start_time
     print('Execution time: ', final_time)
     print('End testing after error...')
