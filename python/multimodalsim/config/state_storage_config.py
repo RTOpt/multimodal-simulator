@@ -10,6 +10,7 @@ class StateStorageConfig(Config):
     OVERWRITE_FILE_DEFAULT = True
     FILENAME_DEFAULT = "state"
     INDENT_DEFAULT = 0
+    JSON_DEFAULT = False
 
     def __init__(
             self,
@@ -24,6 +25,8 @@ class StateStorageConfig(Config):
         self.__init_filename()
 
         self.__init_indent()
+
+        self.__init_json()
 
     @property
     def saving_time_step(self) -> float:
@@ -50,12 +53,20 @@ class StateStorageConfig(Config):
         self.__filename = filename
 
     @property
-    def indent(self) -> str:
+    def indent(self) -> int:
         return self.__indent
 
     @indent.setter
-    def indent(self, indent: str) -> None:
+    def indent(self, indent: int) -> None:
         self.__indent = indent
+
+    @property
+    def json(self) -> bool:
+        return self.__json
+
+    @json.setter
+    def json(self, json: bool) -> None:
+        self.__json = json
 
     def __init_saving_time_step(self):
         if not self._config_parser.has_option("general", "saving_time_step") \
@@ -87,3 +98,10 @@ class StateStorageConfig(Config):
             self.__indent = self.INDENT_DEFAULT
         else:
             self.__indent = int(self._config_parser.get("file", "indent"))
+
+    def __init_json(self):
+        if not self._config_parser.has_option("file", "json") \
+                or len(self._config_parser["file"]["json"]) == 0:
+            self.__json = self.JSON_DEFAULT
+        else:
+            self.__json = self._config_parser.getboolean("file", "json")

@@ -41,7 +41,7 @@ class Simulation:
                                  travel_times=travel_times,
                                  state_storage=state_storage)
 
-        self.__queue = EventQueue(self.__env)
+        self.__init_queue()
 
         self.__init_environment_observer(environment_observer)
 
@@ -93,6 +93,16 @@ class Simulation:
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
+
+    def __init_queue(self):
+        if self.__state_storage is not None and self.__state_storage.load:
+            events = self.__state_storage.queue.events
+            index = self.__state_storage.queue.index
+        else:
+            events = None
+            index = None
+
+        self.__queue = EventQueue(self.__env, events, index)
 
     def __load_config(self, config):
         if isinstance(config, str):

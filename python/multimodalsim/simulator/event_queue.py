@@ -12,16 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class EventQueue:
-    def __init__(self, env: 'environment.Environment') -> None:
+    def __init__(self, env: 'environment.Environment',
+                 events: Optional[list['event_module.Event']] = None,
+                 index: Optional[int] = None) -> None:
         self.__queue = PriorityQueue()
-
-        self.__index = 0
 
         self.__env = env
 
-        state_storage = self.__env.state_storage
-        if state_storage is not None and state_storage.load:
-            self.__init_queue_from_queue_copy(state_storage.queue)
+        self.__init_index(index)
+
+        self.__init_queue_from_events(events)
 
     def __getitem__(self, key):
         return self.__queue.queue[key]
@@ -29,6 +29,10 @@ class EventQueue:
     @property
     def env(self) -> 'environment.Environment':
         return self.__env
+
+    @property
+    def index(self) -> int:
+        return self.__index
 
     def is_empty(self) -> bool:
         """check if the queue is empty"""
@@ -101,14 +105,24 @@ class EventQueue:
 
         return queue_copy
 
-    def __init_queue_from_queue_copy(self, queue_copy):
-        self.__index = queue_copy.__index
-        for event in queue_copy.__queue.queue:
-            event.queue = self
-            if isinstance(event, optimization_event.Optimize):
-                event.state_machine = state_machine.OptimizationStateMachine(
-                    self.__env.optimization)
-            self.__queue.put(event)
+    @property
+    def events(self) -> list['event_module.Event']:
+        return self.__queue.queue
+
+    def __init_index(self, index):
+        if index is not None:
+            self.__index = index
+        else:
+            self.__index = 0
+
+    def __init_queue_from_events(self, events):
+        if events is not None:
+            for event in events:
+                event.queue = self
+                if isinstance(event, optimization_event.Optimize):
+                    event.state_machine = state_machine.OptimizationStateMachine(
+                        self.__env.optimization)
+                self.__queue.put(event)
 
     def __is_event_looked_for(self, event, event_type, time):
         is_event = False

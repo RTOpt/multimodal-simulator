@@ -10,7 +10,7 @@ from multimodalsim.optimization.splitter import OneLegSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
-from multimodalsim.simulator.state_storage import StateStorageJSON
+from multimodalsim.simulator.state_storage import StateStoragePickle
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +53,15 @@ if __name__ == '__main__':
     simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
                             environment_observer=environment_observer,
                             coordinates=coordinates,
-                            state_storage=StateStorageJSON(
+                            state_storage=StateStoragePickle(
                                 "../../../data/saved_simulations/"))
 
     # Execute the simulation.
     simulation.simulate()
 
-    state_storage = StateStorageJSON("../../../data/saved_simulations/",
-                                     save=False)
-    state_storage.load_state("state_57900.json")
+    state_storage = StateStoragePickle("../../../data/saved_simulations/",
+                                       save=False)
+    state_storage.load_state("state.pkl")
 
     environment_observer2 = StandardEnvironmentObserver()
 
