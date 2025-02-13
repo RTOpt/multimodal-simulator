@@ -40,3 +40,4 @@ python "$FILE_TO_RUN" > "$SUB_DIR/output_${FILE_INDEX}.out" 2> "$SUB_DIR/error_$
 
 # Deactivate the Conda environment
 conda deactivate
+#end of file
