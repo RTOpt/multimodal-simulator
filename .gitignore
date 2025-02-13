@@ -144,3 +144,7 @@ python/examples/fixed_line/test_files_multi_radial/
 python/examples/fixed_line/test_files_grid/
 python/examples/fixed_line/test_files_all/
 python/examples/fixed_line/test_files_radial/
+python/examples/fixed_line/test_files_low_frequency/
+python/examples/fixed_line/test_files_high_frequency/
+python/examples/fixed_line/test_files_multi_low_frequency/
+python/examples/fixed_line/test_files_multi_high_frequency/
