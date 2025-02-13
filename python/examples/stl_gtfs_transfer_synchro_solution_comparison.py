@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from stl_gtfs_transfer_synchro import get_output_subfolder
 import matplotlib.lines as mlines
 from ast import literal_eval
+import sys
+sys.path.append(os.path.abspath('../..'))
+sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
+sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 
 def analyze_simulations(simulation1_path, simulation2_path, total_transfers, relative_increase_threshold=1.5):
     # Load the two simulation data files
@@ -359,14 +363,12 @@ def plot_single_line_comparisons(instance_name,
         addendum = 'mean_transfer_time'
     figure_name = f"{line_name}_travel_time_and_"+addendum+"_comparison.png"
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
-    plt.show()
+    # plt.show()
 
 # Define the test instance name
-instance_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
-instance_name = "gtfs2019-11-25_LargeInstanceAll"
+instance_name = "gtfs2019-11-27_LargeInstanceAll"
 transfer_time = False
-# for line_name in  [[ '17N', '151S', '26E', '42E', '56E'], ['42E']]:
-for line_name in [['144E', '20E', '222E', '22E', '24E', '252E', '26E', '2E', '36E', '42E', '52E', '56E', '60E', '66E', '70E', '74E', '76E', '942E', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N'], ['42E']]:
+for line_name in [['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']]:
     for transfer_type in [2]:
         # Run the function to compare and plot passenger travel times across different parameters for line 70E
         plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
