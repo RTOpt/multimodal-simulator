@@ -540,7 +540,7 @@ class Graph:
         speedup_arrival_time = int(time_prev + travel_time * speedup_factor)
         speedup_departure_time = (speedup_arrival_time + dwell + time_step - 1)//time_step * time_step
 
-        if speedup_factor == 1 or travel_time <= 20 or speedup_departure_time < stop.planned_arrival_time - 120:
+        if speedup_factor == 1 or travel_time <= 20 or speedup_departure_time < stop.planned_arrival_time - 300:
             # Do not a speedup tactic path
             return speedup_path_is_added,  None, cur_arr, departs_current
         
@@ -655,7 +655,7 @@ class Graph:
         stop_id = int(stop.location.label)
         time_step = self.time_step
         skip_stop_time = (arrival_time + time_step - 1)//time_step*time_step # here arrival and departure time are the same
-        if l > last or skip_stop_is_allowed==False or id_in_transfer_passengers or (skip_stop_time <= stop.planned_arrival_time - 120):
+        if l > last or skip_stop_is_allowed==False or id_in_transfer_passengers or (skip_stop_time <= stop.planned_arrival_time - 300):
             return skips
         
         if skip_stop_time in skips: 

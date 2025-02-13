@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
-base_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'fixed_line', 'gtfs', 'gtfs2019-11-25')
+base_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'fixed_line', 'gtfs', 'gtfs2019-11-27')
 
 def get_trips():
     """Get all trip_ids for each route in route_ids.
@@ -62,18 +62,38 @@ def get_route_frequency(route_to_trips, tripid_to_departure_times, route_ids):
                 problem_trips += 1  # increment number of problem trips.
     print('All trips: ', total_trips)  # print total number of trips.
     print('Problem trips: ', problem_trips)  # print number of problem trips.
-    return route_to_frequency, end_time, nbr_hours
+    return route_to_frequency, nbr_hours
+
+def frequency_to_headway(frequency):
+    """Convert frequency (buses per hour) to headway (minutes between buses)."""
+    if frequency <= 0:
+        return None  # Handle invalid input
+    return 60 / frequency
 
 def plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_style):
     """Plot frequency for each route in route_to_frequency."""
     #set plot size
     plt.figure(figsize=(12, 8))  # set plot size.
-    maximum_frequency = max(max(route_to_frequency.values()))  # maximum frequency.
-    for route_id in route_to_frequency:
-        color = color_dict[route_id]  # get color.
-        plt.plot(np.arange(0, nbr_hours, 1), route_to_frequency[route_id], label=route_id, marker='o', color= color)
+    route_ids_to_remove = []  # route_ids to remove.
+    sorted_route_ids = list(sorted(route_to_frequency.keys()))  # get route_ids.
+    for route_id in sorted_route_ids:
+        if network_style == 'low_frequency' and max(route_to_frequency[route_id]) > 2:  # if low frequency network and maximum frequency > 4.
+            route_ids_to_remove.append(route_id)  # add route_id to remove.
+            continue # skip route.
+        if network_style == 'high_frequency' and max(route_to_frequency[route_id]) < 7:  # if high frequency network and maximum frequency < 4.
+            route_ids_to_remove.append(route_id)  # add route_id to remove.
+            continue # skip route.
+        route_name = route_id[:-1]  # get route name.
+        route_dir = route_id[-1]  # get route direction.
+        if route_dir in ['E', 'S']:
+            marker = 'o'  # circle
+        else:  # if route_dir in ['O', 'N'].
+            marker = 's'  # square
+        color = color_dict[route_name]  # get color.
+        plt.plot(np.arange(0, nbr_hours, 1), route_to_frequency[route_id], label=route_id, marker=marker, color= color)  # plot frequency.
         plt.xticks(np.arange(0, nbr_hours, 1))
     plt.xlim(3, 23)
+    maximum_frequency = max(f for route_id in route_to_frequency if route_id not in route_ids_to_remove for f in route_to_frequency[route_id])  # maximum frequency.
     # Add vertical lines at x = 14 and x = 19, and color the graph between these lines.
     plt.axvspan(14, 19, color='gray', alpha=0.2)  # color graph between 14 and 19.
     plt.axvline(x=14, color='gray', linestyle='--')  # add vertical line at x = 14.
@@ -81,11 +101,11 @@ def plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_styl
     plt.text(14.5, maximum_frequency+1, 'OPTIMIZATION HORIZON',fontsize=10)  # add text at x = 14.5, y = 100.
     plt.xlabel('Time (hours)')
     plt.ylabel('Frequency (buses/hour)')
-    plt.title('Frequency for each route')
+    plt.title('Headways for each route')
     if network_style != 'all':
         plt.legend()
     else: 
-        plt.legend(ncol=3)  # show legend.
+        plt.legend(ncol=4)  # show legend.
 
     # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
     name = 'stl_'+network_style+'_instance_frequency.png'
@@ -96,7 +116,7 @@ def plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_styl
     completename = os.path.join(os.path.dirname(__file__), 'figures', folder_name, name)
     plt.savefig(completename, dpi=300)
     plt.close()  # Close the plot to free up memory
-    return
+    return route_ids_to_remove  # return route_ids to remove.
 
 def get_trips_departure_times():
     
@@ -217,13 +237,20 @@ def plot_route_passenger_demand(route_to_hourly_passenger_demand, nbr_hours, col
         else:  # if transfer demand.
             linestyle = '--'  # dashed line.
             add_to_label += " (transfer)"  # add to label.
-        for route_id in route_to_hourly_passenger_demand:  # for each route.
+        sorted_route_ids = list(sorted(route_to_hourly_passenger_demand.keys()))  # get route_ids.
+        for route_id in sorted_route_ids:  # for each route.
             label = route_id +add_to_label  # label.
-            color = color_dict[route_id]  # get color.
+            route_name = route_id[:-1]  # get route name.
+            route_dir = route_id[-1]  # get route direction.
+            if route_dir in ['E', 'S']:  # if route_dir in ['E', 'S'].
+                marker = 'o'
+            else:  # if route_dir in ['O', 'N'].
+                marker = 's'  # square.
+            color = color_dict[route_name]  # get color.
             if max(route_to_hourly_passenger_demand[route_id]['regular']) < minmax_hourly_passenger_demand:
                 continue
             maximum_passenger_demand = max(max(route_to_hourly_passenger_demand[route_id][type]), maximum_passenger_demand)  # maximum passenger demand.
-            plt.plot(np.arange(0, nbr_hours, 1), route_to_hourly_passenger_demand[route_id][type], label=label, marker='o', color= color, linestyle = linestyle)  # plot passenger demand.
+            plt.plot(np.arange(0, nbr_hours, 1), route_to_hourly_passenger_demand[route_id][type], label=label, marker=marker, color= color, linestyle = linestyle)  # plot passenger demand.
     plt.xticks(np.arange(0, nbr_hours, 1))  # x ticks at every hour.
     plt.xlim(3, 23)  # Cut plots before 4am and after 11pm.
     # Add vertical lines at x = 14 and x = 19, and color the graph between these lines.
@@ -251,10 +278,18 @@ def plot_route_passenger_demand(route_to_hourly_passenger_demand, nbr_hours, col
     return
 
 def get_color_dict(route_ids):  # get color dict.
+    """Get color dict for each route in route_ids."""
+    # Generate 40 colors by combining tab20, tab20b, and tab20c
+    colors = [plt.get_cmap('tab20')(i/20) for i in range(20)] + \
+             [plt.get_cmap('tab20b')(i/20) for i in range(20)] + \
+             [plt.get_cmap('tab20c')(i/20) for i in range(20)]
+
+    colors = [c for c in colors if (0.299*c[0] + 0.587*c[1] + 0.114*c[2]) < 0.75] # remove liht/pale colors
     color_dict = {}  # color dict.
-    cmap = plt.get_cmap("Set1")  # Set1 has strong, well-separated colors
-    for i, route_id in enumerate(route_ids):  # for each route_id.
-        color_dict[route_id] = cmap(i % cmap.N)  # get color.
+    # cmap = plt.get_cmap("Set1")  # Set1 has strong, well-separated colors
+    route_names = [route_id[:-1] for route_id in route_ids]  # get route names.
+    for i, route_name in enumerate(route_names):
+        color_dict[route_name] = colors[i % len(colors)]  # Assign colors cyclically if more than 40 routes
     return color_dict  # return color dict.
 
 def plot_total_passenger_demand(total_passenger_demand, total_transfer_demand, nbr_hours, network_style):
@@ -267,11 +302,11 @@ def plot_total_passenger_demand(total_passenger_demand, total_transfer_demand, n
     ax1.tick_params(axis='y')  # y-axis ticks.
     ax1.set_xticks(np.arange(0, nbr_hours, 1))  # x ticks at every hour.
     ax1.set_xlim(3, 24)  # Cut plots before 4am and after 11pm.
-    ax1.plot(np.arange(0, nbr_hours, 1), total_passenger_demand, label='Total passenger demand', marker='o', color='b')  # plot total passenger demand.
+    ax1.plot(np.arange(0, nbr_hours, 1), total_passenger_demand, label='Total number of passengers', marker='o', color='b')  # plot total passenger demand.
     ax2 = ax1.twinx()  # create second y-axis.
     ax2.set_ylabel('Transfer demand (transfers/hour)')  # y-axis label.
     ax2.tick_params(axis='y')  # y-axis ticks.
-    ax2.plot(np.arange(0, nbr_hours, 1), total_transfer_demand, label='Total transfer demand', marker='o', color='r')  # plot total transfer demand.
+    ax2.plot(np.arange(0, nbr_hours, 1), total_transfer_demand, label='Total number of transfers', marker='o', color='b', linestyle ='--')  # plot total transfer demand.
     fig.tight_layout()  # adjust layout.
     # Add vertical lines at x = 14 and x = 19, and color the graph between these lines.
     maximum_passenger_demand = max(total_passenger_demand)  # maximum passenger demand.
@@ -300,8 +335,12 @@ def analyze_network(network_style, route_ids):  # analyze network.
     color_dict = get_color_dict(route_ids)  # get color dict.
     route_to_trips, trips_to_route = get_trips()
     tripid_to_departure_times, tripid_to_stop_times = get_trips_departure_times()
-    route_to_frequency, end_time, nbr_hours = get_route_frequency(route_to_trips, tripid_to_departure_times, route_ids)
-    plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_style)
+    route_to_frequency, nbr_hours = get_route_frequency(route_to_trips, tripid_to_departure_times, route_ids)
+    route_ids_to_remove = plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_style)
+    for route_id in route_ids_to_remove:  # for each route_id to remove.
+        route_ids.remove(route_id)  # remove route_id.
+    print('network_style: ', network_style)  # print network style.
+    print('route_ids: ', route_ids)  # print route_ids.
 
     route_to_passenger_demand, total_demand = get_passenger_and_transfer_demand(trips_to_route, tripid_to_stop_times, route_ids)
     route_to_hourly_passenger_demand, total_passenger_demand, total_transfer_demand = get_hourly_passenger_demand(route_to_passenger_demand, total_demand, nbr_hours)

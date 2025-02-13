@@ -553,11 +553,7 @@ class FixedLineDispatcher(Dispatcher):
 
         # Get departure times from last visited stop before the control horizon
         last_departure_times = {}
-        # Laura: this needs to be changed if re-opt happens at arrival, need to use the current stop departure time.
         # Laura: At this point in time tactics for the current stop have been decided and applied so the departure time is known. 
-        ### OLD start 
-        # last_departure_times[bus_trip_id] = route.previous_stops[-1].departure_time if route.previous_stops != [] else route.next_stops[0].arrival_time -1
-        ### OLD end
         last_departure_times[bus_trip_id] = route.current_stop.departure_time # we know current stop is not None.
         last_departure_times[bus_next_trip_id] = next_route.previous_stops[-1].departure_time if next_route.previous_stops != [] else next_route.next_stops[0].arrival_time -1
         if last_departure_times[bus_trip_id] == last_departure_times[bus_next_trip_id]:
@@ -565,16 +561,17 @@ class FixedLineDispatcher(Dispatcher):
 
         # Estimate arrival time of transfers at stops in the control horizon
         transfer_times = {}
+        time_to_prev_next = 900 # Laura: time interval before the arrival at the stop, and after the departure from stop for which to consider transfers (using current delay)
         transfer_times[bus_trip_id] = self.get_transfer_stop_times(state = state,
                                                                 stops = stops,
                                                                 type_transfer_arrival_time = self.algo_parameters['type_transfer_arrival_time'],
-                                                                time_to_prev=300,
-                                                                time_to_next=300)
+                                                                time_to_prev=time_to_prev_next,
+                                                                time_to_next=time_to_prev_next)
         transfer_times[bus_next_trip_id] = self.get_transfer_stop_times(state = state,
                                                                     stops = stops_second,
                                                                     type_transfer_arrival_time = self.algo_parameters['type_transfer_arrival_time'],
-                                                                    time_to_prev=300,
-                                                                    time_to_next=300)
+                                                                    time_to_prev=time_to_prev_next,
+                                                                    time_to_next=time_to_prev_next)
         # Define the last stop at which tactics are allowed
         last_stop = self.allow_tactics_at_stops(state, stops, transfer_times[route.vehicle.id])
 
@@ -721,8 +718,8 @@ class FixedLineDispatcher(Dispatcher):
     def get_transfer_stop_times(self, state,
                                 stops,
                                 type_transfer_arrival_time,
-                                time_to_prev = 300,
-                                time_to_next = 300):
+                                time_to_prev = 900,
+                                time_to_next = 900):
         """Get the arrival times of the transfers at the stops.
         Inputs:
             - state: State object, the current state of the environment.
