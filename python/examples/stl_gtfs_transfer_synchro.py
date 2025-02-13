@@ -30,7 +30,7 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
     sys.path.append(os.path.abspath('../../..'))
     # To modify the log level (at INFO, by default)
     logger.setLevel(logging_level)
-    logger.setlevel(logging.WARNING)
+    logger.setLevel(logging.WARNING)
     logger.warning(" Start simulation for instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
     # show logging level
     logger.warning("Logging level: {}".format(logging.getLevelName(logger.getEffectiveLevel())))
