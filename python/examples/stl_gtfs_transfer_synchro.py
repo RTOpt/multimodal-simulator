@@ -31,8 +31,9 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
     # To modify the log level (at INFO, by default)
     logger.setLevel(logging_level)
     logger.setlevel(logging.WARNING)
-    logger.info(" Start simulation for small instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
-
+    logger.warning(" Start simulation for instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
+    # show logging level
+    logger.warning("Logging level: {}".format(logging.getLevelName(logger.getEffectiveLevel())))
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
