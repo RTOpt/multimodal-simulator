@@ -5,7 +5,8 @@ import os
 
 class StateStorageConfig(Config):
 
-    SAVING = True
+    SAVING_PERIODICALLY = True
+    SAVING_ON_EXCEPTION = True
     SAVING_STEP_DEFAULT = 5
     OVERWRITE_FILE_DEFAULT = True
     FILENAME_DEFAULT = "state"
@@ -18,6 +19,10 @@ class StateStorageConfig(Config):
                                             "ini/state_storage.ini")) -> None:
         super().__init__(config_file)
 
+        self.__init_saving_periodically()
+
+        self.__init_saving_on_exception()
+
         self.__init_saving_time_step()
 
         self.__init_overwrite_file()
@@ -27,6 +32,22 @@ class StateStorageConfig(Config):
         self.__init_indent()
 
         self.__init_json()
+
+    @property
+    def saving_periodically(self) -> bool:
+        return self.__saving_periodically
+
+    @saving_periodically.setter
+    def saving_periodically(self, saving_periodically: bool) -> None:
+        self.__saving_periodically = saving_periodically
+
+    @property
+    def saving_on_exception(self) -> bool:
+        return self.__saving_on_exception
+
+    @saving_on_exception.setter
+    def saving_on_exception(self, saving_on_exception: bool) -> None:
+        self.__saving_on_exception = saving_on_exception
 
     @property
     def saving_time_step(self) -> float:
@@ -67,6 +88,26 @@ class StateStorageConfig(Config):
     @json.setter
     def json(self, json: bool) -> None:
         self.__json = json
+
+    def __init_saving_periodically(self):
+        if not self._config_parser.has_option("general",
+                                              "saving_periodically") \
+                or len(self._config_parser["general"]["saving_periodically"]) \
+                == 0:
+            self.__saving_periodically = self.SAVING_PERIODICALLY
+        else:
+            self.__saving_periodically = self._config_parser.getboolean(
+                "general", "saving_periodically")
+
+    def __init_saving_on_exception(self):
+        if not self._config_parser.has_option("general",
+                                              "saving_on_exception") \
+                or len(self._config_parser["general"]["saving_on_exception"]) \
+                == 0:
+            self.__saving_on_exception = self.SAVING_ON_EXCEPTION
+        else:
+            self.__saving_on_exception = self._config_parser.getboolean(
+                "general", "saving_on_exception")
 
     def __init_saving_time_step(self):
         if not self._config_parser.has_option("general", "saving_time_step") \

@@ -87,9 +87,8 @@ class Simulation:
                 self.__collect_data(current_event, current_event.index,
                                     current_event.priority)
             except Exception:
-                if self.__state_storage is not None \
-                        and self.__state_storage.save:
-                    self.__state_storage.save_state()
+                self.__save_state_on_exception()
+                raise
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
@@ -240,6 +239,13 @@ class Simulation:
     def __save_state_if_needed(self):
         next_event = self.__queue[0]
         if self.__env.state_storage is not None \
+                and self.__env.state_storage.config.saving_periodically \
                 and self.__env.state_storage.save \
                 and isinstance(next_event, Optimize):
             self.__env.state_storage.save_state()
+
+    def __save_state_on_exception(self):
+        if self.__state_storage is not None \
+                and self.__state_storage.config.saving_on_exception \
+                and self.__state_storage.save:
+            self.__state_storage.save_state(exception=True)

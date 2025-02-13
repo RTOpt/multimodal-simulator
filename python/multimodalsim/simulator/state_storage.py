@@ -41,13 +41,13 @@ class StateStorage:
         raise NotImplementedError('_save_state of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def save_state(self):
-        if self.need_to_save:
+    def save_state(self, exception: Optional[bool] = False):
+        if self.need_to_save(exception):
             logger.info("save_state: {}".format(self.__env.current_time))
-            self._save_state()
+            self._save_state(exception)
             self.__previous_saving_time = self.__env.current_time
 
-    def _save_state(self):
+    def _save_state(self, exception: Optional[bool] = False):
         raise NotImplementedError('_save_state of {} not implemented'.
                                   format(self.__class__.__name__))
 
@@ -114,10 +114,9 @@ class StateStorage:
     def previous_saving_time(self) -> Optional[float]:
         return self.__previous_saving_time
 
-    @property
-    def need_to_save(self) -> bool:
+    def need_to_save(self, exception: Optional[bool] = False) -> bool:
         save = False
-        if self.__previous_saving_time is None:
+        if self.__previous_saving_time is None or exception:
             save = True
         elif self.__env is not None \
                 and (self.__env.current_time - self.__previous_saving_time
@@ -161,7 +160,7 @@ class StateStoragePickle(StateStorage):
             simulation_state.data_analyzer_data_containers
         random.setstate(simulation_state.random_state)
 
-    def _save_state(self):
+    def _save_state(self, exception: Optional[bool] = False):
         env_copy = self.env.get_environment_copy()
         queue_copy = self.queue.get_queue_copy()
 
@@ -182,7 +181,7 @@ class StateStoragePickle(StateStorage):
                                            self.data_analyzer_data_containers,
                                            random_state)
 
-        self.__save_to_file(simulation_state)
+        self.__save_to_file(simulation_state, exception)
 
     def __load_from_file(self, state_file_name):
         state_file_path = self.saved_states_folder__ + state_file_name
@@ -207,9 +206,11 @@ class StateStoragePickle(StateStorage):
 
         return simulation_state
 
-    def __save_to_file(self, simulation_state):
+    def __save_to_file(self, simulation_state, exception):
         filename = self.config.filename
-        if not self.config.overwrite_file:
+        if exception:
+            filename += "_exception_" + str(self.env.current_time)
+        elif not self.config.overwrite_file:
             filename += "_" + str(self.env.current_time)
 
         if self.config.json:
