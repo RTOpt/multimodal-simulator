@@ -361,6 +361,8 @@ def plot_single_line_comparisons(instance_name,
         addendum = 'number_transfers'
     else:
         addendum = 'mean_transfer_time'
+    if len(line_name) >10:
+        line_name = 'AllLines'
     figure_name = f"{line_name}_travel_time_and_"+addendum+"_comparison.png"
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
     # plt.show()
