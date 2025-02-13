@@ -333,8 +333,10 @@ def plot_single_line_comparisons(instance_name,
     ax.set_xticklabels(group_tick_labels, fontsize=16)
 
     # Set primary y-axis parameters, remove last character from line_name for title
-    all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
-    # all_lines_string = ', '.join([str(line_name_single) for line_name_single in line_name])
+    if len(line_name)>10:
+        all_lines_string = 'All lines'
+    else:
+        all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
     ax.set_title(f"Comparison of passenger travel and transfer times for line(s) {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
@@ -371,6 +373,6 @@ def plot_single_line_comparisons(instance_name,
 instance_name = "gtfs2019-11-27_LargeInstanceAll"
 transfer_time = False
 for line_name in [['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']]:
-    for transfer_type in [2]:
+    for transfer_type in [0,1,2]:
         # Run the function to compare and plot passenger travel times across different parameters for line 70E
         plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
