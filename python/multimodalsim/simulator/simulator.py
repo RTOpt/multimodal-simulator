@@ -314,12 +314,7 @@ class SimulationInitializerShuttle(SimulationInitializer):
 
         requests_file_path = self._simulation_directory + self._requests_file
         vehicles_file_path = self._simulation_directory + self._vehicles_file
-
-        if self._graph_file is not None:
-            graph_file_path = self._simulation_directory \
-                              + self._graph_file
-        else:
-            graph_file_path = None
+        graph_file_path = self._simulation_directory + self._graph_file
 
         if "vehicles_end_time" in self._parameters:
             vehicles_end_time = self._parameters["vehicles_end_time"]
@@ -336,8 +331,7 @@ class SimulationInitializerShuttle(SimulationInitializer):
         self._trips = data_reader.get_trips()
 
         # Read the network graph.
-        graph_path = self._simulation_directory + graph_file_path
-        with open(graph_path, 'r') as f:
+        with open(graph_file_path, 'r') as f:
             graph_data = json.load(f)
             self._network = json_graph.node_link_graph(graph_data)
 
