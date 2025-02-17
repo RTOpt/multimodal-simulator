@@ -215,6 +215,11 @@ class SimulationInitializer:
         else:
             self._vehicles_file = "vehicles.csv"
 
+        if self._parameters is not None and "output_files" in self._parameters:
+            self._output_files = self._parameters["output_files"]
+        else:
+            self._output_files = None
+
 
 class SimulationInitializerFixedLine(SimulationInitializer):
 
@@ -245,8 +250,19 @@ class SimulationInitializerFixedLine(SimulationInitializer):
 
         if self._input_files is not None and "graph" in self._input_files:
             self._graph_file = self._input_files["graph"]
+        elif self._input_files is not None \
+                and "available_connections" in self._input_files:
+            self._available_connections_file = \
+                self._input_files["available_connections"]
+            self._graph_file = None
         else:
             self._graph_file = "bus_network_graph.txt"
+
+        if self._output_files is not None \
+                and "graph" in self._output_files:
+            self._output_graph = self._output_files["graph"]
+        else:
+            self._output_graph = None
 
     def _read_input(self):
         gtfs_directory_directory = self._simulation_directory \
@@ -259,11 +275,7 @@ class SimulationInitializerFixedLine(SimulationInitializer):
             data_reader.get_vehicles()
         self._trips = data_reader.get_trips()
 
-        # Read the network graph.
-        graph_path = self._simulation_directory + self._graph_file
-        with open(graph_path, 'r') as f:
-            graph_data = json.load(f)
-            self._network = json_graph.node_link_graph(graph_data)
+        self.__read_network_graph(data_reader)
 
     def _init_optimization(self):
         freeze_interval = 5
@@ -275,6 +287,32 @@ class SimulationInitializerFixedLine(SimulationInitializer):
 
     def _init_coordinates(self):
         self._coordinates = CoordinatesOSRM()
+
+    def __read_network_graph(self, data_reader):
+        if self._graph_file is not None:
+            # Read the network graph from a file.
+            graph_path = self._simulation_directory + self._graph_file
+            with open(graph_path, 'r') as f:
+                graph_data = json.load(f)
+                self._network = json_graph.node_link_graph(graph_data)
+        else:
+            if len(self._available_connections_file) > 0:
+                available_connections_path = self._simulation_directory \
+                                             + self._available_connections_file
+                available_connections = data_reader.get_available_connections(
+                    available_connections_path)
+            else:
+                available_connections = None
+
+            self._network = data_reader.get_network_graph(
+                available_connections=available_connections)
+
+            if self._output_graph is not None:
+                output_graph_path = self._simulation_directory \
+                                    + self._output_graph
+                with open(output_graph_path, 'w+') as f:
+                    graph_data = json_graph.node_link_data(self._network)
+                    json.dump(graph_data, f, ensure_ascii=False)
 
 
 class SimulationInitializerShuttle(SimulationInitializer):

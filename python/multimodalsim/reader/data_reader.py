@@ -3,7 +3,6 @@ import ast
 import logging
 import math
 from ast import literal_eval
-from datetime import datetime, timedelta
 import json
 from typing import Optional, Tuple
 
@@ -257,18 +256,6 @@ class GTFSReader(DataReader):
             next(requests_reader, None)
             nb_requests = 1
             for row in requests_reader:
-                # release_date_string, release_time_string = row[3].split(" ")
-                # release_time = self.__get_timestamp_from_date_and_time_strings(
-                #     release_date_string, release_time_string)
-                #
-                # ready_date_string, ready_time_string = row[4].split(" ")
-                # ready_time = self.__get_timestamp_from_date_and_time_strings(
-                #     ready_date_string, ready_time_string)
-                #
-                # due_date_string, due_time_string = row[5].split(" ")
-                # due_time = self.__get_timestamp_from_date_and_time_strings(
-                #     due_date_string, due_time_string)
-
                 trip_id = str(row[self.__trips_columns["id"]])
                 name = trip_id
                 origin = str(row[self.__trips_columns["origin"]])
@@ -481,17 +468,6 @@ class GTFSReader(DataReader):
             next_stops.append(next_stop)
 
         return next_stops
-
-    def __get_timestamp_from_date_and_time_strings(self, date_string,
-                                                   time_string):
-        date = datetime.strptime(date_string, "%Y%m%d").timestamp()
-        hours = int(time_string.split(":")[0])
-        minutes = int(time_string.split(":")[1])
-        seconds = int(time_string.split(":")[2])
-        timestamp = date + timedelta(hours=hours, minutes=minutes,
-                                     seconds=seconds).total_seconds()
-
-        return timestamp
 
     def __read_stops(self):
         self.__stop_by_stop_id_dict = {}
