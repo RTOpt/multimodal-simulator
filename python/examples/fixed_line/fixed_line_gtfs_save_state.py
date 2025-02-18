@@ -61,7 +61,12 @@ if __name__ == '__main__':
 
     state_storage = StateStoragePickle("../../../data/saved_simulations/",
                                        save=False)
-    state_storage.load_state("state.pkl")
+
+    # Pickle files can be converted to a json file.
+    state_storage.convert_pickle_to_json("state.pkl")
+
+    # The state can be loaded from both a json file and a pickle file.
+    state_storage.load_state("state.json")
 
     environment_observer2 = StandardEnvironmentObserver()
 

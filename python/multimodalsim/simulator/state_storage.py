@@ -1,6 +1,6 @@
 import pickle
 import random
-import time
+import traceback
 
 import jsonpickle
 import logging
@@ -20,6 +20,8 @@ class StateStorage:
 
     def __init__(self, save: bool, load: bool,
                  config: Optional[str | StateStorageConfig]):
+
+        self.__simulation_state = None
         self.__queue = None
         self.__env = None
         self.__data_collector_data_containers = None
@@ -32,24 +34,28 @@ class StateStorage:
 
         self.__previous_saving_time = None
 
-    def load_state(self, state_file_name: str):
+    def load_state(self, state_file_name: str) -> None:
         logger.info("load_state: {}".format(state_file_name))
         self.__load = True
-        self._load_state(state_file_name)
+        self.__simulation_state = self._load_state(state_file_name)
 
-    def _load_state(self, state_file_name: str):
+    def _load_state(self, state_file_name: str) -> 'SimulationState':
         raise NotImplementedError('_save_state of {} not implemented'.
                                   format(self.__class__.__name__))
 
-    def save_state(self, exception: Optional[bool] = False):
+    def save_state(self, exception: Optional[Exception] = None) -> None:
         if self.need_to_save(exception):
             logger.info("save_state: {}".format(self.__env.current_time))
             self._save_state(exception)
             self.__previous_saving_time = self.__env.current_time
 
-    def _save_state(self, exception: Optional[bool] = False):
+    def _save_state(self, exception: Optional[Exception] = None) -> None:
         raise NotImplementedError('_save_state of {} not implemented'.
                                   format(self.__class__.__name__))
+
+    @property
+    def simulation_state(self) -> Optional['SimulationState']:
+        return self.__simulation_state
 
     @property
     def env(self) -> Optional['environment_module.Environment']:
@@ -114,9 +120,9 @@ class StateStorage:
     def previous_saving_time(self) -> Optional[float]:
         return self.__previous_saving_time
 
-    def need_to_save(self, exception: Optional[bool] = False) -> bool:
+    def need_to_save(self, exception: Optional[Exception] = None) -> bool:
         save = False
-        if self.__previous_saving_time is None or exception:
+        if self.__previous_saving_time is None or exception is not None:
             save = True
         elif self.__env is not None \
                 and (self.__env.current_time - self.__previous_saving_time
@@ -144,7 +150,14 @@ class StateStoragePickle(StateStorage):
 
         self.saved_states_folder__ = saved_states_folder
 
-    def _load_state(self, state_file_name: str):
+    def convert_pickle_to_json(self, state_pickle_file_name: str):
+        simulation_state = self.__load_from_file(state_pickle_file_name)
+
+        state_json_file_name = state_pickle_file_name.split(".")[0]
+
+        self.__save_to_json_file(simulation_state, state_json_file_name)
+
+    def _load_state(self, state_file_name: str) -> 'SimulationState':
 
         simulation_state = self.__load_from_file(state_file_name)
 
@@ -160,7 +173,9 @@ class StateStoragePickle(StateStorage):
             simulation_state.data_analyzer_data_containers
         random.setstate(simulation_state.random_state)
 
-    def _save_state(self, exception: Optional[bool] = False):
+        return simulation_state
+
+    def _save_state(self, exception: Optional[Exception] = None) -> None:
         env_copy = self.env.get_environment_copy()
         queue_copy = self.queue.get_queue_copy()
 
@@ -176,17 +191,21 @@ class StateStoragePickle(StateStorage):
         for data_container in self.data_analyzer_data_containers:
             data_container.make_pickable()
 
+        exception_str = traceback.format_exception(exception)
+
         simulation_state = SimulationState(env_copy, queue_data,
                                            self.data_collector_data_containers,
                                            self.data_analyzer_data_containers,
-                                           random_state)
+                                           random_state, exception_str)
 
         self.__save_to_file(simulation_state, exception)
 
     def __load_from_file(self, state_file_name):
         state_file_path = self.saved_states_folder__ + state_file_name
 
-        if self.config.json:
+        file_extension = state_file_name.split(".")[1]
+
+        if file_extension == "json":
             simulation_state = self.__load_from_json_file(state_file_path)
         else:
             simulation_state = self.__load_from_pkl_file(state_file_path)
@@ -208,7 +227,7 @@ class StateStoragePickle(StateStorage):
 
     def __save_to_file(self, simulation_state, exception):
         filename = self.config.filename
-        if exception:
+        if exception is not None:
             filename += "_exception_" + str(self.env.current_time)
         elif not self.config.overwrite_file:
             filename += "_" + str(self.env.current_time)
@@ -221,19 +240,14 @@ class StateStoragePickle(StateStorage):
     def __save_to_json_file(self, simulation_state, filename):
         with open(self.saved_states_folder__ + filename + ".json", 'w') \
                 as json_file:
-            t1 = time.time()
             json_string = jsonpickle.encode(simulation_state,
                                             indent=self.config.indent)
-            t2 = time.time()
             json_file.write(json_string)
-            t3 = time.time()
 
     def __save_to_pkl_file(self, simulation_state, filename):
         with open(self.saved_states_folder__ + filename + ".pkl", 'wb') \
                 as pklfile:
-            t1 = time.time()
             pickle.dump(simulation_state, pklfile)
-            t2 = time.time()
 
 
 class QueueData:
@@ -257,12 +271,14 @@ class SimulationState:
                  list['data_collector_module.DataContainer'],
                  data_analyzer_data_containers:
                  list['data_collector_module.DataContainer'],
-                 random_state: Optional[tuple[Any, ...]]):
+                 random_state: Optional[tuple[Any, ...]],
+                 exception: Optional[list[str]] = None):
         self.__env = env
         self.__queue_data = queue_data
         self.__data_collector_data_containers = data_collector_data_containers
         self.__data_analyzer_data_containers = data_analyzer_data_containers
         self.__random_state = random_state
+        self.__exception = exception
 
     @property
     def env(self) -> 'environment_module.Environment':
@@ -285,3 +301,7 @@ class SimulationState:
     @property
     def random_state(self) -> Optional[tuple[Any, ...]]:
         return self.__random_state
+
+    @property
+    def exception(self) -> Optional[list[str]]:
+        return self.__exception

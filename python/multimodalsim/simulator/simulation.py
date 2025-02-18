@@ -86,8 +86,8 @@ class Simulation:
                 logger.debug("process_event: {}".format(process_event))
                 self.__collect_data(current_event, current_event.index,
                                     current_event.priority)
-            except Exception:
-                self.__save_state_on_exception()
+            except Exception as exception:
+                self.__save_state_on_exception(exception)
                 raise
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
@@ -244,8 +244,8 @@ class Simulation:
                 and isinstance(next_event, Optimize):
             self.__env.state_storage.save_state()
 
-    def __save_state_on_exception(self):
+    def __save_state_on_exception(self, exception):
         if self.__state_storage is not None \
                 and self.__state_storage.config.saving_on_exception \
                 and self.__state_storage.save:
-            self.__state_storage.save_state(exception=True)
+            self.__state_storage.save_state(exception=exception)
