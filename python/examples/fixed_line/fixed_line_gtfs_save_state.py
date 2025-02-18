@@ -8,7 +8,7 @@ from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import OneLegSplitter
 from multimodalsim.reader.data_reader import GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile
+from multimodalsim.coordinates.coordinates_from_file import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 from multimodalsim.simulator.state_storage import StateStoragePickle
 

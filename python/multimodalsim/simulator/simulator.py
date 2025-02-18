@@ -22,6 +22,8 @@ from multimodalsim.coordinates.coordinates_from_polyline_file import \
     CoordinatesFromPolylineFile
 from multimodalsim.simulator.request import Trip
 from multimodalsim.simulator.simulation import Simulation
+from multimodalsim.simulator.state_storage import StateStorage, \
+    StateStoragePickle
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 
@@ -39,7 +41,9 @@ class Simulator:
                  network: Optional[Any] = None,
                  optimization: Optional[Optimization] = None,
                  coordinates: Optional[Coordinates] = None,
-                 parameters_file_name: Optional[str] = None):
+                 state_storage: Optional[StateStorage] = None,
+                 parameters_file_name: Optional[str] = None
+                 ):
 
         self.__simulation = None
         self.__parameters = None
@@ -53,12 +57,13 @@ class Simulator:
         self.__network = network
         self.__optimization = optimization
         self.__coordinates = coordinates
+        self.__state_storage = state_storage
         self.__parameters_file_name = "parameters.json" \
             if parameters_file_name is None else parameters_file_name
 
         self.__init_environment_observer()
 
-        self.__init_simulation_from_directory(simulation_directory)
+        self.__init_simulation_from_directory()
 
     @property
     def simulation(self) -> Simulation:
@@ -92,8 +97,8 @@ class Simulator:
             data_collectors=self.__data_collectors,
             visualizers=self.__visualizers)
 
-    def __init_simulation_from_directory(self, simulation_directory):
-        directory_content_list = os.listdir(simulation_directory)
+    def __init_simulation_from_directory(self):
+        directory_content_list = os.listdir(self.__simulation_directory)
 
         if self.__parameters_file_name in directory_content_list:
             self.__read_parameters_file()
@@ -147,7 +152,8 @@ class SimulationInitializer:
                  trips: Optional[list[Trip]] = None,
                  network: Optional[Any] = None,
                  optimization: Optional[Optimization] = None,
-                 coordinates: Optional[Coordinates] = None):
+                 coordinates: Optional[Coordinates] = None,
+                 state_storage: Optional[StateStorage] = None):
 
         self._simulation_directory = simulation_directory
         self._parameters = parameters
@@ -161,6 +167,7 @@ class SimulationInitializer:
         self._network = network
         self._optimization = optimization
         self._coordinates = coordinates
+        self._state_storage = state_storage
 
         self._simulation = None
 
@@ -178,11 +185,15 @@ class SimulationInitializer:
         if self._coordinates is None:
             self._init_coordinates()
 
+        if self._state_storage is None:
+            self._init_state_storage()
+
         self._simulation = Simulation(
             self._optimization, self._trips, self._vehicles,
             self._routes_by_vehicle_id,
             environment_observer=self._environment_observer,
-            coordinates=self._coordinates)
+            coordinates=self._coordinates,
+            state_storage=self._state_storage)
 
         return self._simulation
 
@@ -197,6 +208,30 @@ class SimulationInitializer:
     def _init_coordinates(self):
         raise NotImplementedError('_init_coordinates of {} not implemented'
                                   .format(self.__class__.__name__))
+
+    def _init_state_storage(self):
+        if "state_storage" in self._parameters:
+            state_storage_parameters = self._parameters["state_storage"]
+
+            if "saved_states_folder" in state_storage_parameters:
+                saved_states_folder = \
+                    state_storage_parameters["saved_states_folder"]
+            else:
+                saved_states_folder = self._simulation_directory \
+                                      + "saved_simulations/"
+
+            if "save" in state_storage_parameters:
+                save = state_storage_parameters["save"]
+            else:
+                save = True
+
+            if "load" in state_storage_parameters:
+                load = state_storage_parameters["load"]
+            else:
+                load = False
+
+            self._state_storage = StateStoragePickle(saved_states_folder,
+                                                      save=save, load=load)
 
     def _init_default_parameters(self):
 

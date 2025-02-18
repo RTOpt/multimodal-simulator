@@ -242,6 +242,7 @@ class Environment:
 
         env_copy.__optimize_cv = None
         env_copy.__state_storage = None
+        env_copy.__simulation_config = None
 
         return env_copy
 

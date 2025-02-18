@@ -1,6 +1,7 @@
 import pickle
 import random
 import traceback
+from pathlib import Path
 
 import jsonpickle
 import logging
@@ -231,6 +232,9 @@ class StateStoragePickle(StateStorage):
             filename += "_exception_" + str(self.env.current_time)
         elif not self.config.overwrite_file:
             filename += "_" + str(self.env.current_time)
+
+        # Create folder if it does not exist
+        Path(self.saved_states_folder__).mkdir(parents=True, exist_ok=True)
 
         if self.config.json:
             self.__save_to_json_file(simulation_state, filename)
