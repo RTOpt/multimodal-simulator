@@ -42,10 +42,12 @@ class State:
                 """
 
         self.current_time = env_deep_copy.current_time
+
         self.trips = env_deep_copy.trips
         self.assigned_trips = env_deep_copy.assigned_trips
         self.non_assigned_trips = env_deep_copy.non_assigned_trips
         self.vehicles = env_deep_copy.vehicles
+
         self.route_by_vehicle_id = \
             {veh.id: env_deep_copy.route_by_vehicle_id[veh.id]
              for veh in self.vehicles}

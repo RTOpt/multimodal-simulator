@@ -1,0 +1,6 @@
+vehicle_id;start_time;start_stop;capacity
+0;29000;0;3
+1;29000;0;3
+2;30000;0;3
+3;35000;0;3
+4;40000;0;3

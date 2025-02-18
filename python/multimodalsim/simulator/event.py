@@ -67,6 +67,10 @@ class Event:
     def queue(self) -> 'event_queue.EventQueue':
         return self.__queue
 
+    @queue.setter
+    def queue(self, queue: Optional['event_queue.EventQueue']) -> None:
+        self.__queue = queue
+
     @property
     def time(self) -> float:
         return self.__time
@@ -155,6 +159,12 @@ class ActionEvent(Event):
     @property
     def state_machine(self) -> Optional['state_machine.StateMachine']:
         return self.__state_machine
+
+    @state_machine.setter
+    def state_machine(self,
+                      state_machine: Optional['state_machine.StateMachine']) \
+            -> None:
+        self.__state_machine = state_machine
 
     def process(self, env: 'environment.Environment') -> str:
 

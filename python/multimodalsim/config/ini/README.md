@@ -89,7 +89,10 @@ Used by Optimization.
     terminated. Note that this applies only if **asynchronous** is true.
   * **termination_waiting_time** *(int or float)*: Waiting time until the 
     optimization process is killed after being terminated.
-
+  * **state_includes_partition_subset_only** *(bool)*: If true, then the 
+    state (i.e., a partial deep copy of the environment) passed to the 
+    optimization taking place in a thread includes the legs and the vehicles 
+    corresponding to the partition subset associated with the thread.
 
 ## simulation.ini
 

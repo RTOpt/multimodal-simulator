@@ -40,6 +40,10 @@ class VehicleReady(Event):
 
         env.add_route(self.__route, self.__vehicle.id)
 
+        # If a partition is used, add the vehicle to it.
+        if env.optimization.partition is not None:
+            env.optimization.partition.add_vehicle(self.__vehicle)
+
         VehicleWaiting(self.__route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
@@ -380,6 +384,10 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env: 'environment.Environment') -> str:
+
+        # If a partition is used, remove the vehicle from it.
+        if env.optimization.partition is not None:
+            env.optimization.partition.remove_vehicle(self.__route.vehicle)
 
         return 'Vehicle Complete process is implemented'
 

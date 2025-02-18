@@ -7,7 +7,9 @@ import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.coordinates.coordinates import Coordinates
+from multimodalsim.optimization.partition import PartitionSubset
 import multimodalsim.simulator.request as request
+from multimodalsim.simulator.state_storage import StateStorage
 from multimodalsim.simulator.travel_times import TravelTimes
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.state_machine.status import VehicleStatus, PassengerStatus
@@ -48,8 +50,8 @@ class Environment:
                  simulation_config: SimulationConfig,
                  network: Optional[Any] = None,
                  coordinates: Optional[Coordinates] = None,
-                 travel_times: Optional[TravelTimes] = None) -> None:
-
+                 travel_times: Optional[TravelTimes] = None,
+                 state_storage: Optional[StateStorage] = None) -> None:
         self.__current_time = 0
         self.__estimated_end_time = None
         self.__trips = []
@@ -65,6 +67,10 @@ class Environment:
         self.__simulation_config = simulation_config
 
         self.__optimize_cv = None
+
+        self.__state_storage = state_storage
+        if self.__state_storage is not None and self.__state_storage.load:
+            self.__init_env_from_state_storage()
 
     @property
     def current_time(self) -> float:
@@ -191,13 +197,17 @@ class Environment:
     def add_route(self, route: Route, vehicle_id: str | int) -> None:
         self.__routes_by_vehicle_id[vehicle_id] = route
 
-    def get_new_state(self) -> 'state_module.State':
+    def get_new_state(self,
+                      partition_subset: Optional[PartitionSubset] = None,
+                      include_partition_subset_only: bool = False) \
+            -> 'state_module.State':
         state_copy = copy.copy(self)
         state_copy.__network = None
         state_copy.__optimization = None
         state_copy.__coordinates = None
         state_copy.__travel_times = None
         state_copy.optimize_cv = None
+        state_copy.state_storage = None
 
         state_copy.__vehicles = \
             self.__get_non_complete_vehicles(state_copy.__vehicles)
@@ -206,9 +216,34 @@ class Environment:
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
+        if partition_subset is not None and include_partition_subset_only:
+            self.__filter_state_copy_according_to_partition(state_copy,
+                                                            partition_subset)
+
+        if self.__optimization.config.asynchronous \
+                or not self.__optimization.config.state_deep_copy:
+            # No deep copy is needed when asynchronous (state is copied in a
+            # new process)
+            state_deepcopy = state_module.State(state_copy)
+        else:
+            state_deepcopy = state_module.State(copy.deepcopy(state_copy))
 
         return state_deepcopy
+
+    def get_environment_copy(self):
+        """Return a copy of the current Environment object after removing
+        objects that are not necessary to determine the state of the
+        simulation."""
+        env_copy = copy.copy(self)
+        env_copy.__network = None
+
+        env_copy.__optimization = \
+            env_copy.__optimization.get_optimization_copy()
+
+        env_copy.__optimize_cv = None
+        env_copy.__state_storage = None
+
+        return env_copy
 
     def __get_non_complete_vehicles(self, vehicles):
         non_complete_vehicles = []
@@ -225,6 +260,49 @@ class Environment:
             if trip.status != PassengerStatus.COMPLETE:
                 non_complete_trips.append(trip)
         return non_complete_trips
+
+    def __filter_state_copy_according_to_partition(self, state_copy,
+                                                   partition_subset):
+        state_copy.__trips = self.__filter_trips_according_to_partition(
+            state_copy.__trips, partition_subset)
+
+        state_copy.__assigned_trips = \
+            self.__filter_trips_according_to_partition(
+                state_copy.__assigned_trips, partition_subset)
+
+        state_copy.__non_assigned_trips = \
+            self.__filter_trips_according_to_partition(
+                state_copy.__non_assigned_trips, partition_subset)
+
+        state_copy.__vehicles = self.__filter_vehicles_according_to_partition(
+            state_copy.__vehicles, partition_subset)
+
+    def __filter_trips_according_to_partition(self, trips, partition_subset):
+        filtered_trips = []
+        for trip in trips:
+            if len(trip.next_legs) > 0 \
+                    and partition_subset.is_leg_in(trip.next_legs[0]):
+                filtered_trips.append(trip)
+        return filtered_trips
+
+    def __filter_vehicles_according_to_partition(self, vehicles,
+                                                 partition_subset):
+        filtered_vehicles = []
+        for vehicle in vehicles:
+            if partition_subset.is_vehicle_in(vehicle):
+                filtered_vehicles.append(vehicle)
+        return filtered_vehicles
+
+    def __init_env_from_state_storage(self):
+        env_copy = self.__state_storage.env
+        self.__current_time = env_copy.__current_time
+        self.__trips = env_copy.__trips
+        self.__assigned_trips = env_copy.__assigned_trips
+        self.__non_assigned_trips = env_copy.__non_assigned_trips
+        self.__vehicles = env_copy.__vehicles
+        self.__routes_by_vehicle_id = env_copy.__routes_by_vehicle_id
+        self.__coordinates = env_copy.__coordinates
+        self.__travel_times = env_copy.__travel_times
 
     @property
     def network(self) -> Optional[Any]:
@@ -243,7 +321,7 @@ class Environment:
         return self.__travel_times
 
     @property
-    def optimize_cv(self) -> Optional[Condition]:
+    def optimize_cv(self) -> Optional[Condition] | dict[Condition]:
         return self.__optimize_cv
 
     @property
@@ -251,5 +329,14 @@ class Environment:
         return self.__simulation_config
 
     @optimize_cv.setter
-    def optimize_cv(self, optimize_cv: Optional[Condition]) -> None:
+    def optimize_cv(self, optimize_cv: Optional[Condition] | dict[Condition]) \
+            -> None:
         self.__optimize_cv = optimize_cv
+
+    @property
+    def state_storage(self) -> Optional[StateStorage]:
+        return self.__state_storage
+
+    @state_storage.setter
+    def state_storage(self, state_storage: Optional[StateStorage]) -> None:
+        self.__state_storage = state_storage

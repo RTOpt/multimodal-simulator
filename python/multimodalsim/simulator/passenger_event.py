@@ -30,6 +30,10 @@ class PassengerRelease(Event):
             legs = env.optimization.split(self.__trip, env)
             self.__trip.assign_legs(legs)
 
+        # If a partition is used, add the next leg to it.
+        if env.optimization.partition is not None:
+            env.optimization.partition.add_leg(self.__trip.next_legs[0])
+
         optimization_event_process.Optimize(
             env.current_time, self.queue).add_to_queue()
 
@@ -117,6 +121,10 @@ class PassengerAlighting(ActionEvent):
 
         VehicleAlighted(self.__trip.current_leg, self.queue).add_to_queue()
 
+        # If a partition is used, remove the current leg from it.
+        if env.optimization.partition is not None:
+            env.optimization.partition.remove_leg(self.__trip.current_leg)
+
         self.__trip.finish_current_leg()
 
         if self.__trip.next_legs is None or len(self.__trip.next_legs) == 0:
@@ -129,6 +137,10 @@ class PassengerAlighting(ActionEvent):
             # The trip is considered as non-assigned again
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
+
+            # If a partition is used, add the next leg to it.
+            if env.optimization.partition is not None:
+                env.optimization.partition.add_leg(self.__trip.next_legs[0])
 
             optimization_event_process.Optimize(
                 env.current_time, self.queue).add_to_queue()

@@ -20,8 +20,16 @@ class DataCollector:
     an EnvironmentObserver) to collect data about the environment at each
     iteration of the simulation."""
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, data_container: 'DataContainer') -> None:
+        self.__data_container = data_container
+
+    @property
+    def data_container(self) -> 'DataContainer':
+        return self.__data_container
+
+    @data_container.setter
+    def data_container(self, data_container: 'DataContainer') -> None:
+        self.__data_container = data_container
 
     def collect(self, env: 'environment.Environment',
                 current_event: Optional[Event] = None,
@@ -35,12 +43,14 @@ class DataCollector:
 
 class StandardDataCollector(DataCollector):
 
-    def __init__(self, data_container: Optional['DataContainer'] = None,
+    def __init__(self,
+                 data_container: Optional['StandardDataContainer'] = None,
                  config: Optional[str | DataCollectorConfig] = None) -> None:
-        super().__init__()
 
-        self.__data_container = DataContainer() if data_container is None \
+        data_container = StandardDataContainer() if data_container is None \
             else data_container
+
+        super().__init__(data_container)
 
         self.__env = None
         self.__event_index = None
@@ -49,10 +59,6 @@ class StandardDataCollector(DataCollector):
         self.__time = None
 
         self.__load_config(config)
-
-    @property
-    def data_container(self) -> 'DataContainer':
-        return self.__data_container
 
     def collect(self, env: 'environment.Environment',
                 current_event: Optional[Event] = None,
@@ -89,11 +95,11 @@ class StandardDataCollector(DataCollector):
         elif not isinstance(config, DataCollectorConfig):
             config = DataCollectorConfig()
 
-        self.__data_container.set_columns("vehicles",
+        self.data_container.set_columns("vehicles",
                                           config.get_vehicles_columns())
-        self.__data_container.set_columns("trips",
+        self.data_container.set_columns("trips",
                                           config.get_trips_columns())
-        self.__data_container.set_columns("events",
+        self.data_container.set_columns("events",
                                           config.get_events_columns())
 
     def __collect_vehicles_data(self, vehicle):
@@ -144,7 +150,7 @@ class StandardDataCollector(DataCollector):
                     "polylines": polylines,
                     "mode": mode}
 
-        self.__data_container.add_observation(
+        self.data_container.add_observation(
             "vehicles", obs_dict, "id")
 
         self.__update_trip_cumulative_distance_by_vehicle(vehicle, route)
@@ -152,11 +158,11 @@ class StandardDataCollector(DataCollector):
     def __update_trip_cumulative_distance_by_vehicle(self, vehicle, route):
 
         if "trips_cumulative_distance" \
-                not in self.__data_container.observations_tables:
-            self.__data_container.observations_tables[
+                not in self.data_container.observations_tables:
+            self.data_container.observations_tables[
                 "trips_cumulative_distance"] = {}
 
-        cumdist_by_veh_by_trip = self.__data_container.observations_tables[
+        cumdist_by_veh_by_trip = self.data_container.observations_tables[
                 "trips_cumulative_distance"]
 
         if route.current_stop is not None:
@@ -230,7 +236,7 @@ class StandardDataCollector(DataCollector):
                     "next_legs": next_legs,
                     "name": name}
 
-        self.__data_container.add_observation("trips", obs_dict, "id")
+        self.data_container.add_observation("trips", obs_dict, "id")
 
         self.__update_trip_cumulative_distance_by_trip(trip)
 
@@ -267,11 +273,11 @@ class StandardDataCollector(DataCollector):
     def __update_trip_cumulative_distance_by_trip(self, trip):
 
         if "trips_cumulative_distance" \
-                not in self.__data_container.observations_tables:
-            self.__data_container.observations_tables[
+                not in self.data_container.observations_tables:
+            self.data_container.observations_tables[
                 "trips_cumulative_distance"] = {}
 
-        cumdist_by_veh_by_trip = self.__data_container.observations_tables[
+        cumdist_by_veh_by_trip = self.data_container.observations_tables[
                 "trips_cumulative_distance"]
         if trip.current_leg is not None \
                 and trip.current_leg.assigned_vehicle is not None:
@@ -310,7 +316,7 @@ class StandardDataCollector(DataCollector):
                     "time": self.__time,
                     "priority": self.__event_priority,
                     "index": self.__event_index}
-        self.__data_container.add_observation("events", obs_dict, "index")
+        self.data_container.add_observation("events", obs_dict, "index")
 
     def __collect_environment_data(self, env):
 
@@ -320,9 +326,9 @@ class StandardDataCollector(DataCollector):
             self.__collect_total_nb_trips(trip, trips_by_mode)
             self.__collect_nb_active_trips(trip, active_trips_by_mode)
 
-        self.__data_container.observations_tables["total_nb_trips_by_mode"] \
+        self.data_container.observations_tables["total_nb_trips_by_mode"] \
             = trips_by_mode
-        self.__data_container.observations_tables["nb_active_trips_by_mode"] \
+        self.data_container.observations_tables["nb_active_trips_by_mode"] \
             = active_trips_by_mode
 
     def __collect_total_nb_trips(self, trip, trips_by_mode):
@@ -353,8 +359,22 @@ class StandardDataCollector(DataCollector):
 
 
 class DataContainer:
+    def __init__(self):
+        pass
+
+    def make_pickable(self):
+        """Modify the DataContainer object so that it is pickable and return
+        it"""
+        raise NotImplementedError('get_pickable of {} not implemented'.
+                                  format(self.__class__.__name__))
+
+
+class StandardDataContainer(DataContainer):
 
     def __init__(self) -> None:
+
+        super().__init__()
+
         self.__observations_tables = {}
         self.__observations_tables_dfs = {}
         self.__dfs_columns = {}
@@ -365,9 +385,19 @@ class DataContainer:
     def observations_tables(self) -> dict:
         return self.__observations_tables
 
+    def make_pickable(self):
+        """Delete the DataFrame objects from __observations_tables_dfs and
+        reinitialize self.__updated_dfs"""
+
+        self.__observations_tables_dfs = {}
+        self.__updated_dfs = {}
+
+        return self
+
     def get_observations_table_df(self, table_name: str) -> pd.DataFrame:
 
-        if not self.__updated_dfs[table_name]:
+        if table_name not in self.__updated_dfs \
+                or not self.__updated_dfs[table_name]:
             self.__convert_obs_table_to_df(table_name)
 
         return self.__observations_tables_dfs[table_name]

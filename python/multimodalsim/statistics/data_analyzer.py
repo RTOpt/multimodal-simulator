@@ -4,7 +4,8 @@ import pandas as pd
 import logging
 
 from multimodalsim.config.data_analyzer_config import DataAnalyzerConfig
-from multimodalsim.observer.data_collector import DataContainer
+from multimodalsim.observer.data_collector import DataContainer, \
+    StandardDataContainer
 from multimodalsim.state_machine.status import PassengerStatus, VehicleStatus
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class DataAnalyzer:
 
 class FixedLineDataAnalyzer(DataAnalyzer):
 
-    def __init__(self, data_container: Optional[DataContainer] = None,
+    def __init__(self, data_container: Optional[StandardDataContainer] = None,
                  config: Optional[DataAnalyzerConfig] = None):
         super().__init__(data_container)
 
@@ -121,10 +122,12 @@ class FixedLineDataAnalyzer(DataAnalyzer):
         return nb_trips
 
     def get_total_nb_vehicles(self, mode: Optional[str] = None) -> int:
+
         nb_vehicles = 0
         if "vehicles" in self.data_container.observations_tables:
             vehicles_df = self.data_container.get_observations_table_df(
                 self.__vehicles_table_name)
+
             id_col = self.data_container.get_columns("vehicles")["id"]
 
             if mode is not None:

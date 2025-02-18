@@ -5,6 +5,7 @@ from typing import Tuple, Optional
 import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
+from multimodalsim.optimization.partition import PartitionSubset
 from multimodalsim.simulator.stop import Stop, LabelLocation
 from multimodalsim.simulator.vehicle import Route
 
@@ -16,7 +17,8 @@ class Dispatcher:
     def __init__(self) -> None:
         super().__init__()
 
-    def dispatch(self, state: 'state_module.State') \
+    def dispatch(self, state: 'state_module.State',
+                 partition_subset: Optional[PartitionSubset] = None) \
             -> 'optimization_module.OptimizationResult':
         """Optimize the vehicle routing and the trip-route assignment. This
         method relies on three other methods:
@@ -37,6 +39,12 @@ class Dispatcher:
         """
 
         selected_next_legs, selected_routes = self.prepare_input(state)
+
+        if partition_subset is not None:
+            selected_next_legs, selected_routes = \
+                self.filter_input_according_to_partition(selected_next_legs,
+                                                         selected_routes,
+                                                         partition_subset)
 
         if len(selected_next_legs) > 0 and len(selected_routes) > 0:
             # The optimize method is called only if there is at least one leg
@@ -89,6 +97,21 @@ class Dispatcher:
         selected_routes = state.route_by_vehicle_id.values()
 
         return selected_next_legs, selected_routes
+
+    def filter_input_according_to_partition(
+            self, selected_next_legs: list['request.Leg'],
+            selected_routes: list[Route],
+            partition_subset: PartitionSubset):
+
+        filtered_selected_next_legs = \
+            self.__filter_legs_according_to_partition(selected_next_legs,
+                                                      partition_subset)
+
+        filtered_selected_routes = \
+            self.__filter_routes_according_to_partition(selected_routes,
+                                                        partition_subset)
+
+        return filtered_selected_next_legs, filtered_selected_routes
 
     def optimize(self, selected_next_legs: list['request.Leg'],
                  selected_routes: list[Route], current_time: float,
@@ -157,6 +180,20 @@ class Dispatcher:
             state, modified_trips, modified_vehicles)
 
         return optimization_result
+
+    def __filter_legs_according_to_partition(self, legs, partition_subset):
+        filtered_legs = []
+        for leg in legs:
+            if partition_subset.is_leg_in(leg):
+                filtered_legs.append(leg)
+        return filtered_legs
+
+    def __filter_routes_according_to_partition(self, routes, partition_subset):
+        filtered_routes = []
+        for route in routes:
+            if partition_subset.is_vehicle_in(route.vehicle):
+                filtered_routes.append(route)
+        return filtered_routes
 
     def __process_route_plan(self, route_plan):
 

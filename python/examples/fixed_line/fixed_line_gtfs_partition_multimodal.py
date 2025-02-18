@@ -5,9 +5,9 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import OneLegSplitter
+from multimodalsim.optimization.partition import FixedLineGreedyPartition
+from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)
@@ -19,16 +19,21 @@ if __name__ == '__main__':
 
     # Read input data from files with a DataReader. The DataReader returns a
     # list of Vehicle objects and a list of Trip objects.
-    gtfs_folder_path = "../../../data/fixed_line/gtfs/gtfs/"
-    requests_file_path = "../../../data/fixed_line/gtfs/requests_gtfs_v2.csv"
+    gtfs_folder_path = "../../../data/fixed_line/gtfs_partition/gtfs_multimodal/"
+    requests_file_path = \
+        "../../../data/fixed_line/gtfs_partition/requests_gtfs_multimodal.csv"
     data_reader = GTFSReader(gtfs_folder_path, requests_file_path)
 
     # Set to None if coordinates of the vehicles are not available.
-    coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
-    coordinates = CoordinatesFromFile(coordinates_file_path)
+    # coordinates_file_path = "../../../data/fixed_line/gtfs/coordinates/coordinates_30s.csv"
+    # coordinates = CoordinatesFromFile(coordinates_file_path)
 
     # To estimate the coordinates from an OSRM server, use the following:
     # coordinates = CoordinatesOSRM()
+
+    # Generate the network from GTFS files. This is necessary for the
+    # MultimodalSplitter.
+    g = data_reader.get_network_graph()
 
     vehicles, routes_by_vehicle_id = data_reader.get_vehicles()
     trips = data_reader.get_trips()
@@ -38,17 +43,23 @@ if __name__ == '__main__':
     # that would have an impact too near in the future.
     freeze_interval = 5
     # Initialize the optimizer.
-    splitter = OneLegSplitter()
+    splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
     dispatcher = FixedLineDispatcher()
-    opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
+
+    # Create a greedy partition made up of 3 subsets.
+    partition = FixedLineGreedyPartition(
+                nb_subsets=3, routes_by_vehicle_id=routes_by_vehicle_id)
+
+    # opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
+    opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval,
+                       partition=partition)
 
     # Initialize the observer.
     environment_observer = StandardEnvironmentObserver()
 
     # Initialize the simulation.
     simulation = Simulation(opt, trips, vehicles, routes_by_vehicle_id,
-                            environment_observer=environment_observer,
-                            coordinates=coordinates)
+                            environment_observer=environment_observer)
 
     # Execute the simulation.
     simulation.simulate()

@@ -74,9 +74,13 @@ class ShuttleHubSimpleNetworkDispatcher(Dispatcher):
         """
 
         route_plans = []
-        routes_cyclic_list = cycle(selected_routes)
+        routes_iterator = iter(selected_routes)
         for leg in selected_next_legs:
-            route = next(routes_cyclic_list)
+            try:
+                route = next(routes_iterator)
+            except StopIteration:
+                # No more available route. Leg cannot be assigned.
+                break
 
             if route is not None:
                 route_plan = self.__create_route_plan(route, leg, current_time)
@@ -112,7 +116,8 @@ class ShuttleHubSimpleNetworkDispatcher(Dispatcher):
         #   and leg origin
         hub_to_origin_travel_time = self.__network.get_edge_data(
             route.current_stop.location.label, leg.origin.label)["length"]
-        first_stop_time = current_time + hub_to_origin_travel_time
+        first_stop_time = max(current_time + hub_to_origin_travel_time,
+                              leg.ready_time)
         origin_lon = self.__network.nodes[leg.origin.label]["lon"]
         origin_lat = self.__network.nodes[leg.origin.label]["lat"]
         route_plan.append_next_stop(leg.origin.label, first_stop_time,
