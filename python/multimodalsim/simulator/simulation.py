@@ -4,8 +4,8 @@ from typing import Optional, Any
 
 from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.observer.data_collector import DataCollector, DataContainer
-from multimodalsim.observer.environment_observer import EnvironmentObserver
-from multimodalsim.observer.visualizer import Visualizer
+import multimodalsim.observer.environment_observer as env_obs_module
+import multimodalsim.observer.visualizer as visualizer_module
 from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.coordinates.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
@@ -36,9 +36,12 @@ class Simulation:
                  state_storage: Optional[StateStorage] = None,
                  config: Optional[str | SimulationConfig] = None) -> None:
 
+        self.__load_config(config)
+
         self.__state_storage = state_storage
 
-        self.__env = Environment(optimization, network=network,
+        self.__env = Environment(optimization, self.__config,
+                                 network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times,
                                  state_storage=state_storage)
@@ -48,8 +51,6 @@ class Simulation:
         self.__init_environment_observer(environment_observer)
 
         self.__init_state_storage_from_env()
-
-        self.__load_config(config)
 
         if state_storage is None or not state_storage.load:
             self.__create_vehicle_ready_events(vehicles, routes_by_vehicle_id)
@@ -254,7 +255,7 @@ class Simulation:
                 self.__state_storage.data_collector_data_containers
 
         if isinstance(self.__environment_observer.visualizers,
-                      Visualizer):
+                      visualizer_module.Visualizer):
             visualizers = [self.__environment_observer.visualizers]
         else:
             visualizers = self.__environment_observer.visualizers

@@ -172,7 +172,7 @@ class ConsoleVisualizer(Visualizer):
                     current_event, event_priority))
 
     def __print_statistics(self):
-        stats = self.__data_analyzer.get_statistics()
+        stats = self.data_analyzer.get_statistics()
         logger.info("Statistics: {}".format(stats))
         vehicles_stats = self.data_analyzer.get_vehicles_statistics()
         logger.info(vehicles_stats)

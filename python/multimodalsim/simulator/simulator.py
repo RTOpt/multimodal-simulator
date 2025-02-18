@@ -5,8 +5,8 @@ from typing import Optional, Any
 
 from networkx.readwrite import json_graph
 
-from multimodalsim.observer.data_collector import DataContainer, \
-    StandardDataCollector, DataCollector
+from multimodalsim.observer.data_collector import StandardDataCollector, \
+    DataCollector, StandardDataContainer
 from multimodalsim.observer.environment_observer import EnvironmentObserver
 from multimodalsim.observer.visualizer import ConsoleVisualizer, Visualizer
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
@@ -78,7 +78,7 @@ class Simulator:
 
     def __init_environment_observer(self):
         if self.__visualizers is None or self.__data_collectors is None:
-            data_container = DataContainer()
+            data_container = StandardDataContainer()
 
             if self.__data_collectors is None:
                 self.__data_collectors = StandardDataCollector(data_container)
