@@ -401,7 +401,7 @@ def plot_single_line_comparisons(instance_name,
         # Annotate the mean value below the mean line
         ax.text(pos, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=mean_color)
     # Set ylim for first y-axis
-    ax.set_ylim(0, max([max(group) for group in data]) * 0.9)  # Set y-limit for better visibility
+    ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
 
     # Plot missed transfer percentages as points on the secondary y-axis
     ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label, markersize=transfers_marker_size)
@@ -428,7 +428,7 @@ def plot_single_line_comparisons(instance_name,
         all_lines_string = 'All lines'
     else:
         all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
-    ax.set_title(f"Comparison of passenger travel and transfer times for line(s) {all_lines_string}", fontsize=18)
+    ax.set_title(f"Comparison of passenger travel and transfer times\nfor line(s) {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
     
