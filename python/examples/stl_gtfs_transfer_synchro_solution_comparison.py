@@ -6,6 +6,9 @@ from stl_gtfs_transfer_synchro import get_output_subfolder
 import matplotlib.lines as mlines
 from ast import literal_eval
 import sys
+from stl_gtfs_parameter_parser_and_test_file_generator import get_route_dictionary
+
+
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
@@ -370,9 +373,13 @@ def plot_single_line_comparisons(instance_name,
     # plt.show()
 
 # Define the test instance name
-instance_name = "gtfs2019-11-27_LargeInstanceAll"
-transfer_time = False
-for line_name in [['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']]:
-    for transfer_type in [0,1,2]:
+# instance_name = "gtfs2019-11-27_LargeInstanceAll"
+route_dict = get_route_dictionary()
+for grid_style in route_dict:
+    instance_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_'+grid_style
+    for route_ids_list in [route_dict[grid_style]]:
+        for transfer_type in [0,1,2]:
+            # Run the function to compare and plot passenger travel times across different parameters for line 70E
+            plot_single_line_comparisons(instance_name, line_name = route_ids_list, relative_increase_threshold = 1.2, transfer_type = transfer_type)
         # Run the function to compare and plot passenger travel times across different parameters for line 70E
-        plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
+        # plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
