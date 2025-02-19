@@ -80,13 +80,10 @@ def analyze_simulations(simulation1_path, simulation2_path, total_transfers, rel
 
     return output_data
 
-def get_request_transfer_data(instance_name):
-    data_folder = os.path.join('data','fixed_line','gtfs')
-    new_instance_name = instance_name.replace('_','-')
-    new_instance_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
-    request_file_path = os.path.join(data_folder, new_instance_name, 'requests.csv')
+def get_request_transfer_data(requests_file_path):
+    request_file = os.path.join(requests_file_path, 'requests.csv')
     transfers = {}
-    with open(request_file_path, 'r') as requests_file:
+    with open(request_file, 'r') as requests_file:
             requests_reader = csv.reader(requests_file, delimiter=';')
             next(requests_reader, None)
             total_transfers = 0
@@ -139,6 +136,7 @@ def get_completed_transfers(output_folder_path, transfers, total_transfers):
     return(number_of_completed_transfers, number_missed_transfers, percentage_missed_transfers)
 
 def plot_single_line_comparisons(instance_name,
+                                 requests_file_path,
                                  line_name="70E",
                                  relative_increase_threshold = 1.1,
                                  base_folder="output/fixed_line/gtfs",
@@ -189,7 +187,7 @@ def plot_single_line_comparisons(instance_name,
     missed_transfer_data = {}
 
     ### Get the total number of transfers
-    transfers, total_transfers = get_request_transfer_data(instance_name)
+    transfers, total_transfers = get_request_transfer_data(requests_file_path=requests_file_path)
 
     # Define the labels for main groups
     group_labels = ["No tactics", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
@@ -375,11 +373,14 @@ def plot_single_line_comparisons(instance_name,
 # Define the test instance name
 # instance_name = "gtfs2019-11-27_LargeInstanceAll"
 route_dict = get_route_dictionary()
+data_name = 'gtfs2019-11-25_EveningRushHour'
 for grid_style in route_dict:
-    instance_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_'+grid_style
+    instance_name = data_name+'_'+grid_style
+    data_gtfs_name = data_name.replace('_','-')
+    requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
     for route_ids_list in [route_dict[grid_style]]:
         for transfer_type in [0,1,2]:
             # Run the function to compare and plot passenger travel times across different parameters for line 70E
-            plot_single_line_comparisons(instance_name, line_name = route_ids_list, relative_increase_threshold = 1.2, transfer_type = transfer_type)
+            plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, relative_increase_threshold = 1.2, transfer_type = transfer_type)
         # Run the function to compare and plot passenger travel times across different parameters for line 70E
         # plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
