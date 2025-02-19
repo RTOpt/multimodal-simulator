@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --mem-per-cpu=16G
-#SBATCH --time=47:59:00
+#SBATCH --time=90:00:00
 #SBATCH --partition=optimum
 #SBATCH --cpus-per-task=1
 #SBATCH --output=python/examples/fixed_line/test_files_multi_grid/slurm_output_%A_%a.out
 #SBATCH --error=python/examples/fixed_line/test_files_multi_grid/slurm_error_%A_%a.err
-#SBATCH --array=0-12  # 13 tasks for 13 test files
+#SBATCH --array=10-12  # 13 tasks for 13 test files
 
 # Change to the correct working directory
 cd /home/kollau/Recherche_Kolcheva/Simulator
