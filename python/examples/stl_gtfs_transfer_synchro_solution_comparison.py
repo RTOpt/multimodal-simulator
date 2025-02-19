@@ -6,6 +6,7 @@ from stl_gtfs_transfer_synchro import get_output_subfolder
 import matplotlib.lines as mlines
 from ast import literal_eval
 import sys
+import numpy as np
 from stl_gtfs_parameter_parser_and_test_file_generator import get_route_dictionary
 
 
@@ -13,29 +14,22 @@ sys.path.append(os.path.abspath('../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 
-def analyze_simulations(simulation1_path, simulation2_path, total_transfers, relative_increase_threshold=1.5):
+def analyze_simulations(simulation1_path, simulation2_path, total_transfers, transfers, relative_increase_threshold=1.5):
     # Load the two simulation data files
     sim1_df = pd.read_csv(simulation1_path)
     sim2_df = pd.read_csv(simulation2_path)
     
-    # Count rows with positive 'transfer_time' in each simulation
-    positive_transfer_time_sim1 = sim1_df[sim1_df["transfer_time"] > 0].shape[0]
-    positive_transfer_time_sim2 = sim2_df[sim2_df["transfer_time"] > 0].shape[0]
-
     # Identify total travel time for each passenger in each simulation
     sim1_df["total_travel_time"] = sim1_df["wait_before_boarding"] + sim1_df["onboard_time"] + sim1_df["transfer_time"]
     sim2_df["total_travel_time"] = sim2_df["wait_before_boarding"] + sim2_df["onboard_time"] + sim2_df["transfer_time"]
 
     # Filter out passengers with no transfers for transfer percentage calculation
-    transfer_times_sim1 = sim1_df[sim1_df["transfer_time"] > 0]["transfer_time"]
-    transfer_times_sim2 = sim2_df[sim2_df["transfer_time"] > 0]["transfer_time"]
+    all_transfer_passangers_id = transfers.keys()
+    positive_transfer_time_sim1 = sim1_df[sim1_df["id"].isin(all_transfer_passangers_id)]['transfer_time']
+    positive_transfer_time_sim2 = sim2_df[sim2_df["id"].isin(all_transfer_passangers_id)]['transfer_time']
 
     # Merge DataFrames on 'id' column to align passenger data from both simulations
     comparison_df = pd.merge(sim1_df, sim2_df, on="id", suffixes=('_sim1', '_sim2'))
-
-    # Calculate individual travel time differences for plotting
-    travel_times_sim1 = sim1_df["total_travel_time"]
-    travel_times_sim2 = sim2_df["total_travel_time"]
 
     # Identify missed transfers based on a relative increase in transfer time
     comparison_df["relative_transfer_increase"] = (
@@ -45,8 +39,8 @@ def analyze_simulations(simulation1_path, simulation2_path, total_transfers, rel
     comparison_df["missed_transfer_sim1"] = comparison_df["relative_transfer_increase"] < (1 / relative_increase_threshold)
     
     # Count the total number of transfers (all individual transfers) in each simulation
-    total_transfers_sim1 = positive_transfer_time_sim1
-    total_transfers_sim2 = positive_transfer_time_sim2
+    total_transfers_sim1 = positive_transfer_time_sim1.shape[0]
+    total_transfers_sim2 = positive_transfer_time_sim2.shape[0]
 
     # Count missed transfers (where relative increase indicates a missed transfer) in each simulation
     missed_transfers_sim1 = comparison_df["missed_transfer_sim1"].sum()
@@ -64,10 +58,10 @@ def analyze_simulations(simulation1_path, simulation2_path, total_transfers, rel
 
     # Output data for plotting
     output_data = {
-        "travel_times_sim1": travel_times_sim1,
-        "travel_times_sim2": travel_times_sim2,
-        "transfer_times_sim1": transfer_times_sim1,
-        "transfer_times_sim2": transfer_times_sim2,
+        "travel_times_sim1": sim1_df["total_travel_time"],
+        "travel_times_sim2": sim2_df["total_travel_time"],
+        "transfer_times_sim1": positive_transfer_time_sim1,
+        "transfer_times_sim2": positive_transfer_time_sim2,
         "missed_transfer_percentage_sim1": missed_transfer_percentage_sim1,
         "missed_transfer_percentage_sim2": missed_transfer_percentage_sim2,
         "total_transfers_sim1": total_transfers_sim1,
@@ -83,62 +77,162 @@ def analyze_simulations(simulation1_path, simulation2_path, total_transfers, rel
 def get_request_transfer_data(requests_file_path):
     request_file = os.path.join(requests_file_path, 'requests.csv')
     transfers = {}
+    request_legs = {}
     with open(request_file, 'r') as requests_file:
-            requests_reader = csv.reader(requests_file, delimiter=';')
-            next(requests_reader, None)
-            total_transfers = 0
-            for row in requests_reader:
-                request_id = row[0] 
-                legs_stops_pairs_list = None
-                if len(row) - 1 == 7:
-                    legs_stops_pairs_list = literal_eval(
-                        row[7])
-                if legs_stops_pairs_list is not None:
-                    current_transfer = -1
-                    for stops_pair in legs_stops_pairs_list:
-                        current_transfer += 1
-                    total_transfers += current_transfer if current_transfer > 0 else 0
-                    if current_transfer > 0:
-                        transfers[request_id] = current_transfer
-    return(transfers, total_transfers)
+        requests_reader = csv.reader(requests_file, delimiter=';')
+        next(requests_reader, None)
+        total_transfers = 0
+        for row in requests_reader:
+            request_id = row[0] 
+            legs_stops_pairs_list = None
+            if len(row) - 1 == 7:
+                legs_stops_pairs_list = literal_eval(row[7])
+            if legs_stops_pairs_list is not None:
+                request_legs[request_id] = []
+                for leg in legs_stops_pairs_list:
+                    request_legs[request_id].append( (int(leg[0]), int(leg[1]), str(leg[2])) )
+                current_number_transfers = len(legs_stops_pairs_list) - 1
+                total_transfers += current_number_transfers if current_number_transfers >= 0 else 0
+                if current_number_transfers > 0:
+                    transfers[request_id] = current_number_transfers
+    return(transfers, total_transfers, request_legs)
 
-def get_completed_transfers(output_folder_path, transfers, total_transfers):
+def get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
+    """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
+    from the results of a simulation run.
+    In order to retrieve missed transfers we compare the vehicles used in the simulation for each leg of each request with the vehicles
+    that were used in the optimal solution for the same leg. If the vehicles are different, we consider the transfer as missed.
+    This is true because the original assigned vehicle is the best possible option for the passenger to make the transfer. If a passenger misses that vehicle, 
+    they are re-assigned to the next vehicle on the same line"""
     trips_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_observations_df.csv'))
-    trips_details_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_details_observations_df.csv'))
-    # For each request id in the transfers dict, check if there is a row in the trips_observations_df that
-    ### has the same request ID
-    ### has a Status of 'PassengersStatus.COMPLETE'
-    ### has next_legs of []
+    number_of_completed_transfers = 0
+    number_of_missed_transfers = 0
+    
+    # We only need the status.ONBOARD for passengers with transfers
+    request_ids = list(sorted([request_id for request_id in transfers.keys()]))
+    trips_observations_df = trips_observations_df[
+                        (trips_observations_df['Status'].isin(['PassengersStatus.ONBOARD'])) &
+                        (trips_observations_df['ID'].isin(request_ids))]
+    
+    #Remove rows if Assigned vehicle contains 'walking' (these are added legs for walking time due to skip-stop tactic)
+    trips_observations_df = trips_observations_df[
+                     ~trips_observations_df['Assigned vehicle'].astype(str).str.contains('walking', na=False)]
+    
+    #Sort by ID and time
+    trips_observations_df = trips_observations_df.sort_values(by=['ID', 'Time'])
+
+    #There are multiple rows for each request_id, each one corresponding to a leg of the trip
+    #We need to check if the vehicle is the same for each leg of the trip
+    completed_requests = 0
+    not_completed_requests = []
+    i = 0
+    row_index = 0
+    while i < len(request_ids):
+        request_id = request_ids[i]
+        request_legs_list = request_legs[request_id]
+        if row_index >= len(trips_observations_df):
+            not_completed_requests.append(request_id)
+            break
+        row = trips_observations_df.iloc[row_index]
+        row_request_id = row['ID']
+        while row_request_id != request_id and i < len(request_ids):
+            not_completed_requests.append(request_id)
+            i+=1
+            request_id = request_ids[i]
+            request_legs_list = request_legs[request_id]
+        if i >= len(request_ids):
+            break
+        first_leg = True
+        completed_requests += 1
+        for leg in request_legs_list:
+            if row_request_id == request_id:
+                if first_leg:
+                    first_leg = False
+                    row_index += 1
+                    if row_index < len(trips_observations_df):
+                        row = trips_observations_df.iloc[row_index]
+                    else:
+                        break
+                    row_request_id = row['ID']
+                    continue
+                #Check if the vehicle is the same for each leg of the trip
+                if str(int(trips_observations_df.iloc[row_index]['Assigned vehicle'])) != leg[2]:
+                    number_of_missed_transfers += 1
+                else:
+                    number_of_completed_transfers += 1
+                row_index += 1
+                if row_index < len(trips_observations_df):
+                    row = trips_observations_df.iloc[row_index]
+                else:
+                    break
+                row_request_id = row['ID']
+            else:
+                # This means the passenger did not manage to finish his trip (no more buses)
+                if first_leg == False: 
+                    number_of_missed_transfers += 1
+        i+=1
+    for request in not_completed_requests:
+        number_of_missed_transfers += transfers[request]
+    # Calculate the number of missed transfers and the percentage of missed transfers
+    print('Total requests:', len(request_ids))
+    print('Counter missed transfers', number_of_missed_transfers)
+    print('Counter completed transfers', number_of_completed_transfers)
+    print('Total counted transfers', number_of_missed_transfers + number_of_completed_transfers)
+    print('Total transfers in requests.csv file', total_transfers)
+    if total_transfers != number_of_missed_transfers + number_of_completed_transfers:
+        print('Error in counting transfers')
+    percentage_missed_transfers = (number_of_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
+    return(number_of_completed_transfers, percentage_missed_transfers, not_completed_requests)
+
+def old_get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
+    """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
+    from the results of a simulation run."""
+    trips_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_observations_df.csv'))
+    number_of_completed_transfers = 0
+
+    ### Filter out passengers that did not finish their trip
     trips_observations_df = trips_observations_df[trips_observations_df['Status'] == 'PassengersStatus.COMPLETE']
     number_of_completed_transfers = 0
-    completed_transfers = []
-    for request_id, num_transfers in transfers.items():
-        if trips_observations_df[(trips_observations_df['ID'].astype(str) == str(request_id)) & (trips_observations_df['Next legs'].astype(str) == '[]')].shape[0] > 0:
-            # check if transfer time is under 10 minutes in trips_details_observations_df
-            row = trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(request_id)]
-            transfer_time = row['transfer_time'].values[0]
-            if transfer_time < 600:
-                number_of_completed_transfers += 1
-            number_of_completed_transfers += num_transfers
-            completed_transfers.append(request_id)
-    for completed_transfer in completed_transfers:
-        # check if transfer time of completed transfer is greater than 0 
-        if int(trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(completed_transfer)]['transfer_time'].values[0]) == 0:
-            # set to 1 if transfer time is 0
-            row = trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(completed_transfer)]
-            row['transfer_time'] = transfers[completed_transfer]
-            trips_details_observations_df[trips_details_observations_df['id'].astype(str) == str(completed_transfer)] = row
-            continue
-    ### Save updated trips_details_observations_df without the index
-    trips_details_observations_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df2.csv'), index=False)
+
+    # filter trips_observations_df for request_id and next_legs = []
+    trips_observations_df = trips_observations_df[trips_observations_df['Next legs'].astype(str) == '[]']
+    trips_observations_df['ID'] = trips_observations_df['ID'].astype(str)
+
+    # Only keep rows where trips_observations_df['ID'].astype(str) is in transfers.keys()
+    trips_observations_df = trips_observations_df[trips_observations_df['ID'].astype(str).isin(transfers.keys())]
+    for index, row in trips_observations_df.iterrows():
+        request_id = row['ID']
+        num_transfers = transfers[request_id]
+        number_of_completed_transfers += num_transfers
+  
+
+    # Calculate the number of missed transfers and the percentage of missed transfers
     number_missed_transfers = total_transfers - number_of_completed_transfers
     percentage_missed_transfers = (number_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
     return(number_of_completed_transfers, number_missed_transfers, percentage_missed_transfers)
 
+def get_travel_time_stats(output_folder_path, transfers, not_completed_requests):
+    total_times = []
+    transfer_times = []
+    # Get total travel time for all passengers (not only transfer passengers)
+    trips_details_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_details_observations_df.csv'))
+    for index, row in trips_details_observations_df.iterrows():
+        total_time = row['wait_before_boarding'] + row['onboard_time'] + row['transfer_time']
+        if row['id'] in not_completed_requests:
+            total_time += 3600 # 30 minutes penalty for not completing the trip
+        total_times.append(total_time)
+        if row['id'] in transfers.keys():
+            transfer_times.append(row['transfer_time'])
+    return(total_times, transfer_times)
+
+def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs):
+    number_of_completed_transfers, percentage_missed_transfers, not_completed_requests= get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs)
+    total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers, not_completed_requests)
+    return(number_of_completed_transfers, percentage_missed_transfers, transfer_times, total_times)
+
 def plot_single_line_comparisons(instance_name,
                                  requests_file_path,
                                  line_name="70E",
-                                 relative_increase_threshold = 1.1,
                                  base_folder="output/fixed_line/gtfs",
                                  transfer_type = 0):
     """ 
@@ -147,7 +241,6 @@ def plot_single_line_comparisons(instance_name,
     Parameters:
     - instance_name: Name of the test instance folder
     - line_name: Name of the bus line(s) to compare
-    - relative_increase_threshold: Threshold for missed transfer detection
     - base_folder: Base folder for the output data
     - transfer_type: 0 for percentage of missed transfers
                      1 for number of missed transfers
@@ -187,7 +280,7 @@ def plot_single_line_comparisons(instance_name,
     missed_transfer_data = {}
 
     ### Get the total number of transfers
-    transfers, total_transfers = get_request_transfer_data(requests_file_path=requests_file_path)
+    transfers, total_transfers, request_legs = get_request_transfer_data(requests_file_path=requests_file_path)
 
     # Define the labels for main groups
     group_labels = ["No tactics", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
@@ -196,41 +289,38 @@ def plot_single_line_comparisons(instance_name,
 
     # Initialize group_data with No tactics baseline
     baseline_folder = get_output_subfolder(output_folder_path, *base_params)
-    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df2.csv")
+    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
-        number_of_completed_transfers_notactics, number_missed_transfers_notactics, percentage_missed_transfers_notactics = get_completed_transfers(baseline_folder, transfers, total_transfers)
+        print('NO TACTICS')
+        number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs)
      # Ensure the baseline file exists
     if not os.path.exists(baseline_file):
         raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
-    output_data_baseline = analyze_simulations(baseline_file, baseline_file, relative_increase_threshold)
-    group_data["No tactics"] = [time / 60 for time in output_data_baseline["travel_times_sim1"]]
+    group_data["No tactics"] = [time / 60 for time in total_times_notactics]
     if transfer_type == 0:
         missed_transfer_data["No tactics"] = percentage_missed_transfers_notactics #output_data_baseline["missed_transfer_percentage_sim1"] 
     elif transfer_type == 1:
         missed_transfer_data["No tactics"] = number_of_completed_transfers_notactics #output_data_baseline["total_transfers_sim1"]
     else:
-        missed_transfer_data["No tactics"] = output_data_baseline["transfer_times_sim1"].mean()/60
+        missed_transfer_data["No tactics"] = np.mean(transfer_times_notactics)/60
 
     # Generate comparisons for algo_params
     for i, params in enumerate(algo_params):
         sim_folder = get_output_subfolder(output_folder_path, *params)
         if os.path.exists(os.path.join(sim_folder, 'trips_observations_df.csv')):
-            number_of_completed_transfers_key, number_missed_transfers_key, percentage_missed_transfers_key = get_completed_transfers(sim_folder, transfers, total_transfers)
-        sim_file = os.path.join(sim_folder, "trips_details_observations_df2.csv")
-        if os.path.exists(sim_file):
-            output_data = analyze_simulations(baseline_file, sim_file, relative_increase_threshold)
-            group_index = 1 + i // 3  # Group index based on the 6 groups specified
-            key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
-            group_data[key] = [time / 60 for time in output_data["travel_times_sim2"]]
-            if transfer_type == 0:
-                missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"] 
-            elif transfer_type == 1:
-                missed_transfer_data[key] = number_of_completed_transfers_key#output_data["total_transfers_sim2"]
-            else:
-                missed_transfer_data[key] = output_data["transfer_times_sim2"].mean()/60
-
+            print('ALGO PARAMS', params)
+            number_of_completed_transfers_key, percentage_missed_transfers_key, transfer_times_key, total_times_key = get_transfer_and_travel_time_stats(sim_folder, transfers, total_transfers, request_legs)
+        else: 
+            continue
+        group_index = 1 + i // 3  # Group index based on the 6 groups specified
+        key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
+        group_data[key] = [time / 60 for time in total_times_key]
+        if transfer_type == 0:
+            missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"] 
+        elif transfer_type == 1:
+            missed_transfer_data[key] = number_of_completed_transfers_key#output_data["total_transfers_sim2"]
         else:
-            print(f"Warning: No results found for {params} in {sim_folder}")
+            missed_transfer_data[key] = np.mean(transfer_times_key)/60
 
     # Define consistent colors for each algorithm across groups
     algorithm_colors = {
@@ -372,15 +462,21 @@ def plot_single_line_comparisons(instance_name,
 
 # Define the test instance name
 # instance_name = "gtfs2019-11-27_LargeInstanceAll"
-route_dict = get_route_dictionary()
-data_name = 'gtfs2019-11-25_EveningRushHour'
-for grid_style in route_dict:
-    instance_name = data_name+'_'+grid_style
-    data_gtfs_name = data_name.replace('_','-')
-    requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
-    for route_ids_list in [route_dict[grid_style]]:
-        for transfer_type in [0,1,2]:
-            # Run the function to compare and plot passenger travel times across different parameters for line 70E
-            plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, relative_increase_threshold = 1.2, transfer_type = transfer_type)
-        # Run the function to compare and plot passenger travel times across different parameters for line 70E
-        # plot_single_line_comparisons(instance_name, line_name = line_name, relative_increase_threshold = 1.2, transfer_type = transfer_type)
+# route_dict = get_route_dictionary()
+# data_name = 'gtfs2019-11-25_EveningRushHour'
+# for grid_style in route_dict:
+#     instance_name = data_name+'_'+grid_style
+#     data_gtfs_name = data_name.replace('_','-')
+#     requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
+#     for route_ids_list in [route_dict[grid_style]]:
+#         for transfer_type in [0,1,2]:
+#             # Run the function to compare and plot passenger travel times across different parameters for line 70E
+#             plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type)
+# Run the function to compare and plot passenger travel times across different parameters for line 70E
+data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
+instance_name = data_name
+data_gtfs_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
+route_ids_list = [["17N", "151S", "26E", "42E", "56E"],"42E"]
+requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
+for transfer_type in [0,1,2]:
+    plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type)
