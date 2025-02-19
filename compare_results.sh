@@ -13,5 +13,5 @@ module load anaconda
 conda activate SimulatorKolcheva
 
 # Run the specific test file for this array task
-nohup python python/examples/python/examples/stl_gtfs_transfer_synchro_solution_comparison.py > python/examples/fixed_line/slurm_transfer_synchro_solution_comparison.out 2> python/examples/fixed_line/slurm_transfer_synchro_solution_comparison.err
+nohup python python/examples/stl_gtfs_transfer_synchro_solution_comparison.py > python/examples/fixed_line/slurm_transfer_synchro_solution_comparison.out 2> python/examples/fixed_line/slurm_transfer_synchro_solution_comparison.err
 
