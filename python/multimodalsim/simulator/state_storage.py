@@ -139,6 +139,8 @@ class StateStorage:
     def _load_config(self, config):
         if isinstance(config, str):
             self.__config = StateStorageConfig(config)
+        elif isinstance(config, StateStorageConfig):
+            self.__config = config
         elif not isinstance(config, StateStorageConfig):
             self.__config = StateStorageConfig()
 

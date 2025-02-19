@@ -5,6 +5,7 @@ from typing import Optional, Any
 
 from networkx.readwrite import json_graph
 
+from multimodalsim.config.state_storage_config import StateStorageConfig
 from multimodalsim.observer.data_collector import StandardDataCollector, \
     DataCollector, StandardDataContainer
 from multimodalsim.observer.environment_observer import EnvironmentObserver
@@ -230,8 +231,20 @@ class SimulationInitializer:
             else:
                 load = False
 
+            if "config_file" in state_storage_parameters:
+                config_file = self._simulation_directory \
+                              + state_storage_parameters["config_file"]
+                config = StateStorageConfig(config_file)
+            else:
+                config = None
+
             self._state_storage = StateStoragePickle(saved_states_folder,
-                                                      save=save, load=load)
+                                                     save=save, load=load,
+                                                     config=config)
+
+            if load and "load_file" in state_storage_parameters:
+                load_file = state_storage_parameters["load_file"]
+                self._state_storage.load_state(load_file)
 
     def _init_default_parameters(self):
 
