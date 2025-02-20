@@ -261,6 +261,7 @@ class VehicleNotification(Event):
                     if onboard_leg_to_remove is not None:
                         self.__route.onboard_legs.remove(onboard_leg_to_remove)
                         self.__route.onboard_legs.append(leg)
+                        continue
                     # Case 2: Assigned leg that was unassigned due to a skip-stop tactic (impossible to board at the skipped stop)
                     assigned_leg_to_remove = next((l for l in self.__route.assigned_legs if l.id == leg.id), None)
                     if assigned_leg_to_remove is not None:
@@ -268,6 +269,7 @@ class VehicleNotification(Event):
                         leg.assigned_vehicle = None
                         self.__env.remove_assigned_trip(assigned_leg_to_remove.trip.id)
                         self.__env.add_non_assigned_trip(leg.trip)
+                        continue
                     # Case 3: A leg that was unassigned before optimization and is now assigned
                     if assigned_leg_to_remove is None and onboard_leg_to_remove is None and leg not in self.__route.assigned_legs:
                         self.__route.assigned_legs.append(leg)

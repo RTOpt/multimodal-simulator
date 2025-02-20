@@ -401,14 +401,14 @@ def plot_single_line_comparisons(instance_name,
         # Annotate the mean value below the mean line
         ax.text(pos, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=mean_color)
     # Set ylim for first y-axis
-    ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
+    # ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
 
     # Plot missed transfer percentages as points on the secondary y-axis
     ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label, markersize=transfers_marker_size)
     # Add values as text annotations above the points
     for i, value in enumerate(missed_transfer_percentages):
         ax2.text(positions[i]-0.05, value+0.1, f'{value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=transfers_color)
-    ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
+    # ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
     # Set tick label color for the secondary y-axis
 
     if transfer_type == 0:
