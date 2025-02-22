@@ -220,36 +220,36 @@ class CAPRequestsGenerator(RequestsGenerator):
             if original_start_tuple is not None:
                 original_planned_arrival_time = original_start_tuple[3]
                 request['ready_time'] = original_planned_arrival_time - 60
-            ### Check if an earlier transfer was possible
-            for i in range(1, len(legs)):
-                arrival_transfer_stop_id = legs[i-1][1]
-                first_trip_id = legs[i-1][2]
-                first_route_id = route_id_dict[first_trip_id]
-                departure_transfer_stop_id = legs[i][0]
-                second_trip_id = legs[i][2]
-                second_route_id = route_id_dict[second_trip_id]
-                ### Check the planned arrival time of the vehicle at the arrival_transfer_stop_id
-                if arrival_transfer_stop_id not in passage_times_at_stops[first_route_id]:
-                    continue
-                passage_times = passage_times_at_stops[first_route_id][arrival_transfer_stop_id]
-                arrival_at_transfer_tuple = next(((arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time) for arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time in passage_times if trip_id == first_trip_id), None)
+            # ### Check if an earlier transfer was possible
+            # for i in range(1, len(legs)):
+            #     arrival_transfer_stop_id = legs[i-1][1]
+            #     first_trip_id = legs[i-1][2]
+            #     first_route_id = route_id_dict[first_trip_id]
+            #     departure_transfer_stop_id = legs[i][0]
+            #     second_trip_id = legs[i][2]
+            #     second_route_id = route_id_dict[second_trip_id]
+            #     ### Check the planned arrival time of the vehicle at the arrival_transfer_stop_id
+            #     if arrival_transfer_stop_id not in passage_times_at_stops[first_route_id]:
+            #         continue
+            #     passage_times = passage_times_at_stops[first_route_id][arrival_transfer_stop_id]
+            #     arrival_at_transfer_tuple = next(((arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time) for arrival_time, departure_time, trip_id, planned_arrival_time, min_arrival_time in passage_times if trip_id == first_trip_id), None)
 
-                ### Check the planned arrival time of the vehicle at the departure_transfer_stop_id
-                if departure_transfer_stop_id not in passage_times_at_stops[second_route_id] or arrival_at_transfer_tuple is None:
-                    continue
-                passage_times = passage_times_at_stops[second_route_id][departure_transfer_stop_id]
-                first_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if max(stop_tuple[4], stop_tuple[3]) >= arrival_at_transfer_tuple[4] - time_limit), None)
-                original_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == second_trip_id), None)
-                if first_departure_from_transfer_tuple is None or original_departure_from_transfer_tuple is None:
-                    continue
-                new_planned_arrival_time = first_departure_from_transfer_tuple[3]
-                original_planned_arrival_time = original_departure_from_transfer_tuple[3]
-                if new_planned_arrival_time < original_planned_arrival_time:
-                    ### Update the leg 
-                    new_second_trip_id = first_departure_from_transfer_tuple[2]
-                    legs[i] = (legs[i][0], legs[i][1], new_second_trip_id)
-                    counter +=1
-            request["legs"] = legs
+            #     ### Check the planned arrival time of the vehicle at the departure_transfer_stop_id
+            #     if departure_transfer_stop_id not in passage_times_at_stops[second_route_id] or arrival_at_transfer_tuple is None:
+            #         continue
+            #     passage_times = passage_times_at_stops[second_route_id][departure_transfer_stop_id]
+            #     first_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if max(stop_tuple[4], stop_tuple[3]) >= arrival_at_transfer_tuple[4] - time_limit), None)
+            #     original_departure_from_transfer_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == second_trip_id), None)
+            #     if first_departure_from_transfer_tuple is None or original_departure_from_transfer_tuple is None:
+            #         continue
+            #     new_planned_arrival_time = first_departure_from_transfer_tuple[3]
+            #     original_planned_arrival_time = original_departure_from_transfer_tuple[3]
+            #     if new_planned_arrival_time < original_planned_arrival_time:
+            #         ### Update the leg 
+            #         new_second_trip_id = first_departure_from_transfer_tuple[2]
+            #         legs[i] = (legs[i][0], legs[i][1], new_second_trip_id)
+            #         counter +=1
+            # request["legs"] = legs
             updated_resquests[request_id] = request
         ### Update the requests_df
         updated_requests_df = pd.DataFrame.from_dict(updated_resquests, orient="index")

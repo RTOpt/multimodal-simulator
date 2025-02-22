@@ -4,6 +4,7 @@ import os
 import json
 import ast
 import csv
+from fixed_line.stl_network_analysis import get_route_dictionary
 
 def generate_duration_test_instance(name : str,
                                     date: str,
@@ -49,7 +50,7 @@ def generate_duration_test_instance(name : str,
     else:
         filtered_trips_df = trips_df
     # concatenate the trip_ids to keep
-    trip_ids_to_keep = list(trip_ids_to_keep)
+    trip_ids_to_keep = list(set(trip_ids_to_keep))
     trip_ids_to_keep += list(filtered_trips_df['trip_id'].unique())
     trips_df = trips_df[trips_df['trip_id'].isin(trip_ids_to_keep)]
     trips_df.to_csv(os.path.join(output_path, "trips.txt"), index=False)
@@ -172,33 +173,36 @@ def filter_requests(date, selected_trip_ids, name, all_trip_ids =[], base_path=o
     for _, row in requests_df.iterrows():
         legs = ast.literal_eval(row['legs'])  # Convert string representation of list to actual list
         if len(all_trip_ids) == 0:
-            filtered_legs = [leg for leg in legs if leg[2] in selected_trip_ids]
+            # filtered_legs = [leg for leg in legs if leg[2] in selected_trip_ids]
+            filtered_requests.append(row)
         else: 
             is_allowed = len([leg for leg in legs if leg[2] in selected_trip_ids]) > 0
-            if is_allowed == False:
-                continue
-            filtered_legs = [leg for leg in legs if leg[2] in all_trip_ids]
+            if is_allowed:
+                is_allowed = is_allowed and len(legs)== len([leg for leg in legs if leg[2] in all_trip_ids])
+            if is_allowed:
+                filtered_requests.append(row)
+        #     filtered_legs = [leg for leg in legs if leg[2] in all_trip_ids]
         
-        # If there is at least one leg with a selected trip_id, update the request
-        if len(filtered_legs)>0:
-            if len(filtered_legs) == len(legs):
-                # Keep the request as is if all legs are selected
-                filtered_requests.append(row)
-            elif len(filtered_legs) == 1:
-                # Update the request if only one leg is kept
-                row['origin'] = filtered_legs[0][0]
-                row['destination'] = filtered_legs[0][1]
-                row['legs'] = str([filtered_legs[0]])
-                filtered_requests.append(row)
-            elif len(filtered_legs) == 2:
-                # Check if the two legs are consecutive
-                if filtered_legs[0][1] == filtered_legs[1][0]:
-                    # Update the request to keep the consecutive legs
-                    row['origin'] = filtered_legs[0][0]
-                    row['destination'] = filtered_legs[1][1]
-                    row['legs'] = str(filtered_legs)
-                    filtered_requests.append(row)
-                # Remove the request if the first and last leg were kept (not consecutive)
+        # # If there is at least one leg with a selected trip_id, update the request
+        # if len(filtered_legs)>0:
+        #     if len(filtered_legs) == len(legs):
+        #         # Keep the request as is if all legs are selected
+        #         filtered_requests.append(row)
+        #     elif len(filtered_legs) == 1:
+        #         # Update the request if only one leg is kept
+        #         row['origin'] = filtered_legs[0][0]
+        #         row['destination'] = filtered_legs[0][1]
+        #         row['legs'] = str([filtered_legs[0]])
+        #         filtered_requests.append(row)
+        #     elif len(filtered_legs) == 2:
+        #         # Check if the two legs are consecutive
+        #         if filtered_legs[0][1] == filtered_legs[1][0]:
+        #             # Update the request to keep the consecutive legs
+        #             row['origin'] = filtered_legs[0][0]
+        #             row['destination'] = filtered_legs[1][1]
+        #             row['legs'] = str(filtered_legs)
+        #             filtered_requests.append(row)
+        #         # Remove the request if the first and last leg were kept (not consecutive)
 
     # Create a new dataframe with the filtered requests
     filtered_requests_df = pd.DataFrame(filtered_requests)
@@ -213,7 +217,7 @@ def filter_requests(date, selected_trip_ids, name, all_trip_ids =[], base_path=o
 
     # Create output directory
     output_path = os.path.join(base_path, f"{date}-{name}")
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok = True)
 
     # Save the filtered requests to a new CSV file
     output_requests_path = os.path.join(output_path, "requests.csv")
@@ -266,7 +270,11 @@ if __name__ == "__main__":
     #     generate_duration_test_instance('LargeInstanceAll','gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)  # 3 hours
     date = "2019-11-25"
     route_ids=[]
-    start_time = 13.5*3600  # 2pm with 30 minutes of slack
-    duration = 5.5*3600  # 5 hours to account for the slack time.
-    instance_name = "EveningRushHour"
-    generate_duration_test_instance(instance_name, 'gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)
+    start_time = 15*3600  # 3pm 
+    duration = 2*3600  # 4 hours to account for the slack time.
+    general_instance_name = "EveningRushHour"
+    route_dict = get_route_dictionary()
+    for network_style in route_dict.keys():
+        route_ids = route_dict[network_style]
+        instance_name = general_instance_name + network_style
+        generate_duration_test_instance(instance_name, 'gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)

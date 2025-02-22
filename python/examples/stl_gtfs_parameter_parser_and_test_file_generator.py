@@ -2,20 +2,24 @@ import sys
 import os
 import json
 from itertools import product
+from fixed_line.stl_network_analysis import get_route_dictionary
 
 sys.path.append(os.path.abspath('../../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
 sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 
-def get_route_dictionary():
-        # Define the route_ids to plot
-    route_ids_dict = {}  # route_ids for each network type.
-    route_ids_dict['grid'] = list(sorted([ '17N', '17S', '151N','151S', '26O', '26O', '42E','42O', '56E', '56O']))  # route_ids for a quadrant style network.
-    route_ids_dict['radial'] = list(sorted(['70O','70E', '31N','31S', '37N', '37S', '39N', '39S', '33N', '33S']))  # route_ids for a radial style network.
-    route_ids_dict['low_frequency'] = list(sorted(['20E', '20O', '222E', '22E', '22O', '52E', '52O', '60E', '66E', '66O', '70O', '74E', '74O', '942E', '942O', '33N', '41S', '41N', '902N'])) # route_ids for a low frequency only network.
-    route_ids_dict['high_frequency'] = list(sorted(['144E', '24E', '26E', '26O', '42E', '42O', '76E', '151N', '46S', '65S', '65N'])) # route_ids for a high frequency only network.
-    route_ids_dict['all'] = list(sorted(['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']))
-    return route_ids_dict
+# def get_route_dictionary():
+#         # Define the route_ids to plot
+#     route_ids_dict = {}  # route_ids for each network type.
+#     route_ids_dict['grid'] = list(sorted([ '17N', '17S', '151S', '151N','26O', '26E', '42E','42O', '76E','76O']))  # route_ids for a quadrant style network.
+#     route_ids_dict['radial'] = list(sorted([ '33N', '33S', '37N', '37S', '39N', '39S','65N', '65S','70O','70E' ]))  # route_ids for a radial style network.
+#     route_ids_dict['low_frequency'] = list(sorted(['22E', '22O', '52E', '52O', '60E', '60O', '66E', '66O', '74E', '74O'])) # route_ids for a low frequency only network.
+#     # route_ids_dict['high_frequency'] = list(sorted(['24E', '24O','26E', '26O', '42E', '42O', '76E','76O', '151N','151S','65S', '65N'])) # route_ids for a high frequency only network.
+#     route_ids_dict['all'] = list(sorted(['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']))
+#     route_ids_dict['151'] =list(sorted(['151S', '151N','40E', '40O', '46E', '46O', '55S', '55N', '56E', '56O', '61S', '61N'])) # route_ids for line 70 and it's transferring lines.
+#     route_ids_dict['corridor'] = list(sorted(['17S', '17N','27S', '27N', '31S', '31N', '73S', '73N'])) # route_ids for the corridor network.
+#     route_ids_dict['transfer_hubs'] = route_ids_dict['all'] # route_ids for the transfer hubs network.
+#     return route_ids_dict
 
 def keep_routes_to_optimize(Case):
     """ Reads the test_trip_dir.json file containing all routes to keep for the optimization and returns a list of valid routes to optimize. """
@@ -215,7 +219,7 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
             f.write(f"### BEGINNING OF PARAMETERS ###\n")
             f.write(f'import os\n')
             f.write(f'import traceback\n')
-            f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-{instance_name}")\n')
+            f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-{instance_name+network_style}")\n')
             f.write(f"requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')\n")
             f.write(f"output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str({date})+'_{instance_name}')\n")
             f.write(f"output_folder_name = 'gtfs2019-11-'+str({date})+'_{instance_name}'+'_{network_style}'\n")
@@ -229,10 +233,11 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
         f.close()
     
 ### Main code
-# for network_style in ['grid', 'radial', 'all', 'low_frequency', 'high_frequency']:
-#     combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-#     combinations_single = read_combinations_from_file(combinations_file_name)
-#     combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-#     instance_name = 'EveningRushHour'
-#     create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-#     create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+
+for network_style in get_route_dictionary().keys():
+    combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+    combinations_single = read_combinations_from_file(combinations_file_name)
+    combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+    instance_name = 'EveningRushHour'
+    create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+    create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)

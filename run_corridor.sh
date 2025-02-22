@@ -3,8 +3,8 @@
 #SBATCH --time=89:59:00
 #SBATCH --partition=optimumlong
 #SBATCH --cpus-per-task=1
-#SBATCH --output=python/examples/fixed_line/test_files_multi_low_frequency/slurm_output_%A_%a.out
-#SBATCH --error=python/examples/fixed_line/test_files_multi_low_frequency/slurm_error_%A_%a.err
+#SBATCH --output=python/examples/fixed_line/test_files_multi_corridor/slurm_output_%A_%a.out
+#SBATCH --error=python/examples/fixed_line/test_files_multi_corridor/slurm_error_%A_%a.err
 #SBATCH --array=0-12  # 13 tasks for 13 test files
 
 # Change to the correct working directory
@@ -14,7 +14,7 @@ cd /home/kollau/Recherche_Kolcheva/Simulator
 source /home/kollau/.conda/envs/SimulatorKolcheva/bin/activate
 
 # Define the base directory
-BASE_DIR="python/examples/fixed_line/test_files_multi_low_frequency"
+BASE_DIR="python/examples/fixed_line/test_files_multi_corridor"
 
 # Manually define the list of test files (ensure this is in correct order)
 TEST_FILES=(

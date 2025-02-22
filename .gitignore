@@ -148,3 +148,9 @@ python/examples/fixed_line/test_files_low_frequency/
 python/examples/fixed_line/test_files_high_frequency/
 python/examples/fixed_line/test_files_multi_low_frequency/
 python/examples/fixed_line/test_files_multi_high_frequency/
+python/examples/fixed_line/test_files_151/
+python/examples/fixed_line/test_files_multi_151/
+python/examples/fixed_line/test_files_corridor/
+python/examples/fixed_line/test_files_multi_corridor/
+python/examples/fixed_line/test_files_transfer_hubs/
+python/examples/fixed_line/test_files_multi_transfer_hubs/
