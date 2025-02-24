@@ -466,8 +466,7 @@ route_dict = get_route_dictionary()
 data_name = 'gtfs2019-11-25_EveningRushHour'
 for grid_style in route_dict:
     instance_name = data_name+'_'+grid_style
-    data_gtfs_name = data_name.replace('_','-')
-    requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
+    requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+grid_style)
     for route_ids_list in [route_dict[grid_style]]:
         for transfer_type in [0,1,2]:
             # Run the function to compare and plot passenger travel times across different parameters for line 70E
