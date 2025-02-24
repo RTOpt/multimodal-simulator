@@ -1,5 +1,6 @@
 #STL confidential data 
 data/fixed_line/gtfs/
+data/fixed_line/CAP_month/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
