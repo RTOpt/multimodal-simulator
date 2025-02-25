@@ -97,18 +97,9 @@ def get_request_transfer_data(requests_file_path):
                     transfers[request_id] = current_number_transfers
     return(transfers, total_transfers, request_legs)
 
-def get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
-    """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
-    from the results of a simulation run.
-    In order to retrieve missed transfers we compare the vehicles used in the simulation for each leg of each request with the vehicles
-    that were used in the optimal solution for the same leg. If the vehicles are different, we consider the transfer as missed.
-    This is true because the original assigned vehicle is the best possible option for the passenger to make the transfer. If a passenger misses that vehicle, 
-    they are re-assigned to the next vehicle on the same line"""
-    trips_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_observations_df.csv'))
-    number_of_completed_transfers = 0
-    number_of_missed_transfers = 0
-    
+def get_observations_df(output_folder_path, transfers):
     # We only need the status.ONBOARD for passengers with transfers
+    trips_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_observations_df.csv'))
     request_ids = list(sorted([request_id for request_id in transfers.keys()]))
     trips_observations_df = trips_observations_df[
                         (trips_observations_df['Status'].isin(['PassengersStatus.ONBOARD'])) &
@@ -120,6 +111,31 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
     
     #Sort by ID and time
     trips_observations_df = trips_observations_df.sort_values(by=['ID', 'Time'])
+    return trips_observations_df
+
+def get_no_tactics_boarding_times(trips_observations_df, transfers):
+    request_ids = list(sorted([request_id for request_id in transfers.keys()]))
+    boarding_times = {}
+    for request_id in request_ids:
+        boarding_times[request_id] = []
+    for index, row in trips_observations_df.iterrows():
+        request_id = row['ID']
+        boarding_times[request_id].append((str(row['Assigned vehicle']), int(row['Time'])))
+    return boarding_times
+
+def get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times):
+    """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
+    from the results of a simulation run.
+    In order to retrieve missed transfers we compare the vehicles used in the simulation for each leg of each request with the vehicles
+    that were used in the optimal solution for the same leg. If the vehicles are different, we consider the transfer as missed.
+    This is true because the original assigned vehicle is the best possible option for the passenger to make the transfer. If a passenger misses that vehicle, 
+    they are re-assigned to the next vehicle on the same line"""
+    number_of_completed_transfers = 0
+    number_of_missed_transfers = 0
+    
+    # We only need the status.ONBOARD for passengers with transfers
+    trips_observations_df = get_observations_df(output_folder_path, transfers)
+    request_ids = list(sorted([request_id for request_id in transfers.keys()]))
 
     #There are multiple rows for each request_id, each one corresponding to a leg of the trip
     #We need to check if the vehicle is the same for each leg of the trip
@@ -132,7 +148,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
         request_legs_list = request_legs[request_id]
         if row_index >= len(trips_observations_df):
             not_completed_requests.append(request_id)
-            break
+            continue
         row = trips_observations_df.iloc[row_index]
         row_request_id = row['ID']
         while row_request_id != request_id and i < len(request_ids):
@@ -144,7 +160,9 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
             break
         first_leg = True
         completed_requests += 1
+        leg_index = -1
         for leg in request_legs_list:
+            leg_index += 1
             if row_request_id == request_id:
                 if first_leg:
                     first_leg = False
@@ -155,11 +173,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
                         break
                     row_request_id = row['ID']
                     continue
-                #Check if the vehicle is the same for each leg of the trip
-                if str(int(trips_observations_df.iloc[row_index]['Assigned vehicle'])) != leg[2]:
-                    number_of_missed_transfers += 1
-                else:
-                    number_of_completed_transfers += 1
+                number_of_completed_transfers += 1
                 row_index += 1
                 if row_index < len(trips_observations_df):
                     row = trips_observations_df.iloc[row_index]
@@ -225,8 +239,8 @@ def get_travel_time_stats(output_folder_path, transfers, not_completed_requests)
             transfer_times.append(row['transfer_time'])
     return(total_times, transfer_times)
 
-def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs):
-    number_of_completed_transfers, percentage_missed_transfers, not_completed_requests= get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs)
+def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times = None):
+    number_of_completed_transfers, percentage_missed_transfers, not_completed_requests= get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
     total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers, not_completed_requests)
     return(number_of_completed_transfers, percentage_missed_transfers, transfer_times, total_times)
 
@@ -292,7 +306,8 @@ def plot_single_line_comparisons(instance_name,
     baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
         print('NO TACTICS')
-        number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs)
+        no_tactics_boarding_times = get_no_tactics_boarding_times(get_observations_df(baseline_folder, transfers), transfers)
+        number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs, no_tactics_boarding_times)
      # Ensure the baseline file exists
     if not os.path.exists(baseline_file):
         raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
