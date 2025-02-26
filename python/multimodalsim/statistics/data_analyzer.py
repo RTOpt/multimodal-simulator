@@ -227,7 +227,7 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def get_trip_status_duration_statistics(self):
         trips_df = self.data_container.get_observations_table_df(
                 self.__trips_table_name)
-        self.__create_trip_details_df(trips_df, "trips")
+        # self.__create_trip_details_df(trips_df, "trips")
         return self.__generate_status_duration_stats(trips_df, "trips")
 
     def get_boardings_alightings_stats(self):

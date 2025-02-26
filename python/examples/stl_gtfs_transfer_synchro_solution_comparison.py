@@ -197,7 +197,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
     if total_transfers != number_of_missed_transfers + number_of_completed_transfers:
         print('Error in counting transfers')
     percentage_missed_transfers = (number_of_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
-    return(number_of_completed_transfers, percentage_missed_transfers, not_completed_requests)
+    return(number_of_completed_transfers, percentage_missed_transfers)
 
 def old_get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
     """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
@@ -226,30 +226,113 @@ def old_get_transfer_stats(output_folder_path, transfers, total_transfers, reque
     percentage_missed_transfers = (number_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
     return(number_of_completed_transfers, number_missed_transfers, percentage_missed_transfers)
 
-def get_travel_time_stats(output_folder_path, transfers, not_completed_requests):
+def get_travel_time_stats(output_folder_path, transfers):
     total_times = []
     transfer_times = []
     # Get total travel time for all passengers (not only transfer passengers)
-    trips_details_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_details_observations_df.csv'))
+    create_trip_details_df(output_folder_path=output_folder_path)
+    trips_details_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_details_observations_df_new.csv'))
     for index, row in trips_details_observations_df.iterrows():
         total_time = row['wait_before_boarding'] + row['onboard_time'] + row['transfer_time']
-        if row['id'] in not_completed_requests:
-            total_time += 3600 # 30 minutes penalty for not completing the trip
+        # if row['id'] in not_completed_requests:
+        #     total_time += 3600 # 30 minutes penalty for not completing the trip
         total_times.append(total_time)
         if row['id'] in transfers.keys():
             transfer_times.append(row['transfer_time'])
     return(total_times, transfer_times)
 
+def create_trip_details_df(output_folder_path):
+    nbr_passengers_no_bus = 0
+    observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_observations_df.csv'))
+    observations_details = []
+    id_col = "ID"
+    status_col = 'Status'
+    time_col = 'Time'
+    ## first clean data of all rows for which 'status' is 'PassengersStatus.ASSIGNED'
+    observations_sorted = observations_df[observations_df['Status'].isin(['PassengersStatus.ONBOARD', 'PassengersStatus.READY', 'PassengersStatus.COMPLETE', 'PassengersStatus.RELEASE'])]
+    observations_sorted = observations_sorted.sort_values(by=[id_col, time_col], ascending =[True, True], inplace=False)
+    observations_sorted["duration"] = observations_sorted[time_col]. \
+        transform(lambda s: s.shift(-1) - s)
+    ### if status is 'PassengersStatus.COMPLETE' the 'duration' should be equal to 0
+    observations_sorted.loc[observations_sorted[status_col] == 'PassengersStatus.COMPLETE', 'duration'] = 0
+    ### For each group, wait before boarding is the duration of the first row with status 'PassengersStatus.Ready' before the first row with status 'PassengersStatus.ONBOARD'
+    all_id_values = observations_sorted[id_col].unique()
+    for id in all_id_values:
+        group = observations_sorted[observations_sorted[id_col] == id]
+        ready_row = group[group[status_col] == 'PassengersStatus.READY'].head(1)
+        if ready_row.empty:
+            next_legs = group['Next legs'].iat[0]
+            time_penalty = (1+len(literal_eval(next_legs)))*1800
+            transfer_penalty = len(literal_eval(next_legs))*1800
+            wait_before_boarding = 0
+            onboard_time = time_penalty
+            transfer_time = transfer_penalty
+            # print('ready row is empty, passenger did not get a bus at all')
+            # print('Passenger id:', id)
+            nbr_passengers_no_bus += 1
+        else:
+            wait_before_boarding = 0
+            onboard_time = 0
+            transfer_time = 0
+            #check if passenger completer the journey
+            if group[group[status_col] == 'PassengersStatus.COMPLETE'].empty:
+                nbr_passengers_no_bus += 1
+                #Set last row duration to 0 
+                group.loc[group.tail(1).index, 'duration'] = 0
+                #get last row
+                last_row = group.tail(1)
+                # print('Passenger did not complete the journey')
+                # print('Passenger id:', id)
+                # print('Last row:', last_row)
+                #check if ready_row and last row are the same
+                if ready_row.equals(last_row): #passenger never boarded any bus
+                    next_legs = group['Next legs'].iat[0]
+                    time_penalty = (1+len(literal_eval(next_legs)))*1800 # 30 minutes penalty for each leg (including current leg)
+                    transfer_penalty = len(literal_eval(next_legs))*1800
+                    wait_before_boarding += 0
+                    onboard_time += time_penalty
+                    transfer_time += transfer_penalty
+                else:
+                    #get remaining legs
+                    next_legs = last_row['Next legs'].iat[0]
+                    time_penalty = (len(literal_eval(next_legs)))*1800
+                    transfer_penalty =  (len(literal_eval(next_legs)))*1800
+                    # get last row status
+                    last_row_status = last_row[status_col].iat[0]
+                    if last_row_status == 'PassengersStatus.ONBOARD':# current leg has started but we don't know how long it was (this could be improved if we know when the bus trip arrived at the stop.)
+                        time_penalty += 1800
+                    elif last_row_status in ['PassengersStatus.READY', 'PassengersStatus.RELEASE']: # current leg has not started AND it is a transfer (not the fist leg)
+                        transfer_penalty += 1800
+                        time_penalty += 1800
+                    wait_before_boarding += 0
+                    onboard_time += time_penalty
+                    transfer_time += transfer_penalty
+            wait_before_boarding += ready_row['duration'].iat[0]
+            onboard_time += sum(group[group[status_col] == 'PassengersStatus.ONBOARD']['duration'])
+            transfer_time += sum(group[group[status_col] == 'PassengersStatus.READY']['duration']) - wait_before_boarding
+        observation = {
+            "id" : id,
+            "wait_before_boarding" : wait_before_boarding,
+            "onboard_time" : onboard_time,
+            "transfer_time" : transfer_time
+        }
+        observations_details.append(observation)
+    observations_details_df = pd.DataFrame(observations_details)
+    observations_details_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df_new.csv'), index=False)
+    print('Number of passengers that did not get a bus:', nbr_passengers_no_bus)
+    return()
+
 def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times = None):
-    number_of_completed_transfers, percentage_missed_transfers, not_completed_requests= get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
-    total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers, not_completed_requests)
+    number_of_completed_transfers, percentage_missed_transfers = get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
+    total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers)
     return(number_of_completed_transfers, percentage_missed_transfers, transfer_times, total_times)
 
 def plot_single_line_comparisons(instance_name,
                                  requests_file_path,
                                  line_name="70E",
                                  base_folder="output/fixed_line/gtfs",
-                                 transfer_type = 0):
+                                 transfer_type = 0,
+                                 network_style = ''):
     """ 
     Compare the passenger travel times for across different algorithms and settings.
 
@@ -354,7 +437,7 @@ def plot_single_line_comparisons(instance_name,
     if transfer_type == 0:
         transfers_label = "Missed Transfers (%)"
     elif transfer_type == 1:
-        transfers_label = "Number of transfers"
+        transfers_label = "Number of successful\ntransfers"
     else:
         transfers_label = "Mean transfer time\n(in minutes)"
     fontsize = 16
@@ -418,6 +501,8 @@ def plot_single_line_comparisons(instance_name,
         ax.text(pos, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=mean_color)
     # Set ylim for first y-axis
     ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
+    # ax.set_ylim(0, max([max(group) for group in data]) * 1)  # Set y-limit for better visibility
+    ax.set_ylim(0, 100)  # Set y-limit for better visibility
 
     # Plot missed transfer percentages as points on the secondary y-axis
     ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label, markersize=transfers_marker_size)
@@ -425,6 +510,7 @@ def plot_single_line_comparisons(instance_name,
     for i, value in enumerate(missed_transfer_percentages):
         ax2.text(positions[i]-0.05, value+0.1, f'{value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=transfers_color)
     ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
+    ax2.set_ylim(6, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
     # Set tick label color for the secondary y-axis
 
     if transfer_type == 0:
@@ -440,11 +526,22 @@ def plot_single_line_comparisons(instance_name,
     ax.set_xticklabels(group_tick_labels, fontsize=16)
 
     # Set primary y-axis parameters, remove last character from line_name for title
+    lines_str_dict = {}
     if len(line_name)>10:
         all_lines_string = 'All lines'
     else:
         all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
-    ax.set_title(f"Comparison of passenger travel and transfer times\nfor line(s) {all_lines_string}", fontsize=18)
+    lines_str_dict[''] = all_lines_string
+    lines_str_dict['all'] = 'all lines.'
+    lines_str_dict['grid']= 'lines in grid sub-network.'
+    lines_str_dict['low_frequency'] = 'lines in low frequency sub-network.'
+    lines_str_dict['high_frequency'] = 'lines in high frequency sub-network.'
+    lines_str_dict['radial'] = 'lines in radial sub-network.'
+    lines_str_dict['corridor'] = 'lines in corridor sub-network.'
+    lines_str_dict['151'] = "line 151 and it's connecting lines."
+    lines_str_dict['transfer_hubs'] = 'optimization around transfer hubs.'
+    all_lines_string = lines_str_dict[network_style]
+    ax.set_title(f"Comparison of passenger travel and transfer times\nfor {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
     
@@ -480,19 +577,20 @@ def plot_single_line_comparisons(instance_name,
 instance_name = "gtfs2019-11-27_LargeInstanceAll"
 route_dict = get_route_dictionary()
 data_name = 'gtfs2019-11-25_EveningRushHour'
-for grid_style in route_dict:
-    print('Gettin stats for network style:', grid_style)
-    instance_name = data_name+'_'+grid_style
-    requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+grid_style)
-    for route_ids_list in [route_dict[grid_style]]:
+for network_style in route_dict:
+# for network_style in ['radial']:
+    print('Getting stats for network style:', network_style)
+    instance_name = data_name+'_'+network_style
+    requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+network_style)
+    for route_ids_list in [route_dict[network_style]]:
         for transfer_type in [0,1,2]:
             # Run the function to compare and plot passenger travel times across different parameters for line 70E
-            plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type)
+            plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
 # Run the function to compare and plot passenger travel times across different parameters for line 70E
 # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
 # instance_name = data_name
 # data_gtfs_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
-# route_ids_list = [["17N", "151S", "26E", "42E", "56E"],"42E"]
+# route_ids_list = ["17N", "151S", "26E", "42E", "56E"]
 # requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
 # for transfer_type in [0,1,2]:
-#     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type)
+#     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style='')

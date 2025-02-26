@@ -1184,6 +1184,52 @@ class FixedLineDispatcher(Dispatcher):
                     previous_time = stop.arrival_time
                     return next_time - previous_time
     
+    def generate_PI_bus_trip(self, stops, prev_stop, transfer_times, last_stop, initial_flow, second_trip):
+        """Generates a trip for a route with stops and previous time prev_time for the Perfect Information algorithm.
+        Inputs:
+            - stops: list of Stops
+            - prev_stop: Stop
+            - transfer_times: dict
+            - last_stop: Stop, the last stop at which tactics are allowed
+            - initial_flow: int, the initial flow of passengers
+        Outputs:
+            - new_stops: list of Stops
+            - transfers: dict
+                The format is as follows:
+                transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
+        new_stops = stops
+        transfers = {}
+        for i in range(len(stops)):
+            stop = stops[i]
+            boarding_transfer_times = []
+            alighting_transfer_times = []
+            for trip in stop.passengers_to_alight:
+                if trip.current_leg is not None and trip.current_leg.destination.label == stop.location.label:
+                    if len(trip.next_legs) > 0:
+                        next_leg_route_name = trip.next_legs[0].route_name
+                        if int(stop.location.label) in transfer_times:
+                            min_time = -1
+                            for (time, route_name, interval) in transfer_times[int(stop.location.label)]:
+                                if route_name == next_leg_route_name:
+                                    if min_time == -1 or time < min_time:
+                                        min_time = time
+                            if min_time != -1:
+                                alighting_transfer_times.append((min_time, interval))
+            for trip in stop.passengers_to_board:
+                if trip.current_leg is not None and trip.current_leg.origin.label == stop.location.label:
+                    if len(trip.previous_legs) > 0:
+                        time = trip.previous_legs[-1].alighting_time
+                        boarding_transfer_times.append(time)
+            if len(boarding_transfer_times) > 0 or len(alighting_transfer_times) > 0:
+                transfers[int(stop.location.label)] = {}
+                transfers[int(stop.location.label)]['boarding'] = []
+                for item, count in Counter(boarding_transfer_times).items():
+                    transfers[int(stop.location.label)].append((item, count, 0))
+                transfers[int(stop.location.label)]['alighting'] = []
+                for item, count in Counter(alighting_transfer_times).items():
+                    transfers[int(stop.location.label)].append((item[0], count, item[1]))
+        return new_stops, transfers
+            
     def generate_bus_trip(self, stops, prev_stop, transfer_times, last_stop = -1, initial_flow = 0, second_trip = False):
         """Generates a trip for a route with stops and previous time prev_time.
         Inputs:
@@ -1197,6 +1243,8 @@ class FixedLineDispatcher(Dispatcher):
             - transfers: dict
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
+        if self.algo == 3: # Perfect Information
+            return self.generate_PI_bus_trip(stops, prev_stop, transfer_times, last_stop, initial_flow, second_trip)
         new_stops =[]
         transfers = {}
         # Laura: If  re-opt at arrival, prev_stop becomes the current stop. Prev_time becomes current_stop.departure_time
@@ -1358,10 +1406,13 @@ class FixedLineDispatcher(Dispatcher):
         if type_boarding == 2:
             count = 0
             passengers_to_board = stop.passengers_to_board
-            for trip in passengers_to_board:
-                first_leg = trip.next_legs[0] # We are looking for boarding without a transfer.
-                if first_leg.origin.label == stop.location.label and trip.current_leg == None and trip.previous_legs == []:
+            for trip in passengers_to_board: # We are looking for boarding without a transfer.
+                if trip.current_leg != None and trip.current_leg.origin.label == stop.location.label and trip.next_legs == [] and trip.previous_legs == []: 
                     count += 1
+                if len(trip.next_legs) > 0:
+                    first_leg = trip.next_legs[0]
+                    if first_leg.origin.label == stop.location.label and trip.current_leg == None and trip.previous_legs == []:
+                        count += 1
             return count
         
         route_name = self.route_name
@@ -1393,7 +1444,7 @@ class FixedLineDispatcher(Dispatcher):
                 if (trip.current_leg != None and trip.next_legs == [] and trip.current_leg.destination.label == stop.location.label):
                     count += 1
                 if (trip.current_leg == None and trip.next_legs != [] and trip.next_legs[-1].destination.label == stop.location.label):
-                        count += 1
+                    count += 1
             if count <= initial_flow:
                 return count
             else:
@@ -1427,9 +1478,14 @@ class FixedLineDispatcher(Dispatcher):
             count = 0
             passengers_to_board = stop.passengers_to_board
             for trip in passengers_to_board:
-                if (trip.current_leg != None and trip.next_legs != [] and trip.next_legs[0].origin.label == stop.location.label):
-                    count += 1
-                if (trip.current_leg is None):
+                if (trip.current_leg is not None):
+                    for leg in trip.next_legs:
+                        if leg.origin.label == stop.location.label:
+                            count += 1
+                            break
+                    if trip.current_leg.origin.label == stop.location.label and trip.previous_legs != []:
+                        count += 1
+                else:
                     if (trip.previous_legs != [] and trip.next_legs[0].origin.label == stop.location.label):
                         count += 1
                     if (trip.previous_legs == []):
