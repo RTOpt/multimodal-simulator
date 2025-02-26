@@ -74,8 +74,8 @@ def get_route_frequency(route_to_trips, tripid_to_departure_times, route_ids):
                 route_to_frequency[route_id][hour] += 1  # increment frequency.
             else:  # if trip_id not in departure_times mapping.
                 problem_trips += 1  # increment number of problem trips.
-    print('All trips: ', total_trips)  # print total number of trips.
-    print('Problem trips: ', problem_trips)  # print number of problem trips.
+    # print('All trips: ', total_trips)  # print total number of trips.
+    # print('Problem trips: ', problem_trips)  # print number of problem trips.
     return route_to_frequency, nbr_hours
 
 def frequency_to_headway(frequency):

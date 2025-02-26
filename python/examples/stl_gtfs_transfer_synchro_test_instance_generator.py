@@ -39,7 +39,7 @@ def generate_duration_test_instance(name : str,
         selected_trip_ids = selected_trip_ids[selected_trip_ids['route_id'].isin(route_ids)]['trip_id'].unique()
     else:
         selected_trip_ids = selected_trip_ids['trip_id'].unique()
-    print('Selected trip ids:', selected_trip_ids)
+    # print('Selected trip ids:', selected_trip_ids)
     all_trip_ids = pd.read_csv(os.path.join(output_path, "trips.txt"))['trip_id'].unique()
     trip_ids_to_keep = filter_requests(date, selected_trip_ids, name, all_trip_ids, base_path)
 
