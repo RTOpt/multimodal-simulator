@@ -7,7 +7,7 @@ import matplotlib.lines as mlines
 from ast import literal_eval
 import sys
 import numpy as np
-from stl_gtfs_parameter_parser_and_test_file_generator import get_route_dictionary
+from fixed_line.stl_network_analysis import get_route_dictionary
 
 
 sys.path.append(os.path.abspath('../..'))
@@ -147,6 +147,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
         request_id = request_ids[i]
         request_legs_list = request_legs[request_id]
         if row_index >= len(trips_observations_df):
+            i+=1
             not_completed_requests.append(request_id)
             continue
         row = trips_observations_df.iloc[row_index]
@@ -333,7 +334,7 @@ def plot_single_line_comparisons(instance_name,
         if transfer_type == 0:
             missed_transfer_data[key] = percentage_missed_transfers_key#output_data["missed_transfer_percentage_sim2"] 
         elif transfer_type == 1:
-            missed_transfer_data[key] = number_of_completed_transfers_key#output_data["total_transfers_sim2"]
+            missed_transfer_data[key] = int(number_of_completed_transfers_key)#output_data["total_transfers_sim2"]
         else:
             missed_transfer_data[key] = np.mean(transfer_times_key)/60
 
@@ -416,14 +417,14 @@ def plot_single_line_comparisons(instance_name,
         # Annotate the mean value below the mean line
         ax.text(pos, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=mean_color)
     # Set ylim for first y-axis
-    # ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
+    ax.set_ylim(0, max([max(group) for group in data]) * 0.7)  # Set y-limit for better visibility
 
     # Plot missed transfer percentages as points on the secondary y-axis
     ax2.plot(positions, missed_transfer_data.values(), transfers_marker, color=transfers_color, label=transfers_label, markersize=transfers_marker_size)
     # Add values as text annotations above the points
     for i, value in enumerate(missed_transfer_percentages):
         ax2.text(positions[i]-0.05, value+0.1, f'{value:.1f}', ha='center', va='bottom', fontsize=fontsize-2, color=transfers_color)
-    # ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
+    ax2.set_ylim(min(missed_transfer_data.values())*0.7, max(missed_transfer_data.values()) * 1.2)  # Set y-limit for better visibility
     # Set tick label color for the secondary y-axis
 
     if transfer_type == 0:
@@ -480,6 +481,7 @@ instance_name = "gtfs2019-11-27_LargeInstanceAll"
 route_dict = get_route_dictionary()
 data_name = 'gtfs2019-11-25_EveningRushHour'
 for grid_style in route_dict:
+    print('Gettin stats for network style:', grid_style)
     instance_name = data_name+'_'+grid_style
     requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+grid_style)
     for route_ids_list in [route_dict[grid_style]]:
