@@ -600,6 +600,7 @@ class FixedLineDispatcher(Dispatcher):
                                                                   last_stop = last_stop,
                                                                   transfer_times = transfer_times
                                                                   )
+                    print('Transfers:', transfers)
                     # Step b: Build graph (integrating all allowed tactics) from generated scenario
                     G_gen = Graph.build_graph_with_tactics(first_trip_id = bus_trip_id,
                                                            bus_trips = bus_trips,
@@ -912,7 +913,7 @@ class FixedLineDispatcher(Dispatcher):
         # Laura: if re-opt is at arrival time, prev_stop becomes the current stop.
         # prev_stop = main_route.previous_stops[-1] if main_route.previous_stops != [] else None
         prev_stop = main_route.current_stop # We know current stop is not None.
-        bus_trips[main_route.vehicle.id], transfers[main_route.vehicle.id] = self.generate_bus_trip(stops, prev_stop, transfer_times[main_route.vehicle.id], last_stop)
+        bus_trips[main_route.vehicle.id], transfers[main_route.vehicle.id] = self.generate_bus_trip(stops, prev_stop, transfer_times[main_route.vehicle.id], last_stop=last_stop)
         next_route_prev_stop = next_route.previous_stops[-1] if next_route.previous_stops != [] else None
         bus_trips[next_route.vehicle.id], transfers[next_route.vehicle.id] = self.generate_bus_trip(next_stops, next_route_prev_stop, transfer_times[next_route.vehicle.id], second_trip=True)
         return (bus_trips, transfers)
@@ -1197,6 +1198,9 @@ class FixedLineDispatcher(Dispatcher):
             - transfers: dict
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
+        print('Last stop', last_stop)
+        print('initial flow', initial_flow)
+        print('second trip', second_trip)
         new_stops = stops
         transfers = {}
         for i in range(len(stops)):
@@ -1220,14 +1224,14 @@ class FixedLineDispatcher(Dispatcher):
                     if len(trip.previous_legs) > 0:
                         time = trip.previous_legs[-1].alighting_time
                         boarding_transfer_times.append(time)
-            if len(boarding_transfer_times) > 0 or len(alighting_transfer_times) > 0:
+            if (len(boarding_transfer_times) > 0 or len(alighting_transfer_times) > 0) and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
                 transfers[int(stop.location.label)] = {}
                 transfers[int(stop.location.label)]['boarding'] = []
                 for item, count in Counter(boarding_transfer_times).items():
-                    transfers[int(stop.location.label)].append((item, count, 0))
+                    transfers[int(stop.location.label)]['boarding'].append((item, count, 0))
                 transfers[int(stop.location.label)]['alighting'] = []
                 for item, count in Counter(alighting_transfer_times).items():
-                    transfers[int(stop.location.label)].append((item[0], count, item[1]))
+                    transfers[int(stop.location.label)]['alighting'].append((item[0], count, item[1]))
         return new_stops, transfers
             
     def generate_bus_trip(self, stops, prev_stop, transfer_times, last_stop = -1, initial_flow = 0, second_trip = False):
@@ -1244,7 +1248,7 @@ class FixedLineDispatcher(Dispatcher):
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
         if self.algo == 3: # Perfect Information
-            return self.generate_PI_bus_trip(stops, prev_stop, transfer_times, last_stop, initial_flow, second_trip)
+            return self.generate_PI_bus_trip(stops, prev_stop, transfer_times, last_stop=last_stop, initial_flow=initial_flow, second_trip = second_trip)
         new_stops =[]
         transfers = {}
         # Laura: If  re-opt at arrival, prev_stop becomes the current stop. Prev_time becomes current_stop.departure_time

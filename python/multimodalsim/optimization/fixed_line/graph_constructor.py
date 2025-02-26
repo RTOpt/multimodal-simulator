@@ -1113,8 +1113,11 @@ class Graph:
         order.append( (last_departure_times[second_bus], second_bus))
         time_min = min(order[0][0], order[1][0])
         last_stop_second_bus = bus_trips[second_bus][-1]
-
-        time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers, interval) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
+        
+        if int(last_stop_second_bus.location.label) in transfers[second_bus]:
+            time_max = 100 + max( [last_stop_second_bus.departure_time]+[time for (time, nbr_passengers, interval) in transfers[second_bus][int(last_stop_second_bus.location.label)]['boarding'] + transfers[second_bus][int(last_stop_second_bus.location.label)]['alighting']])
+        else: 
+            time_max = 100 + last_stop_second_bus.departure_time
         if time_max - time_min > price: 
             price = time_max - time_min
         global_source_node = Graph_Node(-1, "d", order[0][0]-2, order[0][0]-2, "normal", 0, 0, -0.1) # General source node for all buses. Need a non-zero time difference between source nodes to avoid MIP constraints.
