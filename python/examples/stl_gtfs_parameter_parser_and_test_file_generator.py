@@ -71,7 +71,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
         all_lines_indiv.extend([lign+dir for lign, dir in product(ligns, dirs)])
     if network_style != '':
         all_lines_indiv = get_route_dictionary()[network_style]
-    print(all_lines_indiv)
+    # print(all_lines_indiv)
     if network_style == '':
         params = {
                 "algo": [0, 1, 2, 3],
@@ -93,7 +93,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
     routes_to_optimize_names=[]
     for route_name in all_lines_indiv:
         routes_to_optimize_names.append([route_name,])
-    print(routes_to_optimize_names)
+    # print(routes_to_optimize_names)
     # Generate combinations with other parameters
     other_combinations = list(product(*values))
 
