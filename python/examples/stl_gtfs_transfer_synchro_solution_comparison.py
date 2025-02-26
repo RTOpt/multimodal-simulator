@@ -389,7 +389,6 @@ def plot_single_line_comparisons(instance_name,
     baseline_folder = get_output_subfolder(output_folder_path, *base_params)
     baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
-        print('NO TACTICS')
         no_tactics_boarding_times = get_no_tactics_boarding_times(get_observations_df(baseline_folder, transfers), transfers)
         number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs, no_tactics_boarding_times)
      # Ensure the baseline file exists
@@ -407,9 +406,12 @@ def plot_single_line_comparisons(instance_name,
     for i, params in enumerate(algo_params):
         sim_folder = get_output_subfolder(output_folder_path, *params)
         if os.path.exists(os.path.join(sim_folder, 'trips_observations_df.csv')):
-            print('ALGO PARAMS', params)
             number_of_completed_transfers_key, percentage_missed_transfers_key, transfer_times_key, total_times_key = get_transfer_and_travel_time_stats(sim_folder, transfers, total_transfers, request_legs)
-        else: 
+        else:
+            print('*** PROBLEM ***')
+            print('ALGO PARAMS', params)
+            print('SIM FOLDER', sim_folder)
+            print('NO DATA')
             continue
         group_index = 1 + i // 3  # Group index based on the 6 groups specified
         key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
