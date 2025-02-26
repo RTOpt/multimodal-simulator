@@ -600,7 +600,6 @@ class FixedLineDispatcher(Dispatcher):
                                                                   last_stop = last_stop,
                                                                   transfer_times = transfer_times
                                                                   )
-                    print('Transfers:', transfers)
                     # Step b: Build graph (integrating all allowed tactics) from generated scenario
                     G_gen = Graph.build_graph_with_tactics(first_trip_id = bus_trip_id,
                                                            bus_trips = bus_trips,
@@ -1198,9 +1197,6 @@ class FixedLineDispatcher(Dispatcher):
             - transfers: dict
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
-        print('Last stop', last_stop)
-        print('initial flow', initial_flow)
-        print('second trip', second_trip)
         new_stops = stops
         transfers = {}
         for i in range(len(stops)):
@@ -1915,10 +1911,6 @@ class FixedLineDispatcher(Dispatcher):
                     new_stop.departure_time = maximum_transfer_time
             else: 
                 new_stop.departure_time = new_stop.departure_time + 60
-        # else: # tactic = none and nothing to do
-        #     print('No tactic applied')
-        #     # Show new stop
-        #     print('Stop ', stop.location.label, ' - arrival time = ', new_stop.arrival_time, ' - departure time = ', new_stop.departure_time)
         prev_time = new_stop.departure_time
         return(new_stop, prev_time)
     
