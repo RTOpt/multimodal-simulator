@@ -10,6 +10,7 @@ routes_to_optimize_names =  ['144E', '144O', '20E', '20O', '222E', '222O', '22E'
 algo = 0
 sp = False
 ss = False
+is_corridor = False
 ### END OF PARAMETERS ###
 
 import sys
@@ -40,7 +41,8 @@ try:
                         output_folder_name = output_folder_name,
                         logger = logger,
                         logging_level = logging_level,
-                        is_from_smartcard_data = True
+                        is_from_smartcard_data = True,
+                        is_corridor = is_corridor
                         )
     final_time = time.time() - start_time
     print('Execution time: ', final_time)

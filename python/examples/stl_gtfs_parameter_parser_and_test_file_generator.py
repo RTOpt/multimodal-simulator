@@ -70,6 +70,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
         dirs = Case[case]['dirs']
         all_lines_indiv.extend([lign+dir for lign, dir in product(ligns, dirs)])
     if network_style != '':
+        print('network_style:', network_style)
         all_lines_indiv = get_route_dictionary()[network_style]
     # print(all_lines_indiv)
     if network_style == '':
@@ -189,7 +190,7 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
                         os.remove(file_path_new)
                     os.rmdir(file_path)
             os.rmdir(test_folder_path)
-
+    
     if not os.path.exists(test_folder_path):
         os.makedirs(test_folder_path)
     test_folder_path_D = os.path.join(test_folder_path, 'D')
@@ -227,8 +228,9 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
             f.write(f"algo = {algo}\n")
             f.write(f"sp = {sp}\n")
             f.write(f"ss = {ss}\n")
+            f.write(f"is_corridor = {network_style == 'corridor'}\n")
             f.write(f"### END OF PARAMETERS ###\n")
-            for line in lines[13:]:
+            for line in lines[14:]:
                 f.write(line)
         f.close()
 
@@ -324,9 +326,10 @@ conda deactivate
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
         generate_slurm_script(network_style, array_start=5, array_end = 8)
-        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-        # combinations_single = read_combinations_from_file(combinations_file_name)
-        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-        # instance_name = 'EveningRushHour'
-        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+        combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+        combinations_single = read_combinations_from_file(combinations_file_name)
+        combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+        instance_name = 'EveningRushHour'
+        create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+        create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+    generate_slurm_script('corridor')

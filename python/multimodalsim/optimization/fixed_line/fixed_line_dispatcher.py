@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class FixedLineDispatcher(Dispatcher):
 
     def __init__(self, config=None, ss = False, sp = False, algo = 0, routes_to_optimize_names = [],
-                 output_folder_path = None):
+                 output_folder_path = None, is_corridor = False):
         super().__init__()
         self.__config = FixedLineDispatcherConfig() if config is None else config
         self.__algo = algo
@@ -36,6 +36,7 @@ class FixedLineDispatcher(Dispatcher):
         self.__skip_stop = self.__config.get_skip_stop(ss)
         self.__horizon = self.__config.get_horizon(ss, sp)
         self.__algo_parameters = self.__config.get_algo_parameters(algo)
+        self.__is_corridor = is_corridor
         self.__walking_vehicle_counter = 0
         self.__CAPACITY = 80
         self.__Data = None
@@ -116,6 +117,10 @@ class FixedLineDispatcher(Dispatcher):
     def routes_to_optimize_names(self):
         return self.__routes_to_optimize_names
     
+    @property
+    def is_corridor(self):
+        return self.__is_corridor
+    
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
         to be considered by the optimization algorithm. For the
@@ -151,7 +156,11 @@ class FixedLineDispatcher(Dispatcher):
             cap_vehicle_id = leg.cap_vehicle_id
             route_name = leg.route_name
             if self.algo != 0:
-                smartcard_route = self.__find_optimal_route_for_leg(leg, [route for route in selected_routes if route.vehicle.route_name == route_name], current_time)
+                if self.is_corridor and route_name in self.routes_to_optimize_names:
+                    routes = [route for route in selected_routes if route.vehicle.route_name in self.routes_to_optimize_names]
+                else:
+                    routes = [route for route in selected_routes if route.vehicle.route_name == route_name]
+                smartcard_route = self.__find_optimal_route_for_leg(leg, routes, current_time)
                 if smartcard_route is not None:
                     optimized_route_plans = self.add_route_to_optimized_route_plans(optimized_route_plans, smartcard_route, leg)
             else:
@@ -168,7 +177,6 @@ class FixedLineDispatcher(Dispatcher):
         return optimized_route_plans
     
     def __find_optimal_route_for_leg(self, leg, selected_routes, current_time):
-
         origin_stop_id = leg.origin.label
         destination_stop_id = leg.destination.label
 

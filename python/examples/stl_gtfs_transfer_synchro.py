@@ -24,7 +24,8 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                        output_folder_name = "gtfs-generated-small",
                        logger = logging.getLogger(__name__),
                        logging_level = logging.INFO,
-                       is_from_smartcard_data = True):
+                       is_from_smartcard_data = True,
+                       is_corridor = False):
     sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
     sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
     sys.path.append(os.path.abspath('../../..'))
@@ -70,7 +71,8 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                                      sp = sp,
                                      algo = algo, 
                                      routes_to_optimize_names = routes_to_optimize_names,
-                                     output_folder_path = output_folder_path)
+                                     output_folder_path = output_folder_path,
+                                     is_corridor = is_corridor)
     Data = {}
     for route_name in routes_to_optimize_names: 
         logger.info("Getting and clustering data for route %s" % route_name)
