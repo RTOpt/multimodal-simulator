@@ -252,9 +252,20 @@ class ShuttleGreedyDispatcher(Dispatcher):
             departure_time = arrival_time
             origin_lon = leg.trip.origin.lon
             origin_lat = leg.trip.origin.lat
-            route_plan.append_next_stop(leg.trip.origin.label, arrival_time,
-                                        departure_time, lon=origin_lon,
-                                        lat=origin_lat, legs_to_board=[leg])
+
+            if route.current_stop is not None \
+                    and leg.trip.origin.label \
+                    == route.current_stop.location.label:
+                # Vehicle is already at the origin stop of the trip, so no need
+                # to append a stop.
+                route_plan.assign_legs_to_board_to_stop([leg],
+                                                        route.current_stop)
+            else:
+                route_plan.append_next_stop(leg.trip.origin.label,
+                                            arrival_time,
+                                            departure_time, lon=origin_lon,
+                                            lat=origin_lat,
+                                            legs_to_board=[leg])
             route_plan.assign_leg(leg)
 
             # Calculate and add drop-off stop.

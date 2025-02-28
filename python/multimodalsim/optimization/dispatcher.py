@@ -360,10 +360,10 @@ class OptimizedRoutePlan:
                     cumulative_distance=cumulative_distance)
 
         if legs_to_board is not None:
-            self.__assign_legs_to_board_to_stop(legs_to_board, stop)
+            self.assign_legs_to_board_to_stop(legs_to_board, stop)
 
         if legs_to_alight is not None:
-            self.__assign_legs_to_alight_to_stop(legs_to_alight, stop)
+            self.assign_legs_to_alight_to_stop(legs_to_alight, stop)
 
         self.__next_stops.append(stop)
 
@@ -398,14 +398,14 @@ class OptimizedRoutePlan:
         first stop corresponding to the destination location."""
         self.__already_onboard_legs.extend(self.route.onboard_legs)
 
-    def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
+    def assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:
             stop.passengers_to_board.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
                 self.assign_leg(leg)
 
-    def __assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
+    def assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
         for leg in legs_to_alight:
             stop.passengers_to_alight.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
