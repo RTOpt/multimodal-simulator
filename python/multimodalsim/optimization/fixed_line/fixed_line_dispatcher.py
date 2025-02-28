@@ -703,10 +703,11 @@ class FixedLineDispatcher(Dispatcher):
             return data
     
     def get_potential_connecting_stop(self, stop, available_connections, potential_connecting_stops):
-        """ Check if the stop is a potential connecting stop for any stop of all stops. If it is, return the stop in all stops that is a potential connecting stop.
+        """ Check if the stop is a potential connecting stop for any stops in potential_connecting_stops.
+        If it is, return the potential connecting stop_id. 
         Inputs:
             - stop: Stop object, the stop to check.
-            - available_connections: dict, the available connections between stops.
+            - available_connections: dict, all available connections between stops.
             - potential_connecting_stops: list, the stops to consider.
         Outputs:
             - connecting_stop_label: int, the label of the stop in potential_connecting_stops that is a potential connection for stop."""
@@ -731,16 +732,15 @@ class FixedLineDispatcher(Dispatcher):
         Outputs:
             - transfer_stop_times: dict, the arrival times of the transfers at the stops.
               The format of the dict is as follows:
-              transfer_stop_times[stop_id : int] = [(arrival_time : int, route_name :str "ligne+dir"), ...]"""
+              transfer_stop_times[stop_id : int] = [(arrival_time : int, route : Route), interval : int]"""
 
         #Get potential transfers stops
         available_connections = state.available_connections
-        all_stops = [int(stop.location.label) for stop in stops]
-        potential_connecting_stops = []
+        all_stops = [int(stop.location.label) for stop in stops] #stop_id of all stops on main route
+        potential_connecting_stops = [] # Stops that have transfers with stops with different stop_id
         for stop in all_stops:
             if stop in available_connections:
                 potential_connecting_stops.append(stop)
-        all_stops = list(set(all_stops))
 
         #Get next vehicles
         next_vehicles = state.next_vehicles
@@ -758,9 +758,9 @@ class FixedLineDispatcher(Dispatcher):
                 stops_to_test += route.next_stops
             for stop in stops_to_test:
                 stop_id_to_test = None
-                if int(stop.location.label) in all_stops:
+                if int(stop.location.label) in all_stops: # stop_id of transfer route appears on main route
                     stop_id_to_test = int(stop.location.label)
-                else:
+                else: #stop_id of transfer route does not appear on main route. Check if a transfer is possible with one of the stops on the main route.
                     stop_id_to_test = self.get_potential_connecting_stop(int(stop.location.label), available_connections, potential_connecting_stops)
                 if stop_id_to_test is not None:
                     main_line_stop = [stop for stop in stops if int(stop.location.label) == stop_id_to_test][0]
@@ -785,7 +785,7 @@ class FixedLineDispatcher(Dispatcher):
                         if current_stop_arrival_time_estimation > 0 and interval > 0:
                             if int(stop.location.label) not in transfer_stop_times:
                                 transfer_stop_times[int(stop.location.label)] = []
-                            transfer_stop_times[int(stop.location.label)].append((current_stop_arrival_time_estimation, route.vehicle.route_name, interval))
+                            transfer_stop_times[int(stop.location.label)].append((current_stop_arrival_time_estimation, (route, stop), interval))
         return transfer_stop_times
     
     def get_arrival_time_estimation(self, route, stop, type_transfer_arrival_time):
@@ -818,7 +818,7 @@ class FixedLineDispatcher(Dispatcher):
             - stops: list, the stops to consider.
             - transfer_times: dict, the arrival times of the transfers at the stops.
               The format of the dict is as follows:
-              transfer_times[stop_id : int] = [(arrival_time : int, route_name : str "ligne+dir", interval : int), ...]
+              transfer_times[stop_id : int] = [(arrival_time : int, route : Route, interval : int), ...]
         Outputs:
             - last: Stop object, the last stop at which tactics are allowed."""
         if len(stops) == 0:
@@ -849,7 +849,7 @@ class FixedLineDispatcher(Dispatcher):
                 tactic = tactic+time
             normal = normal+normal_time
             if stop_id in transfer_times:
-                for (time, route_name, interval) in transfer_times[stop_id]:
+                for (time, route_and_stop, interval) in transfer_times[stop_id]:
                     if normal > time and tactic <= time: #tactics can turn an impossible transfer into a possible one
                         last = stop
         return(last)
@@ -897,7 +897,7 @@ class FixedLineDispatcher(Dispatcher):
         last_stop: Stop object, the last stop at which tactics are allowed.
         transfer_times: dict, the arrival times of the transfers at the stops.
             - The format is as follows:
-                transfer_times[trip_id : str][stop_id : int] = [(arrival_time : int, route_name :str "ligne+dir", interval : int), ...]
+                transfer_times[trip_id : str][stop_id : int] = [(arrival_time : int, route_and_stop: (Route, Stop), interval : int), ...]
 
         Outputs:
         - bus_trips: dict, the trips on the main and next routes.
@@ -1184,7 +1184,7 @@ class FixedLineDispatcher(Dispatcher):
                     previous_time = stop.arrival_time
                     return next_time - previous_time
     
-    def generate_PI_bus_trip(self, stops, prev_stop, transfer_times, last_stop, initial_flow, second_trip):
+    def generate_PI_bus_trip(self, stops, transfer_times, last_stop):
         """Generates a trip for a route with stops and previous time prev_time for the Perfect Information algorithm.
         Inputs:
             - stops: list of Stops
@@ -1197,29 +1197,52 @@ class FixedLineDispatcher(Dispatcher):
             - transfers: dict
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
-        new_stops = stops
+        # get deepcopy of stops
+        new_stops = []
+        for stop in stops:
+            new_stop = copy.deepcopy(stop)
+            new_stops.append(new_stop)
         transfers = {}
         for i in range(len(stops)):
             stop = stops[i]
             boarding_transfer_times = []
             alighting_transfer_times = []
+            # First get real transfers
             for trip in stop.passengers_to_alight:
                 if trip.current_leg is not None and trip.current_leg.destination.label == stop.location.label:
                     if len(trip.next_legs) > 0:
                         next_leg_route_name = trip.next_legs[0].route_name
                         if int(stop.location.label) in transfer_times:
                             min_time = -1
-                            for (time, route_name, interval) in transfer_times[int(stop.location.label)]:
+                            for (time, route_and_stop, interval) in transfer_times[int(stop.location.label)]:
+                                route = route_and_stop[0]
+                                route_name = route.vehicle.route_name
                                 if route_name == next_leg_route_name:
                                     if min_time == -1 or time < min_time:
                                         min_time = time
                             if min_time != -1:
                                 alighting_transfer_times.append((min_time, interval))
+            boarding_passenger_ids = []
             for trip in stop.passengers_to_board:
+                boarding_passenger_ids.append(trip.id)
                 if trip.current_leg is not None and trip.current_leg.origin.label == stop.location.label:
                     if len(trip.previous_legs) > 0:
                         time = trip.previous_legs[-1].alighting_time
                         boarding_transfer_times.append(time)
+            
+            # Get potential boarding transfers from passengers that have not been re-assigned yet.
+            if int(stop.location.label) in transfer_times:
+                for (time, route_and_stop, interval) in transfer_times[int(stop.location.label)]:
+                    transfer_stop = route_and_stop[1]
+                    for trip in transfer_stop.passengers_to_alight:
+                        if trip.id in boarding_passenger_ids:
+                            continue
+                        if trip.next_legs != [] and trip.next_legs[0].origin.label == stop.location.label:
+                            time = transfer_stop.arrival_time
+                            if time > stop.arrival_time - 300 and time < stop.departure_time + 300:
+                                print('Getting extra boarding passengers for PI')
+                                boarding_transfer_times.append(time)
+
             if (len(boarding_transfer_times) > 0 or len(alighting_transfer_times) > 0) and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
                 transfers[int(stop.location.label)] = {}
                 transfers[int(stop.location.label)]['boarding'] = []
@@ -1244,7 +1267,8 @@ class FixedLineDispatcher(Dispatcher):
                 The format is as follows:
                 transfers[stop_id : int]['boarding'/'alighting'] = [(arrival_time : int, nbr_passengers : int, interval : int), ...]"""
         if self.algo == 3: # Perfect Information
-            return self.generate_PI_bus_trip(stops, prev_stop, transfer_times, last_stop=last_stop, initial_flow=initial_flow, second_trip = second_trip)
+            return self.generate_PI_bus_trip(stops, transfer_times, last_stop=last_stop)
+        
         new_stops =[]
         transfers = {}
         # Laura: If  re-opt at arrival, prev_stop becomes the current stop. Prev_time becomes current_stop.departure_time

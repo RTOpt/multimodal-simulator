@@ -472,24 +472,11 @@ class Graph:
                 for (time, nbr_passengers, interval) in transfers[trip_id][stop_id]['alighting']:
                     if stop_id not in transfer_nodes:
                         transfer_nodes[stop_id] = []
-                    add_flow_to_existing_node = False
-                    for i in range(len(transfer_nodes[stop_id])):
-                        node = transfer_nodes[stop_id][i]
-                        if node.node_time == time:
-                            input("We should never be here as transfers for the same bus are aggregated")
-                            transfer_nodes[stop_id].remove(node)
-                            self.remove_node(node)
-                            node.node_flow = node.node_flow - nbr_passengers
-                            add_flow_to_existing_node = True
-                            od_d_dict[trip_id].append((stop_id, node))
-                            transfer_nodes[stop_id].insert(i, node)
-                            self.add_node(node)
-                            break
-                    if add_flow_to_existing_node == False: 
-                        transfer_node = Graph_Node(stop_id, "a", time, interval, "transfer", -nbr_passengers, level, dist, trip_id)
-                        transfer_nodes[stop_id].append(transfer_node)
-                        self.add_node(transfer_node)
-                        od_d_dict[trip_id].append((stop_id, transfer_node))
+                    # all transfer times are unique
+                    transfer_node = Graph_Node(stop_id, "a", time, interval, "transfer", -nbr_passengers, level, dist, trip_id)
+                    transfer_nodes[stop_id].append(transfer_node)
+                    self.add_node(transfer_node)
+                    od_d_dict[trip_id].append((stop_id, transfer_node))
 
             # Passengers transfering from other lines and boarding main line.
             if len(transfers[trip_id][stop_id]['boarding']) > 0:

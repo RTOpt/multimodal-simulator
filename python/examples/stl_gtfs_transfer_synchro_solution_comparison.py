@@ -575,24 +575,25 @@ def plot_single_line_comparisons(instance_name,
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
     # plt.show()
 
-# Define the test instance name
-instance_name = "gtfs2019-11-27_LargeInstanceAll"
-route_dict = get_route_dictionary()
-data_name = 'gtfs2019-11-25_EveningRushHour'
-for network_style in route_dict:
-# for network_style in ['radial']:
-    print('Getting stats for network style:', network_style)
-    instance_name = data_name+'_'+network_style
-    requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+network_style)
-    for route_ids_list in [route_dict[network_style]]:
-        for transfer_type in [0,1,2]:
-            # Run the function to compare and plot passenger travel times across different parameters for line 70E
-            plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
-# Run the function to compare and plot passenger travel times across different parameters for line 70E
-# data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
-# instance_name = data_name
-# data_gtfs_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
-# route_ids_list = ["17N", "151S", "26E", "42E", "56E"]
-# requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
-# for transfer_type in [0,1,2]:
-#     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style='')
+if __name__ == "__main__":
+    # Define the test instance name
+    instance_name = "gtfs2019-11-27_LargeInstanceAll"
+    route_dict = get_route_dictionary()
+    data_name = 'gtfs2019-11-25_EveningRushHour'
+    # for network_style in route_dict:
+    for network_style in [ '151']:
+        print('Getting stats for network style:', network_style)
+        instance_name = data_name+'_'+network_style
+        requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+network_style)
+        for route_ids_list in [route_dict[network_style]]:
+            for transfer_type in [0,1,2]:
+                # Run the function to compare and plot passenger travel times across different parameters for line 70E
+                plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
+    # Run the function to compare and plot passenger travel times across different parameters for line 70E
+    # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
+    # instance_name = data_name
+    # data_gtfs_name = "gtfs2019-11-25-TestInstanceDurationCASPT_NEW"
+    # route_ids_list = ["17N", "151S", "26E", "42E", "56E"]
+    # requests_file_path = os.path.join('data','fixed_line','gtfs',data_gtfs_name)
+    # for transfer_type in [0,1,2]:
+    #     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style='')

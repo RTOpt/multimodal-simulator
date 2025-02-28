@@ -231,13 +231,102 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
             for line in lines[13:]:
                 f.write(line)
         f.close()
-    
-### Main code
 
-for network_style in get_route_dictionary().keys():
-    combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-    combinations_single = read_combinations_from_file(combinations_file_name)
-    combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-    instance_name = 'EveningRushHour'
-    create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-    create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+
+def generate_slurm_script(
+    network_style: str,
+    array_start: int = 0,
+    array_end: int = 12,
+    mem_per_cpu: int = 16,
+    time: str = "10:00:00",
+    partition: str = "optimum",
+    output_dir: str = "generated_scripts"
+) -> None:
+    """
+    Generates a SLURM script for a given instance with customizable parameters.
+
+    Parameters:
+        network_style (str): Name of the instance for file paths.
+        array_start (int): Start index for SLURM job array. Default is 0.
+        array_end (int): End index for SLURM job array. Default is 10.
+        mem_per_cpu (int): Memory per CPU in GB. Default is 16GB.
+        time (str): Time limit in HH:MM:SS format. Default is 10:00:00.
+        partition (str): SLURM partition name. Default is "optimum".
+        output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
+    """
+    if network_style in ['all', 'grid']:
+        mem_per_cpu = 16
+        time = "90:00:00"
+        partition = "optimumlong"
+    elif network_style in ['radial', 'corridor']:
+        time ="15:00:00"
+    
+    script_content = f"""#!/bin/bash
+#SBATCH --mem-per-cpu={mem_per_cpu}G
+#SBATCH --time={time}
+#SBATCH --partition={partition}
+#SBATCH --cpus-per-task=1
+#SBATCH --output=python/examples/fixed_line/test_files_multi_{network_style}/slurm_output_%A_%a.out
+#SBATCH --error=python/examples/fixed_line/test_files_multi_{network_style}/slurm_error_%A_%a.err
+#SBATCH --array={array_start}-{array_end} # Array between 0 - 12 for maximum of 13 tasks
+
+# Change to the correct working directory
+cd /home/kollau/Recherche_Kolcheva/Simulator
+
+# Load Conda and activate the environment
+source /home/kollau/.conda/envs/SimulatorKolcheva/bin/activate
+
+# Define the base directory
+BASE_DIR="python/examples/fixed_line/test_files_multi_{network_style}"
+
+# Manually define the list of test files
+TEST_FILES=(
+    "$BASE_DIR/D/Test_0.py" "$BASE_DIR/D/Test_1.py" "$BASE_DIR/D/Test_2.py" "$BASE_DIR/D/Test_3.py"
+    "$BASE_DIR/Offline/Test_0.py"
+    "$BASE_DIR/PI/Test_0.py" "$BASE_DIR/PI/Test_1.py" "$BASE_DIR/PI/Test_2.py" "$BASE_DIR/PI/Test_3.py"
+    "$BASE_DIR/R/Test_0.py" "$BASE_DIR/R/Test_1.py" "$BASE_DIR/R/Test_2.py" "$BASE_DIR/R/Test_3.py"
+)
+
+# Select the test file corresponding to this SLURM task
+FILE_TO_RUN=${{TEST_FILES[$SLURM_ARRAY_TASK_ID]}}
+
+# Extract the subfolder and file index
+SUB_DIR=$(dirname "$FILE_TO_RUN")
+FILE_INDEX=$(basename "$FILE_TO_RUN" | sed 's/Test_\\([0-9]*\\)\\.py/\\1/')
+
+# Print debug information
+echo "Running file: $FILE_TO_RUN"
+echo "SLURM Task ID: $SLURM_ARRAY_TASK_ID"
+
+# Run the test file and save output/error logs in its corresponding folder
+python "$FILE_TO_RUN" > "$SUB_DIR/output_${{FILE_INDEX}}.out" 2> "$SUB_DIR/error_${{FILE_INDEX}}.err"
+
+# Deactivate the Conda environment
+conda deactivate
+#end of file
+"""
+    # Output directory 
+    output_dir = os.path.join('python','examples','fixed_line','slurm_scripts')
+
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Define output file path
+    script_filename = os.path.join(output_dir, f"run_{network_style}.sh")
+
+    # Write script to file
+    with open(script_filename, "w") as f:
+        f.write(script_content)
+
+    print(f"SLURM script generated: {script_filename}")
+
+### Main code
+if __name__ == '__main__':
+    for network_style in get_route_dictionary().keys():
+        generate_slurm_script(network_style, array_start=5, array_end = 8)
+        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+        # combinations_single = read_combinations_from_file(combinations_file_name)
+        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+        # instance_name = 'EveningRushHour'
+        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
