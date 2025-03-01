@@ -109,8 +109,8 @@ class Environment(object):
                 self.remove_assigned_trip(trip_id)
                 self.add_assigned_trip(new_trip)
         else:
-            logger.warning("Trip with id {} not found in the environment."
-                           .format(trip_id))
+            # logger.warning("Trip with id {} not found in the environment."
+            #                .format(trip_id))
             #Add trip to the environment
             self.add_trip(new_trip)
             self.add_non_assigned_trip(new_trip)

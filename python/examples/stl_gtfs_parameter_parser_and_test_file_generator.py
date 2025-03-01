@@ -224,7 +224,6 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
                 f.write(line)
         f.close()
 
-
 def generate_slurm_script(
     network_style: str,
     array_start: int = 0,
@@ -247,9 +246,8 @@ def generate_slurm_script(
         output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
     """
     if network_style in ['all', 'grid']:
-        mem_per_cpu = 16
-        time = "90:00:00"
-        partition = "optimumlong"
+        mem_per_cpu = 32
+        time = "47:59:00"
     elif network_style in ['radial', 'corridor']:
         time ="15:00:00"
     
@@ -315,7 +313,7 @@ conda deactivate
 ### Main code
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
-    #     generate_slurm_script(network_style, array_start=5, array_end = 8)
+        generate_slurm_script(network_style)
         combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
         combinations_single = read_combinations_from_file(combinations_file_name)
         combinations_multi = read_combinations_from_file(combinations_multi_file_name)

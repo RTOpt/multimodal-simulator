@@ -87,7 +87,6 @@ class State:
     def get_vehicle_by_id(self, vehicle_id):
         found_vehicle = None
         for vehicle in self.vehicles:
-            logger.warning("vehicle.id={}".format(vehicle.id))
             if vehicle.id == vehicle_id:
                 found_vehicle = vehicle
                 break

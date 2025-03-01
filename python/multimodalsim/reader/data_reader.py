@@ -379,11 +379,11 @@ class GTFSReader(DataReader):
                                 stop_time.arrival_time,
                                 stop_time.departure_time)
 
-                if current_node[2] - previous_node[2] <= 0 \
-                        and previous_node != current_node:
-                    logger.warning("{}: previous_node: {} -> current_node: {}"
-                                   .format(current_node[2] - previous_node[2],
-                                           previous_node, current_node))
+                # if current_node[2] - previous_node[2] <= 0 \
+                #         and previous_node != current_node:
+                #     logger.warning("{}: previous_node: {} -> current_node: {}"
+                #                    .format(current_node[2] - previous_node[2],
+                #                            previous_node, current_node))
 
                 self.__network_graph.add_edge(
                     previous_node, current_node,
@@ -399,10 +399,10 @@ class GTFSReader(DataReader):
                         # Departure time of the second node is greater than or
                         # equal to the arrival time of the first
                         # node. A connection is possible.
-                        if node2[3] - node1[2] < 0:
-                            logger.warning(
-                                "{}: node2: {} -> node1: {}".format(
-                                    node2[3] - node1[2], node2, node1))
+                        # if node2[3] - node1[2] < 0:
+                        #     logger.warning(
+                        #         "{}: node2: {} -> node1: {}".format(
+                        #             node2[3] - node1[2], node2, node1))
                         self.__network_graph.add_edge(
                             node1, node2, weight=node2[3] - node1[2])
 

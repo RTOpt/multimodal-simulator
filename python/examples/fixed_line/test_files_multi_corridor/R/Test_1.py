@@ -11,6 +11,7 @@ algo = 2
 sp = False
 ss = True
 is_corridor = True
+transfer_hubs = []
 ### END OF PARAMETERS ###
 
 import sys
@@ -42,7 +43,8 @@ try:
                         logger = logger,
                         logging_level = logging_level,
                         is_from_smartcard_data = True,
-                        is_corridor = is_corridor
+                        is_corridor = is_corridor,
+                        transfer_hubs = transfer_hubs
                         )
     final_time = time.time() - start_time
     print('Execution time: ', final_time)

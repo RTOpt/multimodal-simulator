@@ -14,7 +14,7 @@ import networkx as nx
 import traceback
 from matplotlib.lines import Line2D
 
-print(matplotlib.__version__)
+# print(matplotlib.__version__)
 
 class Graph_Node:
     """ Class defining the nodes in a graph. 
@@ -1326,10 +1326,10 @@ class Graph:
                     elif (time+1 in departs_current) == False:
                         departs_current[time+1] = skips[time]
                     else:
-                        time = time+1
-                        while (time in departs_current) == True:
-                            time = time+1
-                        departs_current[time] = skips[time]
+                        new_time = time+1
+                        while (new_time in departs_current) == True:
+                            new_time += 1
+                        departs_current[new_time] = skips[time]
                         print('how rare is this?')
 
                 ## Add paths for passengers who missed the previous bus

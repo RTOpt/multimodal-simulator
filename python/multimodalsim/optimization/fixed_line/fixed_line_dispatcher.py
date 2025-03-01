@@ -313,7 +313,7 @@ class FixedLineDispatcher(Dispatcher):
         updated_main_route, skipped_legs, updated_legs = self.update_main_line(state, main_route, sp, ss, h_and_time, queue)
         optimized_route_plans = []
         if ss or sp or h_and_time[0]: #if any tactic is used, we need to update the route
-            logger.info('We use the following tactics: skip-Stop {}, speedup = {}, hold and time {}'.format(ss, sp, h_and_time))
+            # logger.info('We use the following tactics: skip-Stop {}, speedup = {}, hold and time {}'.format(ss, sp, h_and_time))
             # Update the route in the state
             state.route_by_vehicle_id[main_line_id] = updated_main_route
             # Create the optimized route plan
@@ -551,8 +551,8 @@ class FixedLineDispatcher(Dispatcher):
                         break
                 # is_transfer_hub_in_route = any([int(stop.location.label) in self.transfer_hubs for stop in route.next_stops])
             enter_optimization_bool = enter_optimization_bool and is_transfer_hub_in_route
-            if enter_optimization_bool:
-                print('Entering transfer hub radius for route {} and hub {}.'.format(self.route_name, int(stop.location.label)))
+            # if enter_optimization_bool:
+            #     print('Entering transfer hub radius for route {} and hub {}.'.format(self.route_name, int(stop.location.label)))
 
         ### If re-optimizing at arrival, current stop is not None. If optimizing at departure, current stop is None.
         if (not enter_optimization_bool) or \
@@ -681,8 +681,8 @@ class FixedLineDispatcher(Dispatcher):
                         f.write('Error traceback: {}\n'.format(error_traceback))
                     f.close()
                     # Print the error message and traceback
-                    traceback.print_exc()
-                    logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
+                    # traceback.print_exc()
+                    # logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
             else:
                 # Log the error message
                 error_message = 'The scenario generation failed after {} tries.'.format(j_try)
@@ -690,7 +690,7 @@ class FixedLineDispatcher(Dispatcher):
                     f.write('Error message: {}\n'.format(error_message))
                 f.close()
                 # Print the error message
-                logger.warning('The scenario generation failed after {} tries.'.format(j_try))
+                # logger.warning('The scenario generation failed after {} tries.'.format(j_try))
                 #Stop the solution process
                 with open(self.__tactics_file_path, "a") as f:
                     # route_name, bus_trip_id, stop_id, current_time, speedup, skip_stop, hold, max_departure_time, error
@@ -1278,7 +1278,7 @@ class FixedLineDispatcher(Dispatcher):
                         if trip.next_legs != [] and trip.next_legs[0].origin.label == stop.location.label:
                             time = transfer_stop.arrival_time
                             if time > stop.arrival_time - 300 and time < stop.departure_time + 300:
-                                print('Getting extra boarding passengers for PI')
+                                # print('Getting extra boarding passengers for PI')
                                 boarding_transfer_times.append(time)
 
             if (len(boarding_transfer_times) > 0 or len(alighting_transfer_times) > 0) and (last_stop == -1 or stop.cumulative_distance <= last_stop.cumulative_distance):
@@ -1943,8 +1943,8 @@ class FixedLineDispatcher(Dispatcher):
         maximum_transfer_time = time if time != -1 else final_transfer_time
         new_stop = copy.deepcopy(stop) 
         dwell_time = stop.departure_time - stop.arrival_time
-        if dwell_time < 0:
-            logger.warning('Negative dwell time for stop ', stop.location.label, ' -dwell time = ', dwell_time, ' -arrival time = ', stop.arrival_time, ' -departure time = ', stop.departure_time)
+        # if dwell_time < 0:
+        #     logger.warning('Negative dwell time for stop ', stop.location.label, ' -dwell time = ', dwell_time, ' -arrival time = ', stop.arrival_time, ' -departure time = ', stop.departure_time)
         new_stop.arrival_time = prev_time + travel_time
         new_stop.departure_time = new_stop.arrival_time + dwell_time
         if tactic == 'ss':
@@ -2016,8 +2016,8 @@ class FixedLineDispatcher(Dispatcher):
             # G.display_graph(display_flows = display_flows, name = 'Regret_success')
         except Exception as e:
             error_message = 'Optimal tactic is '+ optimal_tactic + '. Error in graph solving for regret calculation for tactic ' + tactic+ ' ...'
-            logger.warning(error_message)
-            traceback.print_exc()
+            # logger.warning(error_message)
+            # traceback.print_exc()
             error_traceback = traceback.format_exc()  # Get full traceback
             with open(self.__error_file_path, "a") as f:
                 f.write('Error message: {}\n'.format(error_message))
@@ -2028,7 +2028,7 @@ class FixedLineDispatcher(Dispatcher):
 
         regret = optimal_value_for_tactic-optimal_value
         if regret < 0:
-            logger.warning('Negative regret value : {}...'.format(regret))
+            # logger.warning('Negative regret value : {}...'.format(regret))
             regret = 0
         return(regret)
     

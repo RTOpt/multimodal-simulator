@@ -244,14 +244,14 @@ class Dispatcher:
             if leg.destination == current_location:
                 self.__remove_passenger_to_alight(leg.trip, route.current_stop)
                 alighting_stop_found = True
-                print('We should never be here...')
+                # print('We should never be here...')
         for stop in route.next_stops:
             if leg.destination == stop.location and not alighting_stop_found:
                 self.__remove_passenger_to_alight(leg.trip, stop)
                 alighting_stop_found = True
-        if not alighting_stop_found:
-            logger.warning("Trip {} could not be removed from stops of route {}."
-                           .format(leg.trip.id, route.vehicle.id))
+        # if not alighting_stop_found:
+        #     logger.warning("Trip {} could not be removed from stops of route {}."
+        #                    .format(leg.trip.id, route.vehicle.id))
 
     def __assign_already_onboard_trip_to_stop(self, leg, route):
         ### Passenger does not alight at current stop, he would already have alighted before the opt.
