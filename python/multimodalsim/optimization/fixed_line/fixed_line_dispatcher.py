@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class FixedLineDispatcher(Dispatcher):
 
     def __init__(self, config=None, ss = False, sp = False, algo = 0, routes_to_optimize_names = [],
-                 output_folder_path = None, is_corridor = False):
+                 output_folder_path = None, is_corridor = False, transfer_hubs = []):
         super().__init__()
         self.__config = FixedLineDispatcherConfig() if config is None else config
         self.__algo = algo
@@ -37,6 +37,7 @@ class FixedLineDispatcher(Dispatcher):
         self.__horizon = self.__config.get_horizon(ss, sp)
         self.__algo_parameters = self.__config.get_algo_parameters(algo)
         self.__is_corridor = is_corridor
+        self.__transfer_hubs = transfer_hubs
         self.__walking_vehicle_counter = 0
         self.__CAPACITY = 80
         self.__Data = None
@@ -49,6 +50,7 @@ class FixedLineDispatcher(Dispatcher):
             self.__tactics_file_path = os.path.join(output_folder_path, "tactics.txt")
             with open(self.__tactics_file_path, "w") as f:
                 f.write("Tactics file path created at {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                f.write('route_name,trip_id,stop_id,current_time,speedup,skip_stop,hold,max_departure_time,error\n')
             f.close()
 
             #Create file to log all errors
@@ -120,6 +122,10 @@ class FixedLineDispatcher(Dispatcher):
     @property
     def is_corridor(self):
         return self.__is_corridor
+    
+    @property
+    def transfer_hubs(self):
+        return self.__transfer_hubs
     
     def prepare_input(self, state):
         """Before optimizing, we extract the legs and the routes that we want
@@ -364,8 +370,12 @@ class FixedLineDispatcher(Dispatcher):
         planned_arrival_time = route.next_stops[0].arrival_time
         planned_departure_time = route.next_stops[0].departure_time
         dwell_time = max(0, planned_departure_time - planned_arrival_time)
-        # Laura: this must be changed if re-opt happens at arrival. We need to consider the arrival time of the current stop + real dwell time
+        # This must be changed if re-opt happens at arrival. We need to consider the arrival time of the current stop + dwell time
+
+        # ***** FOR RE-OPT AT DEPARTURE *****
         # prev_departure_time = route.previous_stops[-1].departure_time ### since the bus just departed from a stop
+
+        # ***** FOR RE-OPT AT ARRIVAL *****
         prev_departure_time = route.current_stop.departure_time ### since the bus just arrived at a stop
         
         # Find the arrival time at the next stop after tactics
@@ -386,7 +396,7 @@ class FixedLineDispatcher(Dispatcher):
         departure_time = arrival_time + dwell_time
 
         # Update the arrival and departure times of the next stop
-        # Laura: the departure time of the current stop is not modified (any tactics for the current stop were applied during re-opt at the previous stop)
+        # The departure time of the current stop is not modified (any tactics for the current stop were applied during re-opt at the previous stop)
         next_stop = route.next_stops[0]
         next_stop.arrival_time = arrival_time
         next_stop.departure_time = departure_time
@@ -530,8 +540,22 @@ class FixedLineDispatcher(Dispatcher):
                 (The output hold time is already treated in the OSO algorithm)"""
         route = self.get_route_by_vehicle_id(state, state.main_line)
         next_route = self.get_route_by_vehicle_id(state, state.next_main_line)
+        enter_optimization_bool = self.route_name in self.routes_to_optimize_names
+        if len(self.transfer_hubs) > 0:
+            is_transfer_hub_in_route = False
+            if route is not None:
+                # Check if any stop.location.label is in transfer hubs
+                for stop in route.next_stops:
+                    if int(stop.location.label) in self.transfer_hubs:
+                        is_transfer_hub_in_route = True
+                        break
+                # is_transfer_hub_in_route = any([int(stop.location.label) in self.transfer_hubs for stop in route.next_stops])
+            enter_optimization_bool = enter_optimization_bool and is_transfer_hub_in_route
+            if enter_optimization_bool:
+                print('Entering transfer hub radius for route {} and hub {}.'.format(self.route_name, int(stop.location.label)))
+
         ### If re-optimizing at arrival, current stop is not None. If optimizing at departure, current stop is None.
-        if (self.route_name not in self.routes_to_optimize_names) or \
+        if (not enter_optimization_bool) or \
            (self.algo == 0) or \
            (route is None) or (next_route is None) or \
            (route.current_stop is None) or \
@@ -544,7 +568,7 @@ class FixedLineDispatcher(Dispatcher):
         bus_next_trip_id = next_route.vehicle.id
 
         # get first stop on first main line bus
-        stop = route.next_stops[0] # Laura: next stops are the same for re-opt at arrival or departure
+        stop = route.next_stops[0] # Next stops are the same for re-opt at arrival or departure
         stop_id = int(stop.location.label)
 
         # Get all stops in horizon for both routes
@@ -556,12 +580,12 @@ class FixedLineDispatcher(Dispatcher):
 
         #Get initial flows for both buses
         initial_flows = {}
-        initial_flows[bus_trip_id] = int(len(route.onboard_legs)) # Laura: onboard legs are the same for re-opt at arrival or departure (alighting passengers already alighted)
+        initial_flows[bus_trip_id] = int(len(route.onboard_legs)) # Onboard legs are the same for re-opt at arrival or departure (alighting passengers already alighted)
         initial_flows[bus_next_trip_id] = int(len(next_route.onboard_legs))
 
         # Get departure times from last visited stop before the control horizon
         last_departure_times = {}
-        # Laura: At this point in time tactics for the current stop have been decided and applied so the departure time is known. 
+        # At this point in time tactics for the current stop have been decided and applied so the departure time is known. 
         last_departure_times[bus_trip_id] = route.current_stop.departure_time # we know current stop is not None.
         last_departure_times[bus_next_trip_id] = next_route.previous_stops[-1].departure_time if next_route.previous_stops != [] else next_route.next_stops[0].arrival_time -1
         if last_departure_times[bus_trip_id] == last_departure_times[bus_next_trip_id]:
@@ -569,7 +593,7 @@ class FixedLineDispatcher(Dispatcher):
 
         # Estimate arrival time of transfers at stops in the control horizon
         transfer_times = {}
-        time_to_prev_next = 900 # Laura: time interval before the arrival at the stop, and after the departure from stop for which to consider transfers (using current delay)
+        time_to_prev_next = 900 # Time interval before the arrival at the stop, and after the departure from stop for which to consider transfers (using current delay)
         transfer_times[bus_trip_id] = self.get_transfer_stop_times(state = state,
                                                                 stops = stops,
                                                                 type_transfer_arrival_time = self.algo_parameters['type_transfer_arrival_time'],
@@ -669,7 +693,9 @@ class FixedLineDispatcher(Dispatcher):
                 logger.warning('The scenario generation failed after {} tries.'.format(j_try))
                 #Stop the solution process
                 with open(self.__tactics_file_path, "a") as f:
-                    f.write('Tactics used for route {} - trip {} at stop {}: None because of error\n'.format(self.route_name, bus_trip_id, stop_id))
+                    # route_name, bus_trip_id, stop_id, current_time, speedup, skip_stop, hold, max_departure_time, error
+                    f.write('{},{},{},{},{},{},{},{},{}\n'.format(self.route_name, bus_trip_id, stop_id, state.current_time, False, False, False, -1, True))
+                    # f.write('Tactics used for route {} - trip {} at stop {}: None because of error\n'.format(self.route_name, bus_trip_id, stop_id))
                 f.close()
                 return(False, False, (False, -1))
                
@@ -679,7 +705,9 @@ class FixedLineDispatcher(Dispatcher):
         if self.__tactics_file_path is not None:
             if not (speedup == 1 or skip_stop == 1 or hold >= 0):
                 with open(self.__tactics_file_path, "a") as f:
-                    f.write('Tactics used for route {} - trip {} at stop {}: None\n'.format(self.route_name, bus_trip_id, stop_id))
+                    # route_name, trip_id, stop_id, current_time, speedup, skip_stop, hold, max_departure_time, error
+                    f.write('{},{},{},{},{},{},{},{},{}\n'.format(self.route_name, bus_trip_id, stop_id, state.current_time, False, False, -1, max_departure_time, False))
+                    # f.write('Tactics used for route {} - trip {} at stop {}: None\n'.format(self.route_name, bus_trip_id, stop_id))
                 f.close()
                 return(speedup == 1, skip_stop == 1, (hold >= 0 , max_departure_time))
             if hold == 0:
@@ -691,7 +719,9 @@ class FixedLineDispatcher(Dispatcher):
             skip_stop_type = 'Skip-Stop' if skip_stop == 1 else 'No Skip-Stop'
             speedup_type = 'Speedup' if speedup == 1 else 'No speedup'
             with open(self.__tactics_file_path, "a") as f:
-                f.write('Tactics used for route {} - trip {} at stop {}: {}, {}, ({}, {})\n'.format(self.route_name, bus_trip_id, stop_id, skip_stop_type, speedup_type, hold_type, max_departure_time))
+                # route_name, trip_id, stop_id, current_time, speedup, skip_stop, hold, max_departure_time, error
+                f.write('{},{},{},{},{},{},{},{},{}\n'.format(self.route_name, bus_trip_id, stop_id, state.current_time, speedup==1, skip_stop==1, hold, max_departure_time, False))
+                # f.write('Tactics used for route {} - trip {} at stop {}: {}, {}, ({}, {})\n'.format(self.route_name, bus_trip_id, stop_id, skip_stop_type, speedup_type, hold_type, max_departure_time))
             f.close()
         return(speedup == 1, skip_stop == 1, (hold >= 0 , max_departure_time))
 

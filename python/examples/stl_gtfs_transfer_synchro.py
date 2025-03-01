@@ -25,7 +25,8 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                        logger = logging.getLogger(__name__),
                        logging_level = logging.INFO,
                        is_from_smartcard_data = True,
-                       is_corridor = False):
+                       is_corridor = False,
+                       transfer_hubs = []):
     sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
     sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
     sys.path.append(os.path.abspath('../../..'))
@@ -66,13 +67,21 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
     output_folder_path = get_output_subfolder(output_folder_path, algo, ss, sp, routes_to_optimize_names, is_from_smartcard_data)
     print(output_folder_path)
 
+    
+    # Update transfer hubs with available connections
+    all_transfer_stop_ids = []
+    for stop_id in transfer_hubs:
+        if int(stop_id) in available_connections:
+            all_transfer_stop_ids += available_connections[int(stop_id)]
+            
     # Initialize the dispatcher.
     dispatcher = FixedLineDispatcher(ss = ss,
                                      sp = sp,
                                      algo = algo, 
                                      routes_to_optimize_names = routes_to_optimize_names,
                                      output_folder_path = output_folder_path,
-                                     is_corridor = is_corridor)
+                                     is_corridor = is_corridor,
+                                     transfer_hubs = all_transfer_stop_ids)
     Data = {}
     for route_name in routes_to_optimize_names: 
         logger.info("Getting and clustering data for route %s" % route_name)

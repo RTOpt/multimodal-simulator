@@ -112,7 +112,7 @@ def mark_transfer_hubs(ax):
     transfer_stops =[(42482,'N. DAME/JARRY', -73.749336,45.54072),
      (43343,'SOUVENIR/AVENIR',-73.723699,45.561729),
      (41447,'C. LABELLE/FACE AU 289',-73.78708,45.573978),
-    (41801,'LAURENTIDES/CONCORDE',-73.692524,45.570631)]
+     (41801,'LAURENTIDES/CONCORDE',-73.692524,45.570631)]
     for stop_id, stop_name, lon, lat in transfer_stops:
         #plot the stop with stop_id written above it
         # ax.text(lon, lat+0.0002, str(stop_id), fontsize=14, ha='right', color='black', zorder=10)
