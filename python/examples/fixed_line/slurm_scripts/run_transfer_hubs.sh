@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --mem-per-cpu=16G
-#SBATCH --time=10:00:00
-#SBATCH --partition=optimum
+#SBATCH --mem-per-cpu=32G
+#SBATCH --time=71:59:00
+#SBATCH --partition=optimumlong
 #SBATCH --cpus-per-task=1
 #SBATCH --output=python/examples/fixed_line/test_files_multi_transfer_hubs/slurm_output_%A_%a.out
 #SBATCH --error=python/examples/fixed_line/test_files_multi_transfer_hubs/slurm_error_%A_%a.err

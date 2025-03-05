@@ -259,6 +259,7 @@ def create_trip_details_df(output_folder_path):
     all_id_values = observations_sorted[id_col].unique()
     for id in all_id_values:
         group = observations_sorted[observations_sorted[id_col] == id]
+        nbr_transfers = len(literal_eval(group['Next legs'].iat[0]))
         ready_row = group[group[status_col] == 'PassengersStatus.READY'].head(1)
         if ready_row.empty:
             next_legs = group['Next legs'].iat[0]
@@ -314,7 +315,8 @@ def create_trip_details_df(output_folder_path):
             "id" : id,
             "wait_before_boarding" : wait_before_boarding,
             "onboard_time" : onboard_time,
-            "transfer_time" : transfer_time
+            "transfer_time" : transfer_time,
+            "nbr_transfers" : nbr_transfers
         }
         observations_details.append(observation)
     observations_details_df = pd.DataFrame(observations_details)
@@ -345,32 +347,7 @@ def plot_single_line_comparisons(instance_name,
                      2 for mean transfer time
 
     """
-    # Define base parameters for comparisons
-    base_params = (0, False, False, line_name, True)  # No tactics, smartcard data (baseline)
-    # optimal_travel_paths_params = (0, False, False, [line_name], False)  # Optimal travel paths
-
-    # Define parameter sets for groups 3 to 6
-    algo_params = [
-        # Group 3: Algorithms with smartcard data, Hold only
-        (1, False, False, line_name, True),  # Deterministic
-        (2, False, False, line_name, True),  # Regret
-        (3, False, False, line_name, True),  # Perfect Information
-
-        # Group 4: Algorithms with smartcard data, Hold and Speedup allowed
-        (1, False, True, line_name, True),   # Deterministic
-        (2, False, True, line_name, True),   # Regret
-        (3, False, True, line_name, True),   # Perfect Information
-
-        # Group 5: Algorithms with smartcard data, Hold and Skip-Stop allowed
-        (1, True, False, line_name, True),   # Deterministic
-        (2, True, False, line_name, True),   # Regret
-        (3, True, False, line_name, True),   # Perfect Information
-
-        # Group 6: Algorithms with smartcard data, Hold, Speedup and Skip-Stop allowed
-        (1, True, True, line_name, True),    # Deterministic
-        (2, True, True, line_name, True),    # Regret
-        (3, True, True, line_name, True)     # Perfect Information
-    ]
+    base_params, algo_params = get_params(line_name)
 
     # Prepare to collect output data for each comparison
     output_folder_path = os.path.join(base_folder, instance_name)
@@ -382,7 +359,6 @@ def plot_single_line_comparisons(instance_name,
 
     # Define the labels for main groups
     group_labels = ["No tactics", "Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
-    
     sub_labels = ["Deterministic", "Regret", "Perfect Info"]
 
     # Initialize group_data with No tactics baseline
@@ -424,13 +400,7 @@ def plot_single_line_comparisons(instance_name,
             missed_transfer_data[key] = np.mean(transfer_times_key)/60
 
     # Define consistent colors for each algorithm across groups
-    algorithm_colors = {
-        "No tactics": "grey",
-        "Optimal\ntravel paths": "#f781bf",
-        "Deterministic": '#4daf4a',#"#377eb8",
-        "Regret": "#ff7f00",
-        "Perfect Info": '#f781bf'
-    }
+    algorithm_colors = get_algorithm_colors()
     mean_color = "black"
     median_color = "black"
     transfers_color = 'blue'#"#377eb8"#'dodgerblue'
@@ -528,21 +498,7 @@ def plot_single_line_comparisons(instance_name,
     ax.set_xticklabels(group_tick_labels, fontsize=16)
 
     # Set primary y-axis parameters, remove last character from line_name for title
-    lines_str_dict = {}
-    if len(line_name)>10:
-        all_lines_string = 'All lines'
-    else:
-        all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
-    lines_str_dict[''] = all_lines_string
-    lines_str_dict['all'] = 'all lines.'
-    lines_str_dict['grid']= 'lines in grid sub-network.'
-    lines_str_dict['low_frequency'] = 'lines in low frequency sub-network.'
-    lines_str_dict['high_frequency'] = 'lines in high frequency sub-network.'
-    lines_str_dict['radial'] = 'lines in radial sub-network.'
-    lines_str_dict['corridor'] = 'lines in corridor sub-network.'
-    lines_str_dict['151'] = "line 151 and it's connecting lines."
-    lines_str_dict['transfer_hubs'] = 'optimization around transfer hubs.'
-    all_lines_string = lines_str_dict[network_style]
+    all_lines_string = get_line_str(line_name, network_style)
     ax.set_title(f"Comparison of passenger travel and transfer times\nfor {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
@@ -574,21 +530,240 @@ def plot_single_line_comparisons(instance_name,
     figure_name = f"{line_name}_travel_time_and_"+addendum+"_comparison.png"
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
     # plt.show()
+    return()
+
+def get_algorithm_colors():
+    algorithm_colors = {
+        "No tactics": "grey",
+        "Optimal\ntravel paths": "#f781bf",
+        "Deterministic": '#4daf4a',#"#377eb8",
+        "Regret": "#ff7f00",
+        "Perfect Info": '#f781bf'
+    }
+    return algorithm_colors
+
+def get_params(line_name):
+    # Define base parameters for comparisons
+    base_params = (0, False, False, line_name, True)  # No tactics, smartcard data (baseline)
+    # optimal_travel_paths_params = (0, False, False, [line_name], False)  # Optimal travel paths
+
+    # Define parameter sets for groups 3 to 6
+    algo_params = [
+        # Group 3: Algorithms with smartcard data, Hold only
+        (1, False, False, line_name, True),  # Deterministic
+        (2, False, False, line_name, True),  # Regret
+        (3, False, False, line_name, True),  # Perfect Information
+
+        # Group 4: Algorithms with smartcard data, Hold and Speedup allowed
+        (1, False, True, line_name, True),   # Deterministic
+        (2, False, True, line_name, True),   # Regret
+        (3, False, True, line_name, True),   # Perfect Information
+
+        # Group 5: Algorithms with smartcard data, Hold and Skip-Stop allowed
+        (1, True, False, line_name, True),   # Deterministic
+        (2, True, False, line_name, True),   # Regret
+        (3, True, False, line_name, True),   # Perfect Information
+
+        # Group 6: Algorithms with smartcard data, Hold, Speedup and Skip-Stop allowed
+        (1, True, True, line_name, True),    # Deterministic
+        (2, True, True, line_name, True),    # Regret
+        (3, True, True, line_name, True)     # Perfect Information
+    ]
+    return(base_params, algo_params)
+
+def get_line_str(network_style, line_name):
+    lines_str_dict = {}
+    if len(line_name)>10:
+        all_lines_string = 'All lines'
+    else:
+        all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
+    lines_str_dict[''] = all_lines_string
+    lines_str_dict['all'] = 'all lines.'
+    lines_str_dict['grid']= 'lines in grid sub-network.'
+    lines_str_dict['low_frequency'] = 'lines in low frequency sub-network.'
+    lines_str_dict['high_frequency'] = 'lines in high frequency sub-network.'
+    lines_str_dict['radial'] = 'lines in radial sub-network.'
+    lines_str_dict['corridor'] = 'lines in corridor sub-network.'
+    lines_str_dict['151'] = "line 151 and it's connecting lines."
+    lines_str_dict['transfer_hubs'] = 'optimization around transfer hubs.'
+    all_lines_string = lines_str_dict[network_style]
+    return(all_lines_string)
+
+def plot_travel_time_change_distribution(instance_name, line_name, base_folder="output/fixed_line/gtfs", network_style = ''):
+    """
+    This function plots the distribution of travel time changes for passengers. 
+    It plots 3 different graphs: 
+    (1) Violin plots
+        X-axis: Test cases (Baseline, Hold-D, Hold-R, ..., All tactics-PI)
+        Y-axis: Change in total passenger travel time (compared to the baseline)
+        
+    (2) Violin plots for passengers with 0, 1 or 2 transfers (3 subplots, one above the other)
+        X-axis: Test cases (Baseline, Hold-D, Hold-R, ..., All tactics-PI)
+        Y-axis: Change in total passenger travel time (compared to the baseline)
+
+    (3) 
+        """
+
+    output_folder_path = os.path.join(base_folder, instance_name)
+    
+    # Define the labels for main groups
+    group_labels = ["Hold", "Hold&\nSpeedup", "Hold&\nSkip-Stop", "Hold, Speedup&\nSkip-Stop"]
+    sub_labels = ["Deterministic", "Regret", "Perfect Info"]
+
+    base_params, algo_params = get_params(line_name)
+    baseline_folder = get_output_subfolder(output_folder_path, *base_params)
+    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df_new.csv")
+    # check if file exists
+    if not os.path.exists(baseline_file):
+        print('Baseline file not found:', baseline_file)
+        return()
+    # Load the baseline data
+    baseline_df = pd.read_csv(baseline_file)
+    baseline_dict = {}
+    # Get the travel time for each passenger
+    for index, row in baseline_df.iterrows():
+        id = row['id']
+        baseline_dict[id] = {}
+        baseline_dict[id]['wait_before_boarding'] = row['wait_before_boarding']
+        baseline_dict[id]['onboard_time'] = row['onboard_time']
+        baseline_dict[id]['transfer_time'] = row['transfer_time']
+        baseline_dict[id]['total_time'] = row['wait_before_boarding'] + row['onboard_time'] + row['transfer_time']
+        baseline_dict[id]['nbr_transfers'] = row['nbr_transfers']
+    
+    travel_times_changes ={}
+    for i, params in enumerate(algo_params):
+        sim_folder = get_output_subfolder(output_folder_path, *params)
+        sim_file = os.path.join(sim_folder, "trips_details_observations_df_new.csv")
+        # check if file exists
+        if not os.path.exists(sim_file):
+            print('Simulation file not found:', sim_file)
+            continue
+        # Load the simulation data
+        group_index = i // 3  # Group index based on the 6 groups specified
+        key = f"{group_labels[group_index]} {sub_labels[i % 3]}"
+        travel_times_changes[key] = {}
+        sim_df = pd.read_csv(sim_file)
+        sim_dict = {}
+        # Get the travel time for each passenger
+        for index, row in sim_df.iterrows():
+            id = row['id']
+            sim_dict[id] = {}
+            sim_dict[id]['wait_before_boarding'] = row['wait_before_boarding']
+            sim_dict[id]['onboard_time'] = row['onboard_time']
+            sim_dict[id]['transfer_time'] = row['transfer_time']
+            sim_dict[id]['total_time'] = row['wait_before_boarding'] + row['onboard_time'] + row['transfer_time']
+            sim_dict[id]['nbr_transfers'] = row['nbr_transfers']
+        # Calculate the change in travel time for each passenger    
+        for id in sim_dict.keys():
+            travel_times_changes[key][id] = (sim_dict[id]['wait_before_boarding'] - baseline_dict[id]['wait_before_boarding'],
+                                             sim_dict[id]['onboard_time'] - baseline_dict[id]['onboard_time'],
+                                             sim_dict[id]['transfer_time'] - baseline_dict[id]['transfer_time'],
+                                             sim_dict[id]['total_time'] - baseline_dict[id]['total_time'],
+                                             sim_dict[id]['nbr_transfers'])
+    
+    # Define consistent colors for each algorithm across groups
+    algorithm_colors = get_algorithm_colors()
+    mean_color = "black"
+    median_color = "black"
+    fontsize = 16
+
+    # Plotting 
+    ### 1st plot: Violin plots
+    fig, ax = plt.subplots(figsize=(12, 6))
+    positions = []
+    data = []
+    group_ticks = []  # One tick per main group
+    color_map = []  # Track colors to apply to each box
+    group_tick_labels = []  # Track labels for main groups
+    # Prepare data for boxplot with spacing between groups
+    pos = 1
+    for i, group in enumerate(group_labels):
+        if group in travel_times_changes:
+            data.append([change[3]/60 for change in travel_times_changes[group].values() if change[4] != 0])
+            color_map.append(algorithm_colors.get(group, "#AEC6CF"))  # Default color if missing
+            positions.append(pos)
+            group_ticks.append(pos)  # Position for the x-tick label
+            group_tick_labels.append(group)
+            pos += 0.7
+        else:  # For groups with multiple sub-groups
+            group_ticks.append(pos + 1)
+            group_tick_labels.append(group)
+        # Sub-groups for algorithms
+        for j, sub_label in enumerate(sub_labels):
+            key = f"{group} {sub_label}"
+            if key in travel_times_changes:
+                data.append([change[3]/60 for change in travel_times_changes[key].values() if change[4] != 0])
+                color_map.append(algorithm_colors[sub_label])  # Consistent color per algorithm
+                positions.append(pos)
+                pos += 0.7
+        pos += 0.7  # Add space between main groups
+
+    # Plot violin plots
+    vp = ax.violinplot(data, positions=positions, showmeans=True, showmedians=True)
+
+    # Apply consistent colors
+    for patch, color in zip(vp['bodies'], color_map):
+        patch.set_facecolor(color)
+
+    # Annotate the median value above the median line
+    for i, pos in enumerate(positions):
+        # Extract median and mean values correctly
+        median_value = vp['cmedians'].get_segments()[i][0][1]  # Extract y-position of median line
+        mean_value = vp['cmeans'].get_segments()[i][0][1]  # Extract y-position of mean line
+
+        # Annotate the median value above the median line
+        ax.text(pos+0.3, median_value, f'{median_value:.1f}', ha='center', va='top', fontsize=fontsize-4, color=median_color)
+        # Annotate the mean value below the mean line
+        ax.text(pos+0.3, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-4, color=mean_color)
+    
+    # Set ylim for first y-axis
+    ax.set_ylim(-20, 10)  # Set y-limit for better visibility
+    ax.set_ylabel("Change in travel time (minutes)", fontsize=fontsize)
+    ax.tick_params(axis='y', which='major', labelsize=14, labelleft=True, labelright=False, left=True, right=False)
+    ax.set_xticks(group_ticks)
+    ax.set_xticklabels(group_tick_labels, fontsize=fontsize)
+
+    #Set title
+    all_lines_string = get_line_str(network_style, line_name)
+    ax.set_title(f"Change in passenger travel time for {all_lines_string}", fontsize=18)
+    plt.tight_layout()
+
+    # Add legend for algorithm colors with bold font
+    legend_patches = [mlines.Line2D([0], [0], color=color, lw=7, label=label)
+                      for label, color in algorithm_colors.items() if label in sub_labels]
+    
+    # Add mean, median, and missed transfer line entries to the legend
+    mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='--', linewidth=2, label='Mean')
+    median_line = mlines.Line2D([0], [0], color=median_color, linestyle='-', linewidth=2, label='Median')
+
+    
+    # Optimize legend position and style
+    ax.legend(handles=legend_patches, loc='upper left', fontsize=fontsize-2, title_fontsize=fontsize,
+             framealpha=0.9, shadow=True, ncol = 4)
+
+    plt.tight_layout()
+    if len(line_name) >10:
+        line_name = 'AllLines'
+    figure_name = f"{line_name}_travel_time_change_distribution.png"
+    plt.savefig(os.path.join(base_folder, instance_name, figure_name))
+    plt.show()
+    return()
 
 if __name__ == "__main__":
     # Define the test instance name
     instance_name = "gtfs2019-11-27_LargeInstanceAll"
     route_dict = get_route_dictionary()
     data_name = 'gtfs2019-11-25_EveningRushHour'
-    # for network_style in route_dict:
-    for network_style in [ '151']:
+    for network_style in route_dict:
+    # for network_style in ['151']:
         print('Getting stats for network style:', network_style)
         instance_name = data_name+'_'+network_style
         requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+network_style)
         for route_ids_list in [route_dict[network_style]]:
             for transfer_type in [0,1,2]:
-                # Run the function to compare and plot passenger travel times across different parameters for line 70E
+                ### Run the function to compare and plot passenger travel times across different parameters for line 70E
                 plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
+            # plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style)
     # Run the function to compare and plot passenger travel times across different parameters for line 70E
     # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     # instance_name = data_name

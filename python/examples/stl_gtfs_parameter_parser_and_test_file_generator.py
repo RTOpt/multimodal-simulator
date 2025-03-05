@@ -245,9 +245,10 @@ def generate_slurm_script(
         partition (str): SLURM partition name. Default is "optimum".
         output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
     """
-    if network_style in ['all', 'grid']:
+    if network_style in ['all', 'grid', 'transfer_hubs']:
         mem_per_cpu = 32
-        time = "47:59:00"
+        time = "71:59:00"
+        partition = "optimumlong"
     elif network_style in ['radial', 'corridor']:
         time ="15:00:00"
     
@@ -314,9 +315,9 @@ conda deactivate
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
         generate_slurm_script(network_style)
-        combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-        combinations_single = read_combinations_from_file(combinations_file_name)
-        combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-        instance_name = 'EveningRushHour'
-        create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-        create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+        # combinations_single = read_combinations_from_file(combinations_file_name)
+        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+        # instance_name = 'EveningRushHour'
+        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
