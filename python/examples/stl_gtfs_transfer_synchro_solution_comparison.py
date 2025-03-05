@@ -664,7 +664,7 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
     # Define consistent colors for each algorithm across groups
     algorithm_colors = get_algorithm_colors()
     mean_color = "black"
-    median_color = "black"
+    median_color = "red"
     fontsize = 16
 
     # Plotting 
@@ -703,21 +703,27 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
 
     # Apply consistent colors
     for patch, color in zip(vp['bodies'], color_map):
+        # No transparency to patch 
+        patch.set_alpha(1)
         patch.set_facecolor(color)
 
     # Annotate the median value above the median line
     for i, pos in enumerate(positions):
         # Extract median and mean values correctly
-        median_value = vp['cmedians'].get_segments()[i][0][1]  # Extract y-position of median line
-        mean_value = vp['cmeans'].get_segments()[i][0][1]  # Extract y-position of mean line
-
+        mean_line = vp['cmeans'].get_segments()[i]  # Extract mean line
+        mean_value = mean_line[0][1]  # Extract y-position of mean line
+        median_line = vp['cmedians'].get_segments()[i]  # Extract median line
+        median_value = median_line[0][1]  # Extract y-position of median line
+        
         # Annotate the median value above the median line
         ax.text(pos+0.3, median_value, f'{median_value:.1f}', ha='center', va='top', fontsize=fontsize-4, color=median_color)
+        ax.plot(mean_line[:, 0], mean_line[:, 1], color=mean_color, linewidth=2, linestyle="--", label="Mean" if "Mean" not in ax.get_legend_handles_labels()[1] else "")
         # Annotate the mean value below the mean line
         ax.text(pos+0.3, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-4, color=mean_color)
+        ax.plot(median_line[:, 0], median_line[:, 1], color=median_color, linewidth=2, linestyle="-", label="Median" if "Median" not in ax.get_legend_handles_labels()[1] else "")
     
     # Set ylim for first y-axis
-    ax.set_ylim(-20, 10)  # Set y-limit for better visibility
+    ax.set_ylim(-60, 10)  # Set y-limit for better visibility
     ax.set_ylabel("Change in travel time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=14, labelleft=True, labelright=False, left=True, right=False)
     ax.set_xticks(group_ticks)
@@ -733,13 +739,14 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
                       for label, color in algorithm_colors.items() if label in sub_labels]
     
     # Add mean, median, and missed transfer line entries to the legend
-    mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='--', linewidth=2, label='Mean')
+    mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='-', linewidth=2, label='Mean')
     median_line = mlines.Line2D([0], [0], color=median_color, linestyle='-', linewidth=2, label='Median')
+    legend_patches.extend([mean_line, median_line])
 
     
     # Optimize legend position and style
     ax.legend(handles=legend_patches, loc='upper left', fontsize=fontsize-2, title_fontsize=fontsize,
-             framealpha=0.9, shadow=True, ncol = 4)
+             framealpha=0.9, shadow=True, ncol = 5)
 
     plt.tight_layout()
     if len(line_name) >10:
@@ -761,9 +768,15 @@ if __name__ == "__main__":
         requests_file_path = os.path.join('data','fixed_line','gtfs','gtfs2019-11-25-EveningRushHour'+network_style)
         for route_ids_list in [route_dict[network_style]]:
             for transfer_type in [0,1,2]:
-                ### Run the function to compare and plot passenger travel times across different parameters for line 70E
-                plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
-            # plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style)
+                try:
+                    ### Run the function to compare and plot passenger travel times across different parameters for line 70E
+                    plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
+                except:
+                    print('Could not plot for:', network_style)
+            try:
+                plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style)
+            except:
+                print('Could not plot travel time change distribution for:', network_style)
     # Run the function to compare and plot passenger travel times across different parameters for line 70E
     # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     # instance_name = data_name
