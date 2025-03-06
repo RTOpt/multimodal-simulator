@@ -23,7 +23,7 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                        freeze_interval = 5,
                        output_folder_name = "gtfs-generated-small",
                        logger = logging.getLogger(__name__),
-                       logging_level = logging.INFO,
+                       logging_level = logging.WARNING,
                        is_from_smartcard_data = True,
                        is_corridor = False,
                        transfer_hubs = []):
@@ -32,7 +32,7 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
     sys.path.append(os.path.abspath('../../..'))
     # To modify the log level (at INFO, by default)
     logger.setLevel(logging_level)
-    logger.setLevel(logging.WARNING)
+    # logger.setLevel(logging.WARNING)
     logger.warning(" Start simulation for instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
     # show logging level
     logger.warning("Logging level: {}".format(logging.getLevelName(logger.getEffectiveLevel())))

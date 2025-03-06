@@ -137,6 +137,7 @@ class ConsoleVisualizer(Visualizer):
     def __print_statistics(self):
 
         vehicles_stats = self.__data_analyzer.get_vehicles_statistics()
+        logger.warning("Logging level: {}".format(logging.getLevelName(logger.getEffectiveLevel())))
         logger.info(vehicles_stats)
         modes = self.__data_analyzer.modes
         if len(modes) > 1:
