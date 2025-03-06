@@ -353,8 +353,6 @@ def plot_single_line_comparisons(instance_name,
 
     """
     base_params, algo_params = get_params(line_name)
-    print('Base params:', base_params)
-    print('Algo params:', algo_params)
 
     # Prepare to collect output data for each comparison
     output_folder_path = os.path.join(base_folder, instance_name)
@@ -370,10 +368,10 @@ def plot_single_line_comparisons(instance_name,
 
     # Initialize group_data with No tactics baseline
     baseline_folder = get_output_subfolder(output_folder_path, *base_params)
-    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
         number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs)
      # Ensure the baseline file exists
+    baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if not os.path.exists(baseline_file):
         raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
     group_data["No tactics"] = [time / 60 for time in total_times_notactics]
@@ -386,8 +384,8 @@ def plot_single_line_comparisons(instance_name,
 
     # Generate comparisons for algo_params
     for i, params in enumerate(algo_params):
-        print('Analyzing', params)
         sim_folder = get_output_subfolder(output_folder_path, *params)
+        print('Sim folder:', sim_folder)
         if os.path.exists(os.path.join(sim_folder, 'trips_observations_df.csv')):
             number_of_completed_transfers_key, percentage_missed_transfers_key, transfer_times_key, total_times_key = get_transfer_and_travel_time_stats(sim_folder, transfers, total_transfers, request_legs)
         else:
