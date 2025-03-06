@@ -23,7 +23,6 @@ sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
 from stl_gtfs_transfer_synchro import stl_gtfs_transfer_synchro_simulator
 # Setup the logger
 logging_level = logging.WARNING
-logger = logging.getLogger(__name__)
 # Start the simulation
 start_time=time.time()
 print('Begin testing...')
@@ -40,7 +39,6 @@ try:
                         algo = algo, # 0: offline, 1: deterministic, 2: regret, 3: Perfect Information
                         freeze_interval = freeze_interval,
                         output_folder_name = output_folder_name,
-                        logger = logger,
                         logging_level = logging_level,
                         is_from_smartcard_data = True,
                         is_corridor = is_corridor,

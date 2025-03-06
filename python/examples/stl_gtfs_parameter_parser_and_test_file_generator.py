@@ -314,10 +314,10 @@ conda deactivate
 ### Main code
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
-        generate_slurm_script(network_style)
-        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+        # generate_slurm_script(network_style)
+        combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
         # combinations_single = read_combinations_from_file(combinations_file_name)
-        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-        # instance_name = 'EveningRushHour'
+        combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+        instance_name = 'EveningRushHour'
         # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+        create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)

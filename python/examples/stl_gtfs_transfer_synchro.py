@@ -22,7 +22,6 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                        algo = 0,
                        freeze_interval = 5,
                        output_folder_name = "gtfs-generated-small",
-                       logger = logging.getLogger(__name__),
                        logging_level = logging.WARNING,
                        is_from_smartcard_data = True,
                        is_corridor = False,
@@ -31,8 +30,8 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
     sys.path.append(r"/home/kollau/Recherche_Kolcheva/Simulator/python/examples")
     sys.path.append(os.path.abspath('../../..'))
     # To modify the log level (at INFO, by default)
-    logger.setLevel(logging_level)
-    # logger.setLevel(logging.WARNING)
+    logger = logging.getLogger(__name__)
+    logging.getLogger().setLevel(logging_level)
     logger.warning(" Start simulation for instance with skip_stop_is_allowed = {}, speedup_is_allowed = {}, algo = {}".format(ss, sp, algo))
     # show logging level
     logger.warning("Logging level: {}".format(logging.getLevelName(logger.getEffectiveLevel())))
@@ -102,7 +101,7 @@ def stl_gtfs_transfer_synchro_simulator(gtfs_folder_path=os.path.join("data","fi
                             environment_observer=environment_observer,
                             # coordinates=coordinates,
                             transfer_synchro = True)
-
+    
     # Execute the simulation.
     simulation.simulate()
 
