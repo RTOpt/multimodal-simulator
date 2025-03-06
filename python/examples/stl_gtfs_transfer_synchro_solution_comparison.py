@@ -123,7 +123,7 @@ def get_no_tactics_boarding_times(trips_observations_df, transfers):
         boarding_times[request_id].append((str(row['Assigned vehicle']), int(row['Time'])))
     return boarding_times
 
-def get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times):
+def get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
     """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
     from the results of a simulation run.
     In order to retrieve missed transfers we compare the vehicles used in the simulation for each leg of each request with the vehicles
@@ -329,8 +329,8 @@ def create_trip_details_df(output_folder_path):
     print('Number of passengers that did not get a bus:', nbr_passengers_no_bus)
     return()
 
-def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times = None):
-    number_of_completed_transfers, percentage_missed_transfers, not_completed_transfer_requests = get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
+def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs):
+    number_of_completed_transfers, percentage_missed_transfers, not_completed_transfer_requests = get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs)
     total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers)
     return(number_of_completed_transfers, percentage_missed_transfers, transfer_times, total_times)
 
@@ -370,8 +370,7 @@ def plot_single_line_comparisons(instance_name,
     baseline_folder = get_output_subfolder(output_folder_path, *base_params)
     baseline_file = os.path.join(baseline_folder, "trips_details_observations_df.csv")
     if os.path.exists(os.path.join(baseline_folder, 'trips_observations_df.csv')):
-        no_tactics_boarding_times = get_no_tactics_boarding_times(get_observations_df(baseline_folder, transfers), transfers)
-        number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs, no_tactics_boarding_times)
+        number_of_completed_transfers_notactics, percentage_missed_transfers_notactics, transfer_times_notactics, total_times_notactics = get_transfer_and_travel_time_stats(baseline_folder, transfers, total_transfers, request_legs)
      # Ensure the baseline file exists
     if not os.path.exists(baseline_file):
         raise FileNotFoundError(f"Baseline file not found: {baseline_file}")
