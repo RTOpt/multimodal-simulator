@@ -384,6 +384,7 @@ def plot_single_line_comparisons(instance_name,
 
     # Generate comparisons for algo_params
     for i, params in enumerate(algo_params):
+        print('Analyzing', params)
         sim_folder = get_output_subfolder(output_folder_path, *params)
         if os.path.exists(os.path.join(sim_folder, 'trips_observations_df.csv')):
             number_of_completed_transfers_key, percentage_missed_transfers_key, transfer_times_key, total_times_key = get_transfer_and_travel_time_stats(sim_folder, transfers, total_transfers, request_legs)
