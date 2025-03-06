@@ -502,7 +502,7 @@ def plot_single_line_comparisons(instance_name,
     ax.set_xticklabels(group_tick_labels, fontsize=16)
 
     # Set primary y-axis parameters, remove last character from line_name for title
-    all_lines_string = get_line_str(line_name, network_style)
+    all_lines_string = get_line_str(network_style, line_name)
     ax.set_title(f"Comparison of passenger travel and transfer times\nfor {all_lines_string}", fontsize=18)
     ax.set_ylabel("Travel Time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=fontsize-2, labelleft=True, labelright=False, left=True, right=False)
@@ -589,6 +589,7 @@ def get_line_str(network_style, line_name):
     lines_str_dict['corridor'] = 'lines in corridor sub-network.'
     lines_str_dict['151'] = "line 151 and it's connecting lines."
     lines_str_dict['transfer_hubs'] = 'optimization around transfer hubs.'
+    print('new network style:', network_style)
     all_lines_string = lines_str_dict[network_style]
     return(all_lines_string)
 
@@ -843,15 +844,14 @@ if __name__ == "__main__":
                 try:
                     ## Run the function to compare and plot passenger travel times across different parameters for line 70E
                     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
-                except:
-                    continue
+                except Exception as e:
+                    traceback.print_exc()
             for transfers in [-1, 0, 1]:
                 try:
                     plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style, transfers= transfers)
                 except Exception as e:
-                #     traceback.print_exc()
+                    traceback.print_exc()
                 # print('Could not plot travel time change distribution for:', network_style)
-                    continue
     # Run the function to compare and plot passenger travel times across different parameters for line 70E
     # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     # instance_name = data_name
