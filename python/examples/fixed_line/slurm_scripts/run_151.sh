@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=python/examples/fixed_line/test_files_multi_151/slurm_output_%A_%a.out
 #SBATCH --error=python/examples/fixed_line/test_files_multi_151/slurm_error_%A_%a.err
-#SBATCH --array=0-12 # Array between 0 - 12 for maximum of 13 tasks
+#SBATCH --array=5-8 # Array between 0 - 12 for maximum of 13 tasks
 
 # Change to the correct working directory
 cd /home/kollau/Recherche_Kolcheva/Simulator

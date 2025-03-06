@@ -38,7 +38,8 @@ class CAPRequestsGenerator(RequestsGenerator):
 
     def generate_requests(self, max_connection_time=None,
                           release_time_delta=None, ready_time_delta=None,
-                          due_time_delta=None):
+                          due_time_delta=None,
+                          PI = False):
 
         if max_connection_time is None:
             max_connection_time = self.__max_connection_time
@@ -53,7 +54,7 @@ class CAPRequestsGenerator(RequestsGenerator):
         self.__extract_requests_from_cap(formatted_cap_df)
         self.__format_requests(release_time_delta, ready_time_delta,
                                due_time_delta)
-        self.__get_first_possible_transfers_for_requests(time_limit=300)
+        self.__get_first_possible_transfers_for_requests(time_limit=300, PI = PI)
 
         return self.__requests_df
 
@@ -157,7 +158,7 @@ class CAPRequestsGenerator(RequestsGenerator):
 
         return self.__requests_df[columns]
 
-    def __get_first_possible_transfers_for_requests(self, time_limit = 300):
+    def __get_first_possible_transfers_for_requests(self, time_limit = 300, PI = False):
         """ This functions considers requests with multiple legs (passengers with transfers) and evaluates if these could have been earlier.
             If an earlier transfer is possible, the request is updated accordingly. All legs will be evaluated sequentially, and assigned to different vehicles if necessary.
 
@@ -205,6 +206,9 @@ class CAPRequestsGenerator(RequestsGenerator):
         ### If so, update the request accordingly.
         ### The function will iterate over all requests until no more improvements are possible.
         counter = 0
+        ready_time_delta = 60
+        if PI:
+            ready_time_delta = 120
         all_counter = 0
         updated_resquests = {}
         for request_id, request in requests_df.iterrows():
@@ -219,7 +223,7 @@ class CAPRequestsGenerator(RequestsGenerator):
             original_start_tuple = next((stop_tuple for stop_tuple in passage_times if stop_tuple[2] == first_trip_id), None)
             if original_start_tuple is not None:
                 original_planned_arrival_time = original_start_tuple[3]
-                request['ready_time'] = original_planned_arrival_time - 60
+                request['ready_time'] = original_planned_arrival_time - ready_time_delta
             # ### Check if an earlier transfer was possible
             # for i in range(1, len(legs)):
             #     arrival_transfer_stop_id = legs[i-1][1]

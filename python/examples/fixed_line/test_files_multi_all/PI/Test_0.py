@@ -2,7 +2,7 @@
 ### BEGINNING OF PARAMETERS ###
 import os
 import traceback
-gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str(25)+"-EveningRushHourall")
+gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str(25)+"-EveningRushHourall_PI")
 requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')
 output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str(25)+'_EveningRushHour')
 output_folder_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_all'

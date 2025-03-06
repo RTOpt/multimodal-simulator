@@ -21,9 +21,9 @@ def get_route_dictionary():
     # route_ids_dict['high_frequency'] = list(sorted(['24E', '24O','26E', '26O', '42E', '42O', '76E','76O', '151N','151S','65S', '65N'])) # route_ids for a high frequency only network.
     route_ids_dict['151'] =list(sorted(['151S', '151N','40E', '40O', '55S', '55N', '56E', '56O', '61S', '61N'])) # route_ids for line 70 and it's transferring lines.
     route_ids_dict['corridor'] = list(sorted(['17S', '17N','27S', '27N', '31S', '31N', '73S', '73N'])) # route_ids for the corridor network.
-    route_ids_dict['transfer_hubs'] = route_ids_dict['all'] # route_ids for the transfer hubs network.
     route_ids_dict['grid'] = list(sorted([ '17N', '17S', '151S', '151N','26O', '26E', '42E','42O', '76E','76O']))  # route_ids for a quadrant style network.
     route_ids_dict['all'] = list(sorted(['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']))
+    route_ids_dict['transfer_hubs'] = route_ids_dict['all'] # route_ids for the transfer hubs network.
     return route_ids_dict
 
 def get_trips():

@@ -203,13 +203,14 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
         date = combination['date']
         index = combination['index']
         folder = test_folder_path_D if algo == 1 else test_folder_path_PI if algo == 3 else test_folder_path_R if algo == 2 else test_folder_path_Offline
+        gtfs_folder_path_addendum = "_PI" if algo == 3 else ""
         testfile_path = os.path.join(folder, 'Test_{}.py'.format(index))
         with open(testfile_path, 'w') as f:
             f.write(f"### DO NOT CHANGE THESE LINES: Parameters are auto-filled in stl_gtfs_parameter_parser_and_test_file_generator.py\n")
             f.write(f"### BEGINNING OF PARAMETERS ###\n")
             f.write(f'import os\n')
             f.write(f'import traceback\n')
-            f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-{instance_name+network_style}")\n')
+            f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-{instance_name+network_style+gtfs_folder_path_addendum}")\n')
             f.write(f"requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')\n")
             f.write(f"output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str({date})+'_{instance_name}')\n")
             f.write(f"output_folder_name = 'gtfs2019-11-'+str({date})+'_{instance_name}'+'_{network_style}'\n")
@@ -314,10 +315,10 @@ conda deactivate
 ### Main code
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
-        # generate_slurm_script(network_style)
-        combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-        # combinations_single = read_combinations_from_file(combinations_file_name)
-        combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-        instance_name = 'EveningRushHour'
-        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-        create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+        generate_slurm_script(network_style, array_start=5, array_end=8)
+        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+        # # combinations_single = read_combinations_from_file(combinations_file_name)
+        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+        # instance_name = 'EveningRushHour'
+        # # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
