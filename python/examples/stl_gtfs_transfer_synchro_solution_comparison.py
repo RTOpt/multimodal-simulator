@@ -383,6 +383,11 @@ def plot_single_line_comparisons(instance_name,
         missed_transfer_data["No tactics"] = np.mean(transfer_times_notactics)/60
 
     # Generate comparisons for algo_params
+    print("DEBUG: algo_params =", algo_params)
+    print("DEBUG: Length of algo_params =", len(algo_params))
+    print("DEBUG: output_folder_path =", output_folder_path)
+    print("DEBUG: get_output_subfolder function exists =", callable(get_output_subfolder))
+
     for i, params in enumerate(algo_params):
         sim_folder = get_output_subfolder(output_folder_path, *params)
         print('Sim folder:', sim_folder)
