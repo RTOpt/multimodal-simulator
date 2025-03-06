@@ -353,6 +353,8 @@ def plot_single_line_comparisons(instance_name,
 
     """
     base_params, algo_params = get_params(line_name)
+    print('Base params:', base_params)
+    print('Algo params:', algo_params)
 
     # Prepare to collect output data for each comparison
     output_folder_path = os.path.join(base_folder, instance_name)
