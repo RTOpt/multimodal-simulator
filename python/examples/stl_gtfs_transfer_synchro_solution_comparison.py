@@ -141,6 +141,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
     #We need to check if the vehicle is the same for each leg of the trip
     completed_requests = 0
     not_completed_requests = []
+    not_completed_transfer_requests = []
     i = 0
     row_index = 0
     while i < len(request_ids):
@@ -149,11 +150,15 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
         if row_index >= len(trips_observations_df):
             i+=1
             not_completed_requests.append(request_id)
+            if len(request_legs_list) > 0:
+                not_completed_transfer_requests.append(request_id)
             continue
         row = trips_observations_df.iloc[row_index]
         row_request_id = row['ID']
         while row_request_id != request_id and i < len(request_ids):
             not_completed_requests.append(request_id)
+            if len(request_legs_list) > 0:
+                not_completed_transfer_requests.append(request_id)
             i+=1
             request_id = request_ids[i]
             request_legs_list = request_legs[request_id]
@@ -197,7 +202,7 @@ def get_transfer_stats(output_folder_path, transfers, total_transfers, request_l
     if total_transfers != number_of_missed_transfers + number_of_completed_transfers:
         print('Error in counting transfers')
     percentage_missed_transfers = (number_of_missed_transfers/total_transfers)*100 if total_transfers > 0 else 0
-    return(number_of_completed_transfers, percentage_missed_transfers)
+    return(number_of_completed_transfers, percentage_missed_transfers, not_completed_transfer_requests)
 
 def old_get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs):
     """This function retrieves data on the number of completed and missed transfers, as well as the percentage of missed transfers
@@ -234,8 +239,6 @@ def get_travel_time_stats(output_folder_path, transfers):
     trips_details_observations_df = pd.read_csv(os.path.join(output_folder_path, 'trips_details_observations_df_new.csv'))
     for index, row in trips_details_observations_df.iterrows():
         total_time = row['wait_before_boarding'] + row['onboard_time'] + row['transfer_time']
-        # if row['id'] in not_completed_requests:
-        #     total_time += 3600 # 30 minutes penalty for not completing the trip
         total_times.append(total_time)
         if row['id'] in transfers.keys():
             transfer_times.append(row['transfer_time'])
@@ -320,12 +323,14 @@ def create_trip_details_df(output_folder_path):
         }
         observations_details.append(observation)
     observations_details_df = pd.DataFrame(observations_details)
-    observations_details_df.to_csv(os.path.join(output_folder_path, 'trips_details_observations_df_new.csv'), index=False)
+    observations_details_df_path = os.path.join(output_folder_path, 'trips_details_observations_df_new.csv')
+    print('Saving trips_details_observations_df_new.csv to ', observations_details_df_path)
+    observations_details_df.to_csv(observations_details_df_path, index=False)
     print('Number of passengers that did not get a bus:', nbr_passengers_no_bus)
     return()
 
 def get_transfer_and_travel_time_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times = None):
-    number_of_completed_transfers, percentage_missed_transfers = get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
+    number_of_completed_transfers, percentage_missed_transfers, not_completed_transfer_requests = get_transfer_stats(output_folder_path, transfers, total_transfers, request_legs, no_tactics_boarding_times)
     total_times, transfer_times = get_travel_time_stats(output_folder_path, transfers)
     return(number_of_completed_transfers, percentage_missed_transfers, transfer_times, total_times)
 
