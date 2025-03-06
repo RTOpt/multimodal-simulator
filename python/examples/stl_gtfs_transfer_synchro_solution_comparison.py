@@ -8,7 +8,7 @@ from ast import literal_eval
 import sys
 import numpy as np
 from fixed_line.stl_network_analysis import get_route_dictionary
-
+import traceback
 
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(r"C:\Users\kklau\Desktop\Simulator\python\examples")
@@ -525,9 +525,8 @@ def plot_single_line_comparisons(instance_name,
         addendum = 'number_transfers'
     else:
         addendum = 'mean_transfer_time'
-    if len(line_name) >10:
-        line_name = 'AllLines'
-    figure_name = f"{line_name}_travel_time_and_"+addendum+"_comparison.png"
+    figure_name = get_image_name(network_style, line_name)
+    figure_name = f"{figure_name}_travel_time_and_"+addendum+"_comparison.png"
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
     # plt.show()
     return()
@@ -589,7 +588,25 @@ def get_line_str(network_style, line_name):
     all_lines_string = lines_str_dict[network_style]
     return(all_lines_string)
 
-def plot_travel_time_change_distribution(instance_name, line_name, base_folder="output/fixed_line/gtfs", network_style = ''):
+def get_image_name(network_style, line_name):
+    lines_str_dict = {}
+    if len(line_name)>10:
+        all_lines_string = 'All_lines'
+    else:
+        all_lines_string = ', '.join([str(line_name_single)[:-1] for line_name_single in line_name])
+    lines_str_dict[''] = all_lines_string
+    lines_str_dict['all'] = 'all'
+    lines_str_dict['grid']= 'grid'
+    lines_str_dict['low_frequency'] = 'low_frequency'
+    lines_str_dict['high_frequency'] = 'high_frequency'
+    lines_str_dict['radial'] = 'radial'
+    lines_str_dict['corridor'] = 'corridor'
+    lines_str_dict['151'] = "line_151"
+    lines_str_dict['transfer_hubs'] = 'transfer_hubs'
+    all_lines_string = lines_str_dict[network_style]
+    return(all_lines_string)
+
+def plot_travel_time_change_distribution(instance_name, line_name, base_folder="output/fixed_line/gtfs", network_style = '', transfers = 0):
     """
     This function plots the distribution of travel time changes for passengers. 
     It plots 3 different graphs: 
@@ -663,8 +680,9 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
     
     # Define consistent colors for each algorithm across groups
     algorithm_colors = get_algorithm_colors()
-    mean_color = "black"
-    median_color = "red"
+    mean_color = "red"
+    median_color = "black"
+    percentile_color = median_color
     fontsize = 16
 
     # Plotting 
@@ -678,52 +696,84 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
     # Prepare data for boxplot with spacing between groups
     pos = 1
     for i, group in enumerate(group_labels):
-        if group in travel_times_changes:
-            data.append([change[3]/60 for change in travel_times_changes[group].values() if change[4] != 0])
-            color_map.append(algorithm_colors.get(group, "#AEC6CF"))  # Default color if missing
-            positions.append(pos)
-            group_ticks.append(pos)  # Position for the x-tick label
-            group_tick_labels.append(group)
-            pos += 0.7
-        else:  # For groups with multiple sub-groups
-            group_ticks.append(pos + 1)
-            group_tick_labels.append(group)
+        # if group in travel_times_changes:
+        #     data.append([change[3]/60 for change in travel_times_changes[group].values() if change[4] == 1])
+        #     color_map.append(algorithm_colors.get(group, "#AEC6CF"))  # Default color if missing
+        #     positions.append(pos)
+        #     group_ticks.append(pos)  # Position for the x-tick label
+        #     group_tick_labels.append(group)
+        #     pos += 0.7
+        # else:  # For groups with multiple sub-groups
+        group_ticks.append(pos + 1)
+        group_tick_labels.append(group)
         # Sub-groups for algorithms
         for j, sub_label in enumerate(sub_labels):
             key = f"{group} {sub_label}"
             if key in travel_times_changes:
-                data.append([change[3]/60 for change in travel_times_changes[key].values() if change[4] != 0])
+                if transfers == -1: # All passengers
+                    data.append([change[3]/60 for change in travel_times_changes[key].values()])
+                elif transfers == 0:
+                    data.append([change[3]/60 for change in travel_times_changes[key].values() if change[4] == 0])
+                else:
+                    data.append([change[3]/60 for change in travel_times_changes[key].values() if change[4] > 0])
                 color_map.append(algorithm_colors[sub_label])  # Consistent color per algorithm
                 positions.append(pos)
                 pos += 0.7
         pos += 0.7  # Add space between main groups
 
-    # Plot violin plots
-    vp = ax.violinplot(data, positions=positions, showmeans=True, showmedians=True)
+    # # Plot violin plots
+    vp = ax.violinplot(data, positions=positions, showmeans=False, showmedians=False, showextrema=False)
 
-    # Apply consistent colors
+    # Apply consistent colors for vp
     for patch, color in zip(vp['bodies'], color_map):
         # No transparency to patch 
-        patch.set_alpha(1)
+        patch.set_alpha(0.9)
         patch.set_facecolor(color)
+    
+    # Plot boxplots
+    # bp = ax.boxplot(data, positions=positions)
+    # # Apply consistent colors for bp
+    # for patch, color in zip(bp['boxes'], color_map):
+    #     patch.set_facecolor(color)
+    #     patch.set_alpha(1)
 
+
+    # Compute quartiles
+    q5_values = [np.percentile(d, 5) for d in data]
+    q25_values = [np.percentile(d, 25) for d in data]
+    q75_values = [np.percentile(d, 75) for d in data]
+    q95_values = [np.percentile(d, 95) for d in data]
+    # q4_values = [np.percentile(d, 100) for d in data]
+    hlines_half_length = 0.2
     # Annotate the median value above the median line
     for i, pos in enumerate(positions):
         # Extract median and mean values correctly
-        mean_line = vp['cmeans'].get_segments()[i]  # Extract mean line
-        mean_value = mean_line[0][1]  # Extract y-position of mean line
-        median_line = vp['cmedians'].get_segments()[i]  # Extract median line
-        median_value = median_line[0][1]  # Extract y-position of median line
+        mean_value = np.mean(data[i])
+        median_value = np.median(data[i])
         
+        # Add vertical line between percentiles
+        ax.vlines(pos, q5_values[i], q95_values[i], colors=percentile_color, linestyle="dotted", linewidth=2, zorder = 1)
+        # ax.hlines(q5_values[i], pos - hlines_half_length, pos + hlines_half_length, colors=percentile_color, linestyle="dotted", linewidth=2)
+        # # ax.hlines(q25_values[i], pos - hlines_half_length, pos + hlines_half_length, colors=percentile_color, linestyle="dotted", linewidth=2)
+        # # ax.hlines(q75_values[i], pos - hlines_half_length, pos + hlines_half_length, colors=percentile_color, linestyle="dotted", linewidth=2)
+        # ax.hlines(q95_values[i], pos - hlines_half_length, pos + hlines_half_length, colors=percentile_color, linestyle="dotted", linewidth=2)
+
         # Annotate the median value above the median line
         ax.text(pos+0.3, median_value, f'{median_value:.1f}', ha='center', va='top', fontsize=fontsize-4, color=median_color)
-        ax.plot(mean_line[:, 0], mean_line[:, 1], color=mean_color, linewidth=2, linestyle="--", label="Mean" if "Mean" not in ax.get_legend_handles_labels()[1] else "")
+        ax.scatter(pos, median_value, color=median_color, marker='s', s=40, zorder = 10)
+        # ax.hlines(median_value, pos - hlines_half_length/2, pos + hlines_half_length/2, colors=median_color, linestyle="-", linewidth=2)
+        
         # Annotate the mean value below the mean line
-        ax.text(pos+0.3, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-4, color=mean_color)
-        ax.plot(median_line[:, 0], median_line[:, 1], color=median_color, linewidth=2, linestyle="-", label="Median" if "Median" not in ax.get_legend_handles_labels()[1] else "")
-    
+        ax.scatter(pos, mean_value, color=mean_color, marker='o', s=100)
+        # ax.hlines(mean_value, pos - hlines_half_length, pos + hlines_half_length, colors=mean_color, linestyle="-", linewidth=2)
+        ax.text(pos+0.3, mean_value, f'{mean_value:.1f}', ha='center', va='bottom', fontsize=fontsize-4, color=mean_color, zorder = 15)
+
     # Set ylim for first y-axis
-    ax.set_ylim(-60, 10)  # Set y-limit for better visibility
+    if len(q5_values) > 10:
+        y_min = q5_values[10] - 5
+    else: 
+        y_min = min([min(group) for group in data]) * 0.7
+    ax.set_ylim(y_min, 15)  # Set y-limit for better visibility
     ax.set_ylabel("Change in travel time (minutes)", fontsize=fontsize)
     ax.tick_params(axis='y', which='major', labelsize=14, labelleft=True, labelright=False, left=True, right=False)
     ax.set_xticks(group_ticks)
@@ -731,7 +781,11 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
 
     #Set title
     all_lines_string = get_line_str(network_style, line_name)
-    ax.set_title(f"Change in passenger travel time for {all_lines_string}", fontsize=18)
+    titles ={}
+    titles[-1] = f"Change in travel times for\nall passengers for {all_lines_string}"
+    titles[0] = f"Change in travel times for passengers\nwithout transfers for {all_lines_string}"
+    titles[1] = f"Change in travel times for passengers\nwith transfers for {all_lines_string}"
+    ax.set_title(titles[transfers], fontsize=18)
     plt.tight_layout()
 
     # Add legend for algorithm colors with bold font
@@ -741,19 +795,33 @@ def plot_travel_time_change_distribution(instance_name, line_name, base_folder="
     # Add mean, median, and missed transfer line entries to the legend
     mean_line = mlines.Line2D([0], [0], color=mean_color, linestyle='-', linewidth=2, label='Mean')
     median_line = mlines.Line2D([0], [0], color=median_color, linestyle='-', linewidth=2, label='Median')
-    legend_patches.extend([mean_line, median_line])
+    # legend_patches.extend([mean_line, median_line])
 
+    ## Add mean and median scatters entries to legend
+    mean_scatter = mlines.Line2D([0], [0], color=mean_color, marker='o', linestyle='None', label='-2.4 Mean')
+    median_scatter = mlines.Line2D([0], [0], color=median_color, marker='s', linestyle='None', label='0.0 Median')
+    legend_patches.extend([mean_scatter, median_scatter])
+
+    # Add percentile lines to the legend (5% and 95%)
+    percentile_line = mlines.Line2D([0], [0], color=percentile_color, linestyle='dotted', linewidth=2, label='5-95%')
+    legend_patches.append(percentile_line)
     
     # Optimize legend position and style
     ax.legend(handles=legend_patches, loc='upper left', fontsize=fontsize-2, title_fontsize=fontsize,
-             framealpha=0.9, shadow=True, ncol = 5)
+             framealpha=0.9, shadow=True, ncol = 3, frameon=True)
 
     plt.tight_layout()
-    if len(line_name) >10:
-        line_name = 'AllLines'
-    figure_name = f"{line_name}_travel_time_change_distribution.png"
+    line_string = get_image_name(network_style, line_name)
+    if transfers == -1:
+        addendum = 'all_passengers'
+    elif transfers == 0:
+        addendum = 'no_transfers'
+    else:
+        addendum = 'transfers_only'
+    figure_name = f"{line_string}_travel_time_change_distribution" +addendum+".png"
     plt.savefig(os.path.join(base_folder, instance_name, figure_name))
-    plt.show()
+    # plt.show()
+    plt.close()
     return()
 
 if __name__ == "__main__":
@@ -769,14 +837,17 @@ if __name__ == "__main__":
         for route_ids_list in [route_dict[network_style]]:
             for transfer_type in [0,1,2]:
                 try:
-                    ### Run the function to compare and plot passenger travel times across different parameters for line 70E
+                    ## Run the function to compare and plot passenger travel times across different parameters for line 70E
                     plot_single_line_comparisons(instance_name, requests_file_path=requests_file_path, line_name = route_ids_list, transfer_type = transfer_type, network_style = network_style)
                 except:
-                    print('Could not plot for:', network_style)
-            try:
-                plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style)
-            except:
-                print('Could not plot travel time change distribution for:', network_style)
+                    continue
+            for transfers in [-1, 0, 1]:
+                try:
+                    plot_travel_time_change_distribution(instance_name, route_ids_list, network_style = network_style, transfers= transfers)
+                except Exception as e:
+                #     traceback.print_exc()
+                # print('Could not plot travel time change distribution for:', network_style)
+                    continue
     # Run the function to compare and plot passenger travel times across different parameters for line 70E
     # data_name = "gtfs2019-11-25_TestInstanceDurationCASPT_NEW"
     # instance_name = data_name

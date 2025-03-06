@@ -20,7 +20,6 @@ from statistics import mean
 from collections import Counter
 import traceback
 from typing import List
-import multiprocessing
 
 logger = logging.getLogger(__name__)
 
