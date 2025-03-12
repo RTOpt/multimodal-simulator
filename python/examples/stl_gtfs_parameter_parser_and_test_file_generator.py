@@ -31,6 +31,21 @@ def keep_routes_to_optimize(Case):
                         break
     return Case
 
+def get_single_routes_to_optimize(routes_to_optimize_names):
+    single_routes_to_optimize_names=[]
+    all_ligns = []
+    for route_name in routes_to_optimize_names:
+        lign = route_name[:-1]
+        dir = route_name[-1]
+        if lign in all_ligns:
+            continue
+        if dir in ['S', 'N']:
+            single_routes_to_optimize_names.append([lign+'S', lign+'N',])
+        else:
+            single_routes_to_optimize_names.append([lign+'E', lign+'O',])
+        all_ligns.append(lign)
+    return single_routes_to_optimize_names
+
 def parse_parameters_for_transfer_synchro(network_style = ''):
     all_ligns_SN= ['151', '17', '27', '33', '37', '41', '43', '45', '46', '55', '61', '63', '65', '901', '902', '903', '925']
     all_ligns_EO= ['144', '20', '222', '22', '24','252', '26', '42', '52', '56', '60', '66', '70', '74', '76', '942']
@@ -78,10 +93,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
     values = list(params.values())
 
     #Create a list with : all individual lines
-    routes_to_optimize_names=[]
-    for route_name in all_lines_indiv:
-        routes_to_optimize_names.append([route_name,])
-    # print(routes_to_optimize_names)
+    routes_to_optimize_names = get_single_routes_to_optimize(all_lines_indiv)
     # Generate combinations with other parameters
     other_combinations = list(product(*values))
 
@@ -205,6 +217,8 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
         folder = test_folder_path_D if algo == 1 else test_folder_path_PI if algo == 3 else test_folder_path_R if algo == 2 else test_folder_path_Offline
         gtfs_folder_path_addendum = "_PI" if algo == 3 else ""
         testfile_path = os.path.join(folder, 'Test_{}.py'.format(index))
+        single_addendum = '_SINGLE'+routes_to_optimize_names[0][:-1] if multi == False else ''
+
         with open(testfile_path, 'w') as f:
             f.write(f"### DO NOT CHANGE THESE LINES: Parameters are auto-filled in stl_gtfs_parameter_parser_and_test_file_generator.py\n")
             f.write(f"### BEGINNING OF PARAMETERS ###\n")
@@ -212,8 +226,7 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
             f.write(f'import traceback\n')
             f.write(f'gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str({date})+"-{instance_name+network_style+gtfs_folder_path_addendum}")\n')
             f.write(f"requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')\n")
-            f.write(f"output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str({date})+'_{instance_name}')\n")
-            f.write(f"output_folder_name = 'gtfs2019-11-'+str({date})+'_{instance_name}'+'_{network_style}'\n")
+            f.write(f"output_folder_name = 'gtfs2019-11-'+str({date})+'_{instance_name}'+'_{network_style}'+'{single_addendum}'\n")
             f.write(f"routes_to_optimize_names = {routes_to_optimize_names}\n")
             f.write(f"algo = {algo}\n")
             f.write(f"sp = {sp}\n")
@@ -221,45 +234,25 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
             f.write(f"is_corridor = {network_style == 'corridor'}\n")
             f.write(f"transfer_hubs = {transfer_hubs}\n")
             f.write(f"### END OF PARAMETERS ###\n")
-            for line in lines[15:]:
+            for line in lines[14:]:
                 f.write(line)
         f.close()
 
-def generate_slurm_script(
-    network_style: str,
-    array_start: int = 0,
-    array_end: int = 12,
-    mem_per_cpu: int = 16,
-    time: str = "10:00:00",
-    partition: str = "optimum",
-    output_dir: str = "generated_scripts"
-) -> None:
-    """
-    Generates a SLURM script for a given instance with customizable parameters.
-
-    Parameters:
-        network_style (str): Name of the instance for file paths.
-        array_start (int): Start index for SLURM job array. Default is 0.
-        array_end (int): End index for SLURM job array. Default is 10.
-        mem_per_cpu (int): Memory per CPU in GB. Default is 16GB.
-        time (str): Time limit in HH:MM:SS format. Default is 10:00:00.
-        partition (str): SLURM partition name. Default is "optimum".
-        output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
-    """
-    if network_style in ['all', 'grid', 'transfer_hubs']:
-        mem_per_cpu = 32
-        time = "71:59:00"
-        partition = "optimumlong"
-    elif network_style in ['radial', 'corridor']:
-        time ="15:00:00"
-    
+def generate_script_content(mem_per_cpu: int,
+                            time: str,
+                            partition: str,
+                            multi_name: str,
+                            array_start: int,
+                            array_end: int,
+                            network_style: str,
+                            single_line_name: str = '') -> str:
     script_content = f"""#!/bin/bash
 #SBATCH --mem-per-cpu={mem_per_cpu}G
 #SBATCH --time={time}
 #SBATCH --partition={partition}
 #SBATCH --cpus-per-task=1
-#SBATCH --output=python/examples/fixed_line/test_files_multi_{network_style}/slurm_output_%A_%a.out
-#SBATCH --error=python/examples/fixed_line/test_files_multi_{network_style}/slurm_error_%A_%a.err
+#SBATCH --output=python/examples/fixed_line/test_files{multi_name}_{network_style}/slurm_output_%A_%a.out
+#SBATCH --error=python/examples/fixed_line/test_files{multi_name}_{network_style}/slurm_error_%A_%a.err
 #SBATCH --array={array_start}-{array_end} # Array between 0 - 12 for maximum of 13 tasks
 
 # Change to the correct working directory
@@ -269,7 +262,7 @@ cd /home/kollau/Recherche_Kolcheva/Simulator
 source /home/kollau/.conda/envs/SimulatorKolcheva/bin/activate
 
 # Define the base directory
-BASE_DIR="python/examples/fixed_line/test_files_multi_{network_style}"
+BASE_DIR="python/examples/fixed_line/test_files{multi_name}_{network_style}"
 
 # Manually define the list of test files
 TEST_FILES=(
@@ -297,6 +290,57 @@ python "$FILE_TO_RUN" > "$SUB_DIR/output_${{FILE_INDEX}}.out" 2> "$SUB_DIR/error
 conda deactivate
 #end of file
 """
+    return script_content
+
+def generate_slurm_script(
+    network_style: str,
+    array_start: int = 0,
+    array_end: int = 12,
+    mem_per_cpu: int = 16,
+    time: str = "10:00:00",
+    partition: str = "optimum",
+    output_dir: str = "generated_scripts",
+    multi: bool = True
+) -> None:
+    """
+    Generates a SLURM script for a given instance with customizable parameters.
+
+    Parameters:
+        network_style (str): Name of the instance for file paths.
+        array_start (int): Start index for SLURM job array. Default is 0.
+        array_end (int): End index for SLURM job array. Default is 10.
+        mem_per_cpu (int): Memory per CPU in GB. Default is 16GB.
+        time (str): Time limit in HH:MM:SS format. Default is 10:00:00.
+        partition (str): SLURM partition name. Default is "optimum".
+        output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
+    """
+    if network_style in ['all', 'grid', 'transfer_hubs']:
+        mem_per_cpu = 32
+        time = "71:59:00"
+        partition = "optimumlong"
+    elif network_style in ['radial', 'corridor']:
+        time ="15:00:00"
+    if multi:
+        multi_name = '_multi'
+    else:
+        multi_name = ''
+    single_routes_to_optimize = ['']
+
+    if multi == False: 
+        routes_to_optimize = get_route_dictionary()[network_style]
+        # Only keep unique
+        single_routes_to_optimize = list(set([route[:-1] for route in routes_to_optimize]))
+    
+    script_content = generate_script_content(
+        mem_per_cpu=mem_per_cpu,
+        time=time,
+        partition=partition,
+        multi_name=multi_name,
+        array_start=array_start,
+        array_end=array_end,
+        network_style=network_style
+        )
+    
     # Output directory 
     output_dir = os.path.join('python','examples','fixed_line','slurm_scripts')
 
@@ -315,10 +359,10 @@ conda deactivate
 ### Main code
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
-        generate_slurm_script(network_style, array_start=5, array_end=8)
+        generate_slurm_script(network_style)
         # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-        # # combinations_single = read_combinations_from_file(combinations_file_name)
+        # combinations_single = read_combinations_from_file(combinations_file_name)
         # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
         # instance_name = 'EveningRushHour'
-        # # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
         # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
