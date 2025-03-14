@@ -1636,7 +1636,7 @@ class Graph:
         m = Model(solver_name="CBC")
         m.verbose = 0
         m.solver_verbosity = 0
-        m.presolve = 0
+        m.presolve = 1
         m.store_search_progress_log = False
         m.seed = 42
         

@@ -675,19 +675,19 @@ class FixedLineDispatcher(Dispatcher):
                     # Log the error message and traceback
                     error_message = 'Problem in OSO with route {} trip {} at stop {}: scenario {}/{}'.format(self.route_name, bus_trip_id, stop_id, j_try, self.algo_parameters["j_try"])
                     error_traceback = traceback.format_exc()  # Get full traceback
-                    with open(self.__error_file_path, "a") as f:
-                        f.write('Error message: {}\n'.format(error_message))
-                        f.write('Error traceback: {}\n'.format(error_traceback))
-                    f.close()
+                    # with open(self.__error_file_path, "a") as f:
+                    #     f.write('Error message: {}\n'.format(error_message))
+                    #     f.write('Error traceback: {}\n'.format(error_traceback))
+                    # f.close()
                     # Print the error message and traceback
                     # traceback.print_exc()
                     # logger.warning('Problem with scenario {}/{} and stop_id {}'.format(j_try, self.algo_parameters["j_try"], stop_id))
             else:
                 # Log the error message
                 error_message = 'The scenario generation failed after {} tries.'.format(j_try)
-                with open(self.__error_file_path, "a") as f:
-                    f.write('Error message: {}\n'.format(error_message))
-                f.close()
+                # with open(self.__error_file_path, "a") as f:
+                #     f.write('Error message: {}\n'.format(error_message))
+                # f.close()
                 # Print the error message
                 # logger.warning('The scenario generation failed after {} tries.'.format(j_try))
                 #Stop the solution process
@@ -2018,10 +2018,10 @@ class FixedLineDispatcher(Dispatcher):
             # logger.warning(error_message)
             # traceback.print_exc()
             error_traceback = traceback.format_exc()  # Get full traceback
-            with open(self.__error_file_path, "a") as f:
-                f.write('Error message: {}\n'.format(error_message))
-                f.write('Error traceback: {}\n'.format(error_traceback))
-            f.close()
+            # with open(self.__error_file_path, "a") as f:
+            #     f.write('Error message: {}\n'.format(error_message))
+            #     f.write('Error traceback: {}\n'.format(error_traceback))
+            # f.close()
             #Display graph for debugging
             # G.display_graph(display_flows = False, name = 'Regret_error')
 
