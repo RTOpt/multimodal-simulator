@@ -92,6 +92,7 @@ class Simulation:
 
         logger.info("\n***************\nEND OF SIMULATION\n***************")
         self.__visualize_environment()
+        self.__clean_up_data_collectors()
 
     def pause(self):
         logger.info("Simulation paused")
@@ -192,3 +193,8 @@ class Simulation:
         with self.__simulation_cv:
             if self.__simulation_paused:
                 self.__simulation_cv.wait()
+
+    def __clean_up_data_collectors(self):
+        if self.__environment_observer is not None:
+            for data_collector in self.__environment_observer.data_collectors:
+                data_collector.clean_up(self.__env)

@@ -32,6 +32,12 @@ class DataCollector:
         raise NotImplementedError('collect of {} not implemented'
                                   .format(self.__class__.__name__))
 
+    def clean_up(self, env: 'environment.Environment') -> None:
+        """This method is called at the end of a simulation and may be used
+        to do some clean up in the DataCollector."""
+        raise NotImplementedError('clean_up of {} not implemented'
+                                  .format(self.__class__.__name__))
+
 
 class StandardDataCollector(DataCollector):
 
@@ -82,6 +88,9 @@ class StandardDataCollector(DataCollector):
         self.__collect_events_data()
 
         self.__collect_environment_data(env)
+
+    def clean_up(self, env: 'environment.Environment') -> None:
+        logger.info("StandardDataCollector.clean_up()")
 
     def __load_config(self, config):
         if isinstance(config, str):
