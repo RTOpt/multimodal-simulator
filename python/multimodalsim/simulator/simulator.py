@@ -364,14 +364,16 @@ class SimulationInitializerShuttle(SimulationInitializer):
                                         vehicles_file_path,
                                         graph_file_path,
                                         vehicles_end_time)
-        self._vehicles, self._routes_by_vehicle_id = \
-            data_reader.get_vehicles()
-        self._trips = data_reader.get_trips()
 
         # Read the network graph.
-        with open(graph_file_path, 'r') as f:
-            graph_data = json.load(f)
-            self._network = json_graph.node_link_graph(graph_data)
+        self._network = data_reader.get_json_graph()
+
+        # Read vehicles
+        self._vehicles, self._routes_by_vehicle_id = \
+            data_reader.get_vehicles()
+
+        # Read Trips
+        self._trips = data_reader.get_trips()
 
     def _init_optimization(self):
         freeze_interval = self._parameters["freeze_interval"]

@@ -4,7 +4,7 @@ import logging
 import math
 from ast import literal_eval
 import json
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from networkx.readwrite import json_graph
 
@@ -34,9 +34,10 @@ class DataReader(object):
 class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path: str, vehicles_file_path: str,
                  graph_from_json_file_path: Optional[str] = None,
-                 vehicles_end_time: Optional[int] = None) -> None:
+                 vehicles_end_time: Optional[int] = None,
+                 network: Optional[Any] = None) -> None:
         super().__init__()
-        self.__network = None
+        self.__network = network
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
         self.__graph_from_json_file_path = graph_from_json_file_path
