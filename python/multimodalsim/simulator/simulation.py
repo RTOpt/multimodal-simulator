@@ -135,6 +135,9 @@ class Simulation:
             for visualizer in environment_observer.visualizers:
                 visualizer.attach_simulation(self)
                 visualizer.attach_environment(self.__env)
+            for data_collector in environment_observer.data_collectors:
+                data_collector.attach_simulation(self)
+                data_collector.attach_environment(self.__env)
 
         self.__environment_observer = environment_observer
 
