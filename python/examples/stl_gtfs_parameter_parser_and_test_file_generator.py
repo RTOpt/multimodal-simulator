@@ -61,7 +61,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
     index = {}
     all_lines_indiv = []
     for i in range(4):
-        index[i] = 0
+        index[i] = {}
     index_multi = {}
     for i in range(4):
         index_multi[i] = 0
@@ -94,6 +94,7 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
 
     #Create a list with : all individual lines
     routes_to_optimize_names = get_single_routes_to_optimize(all_lines_indiv)
+    # routes_to_optimize_names = [['151S', '151N'],]
     # Generate combinations with other parameters
     other_combinations = list(product(*values))
 
@@ -102,16 +103,19 @@ def parse_parameters_for_transfer_synchro(network_style = ''):
         algo = int(other_combination[keys.index('algo')])
         if algo == 0 and (bool(other_combination[keys.index('sp')]) == True or bool(other_combination[keys.index('ss')]) == True):
             continue
-        combination_name = 'Combination{}_{}'.format(algo, index[algo])
+        route_name = routes_to_optimize_name[0][:-1]
+        if route_name not in index[algo]:
+            index[algo][route_name] = 0
+        combination_name = 'Combination{}_{}_{}'.format(algo, route_name, index[algo][route_name])
         combinations[combination_name] = {
             'routes_to_optimize_names': routes_to_optimize_name,
             'algo': algo,
             'sp': other_combination[keys.index('sp')],
             'ss': other_combination[keys.index('ss')],
             'date': other_combination[keys.index('dates')],
-            'index': index[algo]
+            'index': index[algo][route_name]
         }
-        index[algo] += 1
+        index[algo][route_name] += 1
     
     # Multi line combinations
     routes_to_optimize_names = all_lines_indiv
@@ -167,17 +171,8 @@ def read_combinations_from_file(file_path):
             combinations[combination_name] = eval(combination_details.strip())
     return combinations
 
-def create_test_files(combinations, multi = False, clean = True, network_style ='', instance_name = 'LargeInstanceAll'):
-    #Read base test file : python\examples\fixed_line\fixed_line_transfer_synchro_testfile.py
-    base_test_file_path = os.path.join('python','examples','fixed_line','fixed_line_transfer_synchro_testfile.py')
-    with open(base_test_file_path, 'r') as f:
-        lines = f.readlines()
-    f.close()
-
-    folder_name = 'test_files_multi' if multi else 'test_files'
-    folder_name += '_' + network_style if network_style != '' else ''
-    test_folder_path = os.path.join('python','examples','fixed_line', folder_name)
-    if clean: #test_folder_path dictory is deleted and recreated
+def clean_and_create_directory(test_folder_path, clean = True):
+    if clean:
         if os.path.exists(test_folder_path):
             for file in os.listdir(test_folder_path):
                 file_path = os.path.join(test_folder_path, file)
@@ -204,11 +199,34 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
     test_folder_path_Offline = os.path.join(test_folder_path, 'Offline')
     if not os.path.exists(test_folder_path_Offline):
         os.makedirs(test_folder_path_Offline)
-    
-    transfer_hubs = [42482, 43343, 41447, 41801] if network_style == 'transfer_hubs' else []
+    return test_folder_path_D, test_folder_path_PI, test_folder_path_R, test_folder_path_Offline
 
+def create_test_files(combinations, multi = False, clean = True, network_style ='', instance_name = 'LargeInstanceAll'):
+    #Read base test file : python\examples\fixed_line\fixed_line_transfer_synchro_testfile.py
+    base_test_file_path = os.path.join('python','examples','fixed_line','fixed_line_transfer_synchro_testfile.py')
+    with open(base_test_file_path, 'r') as f:
+        lines = f.readlines()
+    f.close()
+
+    transfer_hubs = [42482, 43343, 41447, 41801] if network_style == 'transfer_hubs' else []
+    folder_name = 'test_files_multi' if multi else 'test_files'
+    folder_name += '_' + network_style if network_style != '' else ''
+    if multi: 
+        test_folder_path = os.path.join('python','examples','fixed_line', folder_name)
+        test_folder_path_D, test_folder_path_PI, test_folder_path_R, test_folder_path_Offline = clean_and_create_directory(test_folder_path, clean = clean)
+        clean = False # clean only once for multi
+    else:
+        cleaned_single_lines = []
     for combination_name, combination in combinations.items():
         routes_to_optimize_names = combination['routes_to_optimize_names']
+        single_addendum = '_SINGLE'+routes_to_optimize_names[0][:-1] if multi == False else ''
+        single_folder_name = folder_name + single_addendum
+        test_folder_path = os.path.join('python','examples','fixed_line', single_folder_name)
+        if multi == False and routes_to_optimize_names[0][:-1] not in cleaned_single_lines:
+            test_folder_path_D, test_folder_path_PI, test_folder_path_R, test_folder_path_Offline = clean_and_create_directory(test_folder_path, clean = clean)
+            cleaned_single_lines.append(routes_to_optimize_names[0][:-1])
+
+        # Write the test file
         algo = combination['algo']
         sp = combination['sp']
         ss = combination['ss']
@@ -217,8 +235,7 @@ def create_test_files(combinations, multi = False, clean = True, network_style =
         folder = test_folder_path_D if algo == 1 else test_folder_path_PI if algo == 3 else test_folder_path_R if algo == 2 else test_folder_path_Offline
         gtfs_folder_path_addendum = "_PI" if algo == 3 else ""
         testfile_path = os.path.join(folder, 'Test_{}.py'.format(index))
-        single_addendum = '_SINGLE'+routes_to_optimize_names[0][:-1] if multi == False else ''
-
+        
         with open(testfile_path, 'w') as f:
             f.write(f"### DO NOT CHANGE THESE LINES: Parameters are auto-filled in stl_gtfs_parameter_parser_and_test_file_generator.py\n")
             f.write(f"### BEGINNING OF PARAMETERS ###\n")
@@ -246,13 +263,14 @@ def generate_script_content(mem_per_cpu: int,
                             array_end: int,
                             network_style: str,
                             single_line_name: str = '') -> str:
+    single_line_addendum = '_SINGLE'+single_line_name if single_line_name != '' else ''
     script_content = f"""#!/bin/bash
 #SBATCH --mem-per-cpu={mem_per_cpu}G
 #SBATCH --time={time}
 #SBATCH --partition={partition}
 #SBATCH --cpus-per-task=1
-#SBATCH --output=python/examples/fixed_line/test_files{multi_name}_{network_style}/slurm_output_%A_%a.out
-#SBATCH --error=python/examples/fixed_line/test_files{multi_name}_{network_style}/slurm_error_%A_%a.err
+#SBATCH --output=python/examples/fixed_line/test_files{multi_name}_{network_style}{single_line_addendum}/slurm_output_%A_%a.out
+#SBATCH --error=python/examples/fixed_line/test_files{multi_name}_{network_style}{single_line_addendum}/slurm_error_%A_%a.err
 #SBATCH --array={array_start}-{array_end} # Array between 0 - 12 for maximum of 13 tasks
 
 # Change to the correct working directory
@@ -262,7 +280,7 @@ cd /home/kollau/Recherche_Kolcheva/Simulator
 source /home/kollau/.conda/envs/SimulatorKolcheva/bin/activate
 
 # Define the base directory
-BASE_DIR="python/examples/fixed_line/test_files{multi_name}_{network_style}"
+BASE_DIR="python/examples/fixed_line/test_files{multi_name}_{network_style}{single_line_addendum}"
 
 # Manually define the list of test files
 TEST_FILES=(
@@ -297,7 +315,7 @@ def generate_slurm_script(
     array_start: int = 0,
     array_end: int = 12,
     mem_per_cpu: int = 16,
-    time: str = "10:00:00",
+    time: str = "20:00:00",
     partition: str = "optimum",
     output_dir: str = "generated_scripts",
     multi: bool = True
@@ -315,54 +333,77 @@ def generate_slurm_script(
         output_dir (str): Directory where the script will be saved. Default is "generated_scripts".
     """
     if network_style in ['all', 'grid', 'transfer_hubs']:
-        mem_per_cpu = 32
-        time = "71:59:00"
+        mem_per_cpu = 64
+        time = "90:00:00"
         partition = "optimumlong"
     elif network_style in ['radial', 'corridor']:
-        time ="15:00:00"
+        time ="47:00:00"
+        mem_per_cpu = 32
     if multi:
         multi_name = '_multi'
     else:
         multi_name = ''
-    single_routes_to_optimize = ['']
-
-    if multi == False: 
-        routes_to_optimize = get_route_dictionary()[network_style]
-        # Only keep unique
-        single_routes_to_optimize = list(set([route[:-1] for route in routes_to_optimize]))
-    
-    script_content = generate_script_content(
-        mem_per_cpu=mem_per_cpu,
-        time=time,
-        partition=partition,
-        multi_name=multi_name,
-        array_start=array_start,
-        array_end=array_end,
-        network_style=network_style
-        )
-    
     # Output directory 
     output_dir = os.path.join('python','examples','fixed_line','slurm_scripts')
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    # Define output file path
-    script_filename = os.path.join(output_dir, f"run_{network_style}.sh")
+    if multi:
+        script_content = generate_script_content(
+            mem_per_cpu=mem_per_cpu,
+            time=time,
+            partition=partition,
+            multi_name=multi_name,
+            array_start=array_start,
+            array_end=array_end,
+            network_style=network_style
+            )
+        
+        # Define output file path
+        script_filename = os.path.join(output_dir, f"run_{network_style}.sh")
 
-    # Write script to file
-    with open(script_filename, "w") as f:
-        f.write(script_content)
+        # Write script to file
+        with open(script_filename, "w") as f:
+            f.write(script_content)
 
-    print(f"SLURM script generated: {script_filename}")
+        print(f"SLURM script generated: {script_filename}")
+        return()
+    
+    single_routes_to_optimize = ['']
+    routes_to_optimize = get_route_dictionary()[network_style]
+    # Only keep unique
+    single_routes_to_optimize = list(set([route[:-1] for route in routes_to_optimize]))
+    for single_route in single_routes_to_optimize:
+        script_content = generate_script_content(
+            mem_per_cpu=mem_per_cpu,
+            time=time,
+            partition=partition,
+            multi_name=multi_name,
+            array_start=array_start,
+            array_end=array_end,
+            network_style=network_style,
+            single_line_name = single_route
+        )
+        # Define output file path
+        script_filename = os.path.join(output_dir, f"run_{network_style}_SINGLE{single_route}.sh")
+        # Write script to file
+        with open(script_filename, "w") as f:
+            f.write(script_content)
+
+        print(f"SLURM script generated: {script_filename}")
+    return()
+    
 
 ### Main code
 if __name__ == '__main__':
     for network_style in get_route_dictionary().keys():
-        generate_slurm_script(network_style)
-        # combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
-        # combinations_single = read_combinations_from_file(combinations_file_name)
-        # combinations_multi = read_combinations_from_file(combinations_multi_file_name)
-        # instance_name = 'EveningRushHour'
-        # create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
-        # create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
+    # for network_style in ['to_low_frequency']:
+        if network_style == 'all' and network_style != 'transfer_hubs':
+            generate_slurm_script(network_style, multi = False)
+            combinations_file_name, combinations_multi_file_name = parse_parameters_for_transfer_synchro(network_style=network_style)
+            combinations_single = read_combinations_from_file(combinations_file_name)
+            combinations_multi = read_combinations_from_file(combinations_multi_file_name)
+            instance_name = 'EveningRushHour'
+            create_test_files(combinations_single, multi = False, instance_name=instance_name, network_style = network_style)
+            create_test_files(combinations_multi, multi = True, instance_name=instance_name, network_style = network_style)
