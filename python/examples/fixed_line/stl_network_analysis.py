@@ -11,7 +11,10 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
+fontsize = 14
 base_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'fixed_line', 'gtfs', 'gtfs2019-11-27')
+figsize = (12, 8.5)
+text_start = 14.5
 
 def get_route_dictionary():
         # Define the route_ids to plot
@@ -24,7 +27,21 @@ def get_route_dictionary():
     route_ids_dict['grid'] = list(sorted([ '17N', '17S', '151S', '151N','26O', '26E', '42E','42O', '76E','76O']))  # route_ids for a quadrant style network.
     route_ids_dict['all'] = list(sorted(['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']))
     route_ids_dict['transfer_hubs'] = route_ids_dict['all'] # route_ids for the transfer hubs network.
+    route_ids_dict['to_low_frequency'] = list(sorted(['151N', '20E', '20O', '60E', '60O', '66E', '66O'])) # route_ids for a low frequency only network.
     return route_ids_dict
+
+def get_routes_count(network_style):
+    """Get the number of routes for each network style.
+    Inputs:
+        network_style (str): network style.
+    Outputs:
+        int: number of routes for each network style.
+    """
+    route_ids_dict = get_route_dictionary()  # get route_ids for each network type.
+    route_ids = route_ids_dict[network_style]  # get route_ids for the given network type.
+    route_names = [route_id[:-1] for route_id in route_ids]  # get route names.
+    route_names = sorted(list(set(route_names)))  # get unique route names.
+    return len(route_names)  # return number of routes.
 
 def get_trips():
     """Get all trip_ids for each route in route_ids.
@@ -87,7 +104,7 @@ def frequency_to_headway(frequency):
 def plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_style):
     """Plot frequency for each route in route_to_frequency."""
     #set plot size
-    plt.figure(figsize=(12, 8))  # set plot size.
+    plt.figure(figsize = figsize)  # set plot size.
     route_ids_to_remove = []  # route_ids to remove.
     sorted_route_ids = list(sorted(route_to_frequency.keys()))  # get route_ids.
     for route_id in sorted_route_ids:
@@ -105,21 +122,21 @@ def plot_route_frequency(route_to_frequency, nbr_hours, color_dict, network_styl
             marker = 's'  # square
         color = color_dict[route_name]  # get color.
         plt.plot(np.arange(0, nbr_hours, 1), route_to_frequency[route_id], label=route_id, marker=marker, color= color)  # plot frequency.
-        plt.xticks(np.arange(0, nbr_hours, 1))
+        plt.xticks(np.arange(0, nbr_hours, 1), fontsize=fontsize-2)  # set x ticks.
     plt.xlim(3, 23)
     maximum_frequency = max(f for route_id in route_to_frequency if route_id not in route_ids_to_remove for f in route_to_frequency[route_id])  # maximum frequency.
     # Add vertical lines at x = 14 and x = 19, and color the graph between these lines.
-    plt.axvspan(14, 19, color='gray', alpha=0.2)  # color graph between 14 and 19.
+    plt.axvspan(14, 18, color='gray', alpha=0.2)  # color graph between 14 and 19.
     plt.axvline(x=14, color='gray', linestyle='--')  # add vertical line at x = 14.
-    plt.axvline(x=19, color='gray', linestyle='--')  # add vertical line at x = 19.
-    plt.text(14.5, maximum_frequency+1, 'OPTIMIZATION HORIZON',fontsize=10)  # add text at x = 14.5, y = 100.
-    plt.xlabel('Time (hours)')
-    plt.ylabel('Frequency (buses/hour)')
-    plt.title('Headways for each route')
+    plt.axvline(x=18, color='gray', linestyle='--')  # add vertical line at x = 19.
+    plt.text(text_start, maximum_frequency+1, 'STUDY PERIOD',fontsize = fontsize)  # add text at x = 14.5, y = 100.
+    plt.xlabel('Time (hours)', fontsize = fontsize)  # x-axis label.
+    plt.ylabel('Frequency (buses/hour)', fontsize = fontsize)  # y-axis label.
+    plt.title('Headways for each route', fontsize = fontsize + 2)  # plot title.
     if network_style != 'all':
         plt.legend()
     else: 
-        plt.legend(ncol=4)  # show legend.
+        plt.legend(ncol=4, fontsize = fontsize)  # show legend.
 
     # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
     name = 'stl_'+network_style+'_instance_frequency.png'
@@ -196,21 +213,21 @@ def get_passenger_and_transfer_demand(trips_to_route, tripid_to_stop_times, rout
                         route_to_passenger_demand[route_id]['transfer']['boarding'] = []
                         route_to_passenger_demand[route_id]['transfer']['alighting'] = []
                     route_to_passenger_demand[route_id]['regular'].append(boarding_time_first)
-                    if i == 1 and i!=all: #alighting transfer
-                        route_to_passenger_demand[route_id]['transfer']['alighting'].append(boarding_time_second)
+                    if i == 1 and i != all: #alighting transfer
                         if second_stop_id not in stop_to_time_transfers:
                             stop_to_time_transfers[second_stop_id] = {}
                             stop_to_time_transfers[second_stop_id]['boarding']=[]
                             stop_to_time_transfers[second_stop_id]['alighting']=[]
                         stop_to_time_transfers[second_stop_id]['alighting'].append(boarding_time_second)
-                    elif i == all and i!=1: #boarding transfer
+                        route_to_passenger_demand[route_id]['transfer']['alighting'].append(boarding_time_second)
+                    if i == all and i != 1: #boarding transfer
                         if first_stop_id not in stop_to_time_transfers:
                             stop_to_time_transfers[first_stop_id] = {}
                             stop_to_time_transfers[first_stop_id]['boarding']=[]
                             stop_to_time_transfers[first_stop_id]['alighting']=[]
                         stop_to_time_transfers[first_stop_id]['boarding'].append(boarding_time_first)
                         route_to_passenger_demand[route_id]['transfer']['boarding'].append(boarding_time_first)
-                    elif i!=1 and i!=all: #both transfer
+                    if i != 1 and i != all: #both transfer
                         if first_stop_id not in stop_to_time_transfers:
                             stop_to_time_transfers[first_stop_id] = {}
                             stop_to_time_transfers[first_stop_id]['boarding']=[]
@@ -223,7 +240,7 @@ def get_passenger_and_transfer_demand(trips_to_route, tripid_to_stop_times, rout
                         stop_to_time_transfers[second_stop_id]['alighting'].append(boarding_time_second)
                         route_to_passenger_demand[route_id]['transfer']['boarding'].append(boarding_time_first)
                         route_to_passenger_demand[route_id]['transfer']['alighting'].append(boarding_time_second)
-                    i+=1
+                    i += 1
             if add_total_demand:
                 total_demand.append(ready_time)
     return route_to_passenger_demand, total_demand, stop_to_time_transfers
@@ -308,7 +325,7 @@ def get_hourly_stop_transfer_demand(stop_to_time_transfers, nbr_hours):
             continue
         connected_stops = stop_connections.get(stop_id, [])
         for connected_stop in connected_stops:
-            if connected_stop in stop_to_hourly_transfer_demand and connected_stop not in merged_stops:
+            if connected_stop in stop_to_hourly_transfer_demand and int(connected_stop) not in merged_stops:
                 merged_stops.add(int(connected_stop))
                 for i in range(nbr_hours):
                     stop_to_hourly_transfer_demand[stop_id]['boarding'][i] += stop_to_hourly_transfer_demand[connected_stop]['boarding'][i]
@@ -318,8 +335,15 @@ def get_hourly_stop_transfer_demand(stop_to_time_transfers, nbr_hours):
 
 def plot_stop_transfer_demand(stop_to_hourly_transfer_demand, nbr_hours):
     """Plot transfer demand for each stop in stop_to_hourly_transfer_demand."""
+    # Get stats on total number of transfers and boarding transfers.
+    total_boarding_transfers = 0  # total boarding transfers.
+    total_alighting_transfers = 0  # total alighting transfers.
+    for stop_id in stop_to_hourly_transfer_demand:  # for each stop.
+        total_boarding_transfers += sum(stop_to_hourly_transfer_demand[stop_id]['boarding'])  # sum boarding transfers.
+        total_alighting_transfers += sum(stop_to_hourly_transfer_demand[stop_id]['alighting'])  # sum alighting transfers.
+
     # Create figure and subplots
-    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize = figsize, sharex = True)
 
     # Define line styles for each demand type
     demand_types = {'boarding': ('-', axes[0], 'Boarding transfer demand\n(nbr boarding transfers/hour)', 'o'),
@@ -327,6 +351,8 @@ def plot_stop_transfer_demand(stop_to_hourly_transfer_demand, nbr_hours):
     colors = ['red',  'green','blue', 'magenta', 'purple', 'darkcyan','gray', 'olive', 'cyan', 'black', 'pink', 'orange', 'yellow',  'lime', 'teal', 'indigo', 'maroon', 'navy', 'peru', 'plum', 'salmon', 'sienna', 'tan', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'yellowgreen', 'aquamarine', 'bisque', 'blueviolet', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson']
     color_dict = {}
     # Loop over demand types and plot in respective subplot
+    total_kept_boarding_transfers = 0  # total number of kept transfers.
+    total_kept_alighting_transfers = 0  # total number of kept alighting transfers.
     for type, (linestyle, ax, ylabel, marker) in demand_types.items():
 
         legend_handles = []  # Initialize legend handles
@@ -334,6 +360,10 @@ def plot_stop_transfer_demand(stop_to_hourly_transfer_demand, nbr_hours):
             max_transfer_demand = max(stop_to_hourly_transfer_demand[stop_id]['boarding'])  # Maximum transfer demand for stop
             if max_transfer_demand < 20:  # Skip stops with low transfer demand
                 continue
+            if type == 'boarding':
+                total_kept_boarding_transfers += sum(stop_to_hourly_transfer_demand[stop_id]['boarding'])  # sum boarding transfers.
+            if type == 'alighting':
+                total_kept_alighting_transfers += sum(stop_to_hourly_transfer_demand[stop_id]['alighting'])
             label = stop_id  # Label for legend
             if not color_dict.get(stop_id):
                 color_dict[stop_id] = colors.pop(0)  # Get color
@@ -349,20 +379,20 @@ def plot_stop_transfer_demand(stop_to_hourly_transfer_demand, nbr_hours):
             legend_handles.append(line)  # Add line to legend
         
         # Set individual legends
-        ax.legend(handles=legend_handles, ncol=4, title = type + " demand")
+        ax.legend(handles=legend_handles, ncol=4, title = type + " demand", fontsize=fontsize)
 
         # Add vertical lines and shaded optimization horizon
-        ax.axvspan(14, 19, color='gray', alpha=0.2)  
+        ax.axvspan(14, 18, color='gray', alpha=0.2)  
         ax.axvline(x=14, color='gray', linestyle='--')  
-        ax.axvline(x=19, color='gray', linestyle='--') 
-        ax.set_ylabel(ylabel)
+        ax.axvline(x=18, color='gray', linestyle='--') 
+        ax.set_ylabel(ylabel, fontsize = fontsize)
         ax.set_xticks(np.arange(0, nbr_hours, 1))
         ax.set_xlim(3, 23)
-        ax.set_xlabel('Time (hours)')
-    axes[0].text(14, 10, 'OPTIMIZATION HORIZON', fontsize=10)
+        ax.set_xlabel('Time (hours)', fontsize = fontsize)
+    axes[0].text(text_start, 10, 'STUDY PERIOD', fontsize=fontsize)
 
     # Set common x-axis properties
-    axes[0].set_title('Transfer demand for each stop')  # plot title.
+    axes[0].set_title('Transfer demand for each stop', fontsize = fontsize + 2)  # plot title.
     # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
     name = 'stl_instance_stop_transfer_demand.png'
     folder = os.path.join(os.path.dirname(__file__), 'figures')
@@ -394,11 +424,11 @@ def plot_route_passenger_demand(route_to_hourly_passenger_demand, nbr_hours, col
 
 
     # Create figure and subplots
-    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize = figsize, sharex=True)
 
     # Define line styles for each demand type
-    demand_types = {'regular': ('-', axes[0], 'Passenger demand\n(nbr boarding passengers/hour)', 'o'),
-                    'transfer': ('-', axes[1], 'Transfer demand\n(nbr boarding/alighting transfers/hour)', 's')}
+    demand_types = {'regular': ('-', axes[0], 'Passenger demand\n(nbr boarding\npassengers/hour)', 'o'),
+                    'transfer': ('-', axes[1], 'Transfer demand\n(nbr boarding/alighting\ntransfers/hour)', 's')}
 
     sorted_route_names = list(sorted(route_name_to_hourly_passenger_demand.keys()))  # Get route names
 
@@ -421,23 +451,25 @@ def plot_route_passenger_demand(route_to_hourly_passenger_demand, nbr_hours, col
         
         # Set individual legends
         legend_columns = 2 if network_style != 'all' else 4
-        ax.legend(handles=legend_handles, ncol=legend_columns, title = type + " demand")
+        ax.legend(handles=legend_handles, ncol=legend_columns, title = type + " demand", fontsize = fontsize)
 
         # Add vertical lines and shaded optimization horizon
-        ax.axvspan(14, 19, color='gray', alpha=0.2)  
+        ax.axvspan(14, 18, color='gray', alpha=0.2)  
         ax.axvline(x=14, color='gray', linestyle='--')  
-        ax.axvline(x=19, color='gray', linestyle='--') 
-        ax.set_ylabel(ylabel)
+        ax.axvline(x=18, color='gray', linestyle='--') 
+        ax.set_ylabel(ylabel, fontsize = fontsize)
         ax.set_xticks(np.arange(0, nbr_hours, 1))
         ax.set_xlim(3, 23)
-        ax.set_xlabel('Time (hours)')
-    axes[0].text(14, maximum_passenger_demand-10, 'OPTIMIZATION HORIZON', fontsize=10)
+        ax.set_xlabel('Time (hours)', fontsize = fontsize)
+    axes[0].text(text_start, maximum_passenger_demand-10, 'STUDY PERIOD', fontsize=fontsize)
 
     # Set common x-axis properties
     #set title for axes[0] and axes[1]
-    axes[0].set_title('Passenger demand for each route')  # plot title.
-    axes[1].set_title('Transfer demand for each route')  # plot title.
+    axes[0].set_title('Passenger demand for each route', fontsize = fontsize + 2)  # plot title.
+    axes[1].set_title('Transfer demand for each route', fontsize = fontsize + 2)  # plot title.
 
+    # Make tight layout
+    fig.tight_layout()  # adjust layout.
     # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
     name = 'stl_'+network_style+'_instance_route_demand.png'
     folder_name = 'figures_'+network_style
@@ -449,7 +481,7 @@ def plot_route_passenger_demand(route_to_hourly_passenger_demand, nbr_hours, col
     plt.close()  # Close the plot to free up memory
     return
 
-def get_color_dict(route_ids):  # get color dict.
+def get_color_dict(route_ids, greyscale = False):  # get color dict.
     """Get color dict for each route in route_ids."""
     # Generate 40 colors by combining tab20, tab20b, and tab20c
     colors = [plt.get_cmap('tab20')(i/20) for i in range(20)] + \
@@ -457,6 +489,11 @@ def get_color_dict(route_ids):  # get color dict.
              [plt.get_cmap('tab20c')(i/20) for i in range(20)]
     colors = ['red',  'green','blue', 'magenta', 'purple', 'darkcyan','gray', 'olive', 'cyan', 'black', 'pink', 'orange', 'yellow',  'lime', 'teal', 'indigo', 'maroon', 'navy', 'peru', 'plum', 'salmon', 'sienna', 'tan', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'yellowgreen', 'aquamarine', 'bisque', 'blueviolet', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson']
     # colors = [c for c in colors if (0.299*c[0] + 0.587*c[1] + 0.114*c[2]) < 0.75] # remove liht/pale colors
+    if greyscale:  # if greyscale.
+        # get cmap Paired and convert to greyscale
+        cmap = plt.get_cmap("Paired")
+        colors = [cmap(i) for i in range(12)]
+        # colors = ['black', 'gray', 'dimgray', 'darkgray', 'lightgray']  # greyscale colors.
     color_dict = {}  # color dict.
     # cmap = plt.get_cmap("Set1")  # Set1 has strong, well-separated colors
     route_names = [route_id[:-1] for route_id in route_ids]  # get route names.
@@ -468,10 +505,10 @@ def get_color_dict(route_ids):  # get color dict.
 def plot_total_passenger_demand(total_passenger_demand, total_transfer_demand, nbr_hours, network_style):
     """Plot total passenger demand."""
     # plot total passenger demand on left y-axis and total transfer demand on right y-axis.
-    fig, ax1 = plt.subplots(figsize=(12, 8))  # create figure and axis.
-    ax1.set_xlabel('Time (hours)')  # x-axis label.
-    ax1.set_ylabel('Passenger demand (passengers/hour)')  # y-axis label.
-    ax1.set_title('Total passenger demand')  # plot title.
+    fig, ax1 = plt.subplots(figsize = figsize)  # create figure and axis.
+    ax1.set_xlabel('Time (hours)', fontsize = fontsize)  # x-axis label.
+    ax1.set_ylabel('Passenger demand (passengers/hour)', fontsize = fontsize)  # y-axis label.
+    ax1.set_title('Total passenger demand', fontsize = fontsize + 2)  # plot title.
     ax1.tick_params(axis='y')  # y-axis ticks.
     ax1.set_xticks(np.arange(0, nbr_hours, 1))  # x ticks at every hour.
     ax1.set_xlim(3, 24)  # Cut plots before 4am and after 11pm.
@@ -483,14 +520,14 @@ def plot_total_passenger_demand(total_passenger_demand, total_transfer_demand, n
     fig.tight_layout()  # adjust layout.
     # Add vertical lines at x = 14 and x = 19, and color the graph between these lines.
     maximum_passenger_demand = max(total_passenger_demand)  # maximum passenger demand.
-    ax1.axvspan(14, 19, color='gray', alpha=0.2)  # color graph between 14 and 19.
+    ax1.axvspan(14, 18, color='gray', alpha=0.2)  # color graph between 14 and 19.
     ax1.axvline(x=14, color='gray', linestyle='--')  # add vertical line at x = 14.
-    ax1.axvline(x=19, color='gray', linestyle='--')  # add vertical line at x = 19.
-    ax1.text(14.5, maximum_passenger_demand+5, 'OPTIMIZATION HORIZON',fontsize=10)  # add text at x = 14.5, y = 100.
+    ax1.axvline(x=18, color='gray', linestyle='--')  # add vertical line at x = 19.
+    ax1.text(text_start, maximum_passenger_demand+5, 'STUDY PERIOD',fontsize=fontsize)  # add text at x = 14.5, y = 100.
     # add legend for both y-axes.
     lines1, labels1 = ax1.get_legend_handles_labels()  # get legend handles and labels for first y-axis.
     lines2, labels2 = ax2.get_legend_handles_labels()  # get legend handles and labels for second y-axis.
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')  # add legend.
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left', fontsize = fontsize + 2)  # add legend.
     
     # Save the figure as a PNG file with a high resolution (300 DPI) and close the plot to free up memory
     name = 'stl_'+network_style+'_instance_total_demand.png'
