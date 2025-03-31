@@ -318,7 +318,8 @@ class OptimizedRoutePlan:
                          lat: Optional[float] = None,
                          cumulative_distance: Optional[float] = None,
                          legs_to_board: Optional[list['request.Leg']] = None,
-                         legs_to_alight: Optional[list['request.Leg']] = None)\
+                         legs_to_alight: Optional[list['request.Leg']] = None,
+                         capacity: Optional[int] = None)\
             -> list[Stop]:
         """Append a stop to the list of next stops of the route plan.
             Parameters:
@@ -348,6 +349,8 @@ class OptimizedRoutePlan:
                     then the legs that are not explicitly assigned to a stop
                     will automatically be alighted at the first stop
                     corresponding to the destination location.
+                capacity: int or None
+                    The maximal number of passengers that can wait at the stop.
         """
         if self.__next_stops is None:
             self.__next_stops = []
@@ -357,7 +360,8 @@ class OptimizedRoutePlan:
 
         stop = Stop(arrival_time, departure_time,
                     LabelLocation(stop_id, lon, lat),
-                    cumulative_distance=cumulative_distance)
+                    cumulative_distance=cumulative_distance,
+                    capacity=capacity)
 
         if legs_to_board is not None:
             self.assign_legs_to_board_to_stop(legs_to_board, stop)

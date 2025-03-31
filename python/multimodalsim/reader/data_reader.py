@@ -35,7 +35,8 @@ class ShuttleDataReader(DataReader):
     def __init__(self, requests_file_path: str, vehicles_file_path: str,
                  graph_from_json_file_path: Optional[str] = None,
                  vehicles_end_time: Optional[int] = None,
-                 network: Optional[Any] = None) -> None:
+                 network: Optional[Any] = None,
+                 stop_capacity: int = 10) -> None:
         super().__init__()
         self.__network = network
         self.__requests_file_path = requests_file_path
@@ -45,6 +46,8 @@ class ShuttleDataReader(DataReader):
         # The time difference between the arrival and the departure time.
         self.__boarding_time = 30
         self.__vehicles_end_time = vehicles_end_time
+
+        self.__stop_capacity = stop_capacity
 
     def get_trips(self) -> list[Trip]:
         """ read trip from a file
@@ -112,9 +115,9 @@ class ShuttleDataReader(DataReader):
                 start_stop_location = LabelLocation(stop_id, lon=lon, lat=lat)
 
                 start_stop = Stop(start_time,
-                                  # Vehicle.MAX_TIME,
                                   math.inf,
-                                  start_stop_location)
+                                  start_stop_location,
+                                  capacity=self.__stop_capacity)
 
                 # reusable=True since the vehicles are shuttles.
                 vehicle = Vehicle(vehicle_id, start_time, start_stop, capacity,
@@ -141,7 +144,8 @@ class ShuttleDataReader(DataReader):
 
 class BusDataReader(DataReader):
     def __init__(self, requests_file_path: str,
-                 vehicles_file_path: str) -> None:
+                 vehicles_file_path: str,
+                 stop_capacity: int = 20) -> None:
         super().__init__()
         self.__requests_file_path = requests_file_path
         self.__vehicles_file_path = vehicles_file_path
@@ -150,6 +154,8 @@ class BusDataReader(DataReader):
         self.__boarding_time = 100
         # The time required to travel from one stop to the next stop.
         self.__travel_time = 200
+
+        self.__stop_capacity = stop_capacity
 
     def get_trips(self) -> list[Trip]:
         trips_list = []
@@ -191,7 +197,8 @@ class BusDataReader(DataReader):
                 stop_arrival_time = start_time
                 stop_departure_time = stop_arrival_time + self.__boarding_time
                 start_stop = Stop(start_time, stop_departure_time,
-                                  start_stop_location)
+                                  start_stop_location,
+                                  capacity=self.__stop_capacity)
 
                 next_stops = []
                 for next_stop_id in stop_ids_list[1:]:
@@ -201,7 +208,8 @@ class BusDataReader(DataReader):
                     stop_departure_time = \
                         stop_arrival_time + self.__boarding_time
                     next_stop = Stop(stop_arrival_time, stop_departure_time,
-                                     next_stop_location)
+                                     next_stop_location,
+                                     capacity=self.__stop_capacity)
                     next_stops.append(next_stop)
 
                 capacity = int(row[3])
@@ -225,6 +233,8 @@ class GTFSReader(DataReader):
                  calendar_dates_file_name: str = "calendar_dates.txt",
                  trips_file_name: str = "trips.txt",
                  routes_file_name: str = "routes.txt",
+                 vehicle_capacity: int = 30,
+                 stop_capacity: int = 20,
                  config: Optional[str | DataReaderConfig] = None) -> None:
         super().__init__()
         self.__data_folder = data_folder
@@ -237,7 +247,8 @@ class GTFSReader(DataReader):
 
         self.__load_config(config)
 
-        self.__CAPACITY = 10
+        self.__vehicle_capacity = vehicle_capacity
+        self.__stop_capacity = stop_capacity
 
         self.__stop_by_stop_id_dict = None
         self.__stop_times_by_trip_id_dict = None
@@ -429,7 +440,8 @@ class GTFSReader(DataReader):
 
         start_stop = Stop(start_stop_arrival_time, start_stop_departure_time,
                           start_stop_location, start_stop_shape_dist_traveled,
-                          min_departure_time=start_stop_min_departure_time)
+                          min_departure_time=start_stop_min_departure_time,
+                          capacity=self.__stop_capacity)
 
         next_stops = self.__get_next_stops(stop_time_list)
 
@@ -443,7 +455,8 @@ class GTFSReader(DataReader):
             if self.__route_mode_dict is not None else None
 
         vehicle = Vehicle(vehicle_id, start_stop_arrival_time, start_stop,
-                          self.__CAPACITY, release_time, end_time, mode)
+                          self.__vehicle_capacity, release_time, end_time,
+                          mode, name=route_id)
 
         return vehicle, next_stops
 
@@ -465,7 +478,8 @@ class GTFSReader(DataReader):
                                            stop_gtfs.stop_lon,
                                            stop_gtfs.stop_lat),
                              shape_dist_traveled,
-                             min_departure_time=min_departure_time)
+                             min_departure_time=min_departure_time,
+                             capacity=self.__stop_capacity)
             next_stops.append(next_stop)
 
         return next_stops

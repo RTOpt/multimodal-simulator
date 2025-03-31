@@ -29,12 +29,15 @@ class Stop:
     location: Location
         Object of type Location referring to the location of the stop
         (e.g., GPS coordinates)
+    capacity: int
+        The maximal number of passengers that can wait at the stop.
     """
 
     def __init__(self, arrival_time: float, departure_time: float,
-                 location: 'Location',
+                 location: 'LabelLocation',
                  cumulative_distance: Optional[float] = None,
-                 min_departure_time: Optional[float] = None) -> None:
+                 min_departure_time: Optional[float] = None,
+                 capacity: Optional[int] = None) -> None:
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -48,6 +51,7 @@ class Stop:
         self.__alighted_passengers = []
         self.__location = location
         self.__cumulative_distance = cumulative_distance
+        self.__capacity = capacity
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -144,12 +148,16 @@ class Stop:
         return self.__alighted_passengers
 
     @property
-    def location(self) -> 'Location':
+    def location(self) -> 'LabelLocation':
         return self.__location
 
     @property
-    def cumulative_distance(self) -> float:
+    def cumulative_distance(self) -> Optional[float]:
         return self.__cumulative_distance
+
+    @property
+    def capacity(self) -> Optional[int]:
+        return self.__capacity
 
     def initiate_boarding(self, trip: 'request.Trip'):
         """Passengers who are ready to be picked up in the stop get in the

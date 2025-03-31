@@ -22,7 +22,8 @@ class ShuttleGreedyDispatcher(Dispatcher):
     def __init__(self,
                  network: Any,
                  vehicles: List[Vehicle],
-                 time_window: float) -> None:
+                 time_window: float,
+                 stop_capacity: int = 10) -> None:
         """
         Input:
         ------------
@@ -38,6 +39,8 @@ class ShuttleGreedyDispatcher(Dispatcher):
         self.__vehicle_request_assign = {}
 
         self.__time_window = time_window
+
+        self.__stop_capacity = stop_capacity
 
         for vehicle in vehicles:
             self.__vehicle_request_assign[vehicle.id] = {
@@ -265,7 +268,8 @@ class ShuttleGreedyDispatcher(Dispatcher):
                                             arrival_time,
                                             departure_time, lon=origin_lon,
                                             lat=origin_lat,
-                                            legs_to_board=[leg])
+                                            legs_to_board=[leg],
+                                            capacity=self.__stop_capacity)
             route_plan.assign_leg(leg)
 
             # Calculate and add drop-off stop.
@@ -280,7 +284,8 @@ class ShuttleGreedyDispatcher(Dispatcher):
                                         arrival_time, departure_time,
                                         lon=destination_lon,
                                         lat=destination_lat,
-                                        legs_to_alight=[leg])
+                                        legs_to_alight=[leg],
+                                        capacity=self.__stop_capacity)
             departure_stop_id = leg.trip.destination.label
 
         return route_plan

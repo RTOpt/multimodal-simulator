@@ -15,7 +15,7 @@ class Vehicle:
         information about the vehicles.
         Properties
         ----------
-        id: int
+        id: str | int
             Unique id
         start_time: float
             Time at which the vehicle is ready to start
@@ -30,6 +30,9 @@ class Vehicle:
         reusable: Boolean
             Specifies whether the vehicle can be reused after it has traveled
             the current route (i.e., its route has no more next stops).
+        name: str
+            The name of the vehicle. If no name is provided, the name is equal
+            to the id of the vehicle.
         position: Location
             Most recent location of the vehicle. Note that the position is not
             updated at every time unit; it is updated only when the event
@@ -47,7 +50,8 @@ class Vehicle:
     def __init__(self, veh_id: str | int, start_time: float, start_stop: Stop,
                  capacity: int, release_time: float,
                  end_time: Optional[float] = None,
-                 mode: Optional[str] = None, reusable: bool = False) -> None:
+                 mode: Optional[str] = None, reusable: bool = False,
+                 name: Optional[str] = None) -> None:
         self.__id = veh_id
         self.__start_time = start_time
         self.__end_time = end_time if end_time is not None else self.MAX_TIME
@@ -59,6 +63,8 @@ class Vehicle:
         self.__position = None
         self.__polylines = None
         self.__state_machine = state_machine.VehicleStateMachine(self)
+
+        self.__name = name if name is not None else str(self.__id)
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -98,6 +104,10 @@ class Vehicle:
     @property
     def reusable(self) -> bool:
         return self.__reusable
+
+    @property
+    def name(self) -> str:
+        return self.__name
 
     @property
     def position(self) -> Location:
