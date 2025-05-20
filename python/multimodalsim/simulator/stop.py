@@ -31,13 +31,16 @@ class Stop:
         (e.g., GPS coordinates)
     capacity: int
         The maximal number of passengers that can wait at the stop.
+    tags: list[str]
+            List of tags associated with the stop.
     """
 
     def __init__(self, arrival_time: float, departure_time: float,
                  location: 'LabelLocation',
                  cumulative_distance: Optional[float] = None,
                  min_departure_time: Optional[float] = None,
-                 capacity: Optional[int] = None) -> None:
+                 capacity: Optional[int] = None,
+                 tags: Optional[list[str]] = None) -> None:
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -52,6 +55,7 @@ class Stop:
         self.__location = location
         self.__cumulative_distance = cumulative_distance
         self.__capacity = capacity
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -158,6 +162,10 @@ class Stop:
     @property
     def capacity(self) -> Optional[int]:
         return self.__capacity
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
     def initiate_boarding(self, trip: 'request.Trip'):
         """Passengers who are ready to be picked up in the stop get in the

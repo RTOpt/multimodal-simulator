@@ -14,30 +14,33 @@ logger = logging.getLogger(__name__)
 
 class Request:
     """The ``Request`` class mostly serves as a structure for storing basic
-       information about the passengers.
-       Attributes:
-       ----------
-       id: int
+        information about the passengers.
+        Attributes:
+        ----------
+        id: int
             Unique id for each request
-       origin: Location
+        origin: Location
             Location of the origin
-       destination:  Location
+        destination:  Location
             Location of the destination
-       nb_passengers: int
+        nb_passengers: int
             Number of passengers of the trip.
-       release_time float
+        release_time float
             Time at which the trip appears in the system.
-       ready_time: float
+        ready_time: float
             Time at which the trip is available to be picked up.
-       due_time: float
+        due_time: float
             Time at which the trip has to be dropped off.
-       name: string
+        name: string
             Name of the passenger.
-       """
+        tags: list[str]
+            List of tags associated with the request.
+    """
 
     def __init__(self, id: str | int, origin: Location, destination: Location,
                  nb_passengers: int, release_time: float, ready_time: float,
-                 due_time: float, name: Optional[str] = None) -> None:
+                 due_time: float, name: Optional[str] = None,
+                 tags: Optional[list[str]] = None) -> None:
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -46,6 +49,7 @@ class Request:
         self.__due_time = due_time
         self.__release_time = release_time
         self.__name = name
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -85,6 +89,10 @@ class Request:
     @property
     def name(self) -> Optional[str]:
         return self.__name
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
 
 class Leg(Request):

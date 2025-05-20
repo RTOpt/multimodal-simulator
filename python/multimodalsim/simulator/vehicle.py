@@ -43,6 +43,8 @@ class Vehicle:
         status: int
             Represents the different status of the vehicle
             (VehicleStatus(Enum)).
+        tags: list[str]
+            List of tags associated with the vehicle.
     """
 
     MAX_TIME = 7 * 24 * 3600
@@ -51,7 +53,8 @@ class Vehicle:
                  capacity: int, release_time: float,
                  end_time: Optional[float] = None,
                  mode: Optional[str] = None, reusable: bool = False,
-                 name: Optional[str] = None) -> None:
+                 name: Optional[str] = None,
+                 tags: Optional[list[str]] = None) -> None:
         self.__id = veh_id
         self.__start_time = start_time
         self.__end_time = end_time if end_time is not None else self.MAX_TIME
@@ -65,6 +68,8 @@ class Vehicle:
         self.__state_machine = state_machine.VehicleStateMachine(self)
 
         self.__name = name if name is not None else str(self.__id)
+
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -134,6 +139,10 @@ class Vehicle:
     @property
     def state_machine(self) -> 'state_machine.VehicleStateMachine':
         return self.__state_machine
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
     def __deepcopy__(self, memo: dict) -> 'Vehicle':
         cls = self.__class__
