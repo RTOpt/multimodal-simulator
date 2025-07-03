@@ -313,11 +313,11 @@ class RouteUpdate:
             Optional[list['request.Trip']] = None,
             next_stops: Optional[list[Stop]] = None,
             current_stop_departure_time: Optional[int] = None,
-            modified_assigned_legs: Optional[
+            assigned_legs: Optional[
                 list['request.Leg']] = None) -> None:
         self.vehicle_id = vehicle_id
         self.current_stop_modified_passengers_to_board = \
             current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-        self.modified_assigned_legs = modified_assigned_legs
+        self.assigned_legs = assigned_legs

@@ -256,7 +256,9 @@ class OptimizedRoutePlan:
     def __init__(self, route: Route,
                  current_stop_departure_time: Optional[float] = None,
                  next_stops: Optional[list[Stop]] = None,
-                 assigned_legs: Optional[list['request.Leg']] = None) -> None:
+                 assigned_legs: Optional[list['request.Leg']] = None,
+                 unassigned_legs: Optional[list['request.Leg']] = None
+                 ) -> None:
         """
         Parameters:
             route: object of type Route
@@ -267,6 +269,8 @@ class OptimizedRoutePlan:
                 The planned next stops of the route.
             assigned_legs: list of objects of type Leg or None
                 The legs planned to be assigned to the route.
+            unassigned_legs: list of objects of type Leg or None
+                The legs planned to be unassigned from the route.
         """
 
         self.__route = route
@@ -274,6 +278,8 @@ class OptimizedRoutePlan:
         self.__next_stops = next_stops if next_stops is not None else []
         self.__assigned_legs = assigned_legs if assigned_legs is not None \
             else []
+        self.__unassigned_legs = unassigned_legs \
+            if unassigned_legs is not None else []
 
         self.__already_onboard_legs = []
 
@@ -294,6 +300,10 @@ class OptimizedRoutePlan:
     @property
     def assigned_legs(self) -> list['request.Leg']:
         return self.__assigned_legs
+
+    @property
+    def unassigned_legs(self) -> list['request.Leg']:
+        return self.__unassigned_legs
 
     @property
     def already_onboard_legs(self) -> list['request.Leg']:
@@ -386,6 +396,54 @@ class OptimizedRoutePlan:
             self.__assigned_legs.append(leg)
 
         return self.__assigned_legs
+
+    def unassign_leg(self, leg_id: str | int) -> list['request.Leg']:
+        """Remove a leg from the list of assigned legs of the route plan.
+            Parameter:
+                leg_id: str or int
+                    The id of the leg to be assigned to the route.
+        """
+        logger.error(f"leg_id: {leg_id}")
+        leg_to_unassign = None
+        for leg in self.__route.assigned_legs:
+            if leg.id == leg_id:
+                leg_to_unassign = leg
+                break
+
+        logger.error(f"leg_to_unassign: {leg_to_unassign}")
+
+        if leg_to_unassign is not None:
+            if leg_to_unassign in self.__assigned_legs:
+                self.__assigned_legs.remove(leg_to_unassign)
+            if leg_to_unassign not in self.__unassigned_legs:
+                self.__unassigned_legs.append(leg_to_unassign)
+
+            self.remove_trip_from_all_stops(leg_to_unassign.trip.id)
+
+        return self.__unassigned_legs
+
+    def remove_trip_from_all_stops(self, trip_id: str | int) -> None:
+        """Remove a leg from all the stops of the route.
+            Parameter:
+                leg: object of type Leg
+                    The leg to be assigned to the route.
+        """
+        for stop in self.__next_stops:
+            trip_to_remove = None
+            for trip in stop.passengers_to_board:
+                if trip.id == trip_id:
+                    trip_to_remove = trip
+                    break
+            if trip_to_remove is not None:
+                stop.passengers_to_board.remove(trip_to_remove)
+
+            trip_to_remove = None
+            for trip in stop.passengers_to_alight:
+                if trip.id == trip_id:
+                    trip_to_remove = trip
+                    break
+            if trip_to_remove is not None:
+                stop.passengers_to_alight.remove(trip_to_remove)
 
     def copy_route_stops(self) -> None:
         """Copy the current and next stops of the route to the current and

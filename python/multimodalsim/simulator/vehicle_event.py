@@ -221,12 +221,43 @@ class VehicleNotification(Event):
 
         self.__env = env
 
+        self.__update_next_stops()
+
+        self.__update_current_stop()
+
+        self.__update_assigned_legs()
+
+        self.__update_polylines()
+
+        return 'Notify Vehicle process is implemented'
+
+    def __update_stop_with_actual_trips(self, stop):
+
+        stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(
+            stop.passengers_to_board)
+        stop.boarding_passengers = self.__replace_copy_trips_with_actual_trips(
+            stop.boarding_passengers)
+        stop.boarded_passengers = self.__replace_copy_trips_with_actual_trips(
+            stop.boarded_passengers)
+        stop.passengers_to_alight = self \
+            .__replace_copy_trips_with_actual_trips(stop.passengers_to_alight)
+
+    def __replace_copy_trips_with_actual_trips(self, trips_list):
+
+        return list(self.__env.get_trip_by_id(req.id) for req in trips_list)
+
+    def __replace_copy_legs_with_actual_legs(self, legs_list):
+
+        return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
+
+    def __update_next_stops(self):
         if self.__route_update.next_stops is not None:
             self.__route.next_stops = \
                 copy.deepcopy(self.__route_update.next_stops)
             for stop in self.__route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
 
+    def __update_current_stop(self):
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
             # Modify passengers_to_board of current_stop according to the
@@ -252,41 +283,21 @@ class VehicleNotification(Event):
                     = self.__route_update.current_stop_departure_time
                 VehicleWaiting(self.__route, self.queue).add_to_queue()
 
-        if self.__route_update.modified_assigned_legs is not None:
-            # Add the assigned legs that were modified by optimization and
-            # that are not already present in self.__route.assigned_legs.
-            actual_modified_assigned_legs = \
+    def __update_assigned_legs(self):
+
+        if self.__route_update.assigned_legs is not None:
+            self.__route.assigned_legs.clear()
+            actual_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
-                    self.__route_update.modified_assigned_legs)
-            for leg in actual_modified_assigned_legs:
-                if leg not in self.__route.assigned_legs:
-                    self.__route.assigned_legs.append(leg)
+                    self.__route_update.assigned_legs)
 
-        # Update polylines
-        if env.coordinates is not None:
+            for leg in actual_assigned_legs:
+                self.__route.assigned_legs.append(leg)
+
+    def __update_polylines(self):
+        if self.__env.coordinates is not None:
             self.__vehicle.polylines = \
-                env.coordinates.update_polylines(self.__route)
-
-        return 'Notify Vehicle process is implemented'
-
-    def __update_stop_with_actual_trips(self, stop):
-
-        stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(
-            stop.passengers_to_board)
-        stop.boarding_passengers = self.__replace_copy_trips_with_actual_trips(
-            stop.boarding_passengers)
-        stop.boarded_passengers = self.__replace_copy_trips_with_actual_trips(
-            stop.boarded_passengers)
-        stop.passengers_to_alight = self \
-            .__replace_copy_trips_with_actual_trips(stop.passengers_to_alight)
-
-    def __replace_copy_trips_with_actual_trips(self, trips_list):
-
-        return list(self.__env.get_trip_by_id(req.id) for req in trips_list)
-
-    def __replace_copy_legs_with_actual_legs(self, legs_list):
-
-        return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
+                self.__env.coordinates.update_polylines(self.__route)
 
 
 class VehicleBoarded(Event):

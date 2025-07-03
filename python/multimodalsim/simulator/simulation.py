@@ -84,7 +84,7 @@ class Simulation:
 
             self.__visualize_environment(current_event, current_event.index,
                                          current_event.priority)
-
+# Check if env has been modified (+ Optimize)
             process_event = current_event.process(self.__env)
             logger.debug("process_event: {}".format(process_event))
             self.__collect_data(current_event, current_event.index,

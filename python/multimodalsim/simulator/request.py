@@ -122,32 +122,32 @@ class Leg(Request):
         self.__alighting_time = None
 
     @property
-    def assigned_vehicle(self) -> 'vehicle_module.Vehicle':
+    def assigned_vehicle(self) -> Optional['vehicle_module.Vehicle']:
         return self.__assigned_vehicle
 
     @assigned_vehicle.setter
-    def assigned_vehicle(self, vehicle: 'vehicle_module.Vehicle'):
+    def assigned_vehicle(self, vehicle: Optional['vehicle_module.Vehicle']):
         """Assigns a vehicle to the leg"""
         self.__assigned_vehicle = vehicle
 
     @property
-    def trip(self) -> 'Trip':
+    def trip(self) -> Optional['Trip']:
         return self.__trip
 
     @property
-    def boarding_time(self) -> float:
+    def boarding_time(self) -> Optional[float]:
         return self.__boarding_time
 
     @boarding_time.setter
-    def boarding_time(self, boarding_time: float) -> None:
+    def boarding_time(self, boarding_time: Optional[float]) -> None:
         self.__boarding_time = boarding_time
 
     @property
-    def alighting_time(self) -> float:
+    def alighting_time(self) -> Optional[float]:
         return self.__alighting_time
 
     @alighting_time.setter
-    def alighting_time(self, alighting_time: float) -> None:
+    def alighting_time(self, alighting_time: Optional[float]) -> None:
         self.__alighting_time = alighting_time
 
     def __str__(self) -> str:
@@ -247,8 +247,10 @@ class Trip(Request):
 
 
 class PassengerUpdate:
-    def __init__(self, vehicle_id: str | int, request_id: str | int,
+    def __init__(self, request_id: str | int, vehicle_id: Optional[str | int],
+                 current_leg: Optional[Leg] = None,
                  next_legs: Optional[list[Leg]] = None) -> None:
-        self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
+        self.assigned_vehicle_id = vehicle_id
+        self.current_leg = current_leg
         self.next_legs = next_legs

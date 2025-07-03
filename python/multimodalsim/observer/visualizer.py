@@ -18,7 +18,7 @@ class Visualizer(object):
     def __init__(self) -> None:
         self._simulation = None
         self._env = None
-
+# Check if env has been modified
     def visualize_environment(self, env: 'environment.Environment',
                               current_event: Optional[Event] = None,
                               event_index: Optional[int] = None,

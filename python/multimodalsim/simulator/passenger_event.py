@@ -23,17 +23,33 @@ class PassengerRelease(Event):
         return self.__trip
 
     def _process(self, env: 'environment.Environment') -> str:
-        env.add_trip(self.__trip)
-        env.add_non_assigned_trip(self.__trip)
+
+        self.__env = env
+
+        if env.get_trip_by_id(self.__trip) is None:
+            # Adding new trip to the environment
+            self.__release_new_trip()
+        else:
+            # Unassignement of existing trip (no re-optimization is triggered)
+            self.__release_existing_trip()
+
+        return 'Passenger Release process is implemented'
+
+    def __release_new_trip(self):
+        self.__env.add_trip(self.__trip)
+        self.__env.add_non_assigned_trip(self.__trip)
 
         if self.__trip.current_leg is None:
-            legs = env.optimization.split(self.__trip, env)
+            legs = self.__env.optimization.split(self.__trip, self.__env)
             self.__trip.assign_legs(legs)
 
         optimization_event_process.Optimize(
-            env.current_time, self.queue).add_to_queue()
+            self.__env.current_time, self.queue).add_to_queue()
 
-        return 'Passenger Release process is implemented'
+    def __release_existing_trip(self):
+        self.__env.remove_assigned_trip(self.__trip)
+        self.__env.add_non_assigned_trip(self.__trip)
+        self.__trip.current_leg.assigned_vehicle = None
 
 
 class PassengerAssignment(ActionEvent):
@@ -47,22 +63,38 @@ class PassengerAssignment(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
         self.__env = env
-        vehicle = env.get_vehicle_by_id(
-            self.__passenger_update.assigned_vehicle_id)
+
+        self.__update_legs()
+
+        self.__assign_vehicle()
+
+        self.__update_environment()
+
+        PassengerReady(self.__trip, self.queue).add_to_queue()
+
+        return 'Passenger Assignment process is implemented'
+
+    def __update_legs(self):
+        if self.__passenger_update.current_leg is not None:
+            self.__trip.current_leg = \
+                self.__replace_copy_legs_with_actual_legs(
+                    self.__passenger_update.current_leg)
 
         if self.__passenger_update.next_legs is not None:
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)
 
+    def __assign_vehicle(self):
+        # Vehicle of the first next leg. Note that the vehicle of the current
+        # leg cannot be modified.
+        vehicle = self.__env.get_vehicle_by_id(
+            self.__passenger_update.assigned_vehicle_id)
         self.__trip.next_legs[0].assigned_vehicle = vehicle
 
-        env.remove_non_assigned_trip(self.__trip.id)
-        env.add_assigned_trip(self.__trip)
-
-        PassengerReady(self.__trip, self.queue).add_to_queue()
-
-        return 'Passenger Assignment process is implemented'
+    def __update_environment(self):
+        self.__env.remove_non_assigned_trip(self.__trip.id)
+        self.__env.add_assigned_trip(self.__trip)
 
     def __replace_copy_legs_with_actual_legs(self, legs):
         if type(legs) is list:

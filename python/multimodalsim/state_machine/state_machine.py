@@ -7,8 +7,8 @@ import multimodalsim.simulator.optimization_event \
 import multimodalsim.optimization.optimization as optimization_module
 from multimodalsim.simulator.event import Event
 from multimodalsim.simulator.passenger_event \
-    import PassengerAssignment, PassengerReady, PassengerToBoard, \
-    PassengerAlighting
+    import PassengerRelease, PassengerAssignment, PassengerReady, \
+    PassengerToBoard, PassengerAlighting
 from multimodalsim.state_machine.status import OptimizationStatus, \
     PassengerStatus, VehicleStatus, Status
 from multimodalsim.simulator.vehicle_event import VehicleBoarding, \
@@ -175,12 +175,15 @@ class OptimizationStateMachine(StateMachine):
     def __init__(self,
                  optimization: 'optimization_module.Optimization') -> None:
         super().__init__(owner=optimization)
+
         self.add_transition(OptimizationStatus.IDLE,
                             OptimizationStatus.OPTIMIZING,
                             optimization_event_process.Optimize)
+
         self.add_transition(OptimizationStatus.OPTIMIZING,
                             OptimizationStatus.UPDATEENVIRONMENT,
                             optimization_event_process.EnvironmentUpdate)
+
         self.add_transition(OptimizationStatus.UPDATEENVIRONMENT,
                             OptimizationStatus.IDLE,
                             optimization_event_process.EnvironmentIdle)
@@ -194,17 +197,27 @@ class PassengerStateMachine(StateMachine):
         super().__init__(owner=trip)
 
         self.add_transition(PassengerStatus.RELEASE,
+                            PassengerStatus.RELEASE, PassengerRelease)
+        self.add_transition(PassengerStatus.ASSIGNED,
+                            PassengerStatus.RELEASE, PassengerRelease)
+        self.add_transition(PassengerStatus.READY,
+                            PassengerStatus.RELEASE, PassengerRelease)
+
+        self.add_transition(PassengerStatus.RELEASE,
                             PassengerStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengerStatus.ASSIGNED,
                             PassengerStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengerStatus.READY,
                             PassengerStatus.ASSIGNED, PassengerAssignment)
+
         self.add_transition(PassengerStatus.ASSIGNED, PassengerStatus.READY,
                             PassengerReady)
         self.add_transition(PassengerStatus.READY, PassengerStatus.READY,
                             PassengerReady)
+
         self.add_transition(PassengerStatus.READY, PassengerStatus.ONBOARD,
                             PassengerToBoard)
+
         self.add_transition(PassengerStatus.ONBOARD,
                             PassengerStatus.COMPLETE, PassengerAlighting,
                             PassengerNoConnectionCondition(trip))
@@ -224,16 +237,20 @@ class VehicleStateMachine(StateMachine):
                             VehicleWaiting)
         self.add_transition(VehicleStatus.IDLE, VehicleStatus.IDLE,
                             VehicleWaiting)
-        self.add_transition(VehicleStatus.IDLE, VehicleStatus.BOARDING,
-                            VehicleBoarding)
-        self.add_transition(VehicleStatus.IDLE, VehicleStatus.ENROUTE,
-                            VehicleDeparture)
         self.add_transition(VehicleStatus.BOARDING, VehicleStatus.IDLE,
                             VehicleWaiting)
-        self.add_transition(VehicleStatus.ENROUTE, VehicleStatus.ALIGHTING,
-                            VehicleArrival)
         self.add_transition(VehicleStatus.ALIGHTING, VehicleStatus.IDLE,
                             VehicleWaiting)
+
+        self.add_transition(VehicleStatus.IDLE, VehicleStatus.BOARDING,
+                            VehicleBoarding)
+
+        self.add_transition(VehicleStatus.IDLE, VehicleStatus.ENROUTE,
+                            VehicleDeparture)
+
+        self.add_transition(VehicleStatus.ENROUTE, VehicleStatus.ALIGHTING,
+                            VehicleArrival)
+
         self.add_transition(VehicleStatus.IDLE, VehicleStatus.COMPLETE,
                             VehicleComplete)
         self.add_transition(VehicleStatus.COMPLETE, VehicleStatus.COMPLETE,
