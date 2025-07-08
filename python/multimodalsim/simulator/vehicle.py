@@ -253,20 +253,20 @@ class Route:
         self.current_stop.initiate_boarding(trip)
 
     def board(self, trip: 'request.Trip') -> None:
-        """Boards passengers who are ready to be picked up"""
+        """Board passengers who are ready to be picked up"""
         if trip is not None:
             self.__assigned_legs.remove(trip.current_leg)
             self.__onboard_legs.append(trip.current_leg)
             self.current_stop.board(trip)
 
     def depart(self) -> None:
-        """Departs the vehicle"""
+        """Depart the vehicle"""
         if self.__current_stop is not None:
             self.__previous_stops.append(self.current_stop)
         self.__current_stop = None
 
     def arrive(self) -> None:
-        """Arrives the vehicle"""
+        """Arrive the vehicle"""
         self.__current_stop = self.__next_stops.pop(0)
 
     def initiate_alighting(self, trip: 'request.Trip') -> None:
@@ -274,14 +274,18 @@ class Route:
         self.current_stop.initiate_alighting(trip)
 
     def alight(self, leg: 'request.Leg') -> None:
-        """Alights passengers who reached their destination from the vehicle"""
+        """Alight passengers who reached their destination from the vehicle"""
         self.__onboard_legs.remove(leg)
         self.__alighted_legs.append(leg)
         self.__current_stop.alight(leg.trip)
 
     def assign_leg(self, leg: 'request.Leg') -> None:
-        """Assigns a new leg to the route"""
+        """Assign a new leg to the route"""
         self.__assigned_legs.append(leg)
+
+    def unassign_leg(self, leg: 'request.Leg') -> None:
+        """Remove the leg from the list of assigned legs"""
+        self.__assigned_legs.remove(leg)
 
     def requests_to_pickup(self) -> list['request.Trip']:
         """Returns the list of requests ready to be picked up by the vehicle"""

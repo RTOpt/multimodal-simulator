@@ -23,21 +23,11 @@ class FixedLineReassignDispatcher(Dispatcher):
         been assigned to any route yet.
         """
 
-        # # The next legs that have not been assigned to any route yet.
-        # selected_next_legs = state.non_assigned_next_legs
-
+        # All the next legs.
         selected_next_legs = state.next_legs
-
-        logger.warning("selected_next_legs:")
-        for leg in selected_next_legs:
-            logger.warning(leg.id)
 
         # All the routes
         selected_routes = state.route_by_vehicle_id.values()
-
-        logger.warning("selected_routes:")
-        for route in selected_routes:
-            logger.warning(route.vehicle)
 
         return selected_next_legs, selected_routes
 
@@ -82,9 +72,6 @@ class FixedLineReassignDispatcher(Dispatcher):
                     optimized_route_plan.copy_route_stops()
                     optimized_route_plan.assign_leg(leg)
                     optimized_route_plans.append(optimized_route_plan)
-                    
-                    # TODO: Check why leg is not removed from
-                    #  Route.assigned_legs of the previous route
 
         return optimized_route_plans
 

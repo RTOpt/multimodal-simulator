@@ -77,7 +77,7 @@ class PassengerAssignment(ActionEvent):
     def __update_legs(self):
         if self.__passenger_update.current_leg is not None:
             self.__trip.current_leg = \
-                self.__replace_copy_legs_with_actual_legs(
+                self.__replace_copy_leg_with_actual_leg(
                     self.__passenger_update.current_leg)
 
         if self.__passenger_update.next_legs is not None:
@@ -97,13 +97,28 @@ class PassengerAssignment(ActionEvent):
         self.__env.add_assigned_trip(self.__trip)
 
     def __replace_copy_legs_with_actual_legs(self, legs):
-        if type(legs) is list:
-            actual_legs = list(
-                self.__env.get_leg_by_id(leg.id) for leg in legs)
-        else:
-            actual_legs = self.__env.get_leg_by_id(legs.id)
+        # Replace the Leg objects in argument with the Leg objects of same id
+        # from the environment. If no leg with same id is found in the
+        # environment, then the leg as argument is considered to be the actual
+        # leg.
+        actual_legs_list = []
+        for leg in legs:
+            actual_leg = self.__replace_copy_leg_with_actual_leg(leg)
+            actual_legs_list.append(actual_leg)
 
-        return actual_legs
+        return actual_legs_list
+
+    def __replace_copy_leg_with_actual_leg(self, leg):
+        # Replace the Leg object in argument with the Leg object of same id
+        # from the environment. If no leg with same id is found in the
+        # environment, then the leg as argument is considered to be the actual
+        # leg.
+        actual_leg = self.__env.get_leg_by_id(leg.id)
+        if actual_leg is None:
+            # A new leg was created during optimization
+            actual_leg = leg
+
+        return actual_leg
 
 
 class PassengerReady(ActionEvent):

@@ -126,17 +126,17 @@ class OptimizationResult:
     def __init__(self, state: Optional['state_module.State'] = None,
                  modified_requests: Optional[list['request.Trip']] = None,
                  modified_vehicles: Optional[list['vehicle_module.Vehicle']] = None,
-                 new_vehicles: Optional[list['Vehicle']] = None,
-                 new_requests: Optional[list['request.Trip']] = None):
+                 new_requests: Optional[list['request.Trip']] = None,
+                 new_vehicles: Optional[list['Vehicle']] = None,):
         self.state = state
         self.modified_requests = modified_requests \
             if modified_requests is not None else []
         self.modified_vehicles = modified_vehicles \
             if modified_vehicles is not None else []
-        self.new_vehicles = new_vehicles \
-            if new_vehicles is not None else []
         self.new_requests = new_requests \
             if new_requests is not None else []
+        self.new_vehicles = new_vehicles \
+            if new_vehicles is not None else []
 
     def add_new_non_shared_vehicle(self, leg, mode):
         # seulement cette leg + détruit après

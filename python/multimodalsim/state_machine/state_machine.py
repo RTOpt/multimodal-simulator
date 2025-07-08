@@ -209,10 +209,14 @@ class PassengerStateMachine(StateMachine):
                             PassengerStatus.ASSIGNED, PassengerAssignment)
         self.add_transition(PassengerStatus.READY,
                             PassengerStatus.ASSIGNED, PassengerAssignment)
+        self.add_transition(PassengerStatus.ONBOARD,
+                            PassengerStatus.ONBOARD, PassengerAssignment)
 
         self.add_transition(PassengerStatus.ASSIGNED, PassengerStatus.READY,
                             PassengerReady)
         self.add_transition(PassengerStatus.READY, PassengerStatus.READY,
+                            PassengerReady)
+        self.add_transition(PassengerStatus.ONBOARD, PassengerStatus.ONBOARD,
                             PassengerReady)
 
         self.add_transition(PassengerStatus.READY, PassengerStatus.ONBOARD,

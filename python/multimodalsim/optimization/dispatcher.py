@@ -6,7 +6,7 @@ import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.stop import Stop, LabelLocation
-from multimodalsim.simulator.vehicle import Route
+from multimodalsim.simulator.vehicle import Vehicle, Route
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +38,23 @@ class Dispatcher:
 
         selected_next_legs, selected_routes = self.prepare_input(state)
 
-        if len(selected_next_legs) > 0 and len(selected_routes) > 0:
+        if len(selected_next_legs) > 0 or len(selected_routes) > 0:
             # The optimize method is called only if there is at least one leg
             # and one route to optimize.
-            optimized_route_plans = self.optimize(selected_next_legs,
-                                                  selected_routes,
-                                                  state.current_time, state)
+            optimized_route_plans, additional_optimization_results = \
+                self.optimize(selected_next_legs, selected_routes,
+                              state.current_time, state)
 
-            optimization_result = self.process_optimized_route_plans(
-                optimized_route_plans, state)
+            modified_trips, modified_vehicles = \
+                self.process_optimized_route_plans(optimized_route_plans,
+                                                   state)
+
+            optimization_result = self.__extract_optimization_results(
+                modified_trips, modified_vehicles,
+                additional_optimization_results, state)
         else:
-            optimization_result = optimization_module.OptimizationResult(state, [], [])
+            optimization_result = \
+                optimization_module.OptimizationResult(state, [], [])
 
         return optimization_result
 
@@ -92,7 +98,9 @@ class Dispatcher:
 
     def optimize(self, selected_next_legs: list['request.Leg'],
                  selected_routes: list[Route], current_time: float,
-                 state: 'state_module.State') -> list['OptimizedRoutePlan']:
+                 state: 'state_module.State') \
+            -> tuple[list['OptimizedRoutePlan'],
+                     'optimization_module.OptimizationResult']:
         """Determine the vehicle routing and the trip-route assignment
         according to an optimization algorithm. The optimization algorithm
         should be coded in this method.
@@ -117,6 +125,9 @@ class Dispatcher:
         Output:
           -optimized_route_plans: list of the optimized route plans. Each route
            plan is an object of type OptimizedRoutePlan.
+          -additional_optimization_result: Object of type OptimizationResult
+           that contains the results of the optimization that cannot be deduced
+           from the optimized route plans.
         """
 
         raise NotImplementedError('optimize of {} not implemented'.
@@ -125,7 +136,7 @@ class Dispatcher:
     def process_optimized_route_plans(
             self, optimized_route_plans: list['OptimizedRoutePlan'],
             state: 'state_module.State') \
-            -> 'optimization_module.OptimizationResult':
+            -> tuple[list['request.Trip'], list['Vehicle']]:
         """Create and modify the simulation objects that correspond to the
         optimized route plans returned by the optimize method. In other words,
         this method "translates" the results of optimization into the
@@ -153,14 +164,19 @@ class Dispatcher:
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
-        optimization_result = optimization_module.OptimizationResult(
-            state, modified_trips, modified_vehicles)
+        # optimization_result = optimization_module.OptimizationResult(
+        #     state, modified_trips, modified_vehicles, new_vehicles,
+        #     new_requests)
 
-        return optimization_result
+        return modified_trips, modified_vehicles
 
     def __process_route_plan(self, route_plan):
 
         self.__update_route_next_stops(route_plan)
+
+        for leg in route_plan.unassigned_legs:
+            # Unassign leg from route
+            route_plan.route.unassign_leg(leg)
 
         for leg in route_plan.already_onboard_legs:
             # Assign leg to route
@@ -230,6 +246,29 @@ class Dispatcher:
         trip_ids_list = [trip.id for trip in stop.passengers_to_alight]
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
+
+    def __extract_optimization_results(
+            self, modified_requests: list['request.Trip'],
+            modified_vehicles: list[Vehicle],
+            additional_optimization_results:
+            'optimization_module.OptimizationResult',
+            state: 'state_module.State') \
+            -> 'optimization_module.OptimizationResult':
+
+        all_modified_requests = \
+            modified_requests \
+            + additional_optimization_results.modified_requests
+
+        all_modified_vehicles = \
+            modified_vehicles \
+            + additional_optimization_results.modified_vehicles
+
+        optimization_result = optimization_module.OptimizationResult(
+            state, all_modified_requests, all_modified_vehicles,
+            additional_optimization_results.new_requests,
+            additional_optimization_results.new_vehicles)
+
+        return optimization_result
 
 
 class OptimizedRoutePlan:
@@ -403,14 +442,11 @@ class OptimizedRoutePlan:
                 leg_id: str or int
                     The id of the leg to be assigned to the route.
         """
-        logger.error(f"leg_id: {leg_id}")
         leg_to_unassign = None
         for leg in self.__route.assigned_legs:
             if leg.id == leg_id:
                 leg_to_unassign = leg
                 break
-
-        logger.error(f"leg_to_unassign: {leg_to_unassign}")
 
         if leg_to_unassign is not None:
             if leg_to_unassign in self.__assigned_legs:
