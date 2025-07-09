@@ -191,6 +191,16 @@ class VehicleArrival(ActionEvent):
 
         return 'Vehicle Arrival process is implemented'
 
+    def add_to_queue(self) -> None:
+        # Before adding the event, cancel all priorly added VehicleArrival
+        # events associated with the vehicle since they have now become
+        # obsolete.
+
+        self.queue.cancel_event_type(self.__class__, time=None,
+                                     owner=self.__route.vehicle)
+
+        super().add_to_queue()
+
     def __update_stop_times(self, arrival_time):
 
         planned_arrival_time = self.__route.next_stops[0].arrival_time
@@ -215,6 +225,7 @@ class VehicleNotification(Event):
         self.__vehicle = queue.env.get_vehicle_by_id(
             self.__route_update.vehicle_id)
         self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
+        self.__queue = queue
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env: 'environment.Environment') -> str:
@@ -251,11 +262,25 @@ class VehicleNotification(Event):
         return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
 
     def __update_next_stops(self):
+
+        if len(self.__route.next_stops) > 0:
+            old_next_stop = self.__route.next_stops[0]
+        else:
+            old_next_stop = None
+
         if self.__route_update.next_stops is not None:
             self.__route.next_stops = \
                 copy.deepcopy(self.__route_update.next_stops)
             for stop in self.__route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
+
+        if old_next_stop is not None:
+            if self.__route_update.next_stops[0].location \
+                    != old_next_stop.location:
+                VehicleArrival(
+                    self.__route, self.__queue,
+                    self.__route_update.next_stops[0].arrival_time)\
+                    .add_to_queue()
 
     def __update_current_stop(self):
         if self.__route_update.current_stop_modified_passengers_to_board \

@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, \
     Dispatcher
@@ -33,7 +33,8 @@ class FixedLineReassignDispatcher(Dispatcher):
 
     def optimize(self, selected_next_legs: list['request.Leg'],
                  selected_routes: list[Route], current_time: float,
-                 state: State) -> list[OptimizedRoutePlan]:
+                 state: State) -> tuple[list['OptimizedRoutePlan'],
+                     Optional['optimization_module.OptimizationResult']]:
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""
@@ -73,7 +74,7 @@ class FixedLineReassignDispatcher(Dispatcher):
                     optimized_route_plan.assign_leg(leg)
                     optimized_route_plans.append(optimized_route_plan)
 
-        return optimized_route_plans
+        return optimized_route_plans, None
 
     def __find_optimal_route_for_leg(self, leg, selected_routes, current_time):
 

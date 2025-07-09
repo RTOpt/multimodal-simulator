@@ -219,6 +219,8 @@ class EnvironmentUpdate(ActionEvent):
     def __process_modified_requests(self):
         for trip in self.__optimization_result.modified_requests:
 
+            actual_trip = self.__env.get_trip_by_id(trip.id)
+
             # actual_trip = self.__env.get_trip_by_id(
             #     self.__passenger_update.request_id)
             # actual_current_leg_assigned_vehicle = \
@@ -229,21 +231,24 @@ class EnvironmentUpdate(ActionEvent):
             #     if trip.current_leg is not None else None
 
             next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
+            actual_next_leg_assigned_vehicle = \
+                trip.next_legs[0].assigned_vehicle
 
             # if current_leg_assigned_vehicle is not None \
             #         and (current_leg_assigned_vehicle.id
             #              != actual_current_leg_assigned_vehicle.id):
             #     pass
 
-            if next_leg_assigned_vehicle is None:
+            if next_leg_assigned_vehicle is None \
+                    and actual_next_leg_assigned_vehicle is not None:
                 # Release previously assigned passenger
-                actual_trip = self.__env.get_trip_by_id(
-                    self.__passenger_update.request_id)
                 passenger_event_process.PassengerRelease(actual_trip,
                     self.queue).add_to_queue()
             else:
+                assigned_vehicle_id = next_leg_assigned_vehicle.id \
+                    if next_leg_assigned_vehicle is not None else None
                 passenger_update = request.PassengerUpdate(
-                    trip.id, next_leg_assigned_vehicle.id, trip.current_leg,
+                    trip.id, assigned_vehicle_id, trip.current_leg,
                     trip.next_legs)
                 passenger_event_process.PassengerAssignment(
                     passenger_update, self.queue).add_to_queue()

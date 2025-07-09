@@ -100,7 +100,7 @@ class Dispatcher:
                  selected_routes: list[Route], current_time: float,
                  state: 'state_module.State') \
             -> tuple[list['OptimizedRoutePlan'],
-                     'optimization_module.OptimizationResult']:
+                     Optional['optimization_module.OptimizationResult']]:
         """Determine the vehicle routing and the trip-route assignment
         according to an optimization algorithm. The optimization algorithm
         should be coded in this method.
@@ -251,22 +251,26 @@ class Dispatcher:
             self, modified_requests: list['request.Trip'],
             modified_vehicles: list[Vehicle],
             additional_optimization_results:
-            'optimization_module.OptimizationResult',
+            Optional['optimization_module.OptimizationResult'],
             state: 'state_module.State') \
             -> 'optimization_module.OptimizationResult':
 
-        all_modified_requests = \
-            modified_requests \
-            + additional_optimization_results.modified_requests
+        if additional_optimization_results is not None:
+            all_modified_requests = \
+                modified_requests \
+                + additional_optimization_results.modified_requests
 
-        all_modified_vehicles = \
-            modified_vehicles \
-            + additional_optimization_results.modified_vehicles
+            all_modified_vehicles = \
+                modified_vehicles \
+                + additional_optimization_results.modified_vehicles
 
-        optimization_result = optimization_module.OptimizationResult(
-            state, all_modified_requests, all_modified_vehicles,
-            additional_optimization_results.new_requests,
-            additional_optimization_results.new_vehicles)
+            optimization_result = optimization_module.OptimizationResult(
+                state, all_modified_requests, all_modified_vehicles,
+                additional_optimization_results.new_requests,
+                additional_optimization_results.new_vehicles)
+        else:
+            optimization_result = optimization_module.OptimizationResult(
+                state, modified_requests, modified_vehicles)
 
         return optimization_result
 

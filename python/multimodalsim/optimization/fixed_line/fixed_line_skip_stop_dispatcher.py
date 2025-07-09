@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 import math
 
 from multimodalsim.optimization.dispatcher import OptimizedRoutePlan, \
@@ -19,7 +19,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
     def __init__(self,
                  skip_stops_by_vehicle_id:
                  dict[str | int, list[tuple[str, float]]] = None,
-                 walk_time: float = 120) -> None:
+                 walk_time: float = 120, walk_connection_time: float = 30) -> None:
         """
         skip_stop_by_vehicle_id: Dictionary where each key is a vehicle id and
         the corresponding value is a list of pairs specifying the id of the 
@@ -31,6 +31,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         self.__skip_stops_by_vehicle_id = skip_stops_by_vehicle_id \
             if skip_stops_by_vehicle_id is not None else {}
         self.__walk_time = walk_time
+        self.__walk_connection_time = walk_connection_time
 
         self.__nb_walk_vehicles = 0
 
@@ -45,7 +46,13 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         # # The next legs that have not been assigned to any route yet.
         # selected_next_legs = state.non_assigned_next_legs
 
-        selected_next_legs = state.next_legs
+        logger.warning("next_legs:")
+        for leg in state.next_legs:
+            logger.warning(f"{leg.id}: trip: {leg.trip}")
+
+        next_legs_no_current_leg = [leg for leg in state.next_legs
+                                    if leg.trip.current_leg is None]
+        selected_next_legs = next_legs_no_current_leg
 
         logger.warning("selected_next_legs:")
         for leg in selected_next_legs:
@@ -64,7 +71,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                  selected_routes: list[Route], current_time: float,
                  state: State) \
             -> tuple[list[OptimizedRoutePlan],
-                     'optimization_module.OptimizationResult']:
+                     Optional['optimization_module.OptimizationResult']]:
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination)."""
@@ -86,10 +93,14 @@ class FixedLineSkipStopDispatcher(Dispatcher):
             optimal_route = self.__find_optimal_route_for_leg(
                 leg, selected_routes, current_time)
 
+            logger.warning(f"leg: {leg.id} (assigned_vehicle: {leg.assigned_vehicle}) | optimal_route: {optimal_route}")
+
             if optimal_route is not None \
                     and (leg.assigned_vehicle is None
                          or optimal_route.vehicle.id
                          != leg.assigned_vehicle.id):
+
+                logger.error(f"ASSIGN: {leg.id} -> {optimal_route.vehicle.id}")
 
                 if leg.assigned_vehicle is None:
                     optimized_route_plan = OptimizedRoutePlan(optimal_route)
@@ -100,9 +111,9 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                     optimized_route_plan.assign_leg(leg)
                     optimized_route_plans.append(optimized_route_plan)
                 elif optimal_route.vehicle.id != leg.assigned_vehicle.id:
+                    logger.error("REASSIGN")
                     # Unassign the leg from the route of the already assigned
                     # vehicle
-                    logger.error("UNASSIGN")
                     previous_route = state.route_by_vehicle_id[
                         leg.assigned_vehicle.id]
                     previous_route_plan = OptimizedRoutePlan(previous_route)
@@ -229,7 +240,8 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                 if stop_to_skip is not None and next_stop is not None:
                     modified_requests, new_walk_vehicles = \
                         self.__reassign_passengers_to_alight(
-                            stop_to_skip, next_stop, current_time, state)
+                            route, stop_to_skip, next_stop, current_time,
+                            state)
 
                     all_modified_requests.extend(modified_requests)
                     all_new_walk_vehicles.extend(new_walk_vehicles)
@@ -243,7 +255,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         return all_modified_requests, all_new_walk_vehicles, stop_skipped
 
     def __reassign_passengers_to_alight(
-            self, stop_to_skip: Stop, next_stop: Stop,
+            self, route: Route, stop_to_skip: Stop, next_stop: Stop,
             current_time: float, state: State) -> tuple[list[request.Trip],
                                                         list[Vehicle]]:
         """Reassign the passengers to alight of the skip stop to the next
@@ -260,7 +272,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                 old_leg.id, old_leg.origin, new_destination,
                 old_leg.nb_passengers, old_leg.release_time,
                 old_leg.ready_time, old_leg.due_time, old_leg.trip)
-
+            new_leg.assigned_vehicle = route.vehicle
             trip.current_leg = new_leg
 
             walk_vehicle, _ = self.__create_walk_vehicle(
@@ -273,7 +285,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                 walk_leg_id, new_destination, new_walk_leg_destination,
                 old_leg.nb_passengers, old_leg.release_time,
                 old_leg.ready_time, old_leg.due_time, old_leg.trip)
-            new_walk_leg.assigned_vehicle = new_walk_leg
+            # new_walk_leg.assigned_vehicle = walk_vehicle
 
             trip.next_legs.insert(0, new_walk_leg)
 
@@ -305,7 +317,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         logger.warning(f"next_stop: {next_stop}")
 
         # Create vehicle
-        walk_stop_time = next_stop.arrival_time
+        walk_stop_time = next_stop.arrival_time + self.__walk_connection_time
         walk_start_stop = Stop(
             walk_stop_time, walk_stop_time,
             next_stop.location)
@@ -318,7 +330,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         walk_next_stops = [walk_end_stop]
 
         mode = "walk"
-        vehicle_id = "w" + str(self.__nb_walk_vehicles)
+        vehicle_id = "w" + str(self.__nb_walk_vehicles + 1)
         self.__nb_walk_vehicles += 1
 
         walk_vehicle = Vehicle(vehicle_id, walk_start_stop.arrival_time,

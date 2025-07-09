@@ -116,10 +116,24 @@ class PassengerAssignment(ActionEvent):
         actual_leg = self.__env.get_leg_by_id(leg.id)
         if actual_leg is None:
             # A new leg was created during optimization
-            actual_leg = leg
+            actual_leg = self.__create_actual_leg_from_leg_copy(leg)
 
         return actual_leg
 
+    def __create_actual_leg_from_leg_copy(self, leg):
+        actual_trip = self.__env.get_trip_by_id(leg.trip.id)
+
+        actual_assigned_vehicle = None
+        if leg.assigned_vehicle is not None:
+            actual_assigned_vehicle = self.__env.get_vehicle_by_id(
+                leg.assigned_vehicle.id)
+
+        actual_leg = request.Leg(leg.id, leg.origin, leg.destination,
+                         leg.nb_passengers, leg.release_time, leg.ready_time,
+                         leg.due_time, actual_trip)
+        actual_leg.assigned_vehicle = actual_assigned_vehicle
+
+        return actual_leg
 
 class PassengerReady(ActionEvent):
     def __init__(self, trip: 'request.Trip',
