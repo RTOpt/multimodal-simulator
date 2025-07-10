@@ -43,27 +43,13 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         been assigned to any route yet.
         """
 
-        # # The next legs that have not been assigned to any route yet.
-        # selected_next_legs = state.non_assigned_next_legs
-
-        logger.warning("next_legs:")
-        for leg in state.next_legs:
-            logger.warning(f"{leg.id}: trip: {leg.trip}")
-
+        # All the next legs corresponding to trips that have no current leg.
         next_legs_no_current_leg = [leg for leg in state.next_legs
                                     if leg.trip.current_leg is None]
         selected_next_legs = next_legs_no_current_leg
 
-        logger.warning("selected_next_legs:")
-        for leg in selected_next_legs:
-            logger.warning(leg.id)
-
         # All the routes
         selected_routes = list(state.route_by_vehicle_id.values())
-
-        logger.warning("selected_routes:")
-        for route in selected_routes:
-            logger.warning(route.vehicle)
 
         return selected_next_legs, selected_routes
 
@@ -83,24 +69,14 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         modified_requests, modified_vehicles, new_vehicles = \
             self.__skip_all_stops(selected_routes, current_time, state)
 
-        logger.warning(f"new_vehicles: {len(new_vehicles)}")
-
-        logger.warning(f"selected_routes: {len(selected_routes)}")
-        for route in selected_routes:
-            logger.warning(f"{route}")
-
         for leg in selected_next_legs:
             optimal_route = self.__find_optimal_route_for_leg(
                 leg, selected_routes, current_time)
-
-            logger.warning(f"leg: {leg.id} (assigned_vehicle: {leg.assigned_vehicle}) | optimal_route: {optimal_route}")
 
             if optimal_route is not None \
                     and (leg.assigned_vehicle is None
                          or optimal_route.vehicle.id
                          != leg.assigned_vehicle.id):
-
-                logger.error(f"ASSIGN: {leg.id} -> {optimal_route.vehicle.id}")
 
                 if leg.assigned_vehicle is None:
                     optimized_route_plan = OptimizedRoutePlan(optimal_route)
@@ -111,7 +87,6 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                     optimized_route_plan.assign_leg(leg)
                     optimized_route_plans.append(optimized_route_plan)
                 elif optimal_route.vehicle.id != leg.assigned_vehicle.id:
-                    logger.error("REASSIGN")
                     # Unassign the leg from the route of the already assigned
                     # vehicle
                     previous_route = state.route_by_vehicle_id[
@@ -126,10 +101,6 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                     optimized_route_plan.copy_route_stops()
                     optimized_route_plan.assign_leg(leg)
                     optimized_route_plans.append(optimized_route_plan)
-
-        # for route_plan in optimized_route_plans:
-        #     self.__skip_stop(route_plan, selected_next_legs, current_time,
-        #                      state)
 
         optimization_result = optimization_module.OptimizationResult(
             state, modified_requests, modified_vehicles, new_requests,
@@ -196,10 +167,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         all_modified_vehicles = []
         all_new_walk_vehicles = []
 
-        logger.warning(f"selected_routes: {len(selected_routes)}")
-        logger.warning(f"type selected_routes: {type(selected_routes)}")
         for route in selected_routes:
-            logger.warning(f"{route.vehicle.id}: {route.vehicle.id in self.__skip_stops_by_vehicle_id}")
             if route.vehicle.id in self.__skip_stops_by_vehicle_id:
                 skip_stops_list = self.__skip_stops_by_vehicle_id[
                     route.vehicle.id]
@@ -249,8 +217,6 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                     route.next_stops.remove(stop_to_skip)
 
                     stop_skipped = True
-
-                    logger.warning(f"route: {route}")
 
         return all_modified_requests, all_new_walk_vehicles, stop_skipped
 
@@ -304,7 +270,6 @@ class FixedLineSkipStopDispatcher(Dispatcher):
             self, trip: 'request.Trip', state: State) -> 'request.Leg':
         found_leg = None
         for leg in state.current_legs:
-            logger.error(f"leg.trip: {leg.trip} | trip.id: {trip.id}")
             if leg.trip.id == trip.id:
                 found_leg = leg
 
@@ -314,15 +279,11 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                               nb_passengers, current_time: float,
                               state: State) -> tuple[Vehicle, Route]:
 
-        logger.warning(f"next_stop: {next_stop}")
-
         # Create vehicle
         walk_stop_time = next_stop.arrival_time + self.__walk_connection_time
         walk_start_stop = Stop(
             walk_stop_time, walk_stop_time,
             next_stop.location)
-
-        logger.warning(f"walk_stop_time: {walk_stop_time} | self.__walk_time: {self.__walk_time}")
 
         walk_end_stop = Stop(
             walk_stop_time + self.__walk_time, math.inf,

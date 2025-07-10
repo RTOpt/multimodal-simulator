@@ -70,6 +70,10 @@ class Request:
     def destination(self) -> Location:
         return self.__destination
 
+    @destination.setter
+    def destination(self, location: Location) -> None:
+        self.__destination = location
+
     @property
     def nb_passengers(self) -> int:
         return self.__nb_passengers
@@ -126,7 +130,8 @@ class Leg(Request):
         return self.__assigned_vehicle
 
     @assigned_vehicle.setter
-    def assigned_vehicle(self, vehicle: Optional['vehicle_module.Vehicle']):
+    def assigned_vehicle(self,
+                         vehicle: Optional['vehicle_module.Vehicle']) -> None:
         """Assigns a vehicle to the leg"""
         self.__assigned_vehicle = vehicle
 

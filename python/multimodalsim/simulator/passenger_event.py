@@ -79,11 +79,18 @@ class PassengerAssignment(ActionEvent):
             self.__trip.current_leg = \
                 self.__replace_copy_leg_with_actual_leg(
                     self.__passenger_update.current_leg)
+            self.__update_current_leg(self.__trip.current_leg,
+                                      self.__passenger_update.current_leg)
 
         if self.__passenger_update.next_legs is not None:
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)
+
+    def __update_current_leg(self, current_leg_actual: 'request.Leg',
+                             current_leg_copy: 'request.Leg'):
+        """Update future information about the current leg."""
+        current_leg_actual.destination = current_leg_copy.destination
 
     def __assign_vehicle(self):
         # Vehicle of the first next leg. Note that the vehicle of the current

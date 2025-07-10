@@ -23,8 +23,10 @@ class FixedLineReassignDispatcher(Dispatcher):
         been assigned to any route yet.
         """
 
-        # All the next legs.
-        selected_next_legs = state.next_legs
+        # All the next legs corresponding to trips that have no current leg.
+        next_legs_no_current_leg = [leg for leg in state.next_legs
+                                    if leg.trip.current_leg is None]
+        selected_next_legs = next_legs_no_current_leg
 
         # All the routes
         selected_routes = state.route_by_vehicle_id.values()
@@ -60,7 +62,7 @@ class FixedLineReassignDispatcher(Dispatcher):
                 elif optimal_route.vehicle.id != leg.assigned_vehicle.id:
                     # Unassign the leg from the route of the already assigned
                     # vehicle
-                    logger.error("UNASSIGN")
+
                     previous_route = state.route_by_vehicle_id[
                         leg.assigned_vehicle.id]
                     previous_route_plan = OptimizedRoutePlan(previous_route)
