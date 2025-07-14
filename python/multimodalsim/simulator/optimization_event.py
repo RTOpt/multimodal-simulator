@@ -39,7 +39,12 @@ class Optimize(ActionEvent):
                          event_priority=self.VERY_LOW_PRIORITY,
                          state_machine=queue.env.optimization.state_machine)
 
+        self.__env_hash = None
+        self.__updated_env_hash = None
+
     def process(self, env: 'environment.Environment') -> str:
+
+        self.__save_env_hash(env)
 
         if self.state_machine.current_state.status \
                 == OptimizationStatus.OPTIMIZING:
@@ -49,6 +54,8 @@ class Optimize(ActionEvent):
             process_message = 'Optimize process is put back in the event queue'
         else:
             process_message = super().process(env)
+
+        self.__check_if_env_hash_modified(env)
 
         return process_message
 
@@ -147,6 +154,19 @@ class Optimize(ActionEvent):
             EnvironmentUpdate(optimization_result,
                               self.queue).add_to_queue()
             hold_event.cv.notify()
+
+    def __save_env_hash(self, env: 'environment.Environment'):
+        self.__env_hash = hash(str(env.__dict__))
+
+    def __check_if_env_hash_modified(self, env: 'environment.Environment'):
+
+        self.__updated_env_hash = hash(str(env.__dict__))
+
+        logger.warning(f"self.__env_hash: {self.__env_hash}")
+        logger.warning(f"self.__updated_env_hash: {self.__updated_env_hash}")
+
+        if self.__updated_env_hash != self.__env_hash:
+            raise TypeError("The optimization cannot modify the environment.")
 
     @staticmethod
     def dispatch(dispatch_function: Callable,

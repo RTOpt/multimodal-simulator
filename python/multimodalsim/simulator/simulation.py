@@ -1,6 +1,7 @@
 import logging
 import threading
 from typing import Optional, Any
+import json
 
 from multimodalsim.config.simulation_config import SimulationConfig
 from multimodalsim.observer.data_collector import DataCollector
@@ -53,6 +54,9 @@ class Simulation:
         self.__simulation_paused = False
         self.__simulation_stopped = False
 
+        self.__hash_env = None
+        self.__updated_hash_env = None
+
     @property
     def data_collectors(self) -> Optional[list[DataCollector]]:
         if self.__environment_observer is not None:
@@ -82,11 +86,16 @@ class Simulation:
                     and self.__env.current_time > self.__config.max_time:
                 break
 
+            self.__save_env_hash()
+
             self.__visualize_environment(current_event, current_event.index,
                                          current_event.priority)
-# Check if env has been modified (+ Optimize)
+
+            self.__check_if_env_hash_modified()
+
             process_event = current_event.process(self.__env)
             logger.debug("process_event: {}".format(process_event))
+
             self.__collect_data(current_event, current_event.index,
                                 current_event.priority)
 
@@ -201,3 +210,16 @@ class Simulation:
         if self.__environment_observer is not None:
             for data_collector in self.__environment_observer.data_collectors:
                 data_collector.clean_up(self.__env)
+
+    def __save_env_hash(self):
+        self.__env_hash = hash(str(self.__env.__dict__))
+
+    def __check_if_env_hash_modified(self):
+
+        self.__updated_env_hash = hash(str(self.__env.__dict__))
+
+        logger.warning(f"self.__env_hash: {self.__env_hash}")
+        logger.warning(f"self.__updated_env_hash: {self.__updated_env_hash}")
+
+        if self.__updated_env_hash != self.__env_hash:
+            raise TypeError("The environment cannot be modified.")
