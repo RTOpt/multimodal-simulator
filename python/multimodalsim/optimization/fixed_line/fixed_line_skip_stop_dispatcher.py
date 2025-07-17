@@ -171,9 +171,9 @@ class FixedLineSkipStopDispatcher(Dispatcher):
             if route.vehicle.id in self.__skip_stops_by_vehicle_id:
                 skip_stops_list = self.__skip_stops_by_vehicle_id[
                     route.vehicle.id]
-                modified_requests, new_walk_vehicles, stop_skipped = \
-                    self.__skip_route_stops(route, skip_stops_list,
-                                            current_time, state)
+                modified_requests, new_walk_vehicles, stop_skipped =  \
+                    self.__skip_route_stops(
+                        route, skip_stops_list, current_time, state)
                 all_modified_requests.extend(modified_requests)
                 all_new_walk_vehicles.extend(new_walk_vehicles)
                 if stop_skipped:
@@ -241,7 +241,7 @@ class FixedLineSkipStopDispatcher(Dispatcher):
             new_leg.assigned_vehicle = route.vehicle
             trip.current_leg = new_leg
 
-            walk_vehicle, _ = self.__create_walk_vehicle(
+            walk_vehicle, walk_route = self.__create_walk_vehicle(
                 stop_to_skip, next_stop, old_leg.nb_passengers, current_time,
                 state)
 
@@ -251,13 +251,14 @@ class FixedLineSkipStopDispatcher(Dispatcher):
                 walk_leg_id, new_destination, new_walk_leg_destination,
                 old_leg.nb_passengers, old_leg.release_time,
                 old_leg.ready_time, old_leg.due_time, old_leg.trip)
-            # new_walk_leg.assigned_vehicle = walk_vehicle
+            new_walk_leg.assigned_vehicle = walk_vehicle
+
+            self.__assign_leg_to_walk_route(new_walk_leg, walk_route)
 
             trip.next_legs.insert(0, new_walk_leg)
 
             modified_requests.append(trip)
             new_walk_vehicles.append(walk_vehicle)
-
 
         next_stop.passengers_to_alight.extend(
             stop_to_skip.passengers_to_alight)
@@ -304,3 +305,9 @@ class FixedLineSkipStopDispatcher(Dispatcher):
         state.vehicles.append(walk_vehicle)
 
         return walk_vehicle, walk_route
+
+    def __assign_leg_to_walk_route(self, leg: 'request.Leg',
+                                   walk_route: Route):
+        walk_route.assigned_legs.append(leg)
+        walk_route.current_stop.passengers_to_board.append(leg.trip)
+        walk_route.next_stops[0].passengers_to_alight.append(leg.trip)

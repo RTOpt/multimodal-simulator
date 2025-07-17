@@ -1,5 +1,3 @@
-import logging
-
 from multimodalsim.simulator.event import Event, ActionEvent
 import multimodalsim.simulator.optimization_event \
     as optimization_event_process
@@ -8,6 +6,10 @@ from multimodalsim.simulator.vehicle_event import VehicleBoarded, \
     VehicleAlighted
 import multimodalsim.simulator.environment as environment
 import multimodalsim.simulator.event_queue as event_queue
+
+import logging
+from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,22 +55,25 @@ class PassengerRelease(Event):
 
 
 class PassengerAssignment(ActionEvent):
-    def __init__(self, passenger_update: 'request.PassengerUpdate',
-                 queue: 'event_queue.EventQueue') -> None:
+    def __init__(self, trip_id: str | int,
+                 queue: 'event_queue.EventQueue',
+                 passenger_update: Optional['request.PassengerUpdate']
+                 = None) -> None:
         self.__passenger_update = passenger_update
-        self.__trip = queue.env.get_trip_by_id(
-            self.__passenger_update.request_id)
+        self.__trip = queue.env.get_trip_by_id(trip_id)
         super().__init__('PassengerAssignment', queue,
                          state_machine=self.__trip.state_machine)
 
     def _process(self, env: 'environment.Environment') -> str:
-        self.__env = env
 
-        self.__update_legs()
+        if self.__passenger_update is not None:
+            self.__env = env
 
-        self.__assign_vehicle()
+            self.__update_legs()
 
-        self.__update_environment()
+            self.__assign_vehicle()
+
+            self.__update_environment()
 
         PassengerReady(self.__trip, self.queue).add_to_queue()
 
@@ -86,11 +91,26 @@ class PassengerAssignment(ActionEvent):
             self.__trip.next_legs =\
                 self.__replace_copy_legs_with_actual_legs(
                     self.__passenger_update.next_legs)
+            self.__update_next_legs(self.__trip.next_legs,
+                               self.__passenger_update.next_legs)
 
     def __update_current_leg(self, current_leg_actual: 'request.Leg',
                              current_leg_copy: 'request.Leg'):
         """Update future information about the current leg."""
         current_leg_actual.destination = current_leg_copy.destination
+
+    def __update_next_legs(self, next_legs_actual_list: list['request.Leg'],
+                          next_legs_copy_list: list['request.Leg']):
+        """Update information about the next leg."""
+        for next_leg_actual, next_leg_copy in zip(next_legs_actual_list, next_legs_copy_list):
+            if next_leg_copy.assigned_vehicle is not None:
+                next_leg_actual.assigned_vehicle = \
+                    self.__env.get_vehicle_by_id(
+                        next_leg_copy.assigned_vehicle.id)
+            else:
+                next_leg_actual.assigned_vehicle = None
+            next_leg_actual.origin = next_leg_copy.origin
+            next_leg_actual.destination = next_leg_copy.destination
 
     def __assign_vehicle(self):
         # Vehicle of the first next leg. Note that the vehicle of the current
@@ -135,12 +155,15 @@ class PassengerAssignment(ActionEvent):
             actual_assigned_vehicle = self.__env.get_vehicle_by_id(
                 leg.assigned_vehicle.id)
 
-        actual_leg = request.Leg(leg.id, leg.origin, leg.destination,
-                         leg.nb_passengers, leg.release_time, leg.ready_time,
-                         leg.due_time, actual_trip)
-        actual_leg.assigned_vehicle = actual_assigned_vehicle
+        leg.trip = actual_trip
+        leg.assigned_vehicle = actual_assigned_vehicle
 
-        return actual_leg
+        # actual_leg = request.Leg(leg.id, leg.origin, leg.destination,
+        #                  leg.nb_passengers, leg.release_time, leg.ready_time,
+        #                  leg.due_time, actual_trip)
+        # actual_leg.assigned_vehicle = actual_assigned_vehicle
+
+        return leg
 
 class PassengerReady(ActionEvent):
     def __init__(self, trip: 'request.Trip',
@@ -198,7 +221,12 @@ class PassengerAlighting(ActionEvent):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
 
-            optimization_event_process.Optimize(
-                env.current_time, self.queue).add_to_queue()
+            if self.__trip.next_legs[0].assigned_vehicle is None:
+                # Next leg has not been assigned to a vehicle yet.
+                optimization_event_process.Optimize(
+                    env.current_time, self.queue).add_to_queue()
+            else:
+                # Next leg has already been assigned to a vehicle.
+                PassengerAssignment(self.__trip.id, self.queue).add_to_queue()
 
         return 'Passenger Alighting process is implemented'

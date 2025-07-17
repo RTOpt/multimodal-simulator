@@ -211,33 +211,37 @@ class EnvironmentUpdate(ActionEvent):
             else:
                 route = None
 
+            route = self.__optimization_result.state.route_by_vehicle_id[
+                vehicle.id]
+            if route.current_stop is not None:
+                # Copy passengers_to_board and departure time of current_stop.
+                current_stop_modified_passengers_to_board = \
+                    route.current_stop.passengers_to_board
+                current_stop_departure_time = \
+                    route.current_stop.departure_time
+            else:
+                current_stop_modified_passengers_to_board = None
+                current_stop_departure_time = None
+
+            next_stops = route.next_stops
+            route_update = vehicle_module.RouteUpdate(
+                vehicle.id, current_stop_modified_passengers_to_board,
+                next_stops, current_stop_departure_time, route.assigned_legs)
             vehicle_event_process.VehicleReady(
                 vehicle, route, self.queue,
-                self.__env.simulation_config.update_position_time_step
+                self.__env.simulation_config.update_position_time_step,
+                route_update
             ).add_to_queue()
+
 
     def __process_modified_requests(self):
         for trip in self.__optimization_result.modified_requests:
 
             actual_trip = self.__env.get_trip_by_id(trip.id)
 
-            # actual_trip = self.__env.get_trip_by_id(
-            #     self.__passenger_update.request_id)
-            # actual_current_leg_assigned_vehicle = \
-            #     actual_trip.current_leg.assigned_vehicle \
-            #         if actual_trip.current_leg is not None else None
-            #
-            # current_leg_assigned_vehicle = trip.current_leg.assigned_vehicle \
-            #     if trip.current_leg is not None else None
-
             next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
             actual_next_leg_assigned_vehicle = \
                 trip.next_legs[0].assigned_vehicle
-
-            # if current_leg_assigned_vehicle is not None \
-            #         and (current_leg_assigned_vehicle.id
-            #              != actual_current_leg_assigned_vehicle.id):
-            #     pass
 
             if next_leg_assigned_vehicle is None \
                     and actual_next_leg_assigned_vehicle is not None:
@@ -251,7 +255,7 @@ class EnvironmentUpdate(ActionEvent):
                     trip.id, assigned_vehicle_id, trip.current_leg,
                     trip.next_legs)
                 passenger_event_process.PassengerAssignment(
-                    passenger_update, self.queue).add_to_queue()
+                    trip.id, self.queue, passenger_update).add_to_queue()
 
     def __process_modified_vehicles(self):
         for veh in self.__optimization_result.modified_vehicles:
@@ -270,8 +274,7 @@ class EnvironmentUpdate(ActionEvent):
             next_stops = route.next_stops
             route_update = vehicle_module.RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
-                current_stop_departure_time,
-                route.assigned_legs)
+                current_stop_departure_time, route.assigned_legs)
             vehicle_event_process.VehicleNotification(
                 route_update, self.queue).add_to_queue()
 

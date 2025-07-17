@@ -40,11 +40,11 @@ if __name__ == '__main__':
     # Time interval during which the current state of the environment is frozen
     # at each optimization. It prevents the optimization from making decisions
     # that would have an impact too near in the future.
-    freeze_interval = 5
+    freeze_interval = 0
     # Initialize the optimizer.
     splitter = MultimodalSplitter(g, freeze_interval=freeze_interval)
 
-    skip_stops_by_vehicle_id = {"1": [("2", 56000)], "3": [("6", 61030)]}
+    skip_stops_by_vehicle_id = {"1": [("2", 56000)], "3": [("6", 62000)]}
     dispatcher = FixedLineSkipStopDispatcher(skip_stops_by_vehicle_id)
     opt = Optimization(dispatcher, splitter, freeze_interval=freeze_interval)
 

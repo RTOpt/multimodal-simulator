@@ -66,6 +66,10 @@ class Request:
     def origin(self) -> Location:
         return self.__origin
 
+    @origin.setter
+    def origin(self, location: Location) -> None:
+        self.__origin = location
+
     @property
     def destination(self) -> Location:
         return self.__destination
@@ -138,6 +142,10 @@ class Leg(Request):
     @property
     def trip(self) -> Optional['Trip']:
         return self.__trip
+
+    @trip.setter
+    def trip(self, trip: Optional['Trip']) -> None:
+        self.__trip = trip
 
     @property
     def boarding_time(self) -> Optional[float]:

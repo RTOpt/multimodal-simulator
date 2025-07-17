@@ -21,11 +21,15 @@ class VehicleReady(Event):
     def __init__(self, vehicle: vehicle_module.Vehicle,
                  route: vehicle_module.Route,
                  queue: 'event_queue.EventQueue',
-                 update_position_time_step: Optional[float] = None) -> None:
-        super().__init__('VehicleReady', queue, vehicle.release_time)
+                 update_position_time_step: Optional[float] = None,
+                 route_update: vehicle_module.RouteUpdate = None) -> None:
+        super().__init__('VehicleReady', queue, vehicle.release_time,
+                         event_priority=Event.HIGH_PRIORITY
+                         )
         self.__vehicle = vehicle
         self.__route = route
         self.__update_position_time_step = update_position_time_step
+        self.__route_update = route_update
 
     @property
     def vehicle(self) -> 'vehicle_module.Vehicle':
@@ -40,7 +44,11 @@ class VehicleReady(Event):
 
         env.add_route(self.__route, self.__vehicle.id)
 
-        VehicleWaiting(self.__route, self.queue).add_to_queue()
+        if self.__route_update is None:
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
+        else:
+            VehicleNotification(self.__route_update, self.queue).add_to_queue()
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
                 is not None:
@@ -222,15 +230,15 @@ class VehicleNotification(Event):
                  queue: 'event_queue.EventQueue') -> None:
         self.__env = None
         self.__route_update = route_update
-        self.__vehicle = queue.env.get_vehicle_by_id(
-            self.__route_update.vehicle_id)
-        self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
+
         self.__queue = queue
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env: 'environment.Environment') -> str:
 
         self.__env = env
+        self.__vehicle = env.get_vehicle_by_id(self.__route_update.vehicle_id)
+        self.__route = env.get_route_by_vehicle_id(self.__vehicle.id)
 
         self.__update_next_stops()
 
@@ -311,11 +319,12 @@ class VehicleNotification(Event):
     def __update_assigned_legs(self):
 
         if self.__route_update.assigned_legs is not None:
-            self.__route.assigned_legs.clear()
+
             actual_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
                     self.__route_update.assigned_legs)
 
+            self.__route.assigned_legs.clear()
             for leg in actual_assigned_legs:
                 self.__route.assigned_legs.append(leg)
 

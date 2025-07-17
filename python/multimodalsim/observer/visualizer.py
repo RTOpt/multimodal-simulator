@@ -142,7 +142,12 @@ class ConsoleVisualizer(Visualizer):
                 trip, 'previous_legs') and trip.previous_legs is not None \
                 else None
             next_legs = [{"O": leg.origin.__str__(),
-                          "D": leg.destination.__str__()}
+                          "D": leg.destination.__str__(),
+                          "veh_id": leg.assigned_vehicle.id
+                          if leg.assigned_vehicle is not None else None,
+                          "boarding_time": leg.boarding_time,
+                          "alighting_time": leg.alighting_time
+                          }
                          for leg in trip.next_legs] \
                 if hasattr(trip, 'next_legs') and trip.next_legs is not None \
                 else None
