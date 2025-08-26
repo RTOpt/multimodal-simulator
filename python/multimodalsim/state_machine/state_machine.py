@@ -8,7 +8,7 @@ import multimodalsim.optimization.optimization as optimization_module
 from multimodalsim.simulator.event import Event
 from multimodalsim.simulator.passenger_event \
     import PassengerRelease, PassengerAssignment, PassengerReady, \
-    PassengerToBoard, PassengerAlighting
+    PassengerToBoard, PassengerAlighting, PassengerUnassignment
 from multimodalsim.state_machine.status import OptimizationStatus, \
     PassengerStatus, VehicleStatus, Status
 from multimodalsim.simulator.vehicle_event import VehicleBoarding, \
@@ -198,10 +198,11 @@ class PassengerStateMachine(StateMachine):
 
         self.add_transition(PassengerStatus.RELEASE,
                             PassengerStatus.RELEASE, PassengerRelease)
+
         self.add_transition(PassengerStatus.ASSIGNED,
-                            PassengerStatus.RELEASE, PassengerRelease)
+                            PassengerStatus.RELEASE, PassengerUnassignment)
         self.add_transition(PassengerStatus.READY,
-                            PassengerStatus.RELEASE, PassengerRelease)
+                            PassengerStatus.RELEASE, PassengerUnassignment)
 
         self.add_transition(PassengerStatus.RELEASE,
                             PassengerStatus.ASSIGNED, PassengerAssignment)

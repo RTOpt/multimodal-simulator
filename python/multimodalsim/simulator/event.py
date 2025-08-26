@@ -6,6 +6,7 @@ from typing import Optional
 import multimodalsim.simulator.event_queue as event_queue
 import multimodalsim.simulator.environment as environment
 import multimodalsim.state_machine.state_machine as state_machine
+import multimodalsim.simulator.optimization_event as optimization_event
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,11 @@ class ActionEvent(Event):
         if not self.cancelled:
             if self.__state_machine is not None:
                 self.__state_machine.next_state(self.__class__, env)
+                next_status = self.__state_machine.current_state.status
+                if next_status in self.queue.optimize_triggering_statuses:
+                    optimization_event.Optimize(env.current_time,
+                                                self.queue).add_to_queue()
+
             return_message = self._process(env)
         else:
             return_message = "The event was cancelled."

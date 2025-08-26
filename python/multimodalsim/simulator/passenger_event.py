@@ -14,10 +14,11 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-class PassengerRelease(Event):
+class PassengerRelease(ActionEvent):
     def __init__(self, trip: 'request.Trip',
                  queue: 'event_queue.EventQueue') -> None:
-        super().__init__('PassengerRelease', queue, trip.release_time)
+        super().__init__('PassengerRelease', queue, trip.release_time,
+                         state_machine=trip.state_machine)
         self.__trip = trip
 
     @property
@@ -26,32 +27,14 @@ class PassengerRelease(Event):
 
     def _process(self, env: 'environment.Environment') -> str:
 
-        self.__env = env
-
-        if env.get_trip_by_id(self.__trip) is None:
-            # Adding new trip to the environment
-            self.__release_new_trip()
-        else:
-            # Unassignement of existing trip (no re-optimization is triggered)
-            self.__release_existing_trip()
-
-        return 'Passenger Release process is implemented'
-
-    def __release_new_trip(self):
-        self.__env.add_trip(self.__trip)
-        self.__env.add_non_assigned_trip(self.__trip)
+        env.add_trip(self.__trip)
+        env.add_non_assigned_trip(self.__trip)
 
         if self.__trip.current_leg is None:
-            legs = self.__env.optimization.split(self.__trip, self.__env)
+            legs = env.optimization.split(self.__trip, env)
             self.__trip.assign_legs(legs)
 
-        optimization_event_process.Optimize(
-            self.__env.current_time, self.queue).add_to_queue()
-
-    def __release_existing_trip(self):
-        self.__env.remove_assigned_trip(self.__trip)
-        self.__env.add_non_assigned_trip(self.__trip)
-        self.__trip.current_leg.assigned_vehicle = None
+        return 'Passenger Release process is implemented'
 
 
 class PassengerAssignment(ActionEvent):
@@ -221,12 +204,28 @@ class PassengerAlighting(ActionEvent):
             env.remove_assigned_trip(self.__trip.id)
             env.add_non_assigned_trip(self.__trip)
 
-            if self.__trip.next_legs[0].assigned_vehicle is None:
-                # Next leg has not been assigned to a vehicle yet.
-                optimization_event_process.Optimize(
-                    env.current_time, self.queue).add_to_queue()
-            else:
+            if self.__trip.next_legs[0].assigned_vehicle is not None:
                 # Next leg has already been assigned to a vehicle.
                 PassengerAssignment(self.__trip.id, self.queue).add_to_queue()
 
         return 'Passenger Alighting process is implemented'
+
+
+class PassengerUnassignment(ActionEvent):
+    def __init__(self, trip: 'request.Trip',
+                 queue: 'event_queue.EventQueue') -> None:
+        super().__init__('PassengerUnassignment', queue,
+                         state_machine=trip.state_machine)
+        self.__trip = trip
+
+    @property
+    def trip(self) -> 'request.Trip':
+        return self.__trip
+
+    def _process(self, env: 'environment.Environment') -> str:
+
+        env.remove_assigned_trip(self.__trip)
+        env.add_non_assigned_trip(self.__trip)
+        self.__trip.next_legs[0].assigned_vehicle = None
+
+        return 'Passenger Unassignment process is implemented'

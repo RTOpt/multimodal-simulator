@@ -10,7 +10,7 @@ import multimodalsim.simulator.request as request
 logger = logging.getLogger(__name__)
 
 
-class FixedLineReassignDispatcher(Dispatcher):
+class FixedLineUnassignDispatcher(Dispatcher):
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,8 +40,9 @@ class FixedLineReassignDispatcher(Dispatcher):
         """Each selected next leg is assigned to the optimal route. The optimal
         route is the one that has the earliest arrival time at destination
         (i.e. leg.destination). If a leg is already assigned to a route that
-        is not the optimal route, it is unassigned from this route and
-        reassigned to the optimal route"""
+        is not the optimal route, it is unassigned from this route, but NOT
+        reassigned to the optimal route. It will be assigned to the optimal
+        route in the next optimization."""
 
         optimized_route_plans = []
         for leg in selected_next_legs:
@@ -71,12 +72,6 @@ class FixedLineReassignDispatcher(Dispatcher):
                     previous_route_plan.copy_route_stops()
                     previous_route_plan.unassign_leg(leg.id)
                     optimized_route_plans.append(previous_route_plan)
-
-                    # Assign leg to optimal new route plan
-                    optimized_route_plan = OptimizedRoutePlan(optimal_route)
-                    optimized_route_plan.copy_route_stops()
-                    optimized_route_plan.assign_leg(leg)
-                    optimized_route_plans.append(optimized_route_plan)
 
         return optimized_route_plans, None
 

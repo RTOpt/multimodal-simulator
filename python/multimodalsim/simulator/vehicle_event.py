@@ -78,9 +78,6 @@ class VehicleWaiting(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
 
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
-
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
             VehicleBoarding(self.__route, self.queue).add_to_queue()

@@ -10,12 +10,13 @@ from multimodalsim.coordinates.coordinates import Coordinates
 from multimodalsim.simulator.environment import Environment
 from multimodalsim.simulator.event import RecurrentTimeSyncEvent
 from multimodalsim.simulator.event_queue import EventQueue
-
 from multimodalsim.simulator.passenger_event import PassengerRelease
 from multimodalsim.simulator.request import Trip
 from multimodalsim.simulator.travel_times import TravelTimes
 from multimodalsim.simulator.vehicle import Vehicle, Route
 from multimodalsim.simulator.vehicle_event import VehicleReady
+from multimodalsim.state_machine.status import PassengerStatus, \
+    VehicleStatus, OptimizationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,10 @@ class Simulation:
                  Optional['env_obs_module.EnvironmentObserver'] = None,
                  coordinates: Optional[Coordinates] = None,
                  travel_times: Optional[TravelTimes] = None,
-                 config: Optional[str | SimulationConfig] = None) -> None:
+                 config: Optional[str | SimulationConfig] = None,
+                 optimize_triggering_statuses:
+                 list[PassengerStatus | VehicleStatus | OptimizationStatus]
+                 = [PassengerStatus.RELEASE, VehicleStatus.IDLE]) -> None:
 
         self.__load_config(config)
 
@@ -38,7 +42,7 @@ class Simulation:
                                  network=network,
                                  coordinates=coordinates,
                                  travel_times=travel_times)
-        self.__queue = EventQueue(self.__env)
+        self.__queue = EventQueue(self.__env, optimize_triggering_statuses)
 
         self.__initialize_environment_observer(environment_observer)
 

@@ -159,14 +159,11 @@ class Dispatcher:
         for route_plan in optimized_route_plans:
             self.__process_route_plan(route_plan)
 
-            trips = [leg.trip for leg in route_plan.assigned_legs]
+            trips = [leg.trip for leg in route_plan.assigned_legs] \
+                    + [leg.trip for leg in route_plan.unassigned_legs]
 
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
-
-        # optimization_result = optimization_module.OptimizationResult(
-        #     state, modified_trips, modified_vehicles, new_vehicles,
-        #     new_requests)
 
         return modified_trips, modified_vehicles
 
@@ -453,6 +450,7 @@ class OptimizedRoutePlan:
                 break
 
         if leg_to_unassign is not None:
+            leg_to_unassign.assigned_vehicle = None
             if leg_to_unassign in self.__assigned_legs:
                 self.__assigned_legs.remove(leg_to_unassign)
             if leg_to_unassign not in self.__unassigned_legs:
