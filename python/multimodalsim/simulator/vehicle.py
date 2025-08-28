@@ -301,9 +301,11 @@ class Route:
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k == "_Route__previous_stops":
+            if k == "_Route__previous_stops"\
+                    and not memo["state_deep_copy_includes_history"]:
                 setattr(result, k, [])
-            elif k == "_Route__alighted_legs":
+            elif k == "_Route__alighted_legs"\
+                    and not memo["state_deep_copy_includes_history"]:
                 setattr(result, k, [])
             else:
                 setattr(result, k, copy.deepcopy(v, memo))

@@ -52,10 +52,16 @@ class Environment:
 
         self.__current_time = 0
         self.__estimated_end_time = None
+
         self.__trips = []
         self.__assigned_trips = []
         self.__non_assigned_trips = []
+        self.__complete_trips = []
+        self.__non_complete_trips = []
+
         self.__vehicles = []
+        self.__complete_vehicles = []
+        self.__non_complete_vehicles = []
         self.__routes_by_vehicle_id = {}
 
         self.__network = network
@@ -158,15 +164,34 @@ class Environment:
                                      if trip.id != trip_id]
 
     @property
+    def complete_trips(self) -> list['request.Trip']:
+        return self.__complete_trips
+
+    def add_complete_trip(self, trip: 'request.Trip') -> None:
+        """ Adds a new trip to the list of complete trips if it is not already
+        there"""
+        if trip not in self.__complete_trips:
+            self.__complete_trips.append(trip)
+
+    @property
+    def non_complete_trips(self) -> list['request.Trip']:
+        return self.__non_complete_trips
+
+    def add_non_complete_trip(self, trip: 'request.Trip') -> None:
+        """ Adds a new trip to the list of non-complete trips if it is not
+        already there"""
+        if trip not in self.__non_complete_trips:
+            self.__non_complete_trips.append(trip)
+
+    def remove_non_complete_trip(self, trip_id: str | int) -> None:
+        """ Removes a trip from the list of non-complete trips based on its
+        id"""
+        self.__non_complete_trips = [trip for trip in self.__non_complete_trips
+                                 if trip.id != trip_id]
+
+    @property
     def vehicles(self) -> list[Vehicle]:
         return self.__vehicles
-
-    def get_vehicle_by_id(self, vehicle_id: str | int) -> Vehicle:
-        found_vehicle = None
-        for vehicle in self.vehicles:
-            if vehicle.id == vehicle_id:
-                found_vehicle = vehicle
-        return found_vehicle
 
     def add_vehicle(self, vehicle: Vehicle) -> None:
         """ Adds a new vehicle to the vehicles list"""
@@ -176,6 +201,40 @@ class Environment:
         """ Removes a vehicle from the vehicles list based on its id"""
         self.__vehicles = [item for item in self.__vehicles
                            if item.attribute != vehicle_id]
+
+    @property
+    def complete_vehicles(self) -> list[Vehicle]:
+        return self.__complete_vehicles
+
+    def add_complete_vehicle(self, vehicle: Vehicle) -> None:
+        """ Adds a new vehicle to the list of complete vehicles if it is not
+        already there"""
+        if vehicle not in self.__complete_vehicles:
+            self.__complete_vehicles.append(vehicle)
+
+    @property
+    def non_complete_vehicles(self) -> list[Vehicle]:
+        return self.__non_complete_vehicles
+
+    def add_non_complete_vehicle(self, vehicle: Vehicle) -> None:
+        """ Adds a new vehicle to the list of non-complete vehicles if it is
+        not already there"""
+        if vehicle not in self.__non_complete_vehicles:
+            self.__non_complete_vehicles.append(vehicle)
+
+    def remove_non_complete_vehicle(self, vehicle_id: str | int) -> None:
+        """ Removes a vehicle from the list of non-complete vehicles based on
+        its id"""
+        self.__non_complete_vehicles = [vehicle for vehicle
+                                        in self.__non_complete_vehicles
+                                        if vehicle.id != vehicle_id]
+
+    def get_vehicle_by_id(self, vehicle_id: str | int) -> Vehicle:
+        found_vehicle = None
+        for vehicle in self.vehicles:
+            if vehicle.id == vehicle_id:
+                found_vehicle = vehicle
+        return found_vehicle
 
     @property
     def route_by_vehicle_id(self) -> dict[str | int, Route]:
@@ -199,25 +258,20 @@ class Environment:
         state_copy.__travel_times = None
         state_copy.optimize_cv = None
 
-        state_copy.__vehicles = \
-            self.__get_non_complete_vehicles(state_copy.__vehicles)
-
-        state_copy.__trips = self.__get_non_complete_trips(state_copy.__trips)
         state_copy.__assigned_trips = \
             self.__get_non_complete_trips(state_copy.__assigned_trips)
 
-        state_deepcopy = state_module.State(copy.deepcopy(state_copy))
+        if self.__optimization.config.state_deep_copy:
+            # By default, route history is not included in the deep copy.
+            deepcopy_memo = {"state_deep_copy_includes_history": False}
+            if self.__optimization.config.state_deep_copy_includes_history:
+                deepcopy_memo["state_deep_copy_includes_history"] = True
+            state_deepcopy = state_module.State(copy.deepcopy(state_copy,
+                                                              deepcopy_memo))
+        else:
+            state_deepcopy = state_module.State(state_copy)
 
         return state_deepcopy
-
-    def __get_non_complete_vehicles(self, vehicles):
-        non_complete_vehicles = []
-        for vehicle in vehicles:
-            if vehicle.status != VehicleStatus.COMPLETE:
-                veh_copy = copy.copy(vehicle)
-                veh_copy.polylines = None
-                non_complete_vehicles.append(veh_copy)
-        return non_complete_vehicles
 
     def __get_non_complete_trips(self, trips):
         non_complete_trips = []

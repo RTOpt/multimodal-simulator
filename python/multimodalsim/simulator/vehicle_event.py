@@ -37,6 +37,7 @@ class VehicleReady(Event):
 
     def _process(self, env: 'environment.Environment') -> str:
         env.add_vehicle(self.__vehicle)
+        env.add_non_complete_vehicle(self.__vehicle)
 
         if self.__route is None:
             self.__route = vehicle_module.Route(
@@ -422,6 +423,9 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env: 'environment.Environment') -> str:
+
+        env.remove_non_complete_vehicle(self.__route.vehicle.id)
+        env.add_complete_vehicle(self.__route.vehicle)
 
         return 'Vehicle Complete process is implemented'
 

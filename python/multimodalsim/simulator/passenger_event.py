@@ -29,6 +29,7 @@ class PassengerRelease(ActionEvent):
 
         env.add_trip(self.__trip)
         env.add_non_assigned_trip(self.__trip)
+        env.add_non_complete_trip(self.__trip)
 
         if self.__trip.current_leg is None:
             legs = env.optimization.split(self.__trip, env)
@@ -196,6 +197,8 @@ class PassengerAlighting(ActionEvent):
         if self.__trip.next_legs is None or len(self.__trip.next_legs) == 0:
             # No connection
             logger.debug("No connection: {}".format(self.__trip.id))
+            env.remove_non_complete_trip(self.__trip.id)
+            env.add_complete_trip(self.__trip)
         else:
             # Connection
             logger.debug("Connection: {}".format(self.__trip.id))
