@@ -8,7 +8,7 @@ from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
 from multimodalsim.reader.travel_times_reader import MatrixTravelTimesReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile
+from multimodalsim.coordinates.coordinates_from_file import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)

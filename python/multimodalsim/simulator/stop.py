@@ -29,12 +29,18 @@ class Stop:
     location: Location
         Object of type Location referring to the location of the stop
         (e.g., GPS coordinates)
+    capacity: int
+        The maximal number of passengers that can wait at the stop.
+    tags: list[str]
+            List of tags associated with the stop.
     """
 
     def __init__(self, arrival_time: float, departure_time: float,
-                 location: 'Location',
+                 location: 'LabelLocation',
                  cumulative_distance: Optional[float] = None,
-                 min_departure_time: Optional[float] = None) -> None:
+                 min_departure_time: Optional[float] = None,
+                 capacity: Optional[int] = None,
+                 tags: Optional[list[str]] = None) -> None:
         super().__init__()
 
         self.__arrival_time = arrival_time
@@ -48,6 +54,8 @@ class Stop:
         self.__alighted_passengers = []
         self.__location = location
         self.__cumulative_distance = cumulative_distance
+        self.__capacity = capacity
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -144,12 +152,20 @@ class Stop:
         return self.__alighted_passengers
 
     @property
-    def location(self) -> 'Location':
+    def location(self) -> 'LabelLocation':
         return self.__location
 
     @property
-    def cumulative_distance(self) -> float:
+    def cumulative_distance(self) -> Optional[float]:
         return self.__cumulative_distance
+
+    @property
+    def capacity(self) -> Optional[int]:
+        return self.__capacity
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
     def initiate_boarding(self, trip: 'request.Trip'):
         """Passengers who are ready to be picked up in the stop get in the
@@ -195,8 +211,10 @@ class Location:
     structure for storing basic information about the location of a vehicle
     or a passenger (i.e., Request). """
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, lon: Optional[float] = None,
+                 lat: Optional[float] = None) -> None:
+        self.lon = lon
+        self.lat = lat
 
     def __eq__(self, other: 'Location') -> bool:
         pass
@@ -205,10 +223,8 @@ class Location:
 class LabelLocation(Location):
     def __init__(self, label: str, lon: Optional[float] = None,
                  lat: Optional[float] = None) -> None:
-        super().__init__()
+        super().__init__(lon, lat)
         self.label = label
-        self.lon = lon
-        self.lat = lat
 
     def __str__(self) -> str:
 
@@ -235,10 +251,8 @@ class LabelLocation(Location):
 
 class TimeCoordinatesLocation(Location):
     def __init__(self, time: float, lon: float, lat: float) -> None:
-        super().__init__()
+        super().__init__(lon, lat)
         self.time = time
-        self.lon = lon
-        self.lat = lat
 
     def __str__(self) -> str:
         return "{}: ({},{})".format(self.time, self.lon, self.lat)

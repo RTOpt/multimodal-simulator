@@ -67,8 +67,7 @@ class Optimize(ActionEvent):
             else:
                 self.__optimize_synchronously(env)
         else:
-            optimization_result = optimization_module.OptimizationResult(
-                None, [], [])
+            optimization_result = optimization_module.OptimizationResult()
             EnvironmentUpdate(optimization_result, self.queue).add_to_queue()
 
         return 'Optimize process is implemented'
@@ -185,15 +184,81 @@ class EnvironmentUpdate(ActionEvent):
 
     def _process(self, env: 'environment.Environment') -> str:
 
+        self.__env = env
+
+        self.__process_new_requests()
+
+        self.__process_new_vehicles()
+
+        self.__process_modified_requests()
+
+        self.__process_modified_vehicles()
+
+        EnvironmentIdle(self.queue).add_to_queue()
+
+        return 'Environment Update process is implemented'
+
+    def __process_new_requests(self) -> None:
+        for trip in self.__optimization_result.new_requests:
+            PassengerRelease(trip, self.queue).add_to_queue()
+
+    def __process_new_vehicles(self) -> None:
+        for vehicle in self.__optimization_result.new_vehicles:
+            if vehicle.id \
+                    in self.__optimization_result.state.route_by_vehicle_id:
+                route = self.__optimization_result.state.route_by_vehicle_id[
+                    vehicle.id]
+            else:
+                route = None
+
+            route = self.__optimization_result.state.route_by_vehicle_id[
+                vehicle.id]
+            if route.current_stop is not None:
+                # Copy passengers_to_board and departure time of current_stop.
+                current_stop_modified_passengers_to_board = \
+                    route.current_stop.passengers_to_board
+                current_stop_departure_time = \
+                    route.current_stop.departure_time
+            else:
+                current_stop_modified_passengers_to_board = None
+                current_stop_departure_time = None
+
+            next_stops = route.next_stops
+            route_update = vehicle_module.RouteUpdate(
+                vehicle.id, current_stop_modified_passengers_to_board,
+                next_stops, current_stop_departure_time, route.assigned_legs)
+            vehicle_event_process.VehicleReady(
+                vehicle, route, self.queue,
+                self.__env.simulation_config.update_position_time_step,
+                route_update
+            ).add_to_queue()
+
+
+    def __process_modified_requests(self):
+
         for trip in self.__optimization_result.modified_requests:
-            next_legs = trip.next_legs
+
+            actual_trip = self.__env.get_trip_by_id(trip.id)
+
             next_leg_assigned_vehicle = trip.next_legs[0].assigned_vehicle
+            actual_next_leg_assigned_vehicle = \
+                actual_trip.next_legs[0].assigned_vehicle
 
-            passenger_update = request.PassengerUpdate(
-                next_leg_assigned_vehicle.id, trip.id, next_legs)
-            passenger_event_process.PassengerAssignment(
-                passenger_update, self.queue).add_to_queue()
+            if next_leg_assigned_vehicle is None \
+                    and actual_next_leg_assigned_vehicle is not None:
+                # Unassign previously assigned passenger
+                passenger_event_process.PassengerUnassignment(
+                    actual_trip, self.queue).add_to_queue()
+            else:
+                assigned_vehicle_id = next_leg_assigned_vehicle.id \
+                    if next_leg_assigned_vehicle is not None else None
+                passenger_update = request.PassengerUpdate(
+                    trip.id, assigned_vehicle_id, trip.current_leg,
+                    trip.next_legs)
+                passenger_event_process.PassengerAssignment(
+                    trip.id, self.queue, passenger_update).add_to_queue()
 
+    def __process_modified_vehicles(self):
         for veh in self.__optimization_result.modified_vehicles:
             route = \
                 self.__optimization_result.state.route_by_vehicle_id[veh.id]
@@ -207,24 +272,12 @@ class EnvironmentUpdate(ActionEvent):
                 current_stop_modified_passengers_to_board = None
                 current_stop_departure_time = None
 
-            # Add the assigned_legs of route that were modified during
-            # optimization.
-            modified_trips_ids = [modified_trip.id for modified_trip in
-                                  self.__optimization_result.modified_requests]
-            modified_assigned_legs = [leg for leg in route.assigned_legs
-                                      if leg.trip.id in modified_trips_ids]
-
             next_stops = route.next_stops
             route_update = vehicle_module.RouteUpdate(
                 veh.id, current_stop_modified_passengers_to_board, next_stops,
-                current_stop_departure_time, modified_assigned_legs)
+                current_stop_departure_time, route.assigned_legs)
             vehicle_event_process.VehicleNotification(
                 route_update, self.queue).add_to_queue()
-
-        EnvironmentIdle(self.queue).add_to_queue()
-
-        return 'Environment Update process is implemented'
-
 
 class EnvironmentIdle(ActionEvent):
     def __init__(self, queue: 'event_queue.EventQueue'):

@@ -21,11 +21,15 @@ class VehicleReady(Event):
     def __init__(self, vehicle: vehicle_module.Vehicle,
                  route: vehicle_module.Route,
                  queue: 'event_queue.EventQueue',
-                 update_position_time_step: Optional[float] = None) -> None:
-        super().__init__('VehicleReady', queue, vehicle.release_time)
+                 update_position_time_step: Optional[float] = None,
+                 route_update: vehicle_module.RouteUpdate = None) -> None:
+        super().__init__('VehicleReady', queue, vehicle.release_time,
+                         event_priority=Event.HIGH_PRIORITY
+                         )
         self.__vehicle = vehicle
         self.__route = route
         self.__update_position_time_step = update_position_time_step
+        self.__route_update = route_update
 
     @property
     def vehicle(self) -> 'vehicle_module.Vehicle':
@@ -33,6 +37,7 @@ class VehicleReady(Event):
 
     def _process(self, env: 'environment.Environment') -> str:
         env.add_vehicle(self.__vehicle)
+        env.add_non_complete_vehicle(self.__vehicle)
 
         if self.__route is None:
             self.__route = vehicle_module.Route(
@@ -40,7 +45,11 @@ class VehicleReady(Event):
 
         env.add_route(self.__route, self.__vehicle.id)
 
-        VehicleWaiting(self.__route, self.queue).add_to_queue()
+        if self.__route_update is None:
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
+        else:
+            VehicleNotification(self.__route_update, self.queue).add_to_queue()
+            VehicleWaiting(self.__route, self.queue).add_to_queue()
 
         if env.coordinates is not None and self.__update_position_time_step \
                 is not None:
@@ -69,9 +78,6 @@ class VehicleWaiting(ActionEvent):
         self.__route = route
 
     def _process(self, env: 'environment.Environment') -> str:
-
-        optimization_event.Optimize(env.current_time, self.queue). \
-            add_to_queue()
 
         if len(self.__route.requests_to_pickup()) > 0:
             # Passengers to board
@@ -191,6 +197,16 @@ class VehicleArrival(ActionEvent):
 
         return 'Vehicle Arrival process is implemented'
 
+    def add_to_queue(self) -> None:
+        # Before adding the event, cancel all priorly added VehicleArrival
+        # events associated with the vehicle since they have now become
+        # obsolete.
+
+        self.queue.cancel_event_type(self.__class__, time=None,
+                                     owner=self.__route.vehicle)
+
+        super().add_to_queue()
+
     def __update_stop_times(self, arrival_time):
 
         planned_arrival_time = self.__route.next_stops[0].arrival_time
@@ -212,14 +228,51 @@ class VehicleNotification(Event):
                  queue: 'event_queue.EventQueue') -> None:
         self.__env = None
         self.__route_update = route_update
-        self.__vehicle = queue.env.get_vehicle_by_id(
-            self.__route_update.vehicle_id)
-        self.__route = queue.env.get_route_by_vehicle_id(self.__vehicle.id)
+
+        self.__queue = queue
         super().__init__('VehicleNotification', queue)
 
     def _process(self, env: 'environment.Environment') -> str:
 
         self.__env = env
+        self.__vehicle = env.get_vehicle_by_id(self.__route_update.vehicle_id)
+        self.__route = env.get_route_by_vehicle_id(self.__vehicle.id)
+
+        self.__update_next_stops()
+
+        self.__update_current_stop()
+
+        self.__update_assigned_legs()
+
+        self.__update_polylines()
+
+        return 'Notify Vehicle process is implemented'
+
+    def __update_stop_with_actual_trips(self, stop):
+
+        stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(
+            stop.passengers_to_board)
+        stop.boarding_passengers = self.__replace_copy_trips_with_actual_trips(
+            stop.boarding_passengers)
+        stop.boarded_passengers = self.__replace_copy_trips_with_actual_trips(
+            stop.boarded_passengers)
+        stop.passengers_to_alight = self \
+            .__replace_copy_trips_with_actual_trips(stop.passengers_to_alight)
+
+    def __replace_copy_trips_with_actual_trips(self, trips_list):
+
+        return list(self.__env.get_trip_by_id(req.id) for req in trips_list)
+
+    def __replace_copy_legs_with_actual_legs(self, legs_list):
+
+        return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
+
+    def __update_next_stops(self):
+
+        if len(self.__route.next_stops) > 0:
+            old_next_stop = self.__route.next_stops[0]
+        else:
+            old_next_stop = None
 
         if self.__route_update.next_stops is not None:
             self.__route.next_stops = \
@@ -227,6 +280,15 @@ class VehicleNotification(Event):
             for stop in self.__route.next_stops:
                 self.__update_stop_with_actual_trips(stop)
 
+        if old_next_stop is not None:
+            if self.__route_update.next_stops[0].location \
+                    != old_next_stop.location:
+                VehicleArrival(
+                    self.__route, self.__queue,
+                    self.__route_update.next_stops[0].arrival_time)\
+                    .add_to_queue()
+
+    def __update_current_stop(self):
         if self.__route_update.current_stop_modified_passengers_to_board \
                 is not None:
             # Modify passengers_to_board of current_stop according to the
@@ -252,41 +314,22 @@ class VehicleNotification(Event):
                     = self.__route_update.current_stop_departure_time
                 VehicleWaiting(self.__route, self.queue).add_to_queue()
 
-        if self.__route_update.modified_assigned_legs is not None:
-            # Add the assigned legs that were modified by optimization and
-            # that are not already present in self.__route.assigned_legs.
-            actual_modified_assigned_legs = \
+    def __update_assigned_legs(self):
+
+        if self.__route_update.assigned_legs is not None:
+
+            actual_assigned_legs = \
                 self.__replace_copy_legs_with_actual_legs(
-                    self.__route_update.modified_assigned_legs)
-            for leg in actual_modified_assigned_legs:
-                if leg not in self.__route.assigned_legs:
-                    self.__route.assigned_legs.append(leg)
+                    self.__route_update.assigned_legs)
 
-        # Update polylines
-        if env.coordinates is not None:
+            self.__route.assigned_legs.clear()
+            for leg in actual_assigned_legs:
+                self.__route.assigned_legs.append(leg)
+
+    def __update_polylines(self):
+        if self.__env.coordinates is not None:
             self.__vehicle.polylines = \
-                env.coordinates.update_polylines(self.__route)
-
-        return 'Notify Vehicle process is implemented'
-
-    def __update_stop_with_actual_trips(self, stop):
-
-        stop.passengers_to_board = self.__replace_copy_trips_with_actual_trips(
-            stop.passengers_to_board)
-        stop.boarding_passengers = self.__replace_copy_trips_with_actual_trips(
-            stop.boarding_passengers)
-        stop.boarded_passengers = self.__replace_copy_trips_with_actual_trips(
-            stop.boarded_passengers)
-        stop.passengers_to_alight = self \
-            .__replace_copy_trips_with_actual_trips(stop.passengers_to_alight)
-
-    def __replace_copy_trips_with_actual_trips(self, trips_list):
-
-        return list(self.__env.get_trip_by_id(req.id) for req in trips_list)
-
-    def __replace_copy_legs_with_actual_legs(self, legs_list):
-
-        return list(self.__env.get_leg_by_id(leg.id) for leg in legs_list)
+                self.__env.coordinates.update_polylines(self.__route)
 
 
 class VehicleBoarded(Event):
@@ -345,16 +388,21 @@ class VehicleUpdatePositionEvent(Event):
         self.__queue = queue
         self.__time_step = time_step
 
+    @property
+    def time_step(self) -> float:
+        return self.__time_step
+
     def _process(self, env: 'environment.Environment') -> str:
         self.__vehicle.position = env.coordinates.update_position(
             self.__vehicle, self.__route, self.__event_time)
 
+        time_step = env.simulation_config.update_position_time_step
+
         if self.__vehicle.status != VehicleStatus.COMPLETE \
-                and self.__time_step is not None:
-            VehicleUpdatePositionEvent(
-                self.__vehicle, self.__queue,
-                self.__event_time + self.__time_step,
-                self.__time_step).add_to_queue()
+                and time_step is not None:
+            VehicleUpdatePositionEvent(self.__vehicle, self.__queue,
+                                       self.__event_time + time_step,
+                                       time_step).add_to_queue()
 
         return 'VehicleUpdatePositionEvent processed'
 
@@ -375,6 +423,9 @@ class VehicleComplete(ActionEvent):
         self.__route = route
 
     def _process(self, env: 'environment.Environment') -> str:
+
+        env.remove_non_complete_vehicle(self.__route.vehicle.id)
+        env.add_complete_vehicle(self.__route.vehicle)
 
         return 'Vehicle Complete process is implemented'
 

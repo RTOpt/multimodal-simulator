@@ -49,3 +49,13 @@ class OptimizationConfig(Config):
     def termination_waiting_time(self) -> float:
         return float(self._config_parser["asynchronous"][
                          "termination_waiting_time"])
+
+    @property
+    def state_deep_copy(self) -> bool:
+        return self._config_parser.getboolean(
+            "general", "state_deep_copy")
+
+    @property
+    def state_deep_copy_includes_history(self) -> bool:
+        return self._config_parser.getboolean(
+            "general", "state_deep_copy_includes_history")

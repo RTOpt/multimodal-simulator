@@ -42,14 +42,17 @@ class State:
                 """
 
         self.current_time = env_deep_copy.current_time
-        self.trips = env_deep_copy.trips
+        self.trips = env_deep_copy.non_complete_trips
         self.assigned_trips = env_deep_copy.assigned_trips
         self.non_assigned_trips = env_deep_copy.non_assigned_trips
-        self.vehicles = env_deep_copy.vehicles
+        self.vehicles = env_deep_copy.non_complete_vehicles
+
         self.route_by_vehicle_id = \
             {veh.id: env_deep_copy.route_by_vehicle_id[veh.id]
              for veh in self.vehicles}
+        self.current_legs = self.__get_current_legs(self.trips)
         self.next_legs = self.__get_next_legs(self.trips)
+        self.legs = self.__get_all_legs(self.trips)
         self.non_assigned_next_legs = self.__get_next_legs(
             self.non_assigned_trips)
 
@@ -102,6 +105,14 @@ class State:
 
         self.__move_stops_forward()
 
+    def __get_current_legs(self, trips):
+        current_legs = []
+        for trip in trips:
+            if trip.current_leg is not None:
+                current_legs.append(trip.current_leg)
+
+        return current_legs
+
     def __get_next_legs(self, trips):
         next_legs = []
         for trip in trips:
@@ -109,6 +120,16 @@ class State:
                 next_legs.append(trip.next_legs[0])
 
         return next_legs
+
+    def __get_all_legs(self, trips):
+        all_legs = []
+        for trip in trips:
+            if trip.current_leg is not None:
+                all_legs.append(trip.current_leg)
+            if len(trip.next_legs) > 0:
+                all_legs.extend(trip.next_legs)
+
+        return all_legs
 
     def __move_stops_backward(self):
 

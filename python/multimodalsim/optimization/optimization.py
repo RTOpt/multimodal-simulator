@@ -123,9 +123,15 @@ class Optimization:
 
 class OptimizationResult:
 
-    def __init__(self, state: Optional['state_module.State'],
-                 modified_requests: list['request.Trip'],
-                 modified_vehicles: list['vehicle_module.Vehicle']):
+    def __init__(self, state: Optional['state_module.State'] = None,
+                 modified_requests: Optional[list['request.Trip']] = None,
+                 modified_vehicles: Optional[list['vehicle_module.Vehicle']] = None,
+                 new_requests: Optional[list['request.Trip']] = None,
+                 new_vehicles: Optional[list['Vehicle']] = None):
         self.state = state
-        self.modified_requests = modified_requests
-        self.modified_vehicles = modified_vehicles
+        self.modified_requests = modified_requests \
+            if modified_requests is not None else []
+        self.modified_vehicles = modified_vehicles \
+            if modified_vehicles is not None else []
+        self.new_requests = new_requests if new_requests is not None else []
+        self.new_vehicles = new_vehicles if new_vehicles is not None else []

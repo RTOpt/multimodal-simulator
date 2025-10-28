@@ -207,11 +207,16 @@ class FixedLineDataAnalyzer(DataAnalyzer):
     def get_statistics(self):
 
         statistics = {
-            "trips": {mode: self.get_trips_statistics(mode)
-                      for mode in self.modes},
-            "vehicles": {mode: self.get_vehicles_statistics(mode)
-                         for mode in self.modes}
+            "trips": self.get_trips_statistics(),
+            "vehicles": self.get_vehicles_statistics()
         }
+
+        if len(self.modes) > 1:
+            statistics["trips"].update({mode: self.get_trips_statistics(mode)
+                                        for mode in self.modes})
+
+            statistics["vehicles"].update({mode: self.get_vehicles_statistics(mode)
+                                          for mode in self.modes})
 
         return statistics
 

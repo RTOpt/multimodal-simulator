@@ -6,6 +6,7 @@ from typing import Optional
 import multimodalsim.simulator.event_queue as event_queue
 import multimodalsim.simulator.environment as environment
 import multimodalsim.state_machine.state_machine as state_machine
+import multimodalsim.simulator.optimization_event as optimization_event
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,11 @@ class ActionEvent(Event):
         if not self.cancelled:
             if self.__state_machine is not None:
                 self.__state_machine.next_state(self.__class__, env)
+                next_status = self.__state_machine.current_state.status
+                if next_status in self.queue.optimize_triggering_statuses:
+                    optimization_event.Optimize(env.current_time,
+                                                self.queue).add_to_queue()
+
             return_message = self._process(env)
         else:
             return_message = "The event was cancelled."
@@ -223,34 +229,22 @@ class RecurrentTimeSyncEvent(TimeSyncEvent):
         self.__time_step = time_step
         self.__event_priority = event_priority
 
+    @property
+    def time_step(self) -> float:
+        return self.__time_step
+
+    @property
+    def speed(self) -> Optional[float]:
+        return self.__speed
+
     def _process(self, env: 'environment.Environment') -> str:
+
         if not self.__queue.is_empty():
+            time_step = env.simulation_config.time_step
+            speed = env.simulation_config.speed
+
             RecurrentTimeSyncEvent(
-                self.__queue, self.__event_time + self.__time_step,
-                self.__time_step, self.__speed,
+                self.__queue, self.__event_time + time_step, time_step, speed,
                 self.__event_priority).add_to_queue()
 
         return super()._process(env)
-
-
-class PauseEvent(Event):
-    def __init__(
-            self, queue: 'event_queue.EventQueue',
-            event_time: float, event_priority: Optional[int] = None) -> None:
-        if event_priority is None:
-            event_priority = self.MAX_PRIORITY
-        super().__init__("PauseEvent", queue, event_time, event_priority)
-
-    def _process(self, env: 'environment.Environment') -> str:
-        return "Simulation paused"
-
-
-class ResumeEvent(Event):
-    def __init__(self, queue: 'event_queue.EventQueue', event_time: float,
-                 event_priority: Optional[int] = None) -> None:
-        if event_priority is None:
-            event_priority = self.MAX_PRIORITY
-        super().__init__("ResumeEvent", queue, event_time, event_priority)
-
-    def _process(self, env: 'environment.Environment') -> str:
-        return "Simulation resumed"

@@ -3,19 +3,32 @@ from typing import Type, Optional, Any
 
 import multimodalsim.simulator.event as event_module
 import multimodalsim.simulator.environment as environment
+from multimodalsim.state_machine.status import PassengerStatus, \
+    VehicleStatus, OptimizationStatus
 
 
 class EventQueue:
-    def __init__(self, env: 'environment.Environment') -> None:
+    def __init__(self, env: 'environment.Environment',
+                 optimize_triggering_statuses:
+                 list[PassengerStatus | VehicleStatus | OptimizationStatus]) \
+            -> None:
         self.__queue = PriorityQueue()
 
         self.__index = 0
 
         self.__env = env
 
+        self.__optimize_triggering_statuses = optimize_triggering_statuses
+
     @property
     def env(self) -> 'environment.Environment':
         return self.__env
+
+    @property
+    def optimize_triggering_statuses(self) -> list[PassengerStatus |
+                                                   VehicleStatus |
+                                                   OptimizationStatus]:
+        return self.__optimize_triggering_statuses
 
     def is_empty(self) -> bool:
         """check if the queue is empty"""
@@ -26,6 +39,7 @@ class EventQueue:
         event.index = self.__index
         self.__queue.put(event)
         self.__index += 1
+        self.__update_estimated_end_time(event.time)
 
     def pop(self) -> 'event_module.Event':
         """pop an element based on Priority time"""
@@ -77,3 +91,8 @@ class EventQueue:
         elif time is None and isinstance(event, event_type):
             is_event = True
         return is_event
+
+    def __update_estimated_end_time(self, event_time):
+        if (self.__env.estimated_end_time is None) \
+                or (event_time > self.__env.estimated_end_time):
+            self.__env.estimated_end_time = event_time

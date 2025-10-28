@@ -5,11 +5,9 @@ from multimodalsim.observer.environment_observer import \
 from multimodalsim.optimization.fixed_line.fixed_line_dispatcher import \
     FixedLineDispatcher
 from multimodalsim.optimization.optimization import Optimization
-from multimodalsim.optimization.splitter import MultimodalSplitter, \
-    OneLegSplitter
+from multimodalsim.optimization.splitter import MultimodalSplitter
 from multimodalsim.reader.data_reader import GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesFromFile, \
-    CoordinatesOSRM
+from multimodalsim.coordinates.coordinates_from_file import CoordinatesFromFile
 from multimodalsim.simulator.simulation import Simulation
 
 logger = logging.getLogger(__name__)

@@ -2,10 +2,11 @@ from setuptools import setup
 
 setup(
     name='multimodalsim',
-    version='0.0.1',
+    version='0.0.2',
     packages=['multimodalsim', 'multimodalsim.config',
-              'multimodalsim.config.ini', 'multimodalsim.logger',
-              'multimodalsim.observer', 'multimodalsim.optimization',
+              'multimodalsim.config.ini', 'multimodalsim.coordinates',
+              'multimodalsim.logger', 'multimodalsim.observer',
+              'multimodalsim.optimization',
               'multimodalsim.optimization.fixed_line',
               'multimodalsim.optimization.shuttle',
               'multimodalsim.reader', 'multimodalsim.simulator',

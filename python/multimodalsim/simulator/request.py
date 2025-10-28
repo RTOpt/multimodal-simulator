@@ -14,30 +14,33 @@ logger = logging.getLogger(__name__)
 
 class Request:
     """The ``Request`` class mostly serves as a structure for storing basic
-       information about the passengers.
-       Attributes:
-       ----------
-       id: int
+        information about the passengers.
+        Attributes:
+        ----------
+        id: int
             Unique id for each request
-       origin: Location
+        origin: Location
             Location of the origin
-       destination:  Location
+        destination:  Location
             Location of the destination
-       nb_passengers: int
+        nb_passengers: int
             Number of passengers of the trip.
-       release_time float
+        release_time float
             Time at which the trip appears in the system.
-       ready_time: float
+        ready_time: float
             Time at which the trip is available to be picked up.
-       due_time: float
+        due_time: float
             Time at which the trip has to be dropped off.
-       name: string
+        name: string
             Name of the passenger.
-       """
+        tags: list[str]
+            List of tags associated with the request.
+    """
 
     def __init__(self, id: str | int, origin: Location, destination: Location,
                  nb_passengers: int, release_time: float, ready_time: float,
-                 due_time: float, name: Optional[str] = None) -> None:
+                 due_time: float, name: Optional[str] = None,
+                 tags: Optional[list[str]] = None) -> None:
         self.__id = id
         self.__origin = origin
         self.__destination = destination
@@ -46,6 +49,7 @@ class Request:
         self.__due_time = due_time
         self.__release_time = release_time
         self.__name = name
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -62,9 +66,17 @@ class Request:
     def origin(self) -> Location:
         return self.__origin
 
+    @origin.setter
+    def origin(self, location: Location) -> None:
+        self.__origin = location
+
     @property
     def destination(self) -> Location:
         return self.__destination
+
+    @destination.setter
+    def destination(self, location: Location) -> None:
+        self.__destination = location
 
     @property
     def nb_passengers(self) -> int:
@@ -85,6 +97,10 @@ class Request:
     @property
     def name(self) -> Optional[str]:
         return self.__name
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
 
 class Leg(Request):
@@ -114,32 +130,37 @@ class Leg(Request):
         self.__alighting_time = None
 
     @property
-    def assigned_vehicle(self) -> 'vehicle_module.Vehicle':
+    def assigned_vehicle(self) -> Optional['vehicle_module.Vehicle']:
         return self.__assigned_vehicle
 
     @assigned_vehicle.setter
-    def assigned_vehicle(self, vehicle: 'vehicle_module.Vehicle'):
+    def assigned_vehicle(self,
+                         vehicle: Optional['vehicle_module.Vehicle']) -> None:
         """Assigns a vehicle to the leg"""
         self.__assigned_vehicle = vehicle
 
     @property
-    def trip(self) -> 'Trip':
+    def trip(self) -> Optional['Trip']:
         return self.__trip
 
+    @trip.setter
+    def trip(self, trip: Optional['Trip']) -> None:
+        self.__trip = trip
+
     @property
-    def boarding_time(self) -> float:
+    def boarding_time(self) -> Optional[float]:
         return self.__boarding_time
 
     @boarding_time.setter
-    def boarding_time(self, boarding_time: float) -> None:
+    def boarding_time(self, boarding_time: Optional[float]) -> None:
         self.__boarding_time = boarding_time
 
     @property
-    def alighting_time(self) -> float:
+    def alighting_time(self) -> Optional[float]:
         return self.__alighting_time
 
     @alighting_time.setter
-    def alighting_time(self, alighting_time: float) -> None:
+    def alighting_time(self, alighting_time: Optional[float]) -> None:
         self.__alighting_time = alighting_time
 
     def __str__(self) -> str:
@@ -239,8 +260,10 @@ class Trip(Request):
 
 
 class PassengerUpdate:
-    def __init__(self, vehicle_id: str | int, request_id: str | int,
+    def __init__(self, request_id: str | int, vehicle_id: Optional[str | int],
+                 current_leg: Optional[Leg] = None,
                  next_legs: Optional[list[Leg]] = None) -> None:
-        self.assigned_vehicle_id = vehicle_id
         self.request_id = request_id
+        self.assigned_vehicle_id = vehicle_id
+        self.current_leg = current_leg
         self.next_legs = next_legs

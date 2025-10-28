@@ -6,7 +6,7 @@ import multimodalsim.optimization.optimization as optimization_module
 import multimodalsim.optimization.state as state_module
 import multimodalsim.simulator.request as request
 from multimodalsim.simulator.stop import Stop, LabelLocation
-from multimodalsim.simulator.vehicle import Route
+from multimodalsim.simulator.vehicle import Vehicle, Route
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +38,23 @@ class Dispatcher:
 
         selected_next_legs, selected_routes = self.prepare_input(state)
 
-        if len(selected_next_legs) > 0 and len(selected_routes) > 0:
+        if len(selected_next_legs) > 0 or len(selected_routes) > 0:
             # The optimize method is called only if there is at least one leg
             # and one route to optimize.
-            optimized_route_plans = self.optimize(selected_next_legs,
-                                                  selected_routes,
-                                                  state.current_time, state)
+            optimized_route_plans, additional_optimization_results = \
+                self.optimize(selected_next_legs, selected_routes,
+                              state.current_time, state)
 
-            optimization_result = self.process_optimized_route_plans(
-                optimized_route_plans, state)
+            modified_trips, modified_vehicles = \
+                self.process_optimized_route_plans(optimized_route_plans,
+                                                   state)
+
+            optimization_result = self.__extract_optimization_results(
+                modified_trips, modified_vehicles,
+                additional_optimization_results, state)
         else:
-            optimization_result = optimization_module.OptimizationResult(state, [], [])
+            optimization_result = \
+                optimization_module.OptimizationResult(state, [], [])
 
         return optimization_result
 
@@ -92,7 +98,9 @@ class Dispatcher:
 
     def optimize(self, selected_next_legs: list['request.Leg'],
                  selected_routes: list[Route], current_time: float,
-                 state: 'state_module.State') -> list['OptimizedRoutePlan']:
+                 state: 'state_module.State') \
+            -> tuple[list['OptimizedRoutePlan'],
+                     Optional['optimization_module.OptimizationResult']]:
         """Determine the vehicle routing and the trip-route assignment
         according to an optimization algorithm. The optimization algorithm
         should be coded in this method.
@@ -117,6 +125,9 @@ class Dispatcher:
         Output:
           -optimized_route_plans: list of the optimized route plans. Each route
            plan is an object of type OptimizedRoutePlan.
+          -additional_optimization_result: Object of type OptimizationResult
+           that contains the results of the optimization that cannot be deduced
+           from the optimized route plans.
         """
 
         raise NotImplementedError('optimize of {} not implemented'.
@@ -125,7 +136,7 @@ class Dispatcher:
     def process_optimized_route_plans(
             self, optimized_route_plans: list['OptimizedRoutePlan'],
             state: 'state_module.State') \
-            -> 'optimization_module.OptimizationResult':
+            -> tuple[list['request.Trip'], list['Vehicle']]:
         """Create and modify the simulation objects that correspond to the
         optimized route plans returned by the optimize method. In other words,
         this method "translates" the results of optimization into the
@@ -148,19 +159,21 @@ class Dispatcher:
         for route_plan in optimized_route_plans:
             self.__process_route_plan(route_plan)
 
-            trips = [leg.trip for leg in route_plan.assigned_legs]
+            trips = [leg.trip for leg in route_plan.assigned_legs] \
+                    + [leg.trip for leg in route_plan.unassigned_legs]
 
             modified_trips.extend(trips)
             modified_vehicles.append(route_plan.route.vehicle)
 
-        optimization_result = optimization_module.OptimizationResult(
-            state, modified_trips, modified_vehicles)
-
-        return optimization_result
+        return modified_trips, modified_vehicles
 
     def __process_route_plan(self, route_plan):
 
         self.__update_route_next_stops(route_plan)
+
+        for leg in route_plan.unassigned_legs:
+            # Unassign leg from route
+            route_plan.route.unassign_leg(leg)
 
         for leg in route_plan.already_onboard_legs:
             # Assign leg to route
@@ -231,6 +244,33 @@ class Dispatcher:
         if trip.id not in trip_ids_list:
             stop.passengers_to_alight.append(trip)
 
+    def __extract_optimization_results(
+            self, modified_requests: list['request.Trip'],
+            modified_vehicles: list[Vehicle],
+            additional_optimization_results:
+            Optional['optimization_module.OptimizationResult'],
+            state: 'state_module.State') \
+            -> 'optimization_module.OptimizationResult':
+
+        if additional_optimization_results is not None:
+            all_modified_requests = \
+                modified_requests \
+                + additional_optimization_results.modified_requests
+
+            all_modified_vehicles = \
+                modified_vehicles \
+                + additional_optimization_results.modified_vehicles
+
+            optimization_result = optimization_module.OptimizationResult(
+                state, all_modified_requests, all_modified_vehicles,
+                additional_optimization_results.new_requests,
+                additional_optimization_results.new_vehicles)
+        else:
+            optimization_result = optimization_module.OptimizationResult(
+                state, modified_requests, modified_vehicles)
+
+        return optimization_result
+
 
 class OptimizedRoutePlan:
     """Structure to store the optimization results of one route.
@@ -256,7 +296,9 @@ class OptimizedRoutePlan:
     def __init__(self, route: Route,
                  current_stop_departure_time: Optional[float] = None,
                  next_stops: Optional[list[Stop]] = None,
-                 assigned_legs: Optional[list['request.Leg']] = None) -> None:
+                 assigned_legs: Optional[list['request.Leg']] = None,
+                 unassigned_legs: Optional[list['request.Leg']] = None
+                 ) -> None:
         """
         Parameters:
             route: object of type Route
@@ -267,6 +309,8 @@ class OptimizedRoutePlan:
                 The planned next stops of the route.
             assigned_legs: list of objects of type Leg or None
                 The legs planned to be assigned to the route.
+            unassigned_legs: list of objects of type Leg or None
+                The legs planned to be unassigned from the route.
         """
 
         self.__route = route
@@ -274,6 +318,8 @@ class OptimizedRoutePlan:
         self.__next_stops = next_stops if next_stops is not None else []
         self.__assigned_legs = assigned_legs if assigned_legs is not None \
             else []
+        self.__unassigned_legs = unassigned_legs \
+            if unassigned_legs is not None else []
 
         self.__already_onboard_legs = []
 
@@ -294,6 +340,10 @@ class OptimizedRoutePlan:
     @property
     def assigned_legs(self) -> list['request.Leg']:
         return self.__assigned_legs
+
+    @property
+    def unassigned_legs(self) -> list['request.Leg']:
+        return self.__unassigned_legs
 
     @property
     def already_onboard_legs(self) -> list['request.Leg']:
@@ -318,7 +368,8 @@ class OptimizedRoutePlan:
                          lat: Optional[float] = None,
                          cumulative_distance: Optional[float] = None,
                          legs_to_board: Optional[list['request.Leg']] = None,
-                         legs_to_alight: Optional[list['request.Leg']] = None)\
+                         legs_to_alight: Optional[list['request.Leg']] = None,
+                         capacity: Optional[int] = None)\
             -> list[Stop]:
         """Append a stop to the list of next stops of the route plan.
             Parameters:
@@ -348,6 +399,8 @@ class OptimizedRoutePlan:
                     then the legs that are not explicitly assigned to a stop
                     will automatically be alighted at the first stop
                     corresponding to the destination location.
+                capacity: int or None
+                    The maximal number of passengers that can wait at the stop.
         """
         if self.__next_stops is None:
             self.__next_stops = []
@@ -357,13 +410,14 @@ class OptimizedRoutePlan:
 
         stop = Stop(arrival_time, departure_time,
                     LabelLocation(stop_id, lon, lat),
-                    cumulative_distance=cumulative_distance)
+                    cumulative_distance=cumulative_distance,
+                    capacity=capacity)
 
         if legs_to_board is not None:
-            self.__assign_legs_to_board_to_stop(legs_to_board, stop)
+            self.assign_legs_to_board_to_stop(legs_to_board, stop)
 
         if legs_to_alight is not None:
-            self.__assign_legs_to_alight_to_stop(legs_to_alight, stop)
+            self.assign_legs_to_alight_to_stop(legs_to_alight, stop)
 
         self.__next_stops.append(stop)
 
@@ -383,6 +437,52 @@ class OptimizedRoutePlan:
 
         return self.__assigned_legs
 
+    def unassign_leg(self, leg_id: str | int) -> list['request.Leg']:
+        """Remove a leg from the list of assigned legs of the route plan.
+            Parameter:
+                leg_id: str or int
+                    The id of the leg to be assigned to the route.
+        """
+        leg_to_unassign = None
+        for leg in self.__route.assigned_legs:
+            if leg.id == leg_id:
+                leg_to_unassign = leg
+                break
+
+        if leg_to_unassign is not None:
+            leg_to_unassign.assigned_vehicle = None
+            if leg_to_unassign in self.__assigned_legs:
+                self.__assigned_legs.remove(leg_to_unassign)
+            if leg_to_unassign not in self.__unassigned_legs:
+                self.__unassigned_legs.append(leg_to_unassign)
+
+            self.remove_trip_from_all_stops(leg_to_unassign.trip.id)
+
+        return self.__unassigned_legs
+
+    def remove_trip_from_all_stops(self, trip_id: str | int) -> None:
+        """Remove a leg from all the stops of the route.
+            Parameter:
+                leg: object of type Leg
+                    The leg to be assigned to the route.
+        """
+        for stop in self.__next_stops:
+            trip_to_remove = None
+            for trip in stop.passengers_to_board:
+                if trip.id == trip_id:
+                    trip_to_remove = trip
+                    break
+            if trip_to_remove is not None:
+                stop.passengers_to_board.remove(trip_to_remove)
+
+            trip_to_remove = None
+            for trip in stop.passengers_to_alight:
+                if trip.id == trip_id:
+                    trip_to_remove = trip
+                    break
+            if trip_to_remove is not None:
+                stop.passengers_to_alight.remove(trip_to_remove)
+
     def copy_route_stops(self) -> None:
         """Copy the current and next stops of the route to the current and
         next stops of OptimizedRoutePlan, respectively."""
@@ -398,14 +498,14 @@ class OptimizedRoutePlan:
         first stop corresponding to the destination location."""
         self.__already_onboard_legs.extend(self.route.onboard_legs)
 
-    def __assign_legs_to_board_to_stop(self, legs_to_board, stop):
+    def assign_legs_to_board_to_stop(self, legs_to_board, stop):
         for leg in legs_to_board:
             stop.passengers_to_board.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:
                 self.__legs_manually_assigned_to_stops.append(leg)
                 self.assign_leg(leg)
 
-    def __assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
+    def assign_legs_to_alight_to_stop(self, legs_to_alight, stop):
         for leg in legs_to_alight:
             stop.passengers_to_alight.append(leg.trip)
             if leg not in self.__legs_manually_assigned_to_stops:

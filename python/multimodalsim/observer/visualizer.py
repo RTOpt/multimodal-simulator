@@ -3,21 +3,38 @@ from typing import Optional
 
 import multimodalsim.simulator.environment as environment
 from multimodalsim.simulator.event import Event
+import multimodalsim.simulator.simulation as simulation_module
 from multimodalsim.statistics.data_analyzer import DataAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
 class Visualizer(object):
+    """A Visualizer object can be passed to the Simulation object (through an
+    EnvironmentObserver) to visualize the environment and to control the
+    simulation (for example, to pause, resume or stop it) at each
+    iteration of the simulation."""
 
     def __init__(self) -> None:
-        pass
-
+        self._simulation = None
+        self._env = None
+# Check if env has been modified
     def visualize_environment(self, env: 'environment.Environment',
                               current_event: Optional[Event] = None,
                               event_index: Optional[int] = None,
                               event_priority: Optional[int] = None) -> None:
-        pass
+        """This method can be used to visualize the environment (env) and
+        control the simulation (self._simulation) before an event is
+        processed."""
+        raise NotImplementedError('visualize_environment of {} '
+                                  'not implemented'
+                                  .format(self.__class__.__name__))
+
+    def attach_simulation(self, simulation: 'simulation_module.Simulation'):
+        self._simulation = simulation
+
+    def attach_environment(self, env: 'environment.Environment'):
+        self._env = env
 
 
 class ConsoleVisualizer(Visualizer):
@@ -36,7 +53,8 @@ class ConsoleVisualizer(Visualizer):
                               event_priority: Optional[int] = None) -> None:
 
         if self.__last_time is None or env.current_time != self.__last_time:
-            logger.info("current_time={}".format(env.current_time))
+            logger.info("current_time={} | estimated_end_time={}".format(
+                env.current_time, env.estimated_end_time))
             self.__last_time = env.current_time
 
         if logger.parent.level == logging.DEBUG:
@@ -82,9 +100,9 @@ class ConsoleVisualizer(Visualizer):
             alighted_legs_id = [leg.id for leg in route.alighted_legs]
 
             logger.debug(
-                "{}: status: {}, start_time: {}, end_time: {}, "
+                "{}: name: {}, status: {}, start_time: {}, end_time: {}, "
                 "assigned_legs: {},  onboard_legs: {}, "
-                "alighted_legs: {}".format(veh.id, veh.status,
+                "alighted_legs: {}".format(veh.id, veh.name, veh.status,
                                            veh.start_time, veh.end_time,
                                            assigned_legs_id, onboard_legs_id,
                                            alighted_legs_id))
@@ -124,7 +142,12 @@ class ConsoleVisualizer(Visualizer):
                 trip, 'previous_legs') and trip.previous_legs is not None \
                 else None
             next_legs = [{"O": leg.origin.__str__(),
-                          "D": leg.destination.__str__()}
+                          "D": leg.destination.__str__(),
+                          "veh_id": leg.assigned_vehicle.id
+                          if leg.assigned_vehicle is not None else None,
+                          "boarding_time": leg.boarding_time,
+                          "alighting_time": leg.alighting_time
+                          }
                          for leg in trip.next_legs] \
                 if hasattr(trip, 'next_legs') and trip.next_legs is not None \
                 else None
@@ -167,4 +190,3 @@ class ConsoleVisualizer(Visualizer):
                 mode_trips_stats = \
                     self.__data_analyzer.get_trips_statistics(mode)
                 logger.info("{}: {}".format(mode, mode_trips_stats))
-

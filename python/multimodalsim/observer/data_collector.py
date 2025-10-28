@@ -16,15 +16,36 @@ logger = logging.getLogger(__name__)
 
 
 class DataCollector:
+    """A DataCollector object can be passed to the Simulation object (through
+    an EnvironmentObserver) to collect data about the environment at each
+    iteration of the simulation and to control the simulation (for example,
+    to pause, resume or stop it) at each iteration of the simulation."""
 
     def __init__(self) -> None:
-        pass
+        self._simulation = None
+        self._env = None
 
     def collect(self, env: 'environment.Environment',
                 current_event: Optional[Event] = None,
                 event_index: Optional[int] = None,
                 event_priority: Optional[int] = None) -> None:
-        raise NotImplementedError('DataCollector.collect not implemented')
+        """This method can be used to collect data about the environment (env)
+        and control the simulation (self._simulation) after an event is
+        processed."""
+        raise NotImplementedError('collect of {} not implemented'
+                                  .format(self.__class__.__name__))
+
+    def clean_up(self, env: 'environment.Environment') -> None:
+        """This method is called at the end of a simulation and may be used
+        to do some clean up in the DataCollector."""
+        raise NotImplementedError('clean_up of {} not implemented'
+                                  .format(self.__class__.__name__))
+
+    def attach_simulation(self, simulation: 'simulation_module.Simulation'):
+        self._simulation = simulation
+
+    def attach_environment(self, env: 'environment.Environment'):
+        self._env = env
 
 
 class StandardDataCollector(DataCollector):
@@ -76,6 +97,9 @@ class StandardDataCollector(DataCollector):
         self.__collect_events_data()
 
         self.__collect_environment_data(env)
+
+    def clean_up(self, env: 'environment.Environment') -> None:
+        logger.info("StandardDataCollector.clean_up()")
 
     def __load_config(self, config):
         if isinstance(config, str):

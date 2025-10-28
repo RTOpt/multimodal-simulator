@@ -7,7 +7,7 @@ from multimodalsim.optimization.optimization import Optimization
 from multimodalsim.optimization.shuttle.shuttle_hub_simple_dispatcher import \
     ShuttleHubSimpleDispatcher
 from multimodalsim.reader.data_reader import ShuttleDataReader, GTFSReader
-from multimodalsim.simulator.coordinates import CoordinatesOSRM
+from multimodalsim.coordinates.coordinates_osrm import CoordinatesOSRM
 from multimodalsim.simulator.simulation import Simulation
 from multimodalsim.statistics.data_analyzer import FixedLineDataAnalyzer
 

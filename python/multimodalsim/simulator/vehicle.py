@@ -15,7 +15,7 @@ class Vehicle:
         information about the vehicles.
         Properties
         ----------
-        id: int
+        id: str | int
             Unique id
         start_time: float
             Time at which the vehicle is ready to start
@@ -30,6 +30,9 @@ class Vehicle:
         reusable: Boolean
             Specifies whether the vehicle can be reused after it has traveled
             the current route (i.e., its route has no more next stops).
+        name: str
+            The name of the vehicle. If no name is provided, the name is equal
+            to the id of the vehicle.
         position: Location
             Most recent location of the vehicle. Note that the position is not
             updated at every time unit; it is updated only when the event
@@ -40,6 +43,8 @@ class Vehicle:
         status: int
             Represents the different status of the vehicle
             (VehicleStatus(Enum)).
+        tags: list[str]
+            List of tags associated with the vehicle.
     """
 
     MAX_TIME = 7 * 24 * 3600
@@ -47,7 +52,9 @@ class Vehicle:
     def __init__(self, veh_id: str | int, start_time: float, start_stop: Stop,
                  capacity: int, release_time: float,
                  end_time: Optional[float] = None,
-                 mode: Optional[str] = None, reusable: bool = False) -> None:
+                 mode: Optional[str] = None, reusable: bool = False,
+                 name: Optional[str] = None,
+                 tags: Optional[list[str]] = None) -> None:
         self.__id = veh_id
         self.__start_time = start_time
         self.__end_time = end_time if end_time is not None else self.MAX_TIME
@@ -59,6 +66,10 @@ class Vehicle:
         self.__position = None
         self.__polylines = None
         self.__state_machine = state_machine.VehicleStateMachine(self)
+
+        self.__name = name if name is not None else str(self.__id)
+
+        self.__tags = [] if tags is None else tags
 
     def __str__(self) -> str:
         class_string = str(self.__class__) + ": {"
@@ -100,6 +111,10 @@ class Vehicle:
         return self.__reusable
 
     @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
     def position(self) -> Location:
         return self.__position
 
@@ -124,6 +139,10 @@ class Vehicle:
     @property
     def state_machine(self) -> 'state_machine.VehicleStateMachine':
         return self.__state_machine
+
+    @property
+    def tags(self) -> list[str]:
+        return self.__tags
 
     def __deepcopy__(self, memo: dict) -> 'Vehicle':
         cls = self.__class__
@@ -234,20 +253,20 @@ class Route:
         self.current_stop.initiate_boarding(trip)
 
     def board(self, trip: 'request.Trip') -> None:
-        """Boards passengers who are ready to be picked up"""
+        """Board passengers who are ready to be picked up"""
         if trip is not None:
             self.__assigned_legs.remove(trip.current_leg)
             self.__onboard_legs.append(trip.current_leg)
             self.current_stop.board(trip)
 
     def depart(self) -> None:
-        """Departs the vehicle"""
+        """Depart the vehicle"""
         if self.__current_stop is not None:
             self.__previous_stops.append(self.current_stop)
         self.__current_stop = None
 
     def arrive(self) -> None:
-        """Arrives the vehicle"""
+        """Arrive the vehicle"""
         self.__current_stop = self.__next_stops.pop(0)
 
     def initiate_alighting(self, trip: 'request.Trip') -> None:
@@ -255,14 +274,18 @@ class Route:
         self.current_stop.initiate_alighting(trip)
 
     def alight(self, leg: 'request.Leg') -> None:
-        """Alights passengers who reached their destination from the vehicle"""
+        """Alight passengers who reached their destination from the vehicle"""
         self.__onboard_legs.remove(leg)
         self.__alighted_legs.append(leg)
         self.__current_stop.alight(leg.trip)
 
     def assign_leg(self, leg: 'request.Leg') -> None:
-        """Assigns a new leg to the route"""
+        """Assign a new leg to the route"""
         self.__assigned_legs.append(leg)
+
+    def unassign_leg(self, leg: 'request.Leg') -> None:
+        """Remove the leg from the list of assigned legs"""
+        self.__assigned_legs.remove(leg)
 
     def requests_to_pickup(self) -> list['request.Trip']:
         """Returns the list of requests ready to be picked up by the vehicle"""
@@ -278,9 +301,11 @@ class Route:
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k == "_Route__previous_stops":
+            if k == "_Route__previous_stops"\
+                    and not memo["state_deep_copy_includes_history"]:
                 setattr(result, k, [])
-            elif k == "_Route__alighted_legs":
+            elif k == "_Route__alighted_legs"\
+                    and not memo["state_deep_copy_includes_history"]:
                 setattr(result, k, [])
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
@@ -294,11 +319,11 @@ class RouteUpdate:
             Optional[list['request.Trip']] = None,
             next_stops: Optional[list[Stop]] = None,
             current_stop_departure_time: Optional[int] = None,
-            modified_assigned_legs: Optional[
+            assigned_legs: Optional[
                 list['request.Leg']] = None) -> None:
         self.vehicle_id = vehicle_id
         self.current_stop_modified_passengers_to_board = \
             current_stop_modified_passengers_to_board
         self.next_stops = next_stops
         self.current_stop_departure_time = current_stop_departure_time
-        self.modified_assigned_legs = modified_assigned_legs
+        self.assigned_legs = assigned_legs
