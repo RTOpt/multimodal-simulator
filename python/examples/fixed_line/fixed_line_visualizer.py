@@ -281,13 +281,13 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
             linewidth = 4
         ax.plot(longitudes, latitudes, label=f"Line {route_name}", color=color, linewidth=linewidth, zorder=3)
 
-        # Plot the route stops
-        # stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
-        # ax.scatter(stops_data['stop_lon'], stops_data['stop_lat'], color=color, s=50, marker='.', linewidths=0.5, zorder=10)
+        # Plot the route stops (remove next two lines if this lessens readability.)
+        stops_data = stops_df[stops_df['stop_id'].isin(ordered_stop_list)]
+        ax.scatter(stops_data['stop_lon'], stops_data['stop_lat'], color=color, s=50, marker='.', linewidths=0.5, zorder=10)
         plotted_routes.append(route_name)
 
     # Mark the first and last stops with applied offsets
-    # mark_first_and_last_stops_with_offsets(route_stop_lists, stops_df, ax, route_ids, color_palette=contrasting_color_palette, offsets_applied=offsets_applied)
+    mark_first_and_last_stops_with_offsets(route_stop_lists, stops_df, ax, route_ids, color_palette=contrasting_color_palette, offsets_applied=offsets_applied)
 
     # Load available connections and mark transfer and connecting stops
     stop_connections = load_connections(connections_file_path)
