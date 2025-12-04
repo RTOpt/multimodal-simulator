@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
-from stl_network_analysis import get_color_dict, analyze_network, get_route_dictionary, get_routes_count
+from stl_network_analysis import get_color_dict, analyze_network, get_route_dictionary, get_routes_count, lighten_color
 
 # Define the base directory for the data
 base_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'fixed_line')
@@ -118,7 +118,7 @@ def mark_transfer_hubs(ax):
         # ax.text(lon, lat+0.0002, str(stop_id), fontsize=14, ha='right', color='black', zorder=10)
         ax.scatter(lon, lat, color='red', s=200, marker='o', zorder=10, label = str(stop_id))
         # draw a circle around the stop
-        ax.add_artist(plt.Circle((lon, lat), 0.015, color='red', fill=False, zorder=10, linewidth=2))
+        # ax.add_artist(plt.Circle((lon, lat), 0.015, color='red', fill=False, zorder=10, linewidth=2))
 
 def mark_transfer_and_connecting_stops(route_stop_lists, stops_data, ax, stop_connections):
     """
@@ -189,6 +189,7 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
         if route_id in route_ids:
             continue
         color = 'sienna'
+        color = lighten_color(color, 0.5)
 
         # Get the shape points for the current route
         shape_points = get_first_shape_for_route(route_id, shapes_df)
@@ -299,7 +300,11 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
 
     # Add legend entries for first/last stops and transfer stops
     # ax.scatter([], [], color='none', edgecolor='black', s=60, marker='o', label="First/Last Stop", zorder=5)
-    ax.scatter([], [], color='black', s = 20, marker='.', linewidths=0.5, label = "Transfer stop \nbetween main lines", zorder=5)
+    if network_style == 'transfer_hubs' or network_style =='all':
+        ax.scatter([], [], color='black', s = 20, marker='.', linewidths=0.5, label = "Transfer stop", zorder=5)
+    else:
+        ax.scatter([], [], color='black', s = 20, marker='.', linewidths=0.5, label = "Transfer stop\nbetween main lines", zorder=5)
+    
     ax.scatter([], [], color='red', s = 100, marker='^', label = "Metro Station", zorder=2)
     ## Add legend handle with only one color for all routes
     if network_style== 'all' or network_style== 'transfer_hubs':
@@ -334,14 +339,14 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
 
     # Set the title including route_ids and stops in Laval, Quebec
     titles ={}
-    titles['grid'] = "Map of grid style sub-network in Laval, Canada"
-    titles['radial'] = "Map of radial style sub-network in Laval, Canada"
+    titles['grid'] = "Map of grid sub-network in Laval, Canada"
+    titles['radial'] = "Map of radial sub-network in Laval, Canada"
     titles['low_frequency'] = "Map of selected low frequency lines in Laval, Canada"
     titles['high_frequency'] = "Map of selected high frequency lines in Laval, Canada"
     titles['all'] = "Map of all main lines in case study network of Laval, Canada"
     titles['151'] = "Map of line 151 and its transferring lines in Laval, Canada"
-    titles['corridor'] = "Map of corridor network in Laval, Canada"
-    titles['transfer_hubs'] = "Map of all lines with transfer hubs in Laval, Canada"
+    titles['corridor'] = "Map of corridor sub-network in Laval, Canada"
+    titles['transfer_hubs'] = "Map of all lines and transfer hubs in Laval, Canada"
     titles['to_low_frequency'] = "Map of selected low frequency lines in Laval, Canada"
     ax.set_title(titles[network_style], fontsize=18)
 
@@ -351,10 +356,10 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
     legend_zorder = 15  # Set the zorder for the legend to be on top of the plot elements
     nbr_columns = 1  # Set the number of columns in the legend to 1 by default
     if network_style== 'all' :
-        desired_labels = ["Main lines",  "Feeder lines", "Transfer stop \nbetween main lines", "Metro Station", "Transfer hubs"]
+        desired_labels = ["Main lines",  "Feeder lines", "Transfer stop", "Metro Station", "Transfer hubs"]
         desired_handles = [handles[labels.index(label)] for label in desired_labels if label in labels]  # Filter handles
     elif network_style == 'transfer_hubs':
-        desired_labels = ["Main lines", "Feeder lines", "Transfer stop \nbetween main lines", "Metro Station", "Transfer hubs"]
+        desired_labels = ["Main lines", "Feeder lines", "Transfer stop", "Metro Station", "Transfer hubs"]
         desired_handles = [handles[labels.index(label)] for label in desired_labels if label in labels]
     else:
         nbr_columns = 1+len(route_ids)//8# Set the number of columns in the legend to 2
@@ -389,10 +394,7 @@ def plot_map_with_dynamic_extent(network_style, offset_distance=0.0004, padding=
     plt.close()
 
 # Plot the map with the specified routes using dynamic extent
-# for network_style in ['151', 'corridor','low_frequency', 'all', 'grid', 'radial']:
-# for network_style in get_route_dictionary().keys():
 for network_style in get_route_dictionary().keys():
-# for network_style in ['to_low_frequency']:
     plot_map_with_dynamic_extent(network_style = network_style, greyscale=False)
-    # print(network_style, get_routes_count('all'))
+    print(network_style, get_routes_count('all'))
     analyze_network(network_style = network_style, route_ids = get_route_dictionary()[network_style])

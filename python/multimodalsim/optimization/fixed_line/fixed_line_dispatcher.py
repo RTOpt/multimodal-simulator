@@ -693,7 +693,7 @@ class FixedLineDispatcher(Dispatcher):
                 #Stop the solution process
                 with open(self.__tactics_file_path, "a") as f:
                     # route_name, bus_trip_id, stop_id, current_time, speedup, skip_stop, hold, max_departure_time, error
-                    f.write('{},{},{},{},{},{},{},{},{}\n'.format(self.route_name, bus_trip_id, stop_id, state.current_time, False, False, False, -1, True))
+                    f.write('{},{},{},{},{},{},{},{},{}\n'.format(self.route_name, bus_trip_id, stop_id, state.current_time, False, False, -1, max_departure_time, True))
                     # f.write('Tactics used for route {} - trip {} at stop {}: None because of error\n'.format(self.route_name, bus_trip_id, stop_id))
                 f.close()
                 return(False, False, (False, -1))

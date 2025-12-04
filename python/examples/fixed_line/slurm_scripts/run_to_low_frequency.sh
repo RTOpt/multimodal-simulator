@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem-per-cpu=16G
-#SBATCH --time=11:00:00
+#SBATCH --time=10:00:00
 #SBATCH --partition=optimum
 #SBATCH --cpus-per-task=1
 #SBATCH --output=python/examples/fixed_line/test_files_multi_to_low_frequency/slurm_output_%A_%a.out

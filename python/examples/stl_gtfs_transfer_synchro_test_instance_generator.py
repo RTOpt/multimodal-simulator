@@ -279,19 +279,13 @@ def get_start_time_of_bus(date, number, route_id):
     return start_times[number]
 
 if __name__ == "__main__":
-    # dates = ["2019-11-25", "2019-11-26", "2019-11-27"]
-    # for date in dates:
-    #     trip_id, start_time = get_start_time_of_bus('gtfs'+date, 1, '42O')
-    #     route_ids = ['144E', '144O', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '2E', '2O', '42E', '42O', '52E', '52O', '56E', '56O', '60E', '60O', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '942E', '942O', '151S', '151N', '17S', '17N', '27S', '27N', '33S', '33N', '37S', '37N', '41S', '41N', '43S', '43N', '45S', '45N', '46S', '46N', '55S', '55N', '61S', '61N', '63S', '63N', '65S', '65N', '901S', '901N', '902S', '902N', '903S', '903N', '925S', '925N']
-    #     duration = 21600 # 6 hours
-    #     generate_duration_test_instance('LargeInstanceAll','gtfs'+date, start_time = start_time, duration = duration, route_ids = route_ids)  # 3 hours
     date = "2019-11-25"
-    route_ids=[]
+    route_ids = []
     start_time = 15*3600  # 3pm 
-    duration = 2*3600  # 4 hours to account for the slack time.
+    duration = 2*3600  #  hours to account for the slack time.
     general_instance_name = "EveningRushHour"
     route_dict = get_route_dictionary()
-    for network_style in route_dict.keys():
+    for network_style in route_dict:
         route_ids = route_dict[network_style]
         instance_name = general_instance_name + network_style
         for PI in [True, False]:
