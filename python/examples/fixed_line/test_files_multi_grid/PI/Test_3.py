@@ -4,8 +4,7 @@ import os
 import traceback
 gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str(25)+"-EveningRushHourgrid_PI")
 requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')
-output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str(25)+'_EveningRushHour')
-output_folder_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_grid'
+output_folder_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_grid'+''
 routes_to_optimize_names = ['151N', '151S', '17N', '17S', '26E', '26O', '42E', '42O', '76E', '76O']
 algo = 3
 sp = True

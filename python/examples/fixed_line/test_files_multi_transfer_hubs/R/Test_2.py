@@ -4,8 +4,7 @@ import os
 import traceback
 gtfs_folder_path = os.path.join("data","fixed_line","gtfs","gtfs2019-11-"+str(25)+"-EveningRushHourtransfer_hubs")
 requests_file_path = os.path.join(gtfs_folder_path,'requests.csv')
-output_folder_path = os.path.join('output','fixed_line','gtfs','gtfs2019-11-'+str(25)+'_EveningRushHour')
-output_folder_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_transfer_hubs'
+output_folder_name = 'gtfs2019-11-'+str(25)+'_EveningRushHour'+'_transfer_hubs'+''
 routes_to_optimize_names = ['144E', '144O', '151N', '151S', '17N', '17S', '20E', '20O', '222E', '222O', '22E', '22O', '24E', '24O', '252E', '252O', '26E', '26O', '27N', '27S', '33N', '33S', '37N', '37S', '41N', '41S', '42E', '42O', '43N', '43S', '45N', '45S', '46N', '46S', '52E', '52O', '55N', '55S', '56E', '56O', '60E', '60O', '61N', '61S', '63N', '63S', '65N', '65S', '66E', '66O', '70E', '70O', '74E', '74O', '76E', '76O', '901N', '901S', '902N', '902S', '903N', '903S', '925N', '925S', '942E', '942O']
 algo = 2
 sp = True
